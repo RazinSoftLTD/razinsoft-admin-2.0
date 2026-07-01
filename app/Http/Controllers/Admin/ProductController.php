@@ -107,7 +107,8 @@ class ProductController extends Controller
     {
         foreach (['thumbnail', 'hero_image'] as $field) {
             if ($request->hasFile($field)) {
-                $data[$field] = $request->file($field)->store('products', 'public');
+                $file = $request->file($field);
+                $data[$field] = $file->storeAs('products', $file->getClientOriginalName(), 'public');
             } else {
                 unset($data[$field]); // don't overwrite existing
             }

@@ -144,8 +144,9 @@ class ProductRelationController extends Controller
             'alt' => ['nullable', 'string', 'max:255'],
         ]);
         $group = $product->galleryGroups()->findOrFail($data['gallery_group_id']);
+        $image = $request->file('image');
         $group->images()->create([
-            'image' => $request->file('image')->store('products/gallery', 'public'),
+            'image' => $image->storeAs('products/gallery', $image->getClientOriginalName(), 'public'),
             'caption' => $data['caption'] ?? null,
             'alt' => $data['alt'] ?? null,
         ]);

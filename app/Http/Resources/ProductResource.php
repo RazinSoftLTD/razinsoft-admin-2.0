@@ -142,6 +142,12 @@ class ProductResource extends JsonResource
             return $path;
         }
 
-        return rtrim((string) config('app.url'), '/').'/storage/'.ltrim($path, '/');
+        // Files keep their original name on disk; encode each segment so names with
+        // spaces / special characters still load over HTTP (slashes preserved).
+        $encoded = collect(explode('/', ltrim($path, '/')))
+            ->map(fn ($seg) => rawurlencode($seg))
+            ->implode('/');
+
+        return rtrim((string) config('app.url'), '/').'/storage/'.$encoded;
     }
 }

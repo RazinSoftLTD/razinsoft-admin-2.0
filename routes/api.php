@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ProductController;
@@ -15,6 +16,16 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/categories', [ProductController::class, 'categories']);
 Route::get('/products/{slug}', [ProductController::class, 'show']);
+
+// ---- Insights / Blog (public) ----
+Route::get('/articles', [ArticleController::class, 'index']);
+Route::get('/articles/{slug}', [ArticleController::class, 'show']);
+
+// ---- Contact form (public) ----
+Route::post('/contact', [\App\Http\Controllers\Api\ContactController::class, 'store']);
+
+// ---- Search analytics (public) ----
+Route::post('/search-log', [\App\Http\Controllers\Api\SearchController::class, 'store']);
 
 // ---- Payment webhooks (public, no auth) ----
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);

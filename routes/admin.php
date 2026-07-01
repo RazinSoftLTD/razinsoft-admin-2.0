@@ -39,6 +39,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('questions/{question}/answer', [QuestionController::class, 'reply'])->name('questions.reply');
         Route::delete('questions/{question}', [QuestionController::class, 'destroy'])->name('questions.destroy');
 
+        Route::resource('article-categories', \App\Http\Controllers\Admin\ArticleCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('authors', \App\Http\Controllers\Admin\AuthorController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('articles', \App\Http\Controllers\Admin\ArticleController::class)->except('show');
+        Route::post('articles/{article}/publish', [\App\Http\Controllers\Admin\ArticleController::class, 'togglePublish'])->name('articles.publish');
+        Route::post('article-image', [\App\Http\Controllers\Admin\ArticleController::class, 'uploadImage'])->name('articles.upload-image');
+
+        Route::get('messages', [\App\Http\Controllers\Admin\ContactMessageController::class, 'index'])->name('messages.index');
+        Route::delete('messages/{message}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'destroy'])->name('messages.destroy');
+
+        Route::get('searches', [\App\Http\Controllers\Admin\SearchController::class, 'index'])->name('searches.index');
+        Route::delete('searches', [\App\Http\Controllers\Admin\SearchController::class, 'destroy'])->name('searches.destroy');
+
         Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
         Route::put('reviews/{review}', [ReviewController::class, 'update'])->name('reviews.update');
         Route::post('reviews/{review}/toggle', [ReviewController::class, 'toggle'])->name('reviews.toggle');
