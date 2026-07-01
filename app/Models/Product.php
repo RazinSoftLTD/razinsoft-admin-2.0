@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Product extends Model
+{
+    use SoftDeletes;
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'is_featured' => 'boolean',
+        'price' => 'decimal:2',
+        'ext_price' => 'decimal:2',
+        'rating' => 'decimal:1',
+    ];
+
+    public function scopePublished(Builder $q): Builder
+    {
+        return $q->where('status', 'published');
+    }
+
+    public function galleryGroups(): HasMany
+    {
+        return $this->hasMany(GalleryGroup::class)->orderBy('sort_order');
+    }
+
+    public function galleryImages(): HasManyThrough
+    {
+        return $this->hasManyThrough(GalleryImage::class, GalleryGroup::class);
+    }
+
+    public function plans(): HasMany
+    {
+        return $this->hasMany(Plan::class)->orderBy('sort_order');
+    }
+
+    /** The first plan (by sort order) — used for the "from" price on product cards. */
+    public function firstPlan(): HasOne
+    {
+        return $this->hasOne(Plan::class)->orderBy('sort_order');
+    }
+
+    public function features(): HasMany
+    {
+        return $this->hasMany(Feature::class)->orderBy('sort_order');
+    }
+
+    public function tech(): HasMany
+    {
+        return $this->hasMany(ProductTech::class)->orderBy('sort_order');
+    }
+
+    public function suitableFor(): HasMany
+    {
+        return $this->hasMany(ProductSuitableFor::class)->orderBy('sort_order');
+    }
+
+    public function docs(): HasMany
+    {
+        return $this->hasMany(ProductDoc::class)->orderBy('sort_order');
+    }
+
+    public function faqs(): HasMany
+    {
+        return $this->hasMany(ProductFaq::class)->orderBy('sort_order');
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(ProductFile::class)->latest();
+    }
+
+    public function latestFile(): HasOne
+    {
+        return $this->hasOne(ProductFile::class)->where('is_latest', true);
+    }
+
+    public function demos(): HasMany
+    {
+        return $this->hasMany(ProductDemo::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /** Recompute the denormalised rating + reviews_count from the approved reviews. */
+    public function syncReviewAggregates(): void
+    {
+        $agg = $this->reviews()->where('is_approved', true)
+            ->selectRaw('COUNT(*) as c, COALESCE(AVG(rating), 0) as a')
+            ->first();
+
+        $this->forceFill([
+            'reviews_count' => (int) $agg->c,
+            'rating' => $agg->c ? round((float) $agg->a, 1) : 0,
+        ])->save();
+    }
+
+    public function questions(): HasMany
+    {
+        return $this->hasMany(ProductQuestion::class)->latest();
+    }
+
+    public function seo(): MorphOne
+    {
+        return $this->morphOne(Seo::class, 'seoable');
+    }
+}

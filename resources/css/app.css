@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+
+[x-cloak] { display: none !important; }
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Materio-inspired palette */
+    --color-primary: #696cff;
+    --color-primary-hover: #5f61e6;
+    --color-primary-soft: #e7e7ff;
+    --color-body: #f4f5fa;
+    --color-heading: #32475c;
+    --color-muted: #6f7785;
+
+    /* TailAdmin-style dashboard accents */
+    --color-brand: #465fff;
+    --color-brand-soft: #ecf0ff;
+}
