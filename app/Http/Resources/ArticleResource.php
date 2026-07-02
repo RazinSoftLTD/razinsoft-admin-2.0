@@ -32,6 +32,7 @@ class ArticleResource extends JsonResource
             'author_photo' => ProductResource::media($this->author?->photo),
             'author_role' => $this->author?->role,
             'date' => $this->published_at?->format('F j, Y'),
+            'date_iso' => $this->published_at?->toDateString(),
             'readTime' => $this->read_time,
             'tags' => $this->tags ?? [],
             'featured' => (bool) $this->is_featured,

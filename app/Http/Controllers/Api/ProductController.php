@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
@@ -37,19 +38,25 @@ class ProductController extends Controller
 
     public function show(string $slug)
     {
-        $product = Product::published()
-            ->with([
-                'plans', 'features', 'tech', 'suitableFor', 'docs', 'faqs', 'demos',
-                'galleryGroups.images', 'latestFile', 'seo',
-                'reviews' => fn ($r) => $r->where('is_approved', true)->latest(),
-                'questions' => fn ($q) => $q->public()->latest(),
-                'questions.answers' => fn ($a) => $a->where('is_public', true),
-                'questions.answers.user:id,name',
-            ])
-            ->where('slug', $slug)
-            ->firstOrFail();
+        // Cache the (heavy) detail payload; invalidated by Product::forgetCache() on any admin edit.
+        $payload = Cache::remember(Product::cacheKey($slug), now()->addMinutes(2), function () use ($slug) {
+            $product = Product::published()
+                ->with([
+                    'plans', 'features', 'tech', 'suitableFor', 'docs', 'faqs', 'demos',
+                    'galleryGroups.images', 'latestFile', 'seo',
+                    'reviews' => fn ($r) => $r->where('is_approved', true)->latest(),
+                    'questions' => fn ($q) => $q->public()->latest(),
+                    'questions.answers' => fn ($a) => $a->where('is_public', true),
+                    'questions.answers.user:id,name',
+                ])
+                ->where('slug', $slug)
+                ->firstOrFail();
 
-        return new ProductResource($product);
+            // Fully arrayify (json round-trip) so no Collection/Resource objects land in the cache.
+            return json_decode(json_encode(['data' => new ProductResource($product)]), true);
+        });
+
+        return response()->json($payload);
     }
 
     /** Visitor submits a question about a product (requires auth). */

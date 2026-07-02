@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleResource;
 use App\Models\Article;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ArticleController extends Controller
 {
@@ -34,22 +35,33 @@ class ArticleController extends Controller
     /** Single article (full body) + related posts in the same category. */
     public function show(string $slug)
     {
-        $article = Article::published()
-            ->with('category', 'author', 'products.firstPlan')
-            ->where('slug', $slug)
-            ->firstOrFail();
+        $payload = Cache::remember(Article::cacheKey($slug), now()->addMinutes(5), function () use ($slug) {
+            $article = Article::published()
+                ->with([
+                    'category',
+                    'author',
+                    // Only surface products that are still published — an unpublished/removed
+                    // product must not linger on a blog post that features it.
+                    'products' => fn ($q) => $q->published()->with('firstPlan'),
+                ])
+                ->where('slug', $slug)
+                ->firstOrFail();
 
-        $related = Article::published()
-            ->with('category', 'author')
-            ->where('category_id', $article->category_id)
-            ->whereKeyNot($article->id)
-            ->orderByDesc('published_at')
-            ->take(3)
-            ->get();
+            $related = Article::published()
+                ->with('category', 'author')
+                ->where('category_id', $article->category_id)
+                ->whereKeyNot($article->id)
+                ->orderByDesc('published_at')
+                ->take(3)
+                ->get();
 
-        return response()->json([
-            'data' => (new ArticleResource($article))->detail(),
-            'related' => ArticleResource::collection($related),
-        ]);
+            // Fully arrayify (json round-trip) so no Collection/Resource objects land in the cache.
+            return json_decode(json_encode([
+                'data' => (new ArticleResource($article))->detail(),
+                'related' => ArticleResource::collection($related),
+            ]), true);
+        });
+
+        return response()->json($payload);
     }
 }

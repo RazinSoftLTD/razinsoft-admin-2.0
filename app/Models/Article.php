@@ -37,6 +37,25 @@ class Article extends Model
         return $q->where('status', 'published');
     }
 
+    public static function cacheKey(string $slug): string
+    {
+        return "api:article:{$slug}";
+    }
+
+    public static function forgetCache(?string $slug): void
+    {
+        if ($slug) {
+            \Illuminate\Support\Facades\Cache::forget(static::cacheKey($slug));
+        }
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(fn (self $a) => static::forgetCache($a->getOriginal('slug') ?: $a->slug));
+        static::saved(fn (self $a) => static::forgetCache($a->slug));
+        static::deleted(fn (self $a) => static::forgetCache($a->slug));
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';

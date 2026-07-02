@@ -28,6 +28,42 @@ class Product extends Model
         return $q->where('status', 'published');
     }
 
+    /** Cache key + invalidation for the public product-detail API payload. */
+    public static function cacheKey(string $slug): string
+    {
+        return "api:product:{$slug}";
+    }
+
+    public static function forgetCache(?string $slug): void
+    {
+        if ($slug) {
+            \Illuminate\Support\Facades\Cache::forget(static::cacheKey($slug));
+        }
+    }
+
+    protected static function booted(): void
+    {
+        // Any direct product edit (general/media/status) drops its cached detail payload.
+        static::saved(fn (self $p) => static::forgetCache($p->getOriginal('slug') ?: $p->slug));
+        static::saved(fn (self $p) => static::forgetCache($p->slug));
+        static::deleted(fn (self $p) => static::forgetCache($p->slug));
+
+        // A publish/unpublish (or deletion) flips this product's visibility on any blog post
+        // that features it — flush those cached article payloads so they re-query immediately.
+        static::saved(fn (self $p) => $p->wasChanged('status') ? static::forgetLinkedArticleCaches($p) : null);
+        static::deleted(fn (self $p) => static::forgetLinkedArticleCaches($p));
+    }
+
+    /** Clear the cached payload of every blog post that features this product. */
+    protected static function forgetLinkedArticleCaches(self $p): void
+    {
+        \Illuminate\Support\Facades\DB::table('article_product')
+            ->join('articles', 'articles.id', '=', 'article_product.article_id')
+            ->where('article_product.product_id', $p->id)
+            ->pluck('articles.slug')
+            ->each(fn ($slug) => Article::forgetCache($slug));
+    }
+
     public function galleryGroups(): HasMany
     {
         return $this->hasMany(GalleryGroup::class)->orderBy('sort_order');
