@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'photo', 'job_title', 'password', 'role'])]
+#[Fillable(['name', 'email', 'phone', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -66,6 +66,18 @@ class User extends Authenticatable
     public function scopeStaff($q)
     {
         return $q->where('role', self::ROLE_STAFF);
+    }
+
+    /** Clients = public customers (site register / admin create / lead conversion). */
+    public function scopeClients($q)
+    {
+        return $q->where('role', self::ROLE_CUSTOMER);
+    }
+
+    /** Human-friendly client id, e.g. CUS-1248. */
+    public function getClientCodeAttribute(): string
+    {
+        return 'CUS-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
     }
 
     public function assignedLeads(): \Illuminate\Database\Eloquent\Relations\HasMany

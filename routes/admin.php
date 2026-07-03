@@ -66,6 +66,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 
         Route::resource('coupons', CouponController::class)->except('show');
+
+        // Clients = customer users; Users kept for managing admins.
+        Route::resource('clients', \App\Http\Controllers\Admin\ClientController::class)->except('show');
         Route::resource('users', UserController::class)->except('show');
     });
 });
