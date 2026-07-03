@@ -96,8 +96,59 @@
                     @if ($invoice->client)<div class="flex justify-between"><span class="text-gray-400">Client</span><a href="{{ route('admin.clients.edit', $invoice->client) }}" class="font-medium text-[var(--color-primary)] hover:underline">{{ $invoice->client->client_code }}</a></div>@endif
                 </div>
             </div>
-            <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-400">
-                Payment recording &amp; history — coming in the next update.
+            {{-- Record a payment --}}
+            @if ($invoice->amountDue() > 0)
+                <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Record Payment</h2>
+                    <form method="POST" action="{{ route('admin.invoices.payments.store', $invoice) }}" class="space-y-3">
+                        @csrf
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Amount ({{ $cur }})</label>
+                            <input type="number" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}" name="amount" value="{{ number_format($invoice->amountDue(), 2, '.', '') }}" required class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                            <p class="mt-1 text-[11px] text-[var(--color-muted)]">Max due: {{ $cur }}{{ number_format($invoice->amountDue(), 2) }}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Date</label>
+                                <input type="date" name="paid_at" value="{{ now()->toDateString() }}" required class="h-10 w-full rounded-lg border border-gray-200 px-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Method</label>
+                                <select name="method" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                                    @foreach (\App\Models\ClientInvoice::PAYMENT_METHODS as $m)<option value="{{ $m }}" @selected($invoice->payment_method === $m)>{{ $m }}</option>@endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <input type="text" name="reference" placeholder="Reference / txn id (optional)" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                        <input type="text" name="note" placeholder="Note (optional)" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                        <button class="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Record Payment</button>
+                    </form>
+                </div>
+            @else
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center text-sm font-semibold text-emerald-700">
+                    ✓ Fully paid
+                </div>
+            @endif
+
+            {{-- Payment history --}}
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Payment History</h2>
+                @forelse ($invoice->payments as $p)
+                    <div class="flex items-start justify-between border-b border-gray-50 py-2.5 last:border-0">
+                        <div>
+                            <p class="text-sm font-semibold text-[var(--color-heading)]">{{ $cur }}{{ number_format($p->amount, 2) }}</p>
+                            <p class="text-xs text-[var(--color-muted)]">{{ $p->paid_at->format('d M Y') }} · {{ $p->method ?? '—' }}@if ($p->reference) · {{ $p->reference }}@endif</p>
+                        </div>
+                        <form method="POST" action="{{ route('admin.invoices.payments.destroy', [$invoice, $p]) }}" onsubmit="return confirm('Remove this payment?')">
+                            @csrf @method('DELETE')
+                            <button class="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Remove">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                @empty
+                    <p class="text-sm text-gray-400">No payments recorded yet.</p>
+                @endforelse
             </div>
         </div>
     </div>

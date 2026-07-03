@@ -58,7 +58,7 @@ class ClientInvoiceController extends Controller
 
     public function show(ClientInvoice $invoice)
     {
-        $invoice->load('items', 'client');
+        $invoice->load('items', 'client', 'payments.recorder');
 
         return view('admin.invoices.show', compact('invoice'));
     }
@@ -98,7 +98,7 @@ class ClientInvoiceController extends Controller
 
     public function pdf(ClientInvoice $invoice)
     {
-        $invoice->load('items', 'client');
+        $invoice->load('items', 'client', 'payments');
         $pdf = Pdf::loadView('admin.invoices.pdf', ['invoice' => $invoice]);
 
         return $pdf->stream("{$invoice->invoice_number}.pdf");

@@ -77,6 +77,25 @@
     <tr class="due"><td>Amount Due</td><td class="right">{{ $cur }}{{ number_format($due, 2) }} {{ $invoice->currency }}</td></tr>
   </table>
 
+  @if ($invoice->payments->count())
+    <div style="margin-top:22px">
+      <div class="muted" style="font-size:11px;font-weight:bold">PAYMENT HISTORY</div>
+      <table class="items" style="margin-top:6px">
+        <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="right">Amount</th></tr></thead>
+        <tbody>
+          @foreach ($invoice->payments as $p)
+            <tr>
+              <td>{{ $p->paid_at->format('d M Y') }}</td>
+              <td>{{ $p->method ?? '—' }}</td>
+              <td>{{ $p->reference ?? '—' }}</td>
+              <td class="right">{{ $cur }}{{ number_format($p->amount, 2) }}</td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  @endif
+
   @if ($invoice->notes)<div style="margin-top:22px" class="muted"><strong style="color:#1f2937">Notes:</strong> {{ $invoice->notes }}</div>@endif
   @if ($invoice->terms)<div style="margin-top:6px" class="muted"><strong style="color:#1f2937">Terms:</strong> {{ $invoice->terms }}</div>@endif
 </div>

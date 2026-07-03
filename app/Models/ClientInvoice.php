@@ -40,6 +40,19 @@ class ClientInvoice extends Model
         return $this->hasMany(ClientInvoiceItem::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(InvoicePayment::class)->orderBy('paid_at')->orderBy('id');
+    }
+
+    /** Re-sum payments into amount_paid and refresh the status. Call after any payment change. */
+    public function recomputePaid(): void
+    {
+        $this->amount_paid = round((float) $this->payments()->sum('amount'), 2);
+        $this->save();
+        $this->syncStatus();
+    }
+
     /** Amount still owed at this moment (total − payments recorded so far). */
     public function amountDue(): float
     {

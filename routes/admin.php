@@ -74,6 +74,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // CRM billing — invoices
         Route::resource('invoices', \App\Http\Controllers\Admin\ClientInvoiceController::class);
         Route::get('invoices/{invoice}/pdf', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'pdf'])->name('invoices.pdf');
+        Route::post('invoices/{invoice}/payments', [\App\Http\Controllers\Admin\InvoicePaymentController::class, 'store'])->name('invoices.payments.store');
+        Route::delete('invoices/{invoice}/payments/{payment}', [\App\Http\Controllers\Admin\InvoicePaymentController::class, 'destroy'])->name('invoices.payments.destroy');
         Route::resource('users', UserController::class)->except('show');
     });
 });
