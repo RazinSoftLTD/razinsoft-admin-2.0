@@ -11,12 +11,17 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'password', 'role'])]
+#[Fillable(['name', 'email', 'phone', 'photo', 'job_title', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    /** Roles: admin (full panel), staff (limited panel — own leads), customer (= public client). */
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_STAFF = 'staff';
+    public const ROLE_CUSTOMER = 'customer';
 
     protected function casts(): array
     {
@@ -28,7 +33,44 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->role === self::ROLE_STAFF;
+    }
+
+    /** Admin OR staff — the two roles allowed into the admin panel. */
+    public function isPanelUser(): bool
+    {
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_STAFF], true);
+    }
+
+    /** Public URL for the profile photo (null → callers show an initials avatar). */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        if (! $this->photo) {
+            return null;
+        }
+
+        return str_starts_with($this->photo, 'http') ? $this->photo : asset('storage/'.$this->photo);
+    }
+
+    /** Staff + admins — the people leads/tasks can be assigned to. */
+    public function scopeAssignable($q)
+    {
+        return $q->whereIn('role', [self::ROLE_ADMIN, self::ROLE_STAFF]);
+    }
+
+    public function scopeStaff($q)
+    {
+        return $q->where('role', self::ROLE_STAFF);
+    }
+
+    public function assignedLeads(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Lead::class, 'assigned_to');
     }
 
     public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany

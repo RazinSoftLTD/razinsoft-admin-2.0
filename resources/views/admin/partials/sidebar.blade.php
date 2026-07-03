@@ -1,6 +1,11 @@
 @php
-    $menu = [
-        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
+    $isAdmin = auth()->user()?->isAdmin();
+
+    // 'staff' => visible to admin + staff; others are admin-only.
+    $menu = collect([
+        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'staff' => true],
+        ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => 'admin.leads.*', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6', 'staff' => true],
+        ['label' => 'Staff', 'route' => 'admin.staff.index', 'active' => 'admin.staff.*', 'icon' => 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'],
         ['label' => 'Products', 'route' => 'admin.products.index', 'active' => 'admin.products.*', 'icon' => 'M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M12 11v8'],
         ['label' => 'Orders', 'route' => 'admin.orders.index', 'active' => 'admin.orders.*', 'icon' => 'M3 7h18l-1.4 12a2 2 0 0 1-2 1.8H6.4a2 2 0 0 1-2-1.8L3 7Z M8 7a4 4 0 1 1 8 0'],
         ['label' => 'Questions', 'route' => 'admin.questions.index', 'active' => 'admin.questions.*', 'icon' => 'M21 11.5a8.4 8.4 0 0 1-9 8.4L3 21l1.1-3.3A8.4 8.4 0 1 1 21 11.5Z', 'badge' => \App\Models\ProductQuestion::whereDoesntHave('answers', fn ($a) => $a->where('is_admin', true))->count()],
@@ -9,14 +14,13 @@
         ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'icon' => 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z M21 21l-4.3-4.3'],
         ['label' => 'Coupons', 'route' => 'admin.coupons.index', 'active' => 'admin.coupons.*', 'icon' => 'M7 7h.01M3 5a2 2 0 0 1 2-2h6l9 9-8 8-9-9V5Z'],
         ['label' => 'Users', 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'icon' => 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1M16 15a4 4 0 0 1 4 4v1'],
-        ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => 'admin.leads.*', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6'],
-    ];
+    ])->filter(fn ($i) => $isAdmin || ! empty($i['staff']))->all();
 
-    $blog = [
+    $blog = $isAdmin ? [
         ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h6'],
         ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'icon' => 'M7 7h.01M3 5a2 2 0 0 1 2-2h6l9 9-8 8-9-9V5Z'],
         ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'icon' => 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 21a8 8 0 0 1 16 0'],
-    ];
+    ] : [];
 
     $blogActive = collect($blog)->contains(fn ($i) => request()->routeIs($i['active'] ?? $i['route']));
 @endphp
@@ -42,7 +46,8 @@
         </a>
     @endforeach
 
-    {{-- Blog dropdown --}}
+    {{-- Blog dropdown (admin only) --}}
+    @if (count($blog))
     <div x-data="{ open: {{ $blogActive ? 'true' : 'false' }} }" class="pt-1">
         <button type="button" @click="open = !open"
                 class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $blogActive ? 'text-[var(--color-heading)]' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
@@ -70,4 +75,5 @@
             </div>
         </div>
     </div>
+    @endif
 </nav>

@@ -17,9 +17,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('login', [LoginController::class, 'attempt'])->name('login.attempt');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
+    // ---- Panel access: admin + staff ----
+    Route::middleware('staff')->group(function () {
+        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+        // CRM — leads (staff see only their own; admin sees all — enforced in the controller).
+        Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class)->except('show');
+    });
+
     // ---- Admin-only ----
     Route::middleware('admin')->group(function () {
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        // Staff / employees management
+        Route::resource('staff', \App\Http\Controllers\Admin\StaffController::class)->except('show');
 
         Route::resource('products', ProductController::class); // index/create/store/show/edit/update/destroy
         Route::post('products/{product}/publish', [ProductController::class, 'togglePublish'])->name('products.publish');
@@ -58,8 +67,5 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('coupons', CouponController::class)->except('show');
         Route::resource('users', UserController::class)->except('show');
-
-        // CRM — leads
-        Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class)->except('show');
     });
 });

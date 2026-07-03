@@ -11,7 +11,7 @@ class LoginController extends Controller
 {
     public function show()
     {
-        return auth()->check() && auth()->user()->isAdmin()
+        return auth()->check() && auth()->user()->isPanelUser()
             ? redirect()->route('admin.dashboard')
             : view('admin.auth.login');
     }
@@ -27,7 +27,7 @@ class LoginController extends Controller
             throw ValidationException::withMessages(['email' => 'These credentials do not match our records.']);
         }
 
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->isPanelUser()) {
             Auth::logout();
             throw ValidationException::withMessages(['email' => 'This account is not authorised for the admin panel.']);
         }

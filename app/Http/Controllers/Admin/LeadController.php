@@ -16,6 +16,11 @@ class LeadController extends Controller
     {
         $q = Lead::query()->with('assignee:id,name')->latest('id');
 
+        // Staff only see the leads assigned to them; admins see everything.
+        if ($request->user()->isStaff()) {
+            $q->where('assigned_to', $request->user()->id);
+        }
+
         if ($search = trim((string) $request->query('search'))) {
             $q->where(fn ($w) => $w
                 ->where('full_name', 'like', "%{$search}%")
@@ -67,7 +72,7 @@ class LeadController extends Controller
 
         return view('admin.leads.index', [
             'leads' => $q->paginate($perPage)->withQueryString(),
-            'users' => User::orderBy('name')->get(['id', 'name']),
+            'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'stats' => $stats,
             'perPage' => $perPage,
         ]);
@@ -77,7 +82,7 @@ class LeadController extends Controller
     {
         return view('admin.leads.form', [
             'lead' => new Lead(['lead_status' => 'new', 'priority' => 'high']),
-            'users' => User::orderBy('name')->get(['id', 'name']),
+            'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -88,26 +93,36 @@ class LeadController extends Controller
         return redirect()->route('admin.leads.index')->with('status', 'Lead saved.');
     }
 
-    public function edit(Lead $lead)
+    public function edit(Request $request, Lead $lead)
     {
+        $this->authorizeLead($request, $lead);
+
         return view('admin.leads.form', [
             'lead' => $lead,
-            'users' => User::orderBy('name')->get(['id', 'name']),
+            'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
     public function update(Request $request, Lead $lead)
     {
+        $this->authorizeLead($request, $lead);
         $lead->update($this->validated($request));
 
         return redirect()->route('admin.leads.index')->with('status', 'Lead updated.');
     }
 
-    public function destroy(Lead $lead)
+    public function destroy(Request $request, Lead $lead)
     {
+        $this->authorizeLead($request, $lead);
         $lead->delete();
 
         return back()->with('status', 'Lead deleted.');
+    }
+
+    /** Staff may only touch leads assigned to them; admins have full access. */
+    private function authorizeLead(Request $request, Lead $lead): void
+    {
+        abort_if($request->user()->isStaff() && $lead->assigned_to !== $request->user()->id, 403);
     }
 
     private function validated(Request $request): array

@@ -16,10 +16,10 @@ class LeadSeeder extends Seeder
             ['name' => 'Arafat Hossain', 'email' => 'arafat@razinsoft.com'],
             ['name' => 'Fahim Rahman', 'email' => 'fahim@razinsoft.com'],
             ['name' => 'Sadia Afrin', 'email' => 'sadia@razinsoft.com'],
-        ])->map(fn ($u) => User::firstOrCreate(
+        ])->map(fn ($u) => tap(User::firstOrCreate(
             ['email' => $u['email']],
-            ['name' => $u['name'], 'password' => 'password', 'role' => 'customer'],
-        ));
+            ['name' => $u['name'], 'password' => 'password', 'role' => User::ROLE_STAFF, 'job_title' => 'Sales Executive'],
+        ), fn ($user) => $user->role !== User::ROLE_STAFF ? $user->update(['role' => User::ROLE_STAFF]) : null));
 
         [$arafat, $fahim, $sadia] = [$team[0]->id, $team[1]->id, $team[2]->id];
 
