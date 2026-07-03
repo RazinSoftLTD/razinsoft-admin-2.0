@@ -59,8 +59,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('coupons', CouponController::class)->except('show');
         Route::resource('users', UserController::class)->except('show');
 
-        // CRM — leads (form only for now; the full leads module comes later).
-        Route::get('leads/create', [\App\Http\Controllers\Admin\LeadController::class, 'create'])->name('leads.create');
-        Route::post('leads', [\App\Http\Controllers\Admin\LeadController::class, 'store'])->name('leads.store');
+        // CRM — leads
+        Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class)->except('show');
     });
 });
