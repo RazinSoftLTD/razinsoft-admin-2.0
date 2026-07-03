@@ -14,6 +14,7 @@
         ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'icon' => 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z M21 21l-4.3-4.3'],
         ['label' => 'Coupons', 'route' => 'admin.coupons.index', 'active' => 'admin.coupons.*', 'icon' => 'M7 7h.01M3 5a2 2 0 0 1 2-2h6l9 9-8 8-9-9V5Z'],
         ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'icon' => 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1M16 15a4 4 0 0 1 4 4v1'],
+        ['label' => 'Invoices', 'route' => 'admin.invoices.index', 'active' => 'admin.invoices.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
     ])->filter(fn ($i) => $isAdmin || ! empty($i['staff']))->all();
 
     $blog = $isAdmin ? [

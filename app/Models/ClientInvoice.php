@@ -1,0 +1,69 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class ClientInvoice extends Model
+{
+    protected $guarded = [];
+
+    protected $casts = [
+        'invoice_date' => 'date',
+        'due_date' => 'date',
+        'subtotal' => 'decimal:2',
+        'discount_total' => 'decimal:2',
+        'tax_total' => 'decimal:2',
+        'total' => 'decimal:2',
+        'amount_paid' => 'decimal:2',
+    ];
+
+    public const STATUSES = [
+        'draft' => 'Draft',
+        'sent' => 'Sent',
+        'partially_paid' => 'Partially Paid',
+        'paid' => 'Paid',
+        'overdue' => 'Overdue',
+    ];
+
+    public const PAYMENT_METHODS = ['Bank Transfer', 'Stripe', 'PayPal', 'Cash', 'Cheque', 'Other'];
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'client_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(ClientInvoiceItem::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Amount still owed at this moment (total − payments recorded so far). */
+    public function amountDue(): float
+    {
+        return round((float) $this->total - (float) $this->amount_paid, 2);
+    }
+
+    /** Recompute status from payments + due date. Call after payments change (C5). */
+    public function syncStatus(): void
+    {
+        if (in_array($this->status, ['draft'], true) && (float) $this->amount_paid === 0.0) {
+            return; // leave drafts alone until sent
+        }
+
+        $due = $this->amountDue();
+        if ($due <= 0) {
+            $this->status = 'paid';
+        } elseif ((float) $this->amount_paid > 0) {
+            $this->status = 'partially_paid';
+        } elseif ($this->due_date && $this->due_date->isPast()) {
+            $this->status = 'overdue';
+        } else {
+            $this->status = $this->status === 'draft' ? 'draft' : 'sent';
+        }
+
+        $this->saveQuietly();
+    }
+}

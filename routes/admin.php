@@ -70,6 +70,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Clients = customer users; Users kept for managing admins.
         Route::resource('clients', \App\Http\Controllers\Admin\ClientController::class)->except('show');
+
+        // CRM billing — invoices
+        Route::resource('invoices', \App\Http\Controllers\Admin\ClientInvoiceController::class);
+        Route::get('invoices/{invoice}/pdf', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'pdf'])->name('invoices.pdf');
         Route::resource('users', UserController::class)->except('show');
     });
 });
