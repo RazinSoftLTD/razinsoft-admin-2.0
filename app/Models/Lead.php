@@ -20,8 +20,22 @@ class Lead extends Model
 
     public const PRIORITIES = ['high' => 'High', 'medium' => 'Medium', 'low' => 'Low'];
 
+    protected $casts = [
+        'converted_at' => 'datetime',
+    ];
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function convertedClient(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'converted_client_id');
+    }
+
+    public function isConverted(): bool
+    {
+        return ! is_null($this->converted_client_id);
     }
 }

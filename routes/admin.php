@@ -22,7 +22,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
         // CRM — leads (staff see only their own; admin sees all — enforced in the controller).
-        Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class)->except('show');
+        Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class);
+        Route::post('leads/{lead}/convert', [\App\Http\Controllers\Admin\LeadController::class, 'convert'])->name('leads.convert');
     });
 
     // ---- Admin-only ----

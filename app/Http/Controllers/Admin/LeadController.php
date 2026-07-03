@@ -93,6 +93,59 @@ class LeadController extends Controller
         return redirect()->route('admin.leads.index')->with('status', 'Lead saved.');
     }
 
+    public function show(Request $request, Lead $lead)
+    {
+        $this->authorizeLead($request, $lead);
+        $lead->load('assignee:id,name', 'convertedClient:id,name,email');
+
+        return view('admin.leads.show', compact('lead'));
+    }
+
+    /** Convert a lead into a Client (customer user), reusing an existing client with the same email. */
+    public function convert(Request $request, Lead $lead)
+    {
+        $this->authorizeLead($request, $lead);
+
+        if ($lead->isConverted()) {
+            return back()->with('status', 'This lead is already converted.');
+        }
+
+        $client = null;
+        if ($lead->email) {
+            $client = User::where('email', $lead->email)->first();
+        }
+
+        if ($client && $client->role !== User::ROLE_CUSTOMER) {
+            return back()->withErrors(['convert' => "A {$client->role} account already uses {$lead->email} — cannot convert to a client."]);
+        }
+
+        if (! $client) {
+            $client = User::create([
+                'name' => $lead->full_name,
+                'email' => $lead->email ?: 'lead'.$lead->id.'@no-email.local',
+                'phone' => $lead->phone,
+                'company' => $lead->company_name,
+                'address' => $lead->address,
+                'city' => $lead->city,
+                'state' => $lead->state,
+                'country' => $lead->country,
+                'zip' => $lead->zip,
+                'role' => User::ROLE_CUSTOMER,
+                'password' => \Illuminate\Support\Str::random(24), // hashed by cast; client resets via forgot-password
+            ]);
+        }
+
+        $lead->update([
+            'lead_status' => 'won',
+            'converted_client_id' => $client->id,
+            'converted_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('admin.clients.edit', $client)
+            ->with('status', "Lead converted to client {$client->client_code}.");
+    }
+
     public function edit(Request $request, Lead $lead)
     {
         $this->authorizeLead($request, $lead);
