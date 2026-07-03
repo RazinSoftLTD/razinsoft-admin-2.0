@@ -1,0 +1,46 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('leads', function (Blueprint $table) {
+            $table->id();
+
+            // 1. Lead information
+            $table->string('full_name');
+            $table->string('email')->nullable();
+            $table->string('phone');
+            $table->string('company_name')->nullable();
+            $table->string('website')->nullable();
+            $table->string('job_title')->nullable();
+            $table->string('lead_source');
+            $table->string('industry')->nullable();
+            $table->string('lead_status')->default('new');
+
+            // 2. Additional information
+            $table->string('address')->nullable();
+            $table->string('city')->nullable();
+            $table->string('state')->nullable();
+            $table->string('country')->nullable();
+            $table->string('zip')->nullable();
+            $table->text('notes')->nullable();
+
+            // 3. Assignment
+            $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('team')->nullable();
+            $table->string('priority')->default('high');
+
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('leads');
+    }
+};
