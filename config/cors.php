@@ -9,6 +9,9 @@ return [
     'allowed_origins' => [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
+        // 3100 = local verification builds (preview/testing).
+        'http://localhost:3100',
+        'http://127.0.0.1:3100',
         'http://localhost:4000',
         'http://127.0.0.1:4000',
         env('FRONTEND_URL', 'http://localhost:3000'),
