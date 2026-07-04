@@ -140,7 +140,7 @@
                 @if ($deal->lead)
                     <a href="{{ route('admin.leads.show', $deal->lead_id) }}" class="block hover:opacity-80">
                         <p class="font-semibold text-[var(--color-primary)] hover:underline">{{ $deal->lead->full_name }}</p>
-                        <p class="text-xs text-[var(--color-muted)]">LEAD-{{ $deal->lead->id }} · {{ \App\Models\Lead::STATUSES[$deal->lead->lead_status] ?? $deal->lead->lead_status }}</p>
+                        <p class="text-xs text-[var(--color-muted)]">{{ $deal->lead->lead_code }} · {{ \App\Models\Lead::STATUSES[$deal->lead->lead_status] ?? $deal->lead->lead_status }}</p>
                     </a>
                 @else
                     <p class="text-sm text-[var(--color-muted)]">Not created from a lead.</p>

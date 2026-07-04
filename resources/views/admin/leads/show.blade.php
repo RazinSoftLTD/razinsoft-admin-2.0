@@ -15,7 +15,7 @@
             <a href="{{ route('admin.leads.index') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-muted)] hover:text-[var(--color-heading)]">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m15 18-6-6 6-6"/></svg> Back to All Leads
             </a>
-            <h1 class="mt-2 text-xl font-bold text-[var(--color-heading)]">{{ $lead->full_name }} <span class="text-sm font-normal text-[var(--color-muted)]">LEAD-{{ $lead->id }}</span></h1>
+            <h1 class="mt-2 text-xl font-bold text-[var(--color-heading)]">{{ $lead->full_name }} <span class="text-sm font-normal text-[var(--color-muted)]">{{ $lead->lead_code }}</span></h1>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('admin.leads.edit', $lead) }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Edit</a>

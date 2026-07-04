@@ -332,7 +332,7 @@ class LeadController extends Controller
             fputcsv($out, ['Lead ID', 'Full Name', 'Company', 'Job Title', 'Email', 'Phone', 'Source', 'Status', 'Priority', 'Assigned To', 'Team', 'Country', 'Created At']);
             foreach ($leads as $l) {
                 fputcsv($out, [
-                    'LEAD-' . $l->id, $l->full_name, $l->company_name, $l->job_title, $l->email, $l->phone,
+                    $l->lead_code, $l->full_name, $l->company_name, $l->job_title, $l->email, $l->phone,
                     $l->lead_source, Lead::STATUSES[$l->lead_status] ?? $l->lead_status,
                     Lead::PRIORITIES[$l->priority] ?? $l->priority, $l->assignee?->name, $l->team, $l->country,
                     $l->created_at->format('Y-m-d H:i'),

@@ -26,6 +26,16 @@ class Lead extends Model
         'last_contacted_at' => 'datetime',
     ];
 
+    /** Assign an LD-{yy}#### code on creation (any path: form, import, etc.). */
+    protected static function booted(): void
+    {
+        static::creating(function (Lead $lead) {
+            if (empty($lead->lead_code)) {
+                $lead->lead_code = \App\Support\LeadSerial::next();
+            }
+        });
+    }
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');

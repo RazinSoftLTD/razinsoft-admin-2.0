@@ -140,7 +140,7 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($leads as $lead)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 font-semibold text-[var(--color-heading)]">LEAD-{{ $lead->id }}</td>
+                            <td class="px-4 py-3 font-semibold text-[var(--color-heading)]">{{ $lead->lead_code }}</td>
                             <td class="px-4 py-3">
                                 <p class="font-semibold text-[var(--color-heading)]">{{ $lead->company_name ?: $lead->full_name }}</p>
                                 @if ($lead->industry)<p class="text-xs text-[var(--color-muted)]">{{ $lead->industry }}</p>@endif
