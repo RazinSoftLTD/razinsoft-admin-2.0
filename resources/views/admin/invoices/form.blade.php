@@ -69,8 +69,8 @@
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Currency <span class="text-red-500">*</span></label>
                             <select name="currency" x-model="currency" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                @foreach (\App\Models\ClientInvoice::CURRENCIES as $code => $sym)
-                                    <option value="{{ $code }}">{{ $code }} ({{ $sym }})</option>
+                                @foreach (\App\Models\Currency::options() as $c)
+                                    <option value="{{ $c->code }}">{{ $c->code }} ({{ $c->symbol }})</option>
                                 @endforeach
                             </select>
                         </div>

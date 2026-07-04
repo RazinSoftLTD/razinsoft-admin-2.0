@@ -22,8 +22,14 @@
 </style>
 </head>
 @php
-    // ASCII-safe symbols — DejaVu Sans (the PDF font) can't render ৳ ₹ ﷼ etc.
-    $cur = ['USD' => '$', 'BDT' => 'Tk', 'EUR' => '€', 'GBP' => '£', 'INR' => 'Rs', 'AUD' => 'A$', 'CAD' => 'C$', 'AED' => 'AED ', 'SGD' => 'S$', 'MYR' => 'RM', 'SAR' => 'SAR ', 'JPY' => '¥'][$invoice->currency] ?? ($invoice->currency.' ');
+    // DejaVu Sans (the PDF font) can't render ৳ ₹ ﷼ etc., so map known codes to safe symbols.
+    $pdfSafe = ['USD' => '$', 'BDT' => 'Tk', 'EUR' => '€', 'GBP' => '£', 'INR' => 'Rs', 'AUD' => 'A$', 'CAD' => 'C$', 'AED' => 'AED ', 'SGD' => 'S$', 'MYR' => 'RM', 'SAR' => 'SAR ', 'JPY' => '¥'];
+    $cur = $pdfSafe[$invoice->currency] ?? null;
+    if ($cur === null) {
+        // Custom currency: use its symbol if it's ASCII-printable, otherwise the code.
+        $sym = \App\Models\Currency::symbolMap()[$invoice->currency] ?? $invoice->currency;
+        $cur = preg_match('/^[\x20-\x7E]+$/', $sym) ? $sym : $invoice->currency.' ';
+    }
     $due = $invoice->amountDue();
     $badge = $due <= 0 ? 'b-paid' : ($invoice->amount_paid > 0 ? 'b-part' : 'b-due');
     $badgeText = $due <= 0 ? 'PAID' : ($invoice->amount_paid > 0 ? 'PARTIALLY PAID' : 'UNPAID');

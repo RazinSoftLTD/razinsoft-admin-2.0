@@ -27,6 +27,7 @@
                 ['label' => 'All Invoices', 'route' => 'admin.invoices.index', 'active' => 'admin.invoices.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
                 ['label' => 'Recurring', 'route' => 'admin.recurring.index', 'active' => 'admin.recurring.*', 'icon' => 'M4 4v6h6 M20 20v-6h-6 M20 8a8 8 0 0 0-14-3M4 16a8 8 0 0 0 14 3'],
                 ['label' => 'Templates', 'route' => 'admin.invoice-templates.index', 'active' => 'admin.invoice-templates.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
+                ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'icon' => 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20 M9.5 9a2.5 2.5 0 0 1 5 0M14.5 15a2.5 2.5 0 0 1-5 0M12 7v10'],
             ],
         ],
         [

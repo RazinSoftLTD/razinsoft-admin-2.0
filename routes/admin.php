@@ -96,6 +96,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Invoice templates (reusable presets)
         Route::resource('invoice-templates', \App\Http\Controllers\Admin\InvoiceTemplateController::class)->except('show');
+
+        // Currencies (manage the list the invoice form offers)
+        Route::get('currencies', [\App\Http\Controllers\Admin\CurrencyController::class, 'index'])->name('currencies.index');
+        Route::post('currencies', [\App\Http\Controllers\Admin\CurrencyController::class, 'store'])->name('currencies.store');
+        Route::put('currencies/{currency}', [\App\Http\Controllers\Admin\CurrencyController::class, 'update'])->name('currencies.update');
+        Route::delete('currencies/{currency}', [\App\Http\Controllers\Admin\CurrencyController::class, 'destroy'])->name('currencies.destroy');
         Route::resource('users', UserController::class)->except('show');
     });
 });
