@@ -4,7 +4,8 @@
     // 'staff' => visible to admin + staff; others are admin-only.
     $menu = collect([
         ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'staff' => true],
-        ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => 'admin.leads.*', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6', 'staff' => true],
+        ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => 'admin.leads.index', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6', 'staff' => true],
+        ['label' => 'Follow-up', 'route' => 'admin.leads.follow-up', 'active' => 'admin.leads.follow-up', 'icon' => 'M12 8v4l3 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z', 'staff' => true],
         ['label' => 'Deals', 'route' => 'admin.deals.index', 'active' => 'admin.deals.*', 'icon' => 'M3 3v18h18 M7 14l4-4 3 3 5-6', 'staff' => true],
         ['label' => 'Staff', 'route' => 'admin.staff.index', 'active' => 'admin.staff.*', 'icon' => 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'],
         ['label' => 'Products', 'route' => 'admin.products.index', 'active' => 'admin.products.*', 'icon' => 'M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M12 11v8'],

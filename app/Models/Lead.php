@@ -22,6 +22,8 @@ class Lead extends Model
 
     protected $casts = [
         'converted_at' => 'datetime',
+        'next_follow_up_at' => 'date',
+        'last_contacted_at' => 'datetime',
     ];
 
     public function assignee(): BelongsTo

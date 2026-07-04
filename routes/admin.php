@@ -22,8 +22,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
         // CRM — leads (staff see only their own; admin sees all — enforced in the controller).
+        Route::get('leads/follow-up', [\App\Http\Controllers\Admin\LeadController::class, 'followUp'])->name('leads.follow-up');
         Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class);
         Route::post('leads/{lead}/convert', [\App\Http\Controllers\Admin\LeadController::class, 'convert'])->name('leads.convert');
+        Route::post('leads/{lead}/mark-contacted', [\App\Http\Controllers\Admin\LeadController::class, 'markContacted'])->name('leads.mark-contacted');
 
         // CRM — deals (staff scoped in the controller)
         Route::resource('deals', \App\Http\Controllers\Admin\DealController::class)->except('show');

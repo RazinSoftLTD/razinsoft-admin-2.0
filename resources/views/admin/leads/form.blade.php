@@ -55,6 +55,9 @@
                 <x-admin.field label="Team" name="team" type="select" :value="$lead->team" :options="['' => 'Select team'] + array_combine(\App\Models\Lead::TEAMS, \App\Models\Lead::TEAMS)" />
                 <x-admin.field label="Priority" name="priority" type="select" required :value="$lead->priority" :options="\App\Models\Lead::PRIORITIES" />
             </div>
+            <div class="mt-5">
+                <x-admin.field label="Next Follow-up Date" name="next_follow_up_at" type="date" :value="optional($lead->next_follow_up_at)->toDateString()" hint="Schedule when to reach out next — shows on the Follow-up page." class="sm:max-w-xs" />
+            </div>
         </div>
 
         @if ($errors->any())

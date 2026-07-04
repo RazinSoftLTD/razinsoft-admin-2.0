@@ -78,6 +78,45 @@ class LeadController extends Controller
         ]);
     }
 
+    /** Follow-up page: leads with a scheduled follow-up, grouped Overdue / Today / Upcoming. */
+    public function followUp(Request $request)
+    {
+        $q = Lead::query()->with('assignee:id,name')
+            ->whereNull('converted_client_id')
+            ->whereNotNull('next_follow_up_at');
+
+        if ($request->user()->isStaff()) {
+            $q->where('assigned_to', $request->user()->id);
+        }
+
+        $leads = $q->orderBy('next_follow_up_at')->get();
+        $today = now()->startOfDay();
+
+        return view('admin.leads.followup', [
+            'overdue' => $leads->filter(fn ($l) => $l->next_follow_up_at->lt($today)),
+            'today' => $leads->filter(fn ($l) => $l->next_follow_up_at->isSameDay($today)),
+            'upcoming' => $leads->filter(fn ($l) => $l->next_follow_up_at->gt($today)),
+        ]);
+    }
+
+    /** Mark a lead contacted now and optionally schedule the next follow-up. */
+    public function markContacted(Request $request, Lead $lead)
+    {
+        $this->authorizeLead($request, $lead);
+        $data = $request->validate([
+            'next_follow_up_at' => ['nullable', 'date'],
+            'lead_status' => ['nullable', Rule::in(array_keys(Lead::STATUSES))],
+        ]);
+
+        $lead->update([
+            'last_contacted_at' => now(),
+            'next_follow_up_at' => $data['next_follow_up_at'] ?? null,
+            'lead_status' => $data['lead_status'] ?? $lead->lead_status,
+        ]);
+
+        return back()->with('status', 'Lead marked contacted.');
+    }
+
     public function create()
     {
         return view('admin.leads.form', [
@@ -199,6 +238,7 @@ class LeadController extends Controller
             'assigned_to' => ['required', 'exists:users,id'],
             'team' => ['nullable', Rule::in(Lead::TEAMS)],
             'priority' => ['required', Rule::in(array_keys(Lead::PRIORITIES))],
+            'next_follow_up_at' => ['nullable', 'date'],
         ]);
     }
 
