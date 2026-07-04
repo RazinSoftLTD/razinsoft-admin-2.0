@@ -31,8 +31,16 @@
 <div class="wrap">
   <table style="width:100%"><tr>
     <td style="border:none">
-      <div class="brand">RazinSoft</div>
-      <div class="muted">RazinSoft Ltd.<br>support@razinsoft.com &middot; razinsoft.com</div>
+      @php
+          $logoPath = public_path('images/razinsoft-logo-print.png');
+          $logoSrc = is_file($logoPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath)) : null;
+      @endphp
+      @if ($logoSrc)
+        <img src="{{ $logoSrc }}" alt="RazinSoft" style="height:34px;width:auto">
+      @else
+        <div class="brand">RazinSoft</div>
+      @endif
+      <div class="muted" style="margin-top:6px">RazinSoft Ltd.<br>support@razinsoft.com &middot; razinsoft.com</div>
     </td>
     <td style="border:none" class="right">
       <div style="font-size:18px;font-weight:bold">INVOICE</div>

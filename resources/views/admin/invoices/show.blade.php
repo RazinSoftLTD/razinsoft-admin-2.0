@@ -34,12 +34,9 @@
         <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
             {{-- Header --}}
             <div class="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 p-8">
-                <div class="flex items-center gap-3">
-                    <span class="grid h-11 w-11 place-items-center rounded-xl bg-[var(--color-primary)] text-lg font-extrabold text-white">R</span>
-                    <div>
-                        <p class="text-lg font-extrabold text-[var(--color-heading)]">RazinSoft</p>
-                        <p class="text-xs text-[var(--color-muted)]">RazinSoft Ltd. · support@razinsoft.com</p>
-                    </div>
+                <div>
+                    <img src="{{ asset('images/razinsoft-logo.png') }}" alt="RazinSoft" class="h-9 w-auto">
+                    <p class="mt-2 text-xs text-[var(--color-muted)]">RazinSoft Ltd. · support@razinsoft.com</p>
                 </div>
                 <div class="text-right">
                     <span class="inline-flex rounded-md bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">Invoice</span>
