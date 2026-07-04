@@ -45,6 +45,12 @@ class ClientInvoice extends Model
         return \App\Support\InvoiceSerial::next();
     }
 
+    /** The likely next number for display on the create form — does NOT consume the serial. */
+    public static function previewNumber(): string
+    {
+        return \App\Support\InvoiceSerial::peek();
+    }
+
     /**
      * Build a transient (unsaved) CRM invoice from a web order + its Invoice row, so order
      * invoices render with the exact same PDF layout. Not persisted — for display/PDF only.

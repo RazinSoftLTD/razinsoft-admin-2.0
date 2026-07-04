@@ -37,7 +37,7 @@ class ClientInvoiceController extends Controller
 
         return view('admin.invoices.form', [
             'invoice' => new ClientInvoice([
-                'invoice_number' => $this->nextNumber(),
+                'invoice_number' => ClientInvoice::previewNumber(), // preview only — real number is allocated on save
                 'client_id' => $request->query('client_id'),
                 'invoice_date' => now()->toDateString(),
                 'due_date' => now()->addDays(14)->toDateString(),

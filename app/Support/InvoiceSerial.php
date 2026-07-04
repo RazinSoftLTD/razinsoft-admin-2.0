@@ -29,6 +29,21 @@ class InvoiceSerial
         });
     }
 
+    /**
+     * The number next() WOULD return, without consuming it. For display only (e.g. the
+     * create form) — the real number is allocated at save time, so this is just a hint.
+     */
+    public static function peek(): string
+    {
+        $year = now()->format('Y');
+        $yy = now()->format('y');
+
+        $row = DB::table('invoice_sequences')->where('year', $year)->first();
+        $last = $row ? (int) $row->last_seq : self::seed($yy);
+
+        return sprintf('RS-%s%05d', $yy, $last + 1);
+    }
+
     /** Highest existing RS-{yy}##### across orders + both invoice tables, so the serial never collides. */
     protected static function seed(string $yy): int
     {

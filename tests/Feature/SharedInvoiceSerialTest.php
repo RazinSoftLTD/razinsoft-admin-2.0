@@ -7,6 +7,25 @@ use Illuminate\Foundation\Testing\RefreshDatabase; use Illuminate\Support\Facade
 class SharedInvoiceSerialTest extends TestCase {
     use RefreshDatabase;
 
+    public function test_reloading_create_page_does_not_consume_a_number(): void {
+        $yy = date('y');
+        $admin = User::create(['name'=>'A','email'=>'ser-admin@test.local','password'=>'password','role'=>'admin']);
+        $this->actingAs($admin);
+
+        // reloading the create page shows the same preview every time and burns nothing
+        $this->get('/admin/invoices/create')->assertOk()->assertSee("RS-{$yy}00001");
+        $this->get('/admin/invoices/create')->assertOk()->assertSee("RS-{$yy}00001");
+        $this->get('/admin/invoices/create')->assertOk()->assertSee("RS-{$yy}00001");
+
+        // only saving actually allocates 00001; the next preview then moves to 00002
+        $this->post('/admin/invoices', [
+            'client_id'=>'','invoice_date'=>date('Y-m-d'),'currency'=>'USD','status'=>'draft',
+            'bill_to_name'=>'X','items'=>[['description'=>'A','qty'=>1,'unit_price'=>10]],
+        ])->assertRedirect();
+        $this->assertSame("RS-{$yy}00001", ClientInvoice::latest('id')->first()->invoice_number);
+        $this->get('/admin/invoices/create')->assertOk()->assertSee("RS-{$yy}00002");
+    }
+
     public function test_next_number_is_a_single_incrementing_serial(): void {
         $yy = date('y');
         $this->assertSame("RS-{$yy}00001", ClientInvoice::nextNumber());
