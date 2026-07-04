@@ -135,9 +135,18 @@
             {{-- Pay link (client pays online via Stripe) --}}
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Client Pay Link</h2>
-                <div class="flex items-center gap-2">
-                    <input type="text" readonly value="{{ $invoice->payUrl() }}" onclick="this.select()" class="h-9 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-[var(--color-muted)]">
-                    <a href="{{ $invoice->payUrl() }}" target="_blank" class="rounded-lg bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--color-primary)]">Open</a>
+                <div class="flex items-center gap-2" x-data="{ link: @js($invoice->payUrl()), copied: false, async copy() { try { await navigator.clipboard.writeText(this.link); } catch (e) { const i = this.$refs.input; i.select(); document.execCommand('copy'); } this.copied = true; setTimeout(() => this.copied = false, 1500); } }">
+                    <input x-ref="input" type="text" readonly :value="link" @click="copy()" class="h-9 flex-1 cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-[var(--color-muted)]">
+                    <button type="button" @click="copy()" class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-primary-soft)] px-3 text-xs font-semibold text-[var(--color-primary)]">
+                        <span x-show="!copied" class="inline-flex items-center gap-1.5">
+                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copy
+                        </span>
+                        <span x-show="copied" x-cloak class="inline-flex items-center gap-1.5 text-emerald-600">
+                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
+                            Copied
+                        </span>
+                    </button>
                 </div>
                 <p class="mt-2 text-xs text-[var(--color-muted)]">Share this link — the client pays online (Stripe). Payment is recorded automatically.</p>
             </div>
