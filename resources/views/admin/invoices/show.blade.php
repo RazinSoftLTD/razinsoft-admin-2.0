@@ -110,9 +110,15 @@
 
             {{-- Notes / Terms --}}
             @if ($invoice->notes || $invoice->terms)
-                <div class="mt-6 space-y-3 border-t border-gray-100 p-8 text-xs leading-relaxed text-[var(--color-muted)]">
-                    @if ($invoice->notes)<div><span class="font-semibold text-[var(--color-heading)]">Notes:</span> {{ $invoice->notes }}</div>@endif
-                    @if ($invoice->terms)<div><span class="font-semibold text-[var(--color-heading)]">Terms:</span> {{ $invoice->terms }}</div>@endif
+                <div class="mt-6 grid gap-6 border-t border-gray-100 p-8 text-xs leading-relaxed text-[var(--color-muted)] sm:grid-cols-2">
+                    <div>
+                        <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Notes</p>
+                        <p>{{ $invoice->notes ?: '—' }}</p>
+                    </div>
+                    <div class="sm:text-right">
+                        <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Terms</p>
+                        <p>{{ $invoice->terms ?: '—' }}</p>
+                    </div>
                 </div>
             @else
                 <div class="pb-8"></div>

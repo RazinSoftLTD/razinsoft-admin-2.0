@@ -104,8 +104,20 @@
     </div>
   @endif
 
-  @if ($invoice->notes)<div style="margin-top:22px" class="muted"><strong style="color:#1f2937">Notes:</strong> {{ $invoice->notes }}</div>@endif
-  @if ($invoice->terms)<div style="margin-top:6px" class="muted"><strong style="color:#1f2937">Terms:</strong> {{ $invoice->terms }}</div>@endif
+  @if ($invoice->notes || $invoice->terms)
+  <table style="width:100%;margin-top:22px">
+    <tr>
+      <td style="border:none;width:50%;vertical-align:top;padding-right:12px">
+        <div class="muted" style="font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px">Notes</div>
+        <div style="margin-top:3px">{{ $invoice->notes ?: '—' }}</div>
+      </td>
+      <td style="border:none;width:50%;vertical-align:top;padding-left:12px" class="right">
+        <div class="muted" style="font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px">Terms</div>
+        <div style="margin-top:3px">{{ $invoice->terms ?: '—' }}</div>
+      </td>
+    </tr>
+  </table>
+  @endif
 </div>
 </body>
 </html>
