@@ -47,6 +47,29 @@ class AccountController extends Controller
         ]);
     }
 
+    /** The logged-in client's CRM invoices with current due + public pay link. */
+    public function invoices(Request $request)
+    {
+        $invoices = \App\Models\ClientInvoice::where('client_id', $request->user()->id)
+            ->withCount('items')->latest('id')->get();
+
+        return response()->json([
+            'data' => $invoices->map(fn ($inv) => [
+                'invoice_number' => $inv->invoice_number,
+                'invoice_date' => $inv->invoice_date?->toDateString(),
+                'due_date' => $inv->due_date?->toDateString(),
+                'currency' => $inv->currency,
+                'total' => (float) $inv->total,
+                'amount_paid' => (float) $inv->amount_paid,
+                'amount_due' => $inv->amountDue(),
+                'status' => $inv->status,
+                'status_label' => \App\Models\ClientInvoice::STATUSES[$inv->status] ?? $inv->status,
+                'items_count' => $inv->items_count,
+                'pay_url' => route('pay.invoice.show', $inv->public_token),
+            ])->values(),
+        ]);
+    }
+
     /** Order detail (by order_number) — owner only. */
     public function order(Request $request, string $orderNumber)
     {

@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/account/dashboard', [AccountController::class, 'dashboard']);
     Route::get('/account/orders', [AccountController::class, 'orders']);
     Route::get('/account/orders/{orderNumber}', [AccountController::class, 'order']);
+    Route::get('/account/invoices', [AccountController::class, 'invoices']);
     Route::get('/account/invoices/{invoice}/download', [AccountController::class, 'downloadInvoice'])->name('account.invoice.download');
     Route::get('/account/licenses/{license}/download', [AccountController::class, 'downloadLicense'])->name('account.license.download');
 
