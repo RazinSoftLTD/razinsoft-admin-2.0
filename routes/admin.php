@@ -33,6 +33,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('products', ProductController::class); // index/create/store/show/edit/update/destroy
         Route::post('products/{product}/publish', [ProductController::class, 'togglePublish'])->name('products.publish');
+        Route::post('products/{product}/clone', [ProductController::class, 'clone'])->name('products.clone');
 
         // Per-section management page (its own page per tab) + relation CRUD
         Route::get('products/{product}/manage/{relation}', [ProductRelationController::class, 'edit'])->name('products.relation.edit');

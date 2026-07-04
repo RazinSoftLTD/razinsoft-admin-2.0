@@ -66,6 +66,60 @@ class ProductController extends Controller
         return back()->with('status', $product->status === 'published' ? 'Product is now live.' : 'Product unpublished.');
     }
 
+    /** Duplicate a product with all its content relations (a fresh draft to tweak). */
+    public function clone(Product $product)
+    {
+        $clone = \Illuminate\Support\Facades\DB::transaction(function () use ($product) {
+            $copy = $product->replicate([
+                'slug', 'status', 'is_featured', 'rating', 'reviews_count', 'sales_count',
+            ]);
+            $copy->name = $product->name.' (Copy)';
+            $copy->slug = $this->uniqueSlug($product->slug.'-copy');
+            $copy->status = 'draft';
+            $copy->is_featured = false;
+            $copy->rating = 0;
+            $copy->reviews_count = 0;
+            $copy->sales_count = 0;
+            $copy->save();
+
+            // Simple hasMany relations copied verbatim.
+            foreach (['plans', 'features', 'tech', 'suitableFor', 'docs', 'faqs', 'demos'] as $rel) {
+                foreach ($product->{$rel} as $row) {
+                    $copy->{$rel}()->create($row->replicate()->toArray());
+                }
+            }
+
+            // Gallery groups + their nested images.
+            foreach ($product->galleryGroups as $group) {
+                $newGroup = $copy->galleryGroups()->create($group->replicate()->toArray());
+                foreach ($group->images as $img) {
+                    $newGroup->images()->create($img->replicate()->toArray());
+                }
+            }
+
+            // SEO (morphOne).
+            if ($product->seo) {
+                $copy->seo()->create($product->seo->replicate(['seoable_id', 'seoable_type'])->toArray());
+            }
+
+            return $copy;
+        });
+
+        return redirect()->route('admin.products.edit', $clone)->with('status', "Product cloned as \"{$clone->name}\" (draft). Reviews, questions and source files were not copied.");
+    }
+
+    /** Ensure the cloned slug is unique (append -2, -3, … if needed). */
+    private function uniqueSlug(string $base): string
+    {
+        $slug = $base;
+        $i = 2;
+        while (Product::withTrashed()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$i++;
+        }
+
+        return $slug;
+    }
+
     public function destroy(Product $product)
     {
         $product->delete();
