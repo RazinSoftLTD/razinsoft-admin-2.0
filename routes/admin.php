@@ -94,6 +94,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Recurring invoice profiles
         Route::resource('recurring', \App\Http\Controllers\Admin\RecurringInvoiceController::class)->except('show')->parameters(['recurring' => 'recurring']);
         Route::post('recurring/{recurring}/run', [\App\Http\Controllers\Admin\RecurringInvoiceController::class, 'run'])->name('recurring.run');
+
+        // Invoice templates (reusable presets)
+        Route::resource('invoice-templates', \App\Http\Controllers\Admin\InvoiceTemplateController::class)->except('show');
         Route::resource('users', UserController::class)->except('show');
     });
 });

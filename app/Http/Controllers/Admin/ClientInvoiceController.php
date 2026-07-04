@@ -31,20 +31,27 @@ class ClientInvoiceController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        $tpl = $request->filled('template') ? \App\Models\InvoiceTemplate::find($request->query('template')) : null;
+
         return view('admin.invoices.form', [
             'invoice' => new ClientInvoice([
                 'invoice_number' => $this->nextNumber(),
                 'invoice_date' => now()->toDateString(),
                 'due_date' => now()->addDays(14)->toDateString(),
-                'currency' => 'USD',
+                'currency' => $tpl->currency ?? 'USD',
                 'status' => 'draft',
-                'terms' => 'Payment should be made within the due date. Late payment may incur additional charges.',
-                'notes' => 'Thank you for your business. We appreciate your trust in our services.',
+                'terms' => $tpl->terms ?? 'Payment should be made within the due date. Late payment may incur additional charges.',
+                'notes' => $tpl->notes ?? 'Thank you for your business. We appreciate your trust in our services.',
+                'payment_method' => $tpl->payment_method ?? 'Bank Transfer',
             ]),
             'clients' => User::clients()->orderBy('name')->get(['id', 'name', 'company', 'email', 'phone', 'address', 'city', 'state', 'country', 'zip']),
-            'items' => [],
+            'items' => $tpl ? collect($tpl->items)->map(fn ($i) => [
+                'description' => $i['description'] ?? '', 'sub_description' => $i['sub_description'] ?? '',
+                'qty' => (float) ($i['qty'] ?? 1), 'unit_price' => (float) ($i['unit_price'] ?? 0),
+                'discount_percent' => (float) ($i['discount_percent'] ?? 0), 'tax_percent' => (float) ($i['tax_percent'] ?? 0),
+            ])->all() : [],
         ]);
     }
 
