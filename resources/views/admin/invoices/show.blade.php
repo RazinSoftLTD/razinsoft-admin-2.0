@@ -165,53 +165,29 @@
                 <p class="mt-2 text-xs text-[var(--color-muted)]">Share this link — the client pays online (Stripe). Payment is recorded automatically.</p>
             </div>
 
-            {{-- Payment request --}}
+            {{-- Amount to receive (what the online pay link charges) --}}
             @if ($invoice->amountDue() > 0)
                 <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Request a Payment</h2>
+                    <h2 class="mb-1 text-sm font-bold text-[var(--color-heading)]">Amount to Receive</h2>
+                    <p class="mb-3 text-xs text-[var(--color-muted)]">How much to collect now — the client's pay link will charge exactly this. Max the current due ({{ $cur }}{{ number_format($invoice->amountDue(), 2) }}).</p>
                     @if (! is_null($invoice->requested_amount))
-                        <p class="mb-3 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-700">Client is asked to pay <strong>{{ $cur }}{{ number_format($invoice->payableAmount(), 2) }}</strong> now.</p>
+                        <p class="mb-3 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-700">Pay link will charge <strong>{{ $cur }}{{ number_format($invoice->payableAmount(), 2) }}</strong>.</p>
                     @endif
                     <form method="POST" action="{{ route('admin.invoices.request-payment', $invoice) }}" class="flex items-center gap-2">
                         @csrf
-                        <input type="number" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}" name="requested_amount" value="{{ $invoice->requested_amount ? number_format($invoice->requested_amount, 2, '.', '') : '' }}" placeholder="Amount to request" class="h-9 flex-1 rounded-lg border border-gray-200 px-2 text-sm">
+                        <span class="text-sm text-[var(--color-muted)]">{{ $cur }}</span>
+                        <input type="number" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}" name="requested_amount" value="{{ $invoice->requested_amount ? number_format($invoice->requested_amount, 2, '.', '') : number_format($invoice->amountDue(), 2, '.', '') }}" class="h-9 flex-1 rounded-lg border border-gray-200 px-2 text-sm">
                         <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Set</button>
                     </form>
+                    @error('requested_amount')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
                     @if (! is_null($invoice->requested_amount))
                         <form method="POST" action="{{ route('admin.invoices.request-payment', $invoice) }}" class="mt-2">
                             @csrf <input type="hidden" name="requested_amount" value="">
-                            <button class="text-xs text-[var(--color-muted)] hover:text-red-600">Clear request (allow full-due payment)</button>
+                            <button class="text-xs text-[var(--color-muted)] hover:text-red-600">Clear — charge the full due instead</button>
                         </form>
                     @endif
                 </div>
             @endif
-
-            {{-- Installments --}}
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div class="mb-3 flex items-center justify-between">
-                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Installment Plan</h2>
-                </div>
-                @if ($invoice->installments->count())
-                    <div class="space-y-2">
-                        @foreach ($invoice->installments as $ins)
-                            <div class="flex items-center justify-between border-b border-gray-50 py-1.5 text-sm last:border-0">
-                                <div><p class="text-[var(--color-heading)]">{{ $ins->label }}</p><p class="text-xs text-[var(--color-muted)]">Due {{ $ins->due_date?->format('d M Y') ?? '—' }}</p></div>
-                                <span class="font-semibold text-[var(--color-heading)]">{{ $cur }}{{ number_format($ins->amount, 2) }}</span>
-                            </div>
-                        @endforeach
-                    </div>
-                @else
-                    <p class="mb-3 text-xs text-gray-400">No installment plan. Split the total into equal parts:</p>
-                @endif
-                <form method="POST" action="{{ route('admin.invoices.installments', $invoice) }}" class="mt-3 flex items-center gap-2">
-                    @csrf
-                    <input type="number" min="1" max="24" name="parts" value="3" class="h-9 w-16 rounded-lg border border-gray-200 px-2 text-sm" title="Number of installments">
-                    <span class="text-xs text-[var(--color-muted)]">parts, every</span>
-                    <input type="number" min="1" max="365" name="interval_days" value="30" class="h-9 w-16 rounded-lg border border-gray-200 px-2 text-sm" title="Days between installments">
-                    <span class="text-xs text-[var(--color-muted)]">days</span>
-                    <button class="ml-auto rounded-lg bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--color-primary)]">Split</button>
-                </form>
-            </div>
         </div>
     </div>
 @endsection

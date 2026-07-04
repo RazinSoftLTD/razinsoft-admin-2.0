@@ -69,7 +69,7 @@ class ClientInvoiceController extends Controller
 
     public function show(ClientInvoice $invoice)
     {
-        $invoice->load('items', 'client', 'payments.recorder', 'installments');
+        $invoice->load('items', 'client', 'payments.recorder');
 
         return view('admin.invoices.show', compact('invoice'));
     }
@@ -107,46 +107,23 @@ class ClientInvoiceController extends Controller
         return redirect()->route('admin.invoices.index')->with('status', 'Invoice deleted.');
     }
 
-    /** Split the invoice total into N (roughly) equal installments with staggered due dates. */
-    public function installments(Request $request, ClientInvoice $invoice)
-    {
-        $data = $request->validate([
-            'parts' => ['required', 'integer', 'min:1', 'max:24'],
-            'interval_days' => ['nullable', 'integer', 'min:1', 'max:365'],
-        ]);
-
-        $parts = $data['parts'];
-        $interval = $data['interval_days'] ?? 30;
-        $each = floor(((float) $invoice->total / $parts) * 100) / 100;
-        $start = $invoice->due_date ?? now()->addDays($interval);
-
-        $invoice->installments()->delete();
-        for ($i = 0; $i < $parts; $i++) {
-            // Last part absorbs the rounding remainder so the installments sum to the total.
-            $amount = $i === $parts - 1 ? round((float) $invoice->total - $each * ($parts - 1), 2) : $each;
-            $invoice->installments()->create([
-                'label' => 'Installment '.($i + 1).' of '.$parts,
-                'amount' => $amount,
-                'due_date' => $start->copy()->addDays($interval * $i),
-                'sort_order' => $i,
-            ]);
-        }
-
-        return back()->with('status', "Split into {$parts} installment(s).");
-    }
-
-    /** Set a payment request amount (what the client is asked to pay now). */
+    /**
+     * Set the "amount to receive" — what the client's online pay link will charge.
+     * Validated so it can never exceed the current due.
+     */
     public function requestPayment(Request $request, ClientInvoice $invoice)
     {
         $data = $request->validate([
             'requested_amount' => ['nullable', 'numeric', 'min:0.01', 'max:'.max(0.01, $invoice->amountDue())],
+        ], [
+            'requested_amount.max' => 'The amount to receive cannot be more than the current due ('.number_format($invoice->amountDue(), 2).').',
         ]);
 
         $invoice->update(['requested_amount' => $data['requested_amount'] ?? null]);
 
-        return back()->with('status', $data['requested_amount']
-            ? 'Payment request set to '.number_format($data['requested_amount'], 2).'. Share the pay link with the client.'
-            : 'Payment request cleared — the client can pay the full due.');
+        return back()->with('status', ! empty($data['requested_amount'])
+            ? 'Amount to receive set to '.number_format($data['requested_amount'], 2).'. The pay link will charge exactly this.'
+            : 'Cleared — the pay link will charge the full due.');
     }
 
     /** Mark sent and (best-effort) email the client the invoice + pay link. */

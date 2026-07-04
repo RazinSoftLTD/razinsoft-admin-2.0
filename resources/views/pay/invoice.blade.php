@@ -40,7 +40,7 @@
             @else
                 @if (! is_null($invoice->requested_amount))
                     <div class="mt-6 rounded-xl bg-indigo-50 p-4 text-center">
-                        <p class="text-sm text-indigo-700">Requested payment</p>
+                        <p class="text-sm text-indigo-700">Amount due now</p>
                         <p class="text-2xl font-extrabold text-indigo-700">{{ $cur }}{{ number_format($invoice->payableAmount(), 2) }}</p>
                     </div>
                 @endif

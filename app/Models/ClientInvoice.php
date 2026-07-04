@@ -55,11 +55,6 @@ class ClientInvoice extends Model
         return $this->hasMany(InvoicePayment::class)->orderBy('paid_at')->orderBy('id');
     }
 
-    public function installments(): HasMany
-    {
-        return $this->hasMany(InvoiceInstallment::class)->orderBy('sort_order')->orderBy('id');
-    }
-
     /** What the client is asked to pay right now: the requested amount (capped to due) or the full due. */
     public function payableAmount(): float
     {
