@@ -90,6 +90,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('invoices/{invoice}/installments', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'installments'])->name('invoices.installments');
         Route::post('invoices/{invoice}/request-payment', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'requestPayment'])->name('invoices.request-payment');
         Route::post('invoices/{invoice}/send', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'send'])->name('invoices.send');
+
+        // Recurring invoice profiles
+        Route::resource('recurring', \App\Http\Controllers\Admin\RecurringInvoiceController::class)->except('show')->parameters(['recurring' => 'recurring']);
+        Route::post('recurring/{recurring}/run', [\App\Http\Controllers\Admin\RecurringInvoiceController::class, 'run'])->name('recurring.run');
         Route::resource('users', UserController::class)->except('show');
     });
 });
