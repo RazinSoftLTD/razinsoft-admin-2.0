@@ -38,6 +38,7 @@ class ClientInvoiceController extends Controller
         return view('admin.invoices.form', [
             'invoice' => new ClientInvoice([
                 'invoice_number' => $this->nextNumber(),
+                'client_id' => $request->query('client_id'),
                 'invoice_date' => now()->toDateString(),
                 'due_date' => now()->addDays(14)->toDateString(),
                 'currency' => $tpl->currency ?? 'USD',

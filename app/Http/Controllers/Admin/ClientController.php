@@ -27,6 +27,26 @@ class ClientController extends Controller
         ]);
     }
 
+    /** Client profile: details + all of their CRM invoices with running totals. */
+    public function show(User $client)
+    {
+        abort_unless($client->role === User::ROLE_CUSTOMER, 404);
+
+        $invoices = \App\Models\ClientInvoice::where('client_id', $client->id)
+            ->withCount('items')->latest('id')->get();
+
+        return view('admin.clients.show', [
+            'client' => $client,
+            'invoices' => $invoices,
+            'stats' => [
+                'count' => $invoices->count(),
+                'invoiced' => round((float) $invoices->sum('total'), 2),
+                'paid' => round((float) $invoices->sum('amount_paid'), 2),
+                'due' => round($invoices->sum(fn ($i) => $i->amountDue()), 2),
+            ],
+        ]);
+    }
+
     public function create()
     {
         return view('admin.clients.form', ['client' => new User(['role' => User::ROLE_CUSTOMER])]);

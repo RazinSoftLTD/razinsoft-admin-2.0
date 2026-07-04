@@ -48,7 +48,11 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-5 py-3 font-semibold text-[var(--color-heading)]">{{ $inv->invoice_number }}</td>
                             <td class="px-5 py-3">
-                                <p class="font-medium text-[var(--color-heading)]">{{ $inv->bill_to_name ?: '—' }}</p>
+                                @if ($inv->client)
+                                    <a href="{{ route('admin.clients.show', $inv->client_id) }}" class="font-medium text-[var(--color-primary)] hover:underline">{{ $inv->bill_to_name ?: $inv->client->name }}</a>
+                                @else
+                                    <p class="font-medium text-[var(--color-heading)]">{{ $inv->bill_to_name ?: '—' }}</p>
+                                @endif
                                 @if ($inv->bill_to_company)<p class="text-xs text-[var(--color-muted)]">{{ $inv->bill_to_company }}</p>@endif
                             </td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $inv->invoice_date->format('d M Y') }}</td>

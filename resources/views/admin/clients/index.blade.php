@@ -34,10 +34,10 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-5 py-3 font-semibold text-[var(--color-heading)]">{{ $c->client_code }}</td>
                             <td class="px-5 py-3">
-                                <div class="flex items-center gap-3">
+                                <a href="{{ route('admin.clients.show', $c) }}" class="flex items-center gap-3 hover:opacity-80">
                                     <span class="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-soft)] text-xs font-bold text-[var(--color-primary)]">{{ strtoupper(substr($c->name, 0, 1)) }}</span>
-                                    <span class="font-semibold text-[var(--color-heading)]">{{ $c->name }}</span>
-                                </div>
+                                    <span class="font-semibold text-[var(--color-primary)] hover:underline">{{ $c->name }}</span>
+                                </a>
                             </td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $c->company ?? '—' }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $c->email }}</td>

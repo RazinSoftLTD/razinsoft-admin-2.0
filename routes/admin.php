@@ -81,6 +81,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Clients = customer users; Users kept for managing admins.
         Route::resource('clients', \App\Http\Controllers\Admin\ClientController::class)->except('show');
+        Route::get('clients/{client}', [\App\Http\Controllers\Admin\ClientController::class, 'show'])->name('clients.show')->whereNumber('client');
 
         // CRM billing — invoices
         Route::resource('invoices', \App\Http\Controllers\Admin\ClientInvoiceController::class);
