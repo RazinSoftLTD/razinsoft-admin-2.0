@@ -15,7 +15,7 @@ class InvoicePayController extends Controller
     public function apiShow(string $token)
     {
         $invoice = ClientInvoice::where('public_token', $token)->with('items', 'payments')->firstOrFail();
-        $cur = ['USD' => '$', 'BDT' => '৳', 'EUR' => '€', 'GBP' => '£'][$invoice->currency] ?? '';
+        $cur = $invoice->currencySymbol();
 
         return response()->json([
             'invoice_number' => $invoice->invoice_number,

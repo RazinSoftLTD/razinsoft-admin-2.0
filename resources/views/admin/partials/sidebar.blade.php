@@ -16,18 +16,29 @@
         ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'icon' => 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z M21 21l-4.3-4.3'],
         ['label' => 'Coupons', 'route' => 'admin.coupons.index', 'active' => 'admin.coupons.*', 'icon' => 'M7 7h.01M3 5a2 2 0 0 1 2-2h6l9 9-8 8-9-9V5Z'],
         ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'icon' => 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1M16 15a4 4 0 0 1 4 4v1'],
-        ['label' => 'Invoices', 'route' => 'admin.invoices.index', 'active' => 'admin.invoices.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
-        ['label' => 'Recurring', 'route' => 'admin.recurring.index', 'active' => 'admin.recurring.*', 'icon' => 'M4 4v6h6 M20 20v-6h-6 M20 8a8 8 0 0 0-14-3M4 16a8 8 0 0 0 14 3'],
-        ['label' => 'Inv. Templates', 'route' => 'admin.invoice-templates.index', 'active' => 'admin.invoice-templates.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
     ])->filter(fn ($i) => $isAdmin || ! empty($i['staff']))->all();
 
-    $blog = $isAdmin ? [
-        ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h6'],
-        ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'icon' => 'M7 7h.01M3 5a2 2 0 0 1 2-2h6l9 9-8 8-9-9V5Z'],
-        ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'icon' => 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 21a8 8 0 0 1 16 0'],
-    ] : [];
-
-    $blogActive = collect($blog)->contains(fn ($i) => request()->routeIs($i['active'] ?? $i['route']));
+    // Collapsible groups (admin only), rendered after the flat menu — like the Blog group.
+    $groups = ! $isAdmin ? [] : [
+        [
+            'label' => 'Invoices',
+            'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4',
+            'items' => [
+                ['label' => 'All Invoices', 'route' => 'admin.invoices.index', 'active' => 'admin.invoices.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
+                ['label' => 'Recurring', 'route' => 'admin.recurring.index', 'active' => 'admin.recurring.*', 'icon' => 'M4 4v6h6 M20 20v-6h-6 M20 8a8 8 0 0 0-14-3M4 16a8 8 0 0 0 14 3'],
+                ['label' => 'Templates', 'route' => 'admin.invoice-templates.index', 'active' => 'admin.invoice-templates.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
+            ],
+        ],
+        [
+            'label' => 'Blog',
+            'icon' => 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z',
+            'items' => [
+                ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h6'],
+                ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'icon' => 'M7 7h.01M3 5a2 2 0 0 1 2-2h6l9 9-8 8-9-9V5Z'],
+                ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'icon' => 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 21a8 8 0 0 1 16 0'],
+            ],
+        ],
+    ];
 @endphp
 
 <div class="flex h-16 items-center gap-2 px-6">
@@ -51,34 +62,35 @@
         </a>
     @endforeach
 
-    {{-- Blog dropdown (admin only) --}}
-    @if (count($blog))
-    <div x-data="{ open: {{ $blogActive ? 'true' : 'false' }} }" class="pt-1">
-        <button type="button" @click="open = !open"
-                class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $blogActive ? 'text-[var(--color-heading)]' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
-            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path stroke-linecap="round" stroke-linejoin="round" d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
-            </svg>
-            <span class="flex-1 text-left">Blog</span>
-            <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" /></svg>
-        </button>
+    {{-- Collapsible groups (admin only) --}}
+    @foreach ($groups as $group)
+        @php $groupActive = collect($group['items'])->contains(fn ($i) => request()->routeIs($i['active'] ?? $i['route'])); @endphp
+        <div x-data="{ open: {{ $groupActive ? 'true' : 'false' }} }" class="pt-1">
+            <button type="button" @click="open = !open"
+                    class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $groupActive ? 'text-[var(--color-heading)]' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
+                <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
+                    @foreach (explode(' ', $group['icon']) as $d)<path stroke-linecap="round" stroke-linejoin="round" d="{{ $d }}"/>@endforeach
+                </svg>
+                <span class="flex-1 text-left">{{ $group['label'] }}</span>
+                <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" /></svg>
+            </button>
 
-        <div class="grid overflow-hidden transition-all duration-200 ease-out" :class="open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'">
-            <div class="min-h-0 overflow-hidden">
-                <div class="mt-1 space-y-1 border-l border-gray-100 pl-3 ml-4">
-                    @foreach ($blog as $item)
-                        @php $isActive = request()->routeIs($item['active'] ?? $item['route']); @endphp
-                        <a href="{{ route($item['route']) }}"
-                           class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
-                            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
-                                @foreach (explode(' ', $item['icon']) as $d)<path stroke-linecap="round" stroke-linejoin="round" d="{{ $d }}"/>@endforeach
-                            </svg>
-                            <span class="flex-1">{{ $item['label'] }}</span>
-                        </a>
-                    @endforeach
+            <div class="grid overflow-hidden transition-all duration-200 ease-out" :class="open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'">
+                <div class="min-h-0 overflow-hidden">
+                    <div class="mt-1 space-y-1 border-l border-gray-100 pl-3 ml-4">
+                        @foreach ($group['items'] as $item)
+                            @php $isActive = request()->routeIs($item['active'] ?? $item['route']); @endphp
+                            <a href="{{ route($item['route']) }}"
+                               class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
+                                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
+                                    @foreach (explode(' ', $item['icon']) as $d)<path stroke-linecap="round" stroke-linejoin="round" d="{{ $d }}"/>@endforeach
+                                </svg>
+                                <span class="flex-1">{{ $item['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    @endif
+    @endforeach
 </nav>

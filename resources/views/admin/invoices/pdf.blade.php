@@ -22,7 +22,8 @@
 </style>
 </head>
 @php
-    $cur = ['USD' => '$', 'BDT' => 'Tk', 'EUR' => '€', 'GBP' => '£'][$invoice->currency] ?? '';
+    // ASCII-safe symbols — DejaVu Sans (the PDF font) can't render ৳ ₹ ﷼ etc.
+    $cur = ['USD' => '$', 'BDT' => 'Tk', 'EUR' => '€', 'GBP' => '£', 'INR' => 'Rs', 'AUD' => 'A$', 'CAD' => 'C$', 'AED' => 'AED ', 'SGD' => 'S$', 'MYR' => 'RM', 'SAR' => 'SAR ', 'JPY' => '¥'][$invoice->currency] ?? ($invoice->currency.' ');
     $due = $invoice->amountDue();
     $badge = $due <= 0 ? 'b-paid' : ($invoice->amount_paid > 0 ? 'b-part' : 'b-due');
     $badgeText = $due <= 0 ? 'PAID' : ($invoice->amount_paid > 0 ? 'PARTIALLY PAID' : 'UNPAID');

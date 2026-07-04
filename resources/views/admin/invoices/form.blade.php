@@ -69,7 +69,9 @@
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Currency <span class="text-red-500">*</span></label>
                             <select name="currency" x-model="currency" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                <option value="USD">USD ($)</option><option value="BDT">BDT (৳)</option><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option>
+                                @foreach (\App\Models\ClientInvoice::CURRENCIES as $code => $sym)
+                                    <option value="{{ $code }}">{{ $code }} ({{ $sym }})</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>

@@ -30,6 +30,28 @@ class ClientInvoice extends Model
 
     public const PAYMENT_METHODS = ['Bank Transfer', 'Stripe', 'PayPal', 'Cash', 'Cheque', 'Other'];
 
+    /** Supported invoice currencies → symbol. Single source of truth for the form + all views. */
+    public const CURRENCIES = [
+        'USD' => '$',
+        'BDT' => '৳',
+        'EUR' => '€',
+        'GBP' => '£',
+        'INR' => '₹',
+        'AUD' => 'A$',
+        'CAD' => 'C$',
+        'AED' => 'د.إ',
+        'SGD' => 'S$',
+        'MYR' => 'RM',
+        'SAR' => '﷼',
+        'JPY' => '¥',
+    ];
+
+    /** Currency symbol for this invoice (falls back to the code). */
+    public function currencySymbol(): string
+    {
+        return self::CURRENCIES[$this->currency] ?? $this->currency;
+    }
+
     /** INV-YYYY-#### with a zero-padded, per-year running sequence. */
     public static function nextNumber(): string
     {
