@@ -56,20 +56,12 @@
                     @if ($order->invoice)<p class="text-[var(--color-muted)]">Invoice: <span class="font-mono text-xs">{{ $order->invoice->invoice_number }}</span></p>@endif
                 </div>
 
-                {{-- Downloads: invoice PDF + license certificates --}}
-                <div class="mt-4 space-y-2 border-t border-gray-100 pt-4">
+                {{-- Download the order invoice PDF (licenses download from the items list above) --}}
+                <div class="mt-4 border-t border-gray-100 pt-4">
                     <a href="{{ route('admin.orders.invoice.download', $order) }}" class="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
                         Download Invoice PDF
                     </a>
-                    @foreach ($order->items as $it)
-                        @if ($it->license && $it->license->file_path)
-                            <a href="{{ route('admin.orders.license.download', [$order, $it->license]) }}" class="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
-                                License — {{ \Illuminate\Support\Str::limit($it->product_name, 20) }}
-                            </a>
-                        @endif
-                    @endforeach
                 </div>
             </div>
         </aside>
