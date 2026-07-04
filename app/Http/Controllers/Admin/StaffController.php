@@ -76,14 +76,24 @@ class StaffController extends Controller
 
     private function validated(Request $request, ?User $staff = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff)],
             'phone' => ['nullable', 'string', 'max:40'],
             'job_title' => ['nullable', 'string', 'max:120'],
             'photo' => ['nullable', 'image', 'max:5120'],
             'password' => [$staff ? 'nullable' : 'required', 'string', 'min:8'],
+            'permissions' => ['nullable', 'array'],
         ]);
+
+        // Keep only valid permission keys; a brand-new staff defaults to a sensible starter set.
+        $data['permissions'] = array_values(array_intersect(
+            $request->input('permissions', $staff ? [] : \App\Support\Permissions::DEFAULTS),
+            \App\Support\Permissions::keys(),
+        ));
+        unset($data['photo']); // handled separately
+
+        return $data;
     }
 
     /** Store the uploaded photo keeping its ORIGINAL filename (per project rule). */

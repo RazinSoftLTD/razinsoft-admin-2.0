@@ -53,9 +53,9 @@ class CrmFlowTest extends TestCase {
     }
 
     public function test_crm_group_shows_in_sidebar_for_staff(): void {
-        $staff = User::firstOrCreate(['email'=>'crm-staff@test.local'],['name'=>'S','password'=>'password','role'=>'staff']);
+        $staff = User::firstOrCreate(['email'=>'crm-staff@test.local'],['name'=>'S','password'=>'password','role'=>'staff','permissions'=>['leads','deals']]);
         $this->actingAs($staff);
-        // staff can reach the CRM pages and the sidebar renders the CRM group
+        // staff with the CRM permissions can reach the pages and see the CRM group
         $this->get('/admin/deals')->assertOk()->assertSee('CRM')->assertSee('Leads')->assertSee('Follow-up')->assertSee('Deals');
     }
 }

@@ -21,6 +21,7 @@
                         <th class="px-5 py-3 font-semibold">Email</th>
                         <th class="px-5 py-3 font-semibold">Job Title</th>
                         <th class="px-5 py-3 font-semibold">Assigned Leads</th>
+                        <th class="px-5 py-3 font-semibold">Access</th>
                         <th class="px-5 py-3 text-right font-semibold">Actions</th>
                     </tr>
                 </thead>
@@ -41,6 +42,17 @@
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $s->job_title ?? '—' }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $s->assigned_leads_count }}</td>
                             <td class="px-5 py-3">
+                                @php $perms = (array) $s->permissions; @endphp
+                                @if (count($perms))
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach (array_slice($perms, 0, 3) as $p)<span class="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">{{ \App\Support\Permissions::label($p) }}</span>@endforeach
+                                        @if (count($perms) > 3)<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">+{{ count($perms) - 3 }}</span>@endif
+                                    </div>
+                                @else
+                                    <span class="text-xs text-gray-400">No access</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3">
                                 <div class="flex items-center justify-end gap-1">
                                     <a href="{{ route('admin.staff.edit', $s) }}" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Edit">
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
@@ -55,7 +67,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No staff yet — <a href="{{ route('admin.staff.create') }}" class="font-semibold text-[var(--color-primary)] hover:underline">add your first staff member</a>.</td></tr>
+                        <tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">No staff yet — <a href="{{ route('admin.staff.create') }}" class="font-semibold text-[var(--color-primary)] hover:underline">add your first staff member</a>.</td></tr>
                     @endforelse
                 </tbody>
             </table>

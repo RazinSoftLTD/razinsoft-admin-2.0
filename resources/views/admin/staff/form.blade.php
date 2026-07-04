@@ -36,6 +36,29 @@
                 <x-admin.field label="Job Title" name="job_title" :value="$staff->job_title" placeholder="e.g. Sales Executive" />
             </div>
             <x-admin.field label="Password" name="password" type="password" :required="!$staff->exists" :hint="$staff->exists ? 'Leave blank to keep the current password.' : 'Min 8 characters — staff use this to log in.'" />
+
+            {{-- Permissions — which panel sections this staff member can access --}}
+            @php $granted = old('permissions', $staff->permissions ?? \App\Support\Permissions::DEFAULTS); @endphp
+            <div class="border-t border-gray-100 pt-5">
+                <p class="text-sm font-semibold text-[var(--color-heading)]">Permissions</p>
+                <p class="mb-3 text-xs text-[var(--color-muted)]">Tick the sections this staff member can see and manage. (Admins always have full access.)</p>
+                <div class="grid gap-5 sm:grid-cols-3">
+                    @foreach (\App\Support\Permissions::CATALOG as $group => $perms)
+                        <div>
+                            <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">{{ $group }}</p>
+                            <div class="space-y-2">
+                                @foreach ($perms as $key => $label)
+                                    <label class="flex items-center gap-2 text-sm text-[var(--color-heading)]">
+                                        <input type="checkbox" name="permissions[]" value="{{ $key }}" @checked(in_array($key, (array) $granted, true))
+                                               class="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                                        {{ $label }}
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
         </div>
 
         @if ($errors->any())

@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'password', 'role'])]
+#[Fillable(['name', 'email', 'phone', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'password', 'role', 'permissions'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,12 +28,25 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array',
         ];
     }
 
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    /** Super admins (= admins) have every permission and can manage others'. */
+    public function isSuperAdmin(): bool
+    {
+        return $this->isAdmin();
+    }
+
+    /** Admins implicitly hold every permission; staff hold only what was granted. */
+    public function hasPermission(string $key): bool
+    {
+        return $this->isAdmin() || in_array($key, (array) $this->permissions, true);
     }
 
     public function isStaff(): bool
