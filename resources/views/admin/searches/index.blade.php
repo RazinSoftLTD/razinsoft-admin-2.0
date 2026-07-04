@@ -24,6 +24,22 @@
         </div>
     </div>
 
+    {{-- Searches by country --}}
+    @if ($countries->count())
+        <div class="mb-6 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Searches by country</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($countries as $c)
+                    <a href="{{ route('admin.searches.index', array_merge(request()->query(), ['country' => $c['code']])) }}"
+                       class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition {{ $country === $c['code'] ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50' }}">
+                        {{ $c['name'] }}
+                        <span class="rounded-full bg-gray-100 px-1.5 text-xs font-bold text-gray-500">{{ number_format($c['total']) }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     {{-- Filters --}}
     <form method="GET" class="mb-5 flex flex-wrap items-center gap-3">
         <div class="flex rounded-lg border border-gray-200 bg-white p-1 text-sm">
@@ -38,6 +54,14 @@
             <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path stroke-linecap="round" d="m21 21-4.3-4.3" /></svg>
             <input name="q" value="{{ $q }}" placeholder="Filter terms…" class="h-9 rounded-lg border border-gray-200 pl-9 pr-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
         </div>
+
+        {{-- Country filter — lists only countries that actually have searches --}}
+        <select name="country" onchange="this.form.submit()" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm">
+            <option value="">All countries</option>
+            @foreach ($countries as $c)
+                <option value="{{ $c['code'] }}" @selected($country === $c['code'])>{{ $c['name'] }} ({{ $c['total'] }})</option>
+            @endforeach
+        </select>
 
         <label class="inline-flex items-center gap-2 text-sm text-[var(--color-muted)]">
             <input type="checkbox" name="no_results" value="1" @checked($noResultsOn) onchange="this.form.submit()" class="rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">

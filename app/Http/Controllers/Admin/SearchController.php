@@ -18,12 +18,29 @@ class SearchController extends Controller
             default => null, // all time
         };
 
-        $scoped = fn () => SearchLog::query()->when($from, fn ($q) => $q->where('created_at', '>=', $from));
+        $country = $request->query('country');
 
-        // Headline stats for the selected range.
+        $scoped = fn () => SearchLog::query()
+            ->when($from, fn ($q) => $q->where('created_at', '>=', $from))
+            ->when($country, fn ($q, $c) => $c === 'unknown' ? $q->whereNull('country_code') : $q->where('country_code', $c));
+
+        // Headline stats for the selected range (+ country if filtered).
         $totalSearches = $scoped()->count();
         $uniqueTerms = $scoped()->distinct('term')->count('term');
         $noResults = (clone $scoped())->where('results_count', 0)->count();
+
+        // Only the countries that actually have searches (respecting the range) — powers the filter list + breakdown.
+        $countries = SearchLog::query()
+            ->when($from, fn ($q) => $q->where('created_at', '>=', $from))
+            ->selectRaw('country_code, COUNT(*) as total')
+            ->groupBy('country_code')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($r) => [
+                'code' => $r->country_code ?: 'unknown',
+                'name' => SearchLog::countryName($r->country_code),
+                'total' => $r->total,
+            ]);
 
         // Aggregated per-term table (with optional filters).
         $terms = $scoped()
@@ -36,7 +53,7 @@ class SearchController extends Controller
             ->paginate(30)
             ->withQueryString();
 
-        return view('admin.searches.index', compact('terms', 'totalSearches', 'uniqueTerms', 'noResults', 'range'));
+        return view('admin.searches.index', compact('terms', 'totalSearches', 'uniqueTerms', 'noResults', 'range', 'countries', 'country'));
     }
 
     public function destroy(Request $request)
