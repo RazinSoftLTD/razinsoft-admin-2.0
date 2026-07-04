@@ -76,6 +76,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('invoices/{invoice}/pdf', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'pdf'])->name('invoices.pdf');
         Route::post('invoices/{invoice}/payments', [\App\Http\Controllers\Admin\InvoicePaymentController::class, 'store'])->name('invoices.payments.store');
         Route::delete('invoices/{invoice}/payments/{payment}', [\App\Http\Controllers\Admin\InvoicePaymentController::class, 'destroy'])->name('invoices.payments.destroy');
+        Route::post('invoices/{invoice}/installments', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'installments'])->name('invoices.installments');
+        Route::post('invoices/{invoice}/request-payment', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'requestPayment'])->name('invoices.request-payment');
+        Route::post('invoices/{invoice}/send', [\App\Http\Controllers\Admin\ClientInvoiceController::class, 'send'])->name('invoices.send');
         Route::resource('users', UserController::class)->except('show');
     });
 });

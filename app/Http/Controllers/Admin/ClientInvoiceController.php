@@ -51,14 +51,18 @@ class ClientInvoiceController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
-        $invoice = DB::transaction(fn () => $this->persist(new ClientInvoice(['invoice_number' => $this->nextNumber(), 'created_by' => $request->user()->id]), $data, $request));
+        $invoice = DB::transaction(fn () => $this->persist(new ClientInvoice([
+            'invoice_number' => $this->nextNumber(),
+            'public_token' => \Illuminate\Support\Str::random(40),
+            'created_by' => $request->user()->id,
+        ]), $data, $request));
 
         return redirect()->route('admin.invoices.show', $invoice)->with('status', "Invoice {$invoice->invoice_number} saved.");
     }
 
     public function show(ClientInvoice $invoice)
     {
-        $invoice->load('items', 'client', 'payments.recorder');
+        $invoice->load('items', 'client', 'payments.recorder', 'installments');
 
         return view('admin.invoices.show', compact('invoice'));
     }
@@ -94,6 +98,67 @@ class ClientInvoiceController extends Controller
         $invoice->delete();
 
         return redirect()->route('admin.invoices.index')->with('status', 'Invoice deleted.');
+    }
+
+    /** Split the invoice total into N (roughly) equal installments with staggered due dates. */
+    public function installments(Request $request, ClientInvoice $invoice)
+    {
+        $data = $request->validate([
+            'parts' => ['required', 'integer', 'min:1', 'max:24'],
+            'interval_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        $parts = $data['parts'];
+        $interval = $data['interval_days'] ?? 30;
+        $each = floor(((float) $invoice->total / $parts) * 100) / 100;
+        $start = $invoice->due_date ?? now()->addDays($interval);
+
+        $invoice->installments()->delete();
+        for ($i = 0; $i < $parts; $i++) {
+            // Last part absorbs the rounding remainder so the installments sum to the total.
+            $amount = $i === $parts - 1 ? round((float) $invoice->total - $each * ($parts - 1), 2) : $each;
+            $invoice->installments()->create([
+                'label' => 'Installment '.($i + 1).' of '.$parts,
+                'amount' => $amount,
+                'due_date' => $start->copy()->addDays($interval * $i),
+                'sort_order' => $i,
+            ]);
+        }
+
+        return back()->with('status', "Split into {$parts} installment(s).");
+    }
+
+    /** Set a payment request amount (what the client is asked to pay now). */
+    public function requestPayment(Request $request, ClientInvoice $invoice)
+    {
+        $data = $request->validate([
+            'requested_amount' => ['nullable', 'numeric', 'min:0.01', 'max:'.max(0.01, $invoice->amountDue())],
+        ]);
+
+        $invoice->update(['requested_amount' => $data['requested_amount'] ?? null]);
+
+        return back()->with('status', $data['requested_amount']
+            ? 'Payment request set to '.number_format($data['requested_amount'], 2).'. Share the pay link with the client.'
+            : 'Payment request cleared — the client can pay the full due.');
+    }
+
+    /** Mark sent and (best-effort) email the client the invoice + pay link. */
+    public function send(ClientInvoice $invoice)
+    {
+        if ($invoice->status === 'draft') {
+            $invoice->update(['status' => 'sent']);
+        }
+
+        if ($invoice->bill_to_email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($invoice->bill_to_email)
+                    ->send(new \App\Mail\InvoiceSent($invoice));
+            } catch (\Throwable $e) {
+                return back()->with('status', 'Invoice marked sent. Email could not be delivered (mail not configured): '.$e->getMessage());
+            }
+        }
+
+        return back()->with('status', 'Invoice sent to '.($invoice->bill_to_email ?: 'the client').'.');
     }
 
     public function pdf(ClientInvoice $invoice)

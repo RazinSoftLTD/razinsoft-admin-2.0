@@ -45,6 +45,22 @@ class ClientInvoice extends Model
         return $this->hasMany(InvoicePayment::class)->orderBy('paid_at')->orderBy('id');
     }
 
+    public function installments(): HasMany
+    {
+        return $this->hasMany(InvoiceInstallment::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** What the client is asked to pay right now: the requested amount (capped to due) or the full due. */
+    public function payableAmount(): float
+    {
+        $due = $this->amountDue();
+        if (! is_null($this->requested_amount)) {
+            return round(min((float) $this->requested_amount, $due), 2);
+        }
+
+        return $due;
+    }
+
     /** Re-sum payments into amount_paid and refresh the status. Call after any payment change. */
     public function recomputePaid(): void
     {
