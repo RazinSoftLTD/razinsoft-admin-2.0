@@ -16,7 +16,7 @@ class InvoiceSent extends Mailable
     public function build()
     {
         $this->invoice->loadMissing('items');
-        $payUrl = route('pay.invoice.show', $this->invoice->public_token);
+        $payUrl = $this->invoice->payUrl();
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.invoices.pdf', ['invoice' => $this->invoice->load('payments')]);
 

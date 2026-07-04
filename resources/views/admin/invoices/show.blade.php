@@ -139,8 +139,8 @@
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Client Pay Link</h2>
                 <div class="flex items-center gap-2">
-                    <input type="text" readonly value="{{ route('pay.invoice.show', $invoice->public_token) }}" onclick="this.select()" class="h-9 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-[var(--color-muted)]">
-                    <a href="{{ route('pay.invoice.show', $invoice->public_token) }}" target="_blank" class="rounded-lg bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--color-primary)]">Open</a>
+                    <input type="text" readonly value="{{ $invoice->payUrl() }}" onclick="this.select()" class="h-9 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-[var(--color-muted)]">
+                    <a href="{{ $invoice->payUrl() }}" target="_blank" class="rounded-lg bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--color-primary)]">Open</a>
                 </div>
                 <p class="mt-2 text-xs text-[var(--color-muted)]">Share this link — the client pays online (Stripe). Payment is recorded automatically.</p>
             </div>

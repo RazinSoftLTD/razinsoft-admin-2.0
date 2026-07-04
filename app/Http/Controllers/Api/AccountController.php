@@ -65,7 +65,7 @@ class AccountController extends Controller
                 'status' => $inv->status,
                 'status_label' => \App\Models\ClientInvoice::STATUSES[$inv->status] ?? $inv->status,
                 'items_count' => $inv->items_count,
-                'pay_url' => route('pay.invoice.show', $inv->public_token),
+                'pay_url' => $inv->payUrl(),
             ])->values(),
         ]);
     }

@@ -55,6 +55,12 @@ class ClientInvoice extends Model
         return $this->hasMany(InvoicePayment::class)->orderBy('paid_at')->orderBy('id');
     }
 
+    /** Public pay page — served on the FRONTEND domain (website), not the admin. */
+    public function payUrl(): string
+    {
+        return rtrim((string) config('services.frontend_url'), '/').'/invoice/pay/'.$this->public_token;
+    }
+
     /** What the client is asked to pay right now: the requested amount (capped to due) or the full due. */
     public function payableAmount(): float
     {

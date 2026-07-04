@@ -20,12 +20,14 @@ class C6FlowTest extends TestCase {
         $inv->refresh();
         $this->assertEquals(300.0, $inv->payableAmount(), 'pay link charges exactly the set amount');
 
-        // 3. public pay page charges exactly 300
-        $this->get("/invoice/pay/{$inv->public_token}")->assertOk()->assertSee('300.00');
+        // 3. public API exposes the payable amount = exactly 300 (frontend renders it)
+        $this->getJson("/api/invoice/pay/{$inv->public_token}")->assertOk()->assertJsonFragment(['payable_amount'=>300.0]);
+        // backend pay URL redirects to the frontend page
+        $this->get("/invoice/pay/{$inv->public_token}")->assertRedirect();
 
         // 4. dev checkout + success records the payment
-        $this->post("/invoice/pay/{$inv->public_token}/checkout")->assertRedirect();
-        $this->get("/invoice/pay/{$inv->public_token}/success?dev=1")->assertOk();
+        $this->get("/invoice/pay/{$inv->public_token}/checkout")->assertRedirect();
+        $this->get("/invoice/pay/{$inv->public_token}/success?dev=1")->assertRedirect();
         $inv->refresh();
         $this->assertEquals(300.0, (float)$inv->amount_paid, 'payment recorded');
         $this->assertEquals(600.0, $inv->amountDue(), 'due updated');

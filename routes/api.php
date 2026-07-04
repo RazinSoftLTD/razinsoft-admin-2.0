@@ -27,6 +27,9 @@ Route::post('/contact', [\App\Http\Controllers\Api\ContactController::class, 'st
 // ---- Search analytics (public) ----
 Route::post('/search-log', [\App\Http\Controllers\Api\SearchController::class, 'store']);
 
+// ---- Public invoice pay page data (token-guarded, no auth) — consumed by the frontend pay page ----
+Route::get('/invoice/pay/{token}', [\App\Http\Controllers\InvoicePayController::class, 'apiShow']);
+
 // ---- Payment webhooks (public, no auth) ----
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhooks/paypal', [WebhookController::class, 'paypal']);
