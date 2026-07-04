@@ -21,6 +21,9 @@ class InvoiceCurrencyNavTest extends TestCase {
 
         // sidebar: invoice items live inside a collapsible "Invoices" group (not flat)
         $form->assertSee('All Invoices')->assertSee('Create Invoice')->assertSee('Templates')->assertSee('Currencies');
+
+        // invoice item rows have clear column headers
+        $form->assertSee('Description')->assertSee('Unit Price')->assertSee('Disc %')->assertSee('Tax %')->assertSee('Amount');
     }
 
     public function test_can_add_and_delete_a_currency(): void {

@@ -80,6 +80,16 @@
                 {{-- 2. Items --}}
                 <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                     <h2 class="mb-5 text-sm font-bold text-[var(--color-heading)]">2. Invoice Items</h2>
+                    {{-- Column headers (desktop) — mobile rows carry their own inline labels --}}
+                    <div class="mb-2 hidden grid-cols-12 gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400 sm:grid">
+                        <div class="sm:col-span-4">Description</div>
+                        <div class="sm:col-span-1">Qty</div>
+                        <div class="sm:col-span-2">Unit Price</div>
+                        <div class="sm:col-span-1">Disc %</div>
+                        <div class="sm:col-span-2">Tax %</div>
+                        <div class="sm:col-span-1">Amount</div>
+                        <div class="sm:col-span-1"></div>
+                    </div>
                     <div class="space-y-3">
                         <template x-for="(item, idx) in items" :key="idx">
                             <div class="grid grid-cols-12 gap-2 rounded-lg border border-gray-100 p-3">
