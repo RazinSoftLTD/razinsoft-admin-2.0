@@ -115,6 +115,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('messages/{message}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'destroy'])->name('messages.destroy');
         });
 
+        // Subscribers (blog "Follow" list)
+        Route::middleware('permission:subscribers')->group(function () {
+            Route::get('subscribers', [\App\Http\Controllers\Admin\SubscriberController::class, 'index'])->name('subscribers.index');
+            Route::post('subscribers', [\App\Http\Controllers\Admin\SubscriberController::class, 'store'])->name('subscribers.store');
+            Route::put('subscribers/{subscriber}', [\App\Http\Controllers\Admin\SubscriberController::class, 'update'])->name('subscribers.update');
+            Route::delete('subscribers/{subscriber}', [\App\Http\Controllers\Admin\SubscriberController::class, 'destroy'])->name('subscribers.destroy');
+        });
+
         // Searches
         Route::middleware('permission:searches')->group(function () {
             Route::get('searches', [\App\Http\Controllers\Admin\SearchController::class, 'index'])->name('searches.index');

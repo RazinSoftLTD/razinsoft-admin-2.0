@@ -55,6 +55,7 @@
                 ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'perm' => 'blog', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h6'],
                 ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'perm' => 'blog', 'icon' => 'M7 7h.01M3 5a2 2 0 0 1 2-2h6l9 9-8 8-9-9V5Z'],
                 ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog', 'icon' => 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 21a8 8 0 0 1 16 0'],
+                ['label' => 'Subscribers', 'route' => 'admin.subscribers.index', 'active' => 'admin.subscribers.*', 'perm' => 'subscribers', 'icon' => 'M4 5h16v12H7l-3 3V5Z M8 9h8M8 13h4'],
             ],
         ],
     ])->map(function ($g) use ($canSee) {

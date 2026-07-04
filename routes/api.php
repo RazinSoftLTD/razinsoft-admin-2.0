@@ -24,6 +24,9 @@ Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 // ---- Contact form (public) ----
 Route::post('/contact', [\App\Http\Controllers\Api\ContactController::class, 'store']);
 
+// ---- Blog "Follow" subscription (public) ----
+Route::post('/subscribe', [\App\Http\Controllers\Api\SubscriberController::class, 'store']);
+
 // ---- Search analytics (public) ----
 Route::post('/search-log', [\App\Http\Controllers\Api\SearchController::class, 'store']);
 

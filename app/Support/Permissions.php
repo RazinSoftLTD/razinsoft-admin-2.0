@@ -23,6 +23,7 @@ class Permissions
         ],
         'Content & Support' => [
             'blog' => 'Blog',
+            'subscribers' => 'Subscribers',
             'reviews' => 'Reviews',
             'questions' => 'Questions',
             'messages' => 'Messages',
