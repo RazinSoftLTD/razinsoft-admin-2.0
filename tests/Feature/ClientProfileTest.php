@@ -23,6 +23,10 @@ class ClientProfileTest extends TestCase {
         $this->get('/admin/invoices')->assertOk()
             ->assertSee(route('admin.clients.show', $client->id), false);
 
+        // inside the invoice view, the Bill To customer links to the profile too
+        $this->get("/admin/invoices/{$inv->id}")->assertOk()
+            ->assertSee(route('admin.clients.show', $client->id), false);
+
         // non-customer users are not reachable as "clients"
         $this->get("/admin/clients/{$admin->id}")->assertNotFound();
     }

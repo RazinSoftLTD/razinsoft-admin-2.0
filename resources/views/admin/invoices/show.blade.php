@@ -48,7 +48,11 @@
             <div class="grid gap-6 p-8 sm:grid-cols-2">
                 <div>
                     <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Bill To</p>
-                    <p class="mt-1.5 font-semibold text-[var(--color-heading)]">{{ $invoice->bill_to_name ?: '—' }}</p>
+                    @if ($invoice->client)
+                        <a href="{{ route('admin.clients.show', $invoice->client_id) }}" class="mt-1.5 inline-block font-semibold text-[var(--color-primary)] hover:underline">{{ $invoice->bill_to_name ?: $invoice->client->name }}</a>
+                    @else
+                        <p class="mt-1.5 font-semibold text-[var(--color-heading)]">{{ $invoice->bill_to_name ?: '—' }}</p>
+                    @endif
                     @if ($invoice->bill_to_company)<p class="text-sm text-[var(--color-muted)]">{{ $invoice->bill_to_company }}</p>@endif
                     @if ($invoice->bill_to_address)<p class="text-sm leading-relaxed text-[var(--color-muted)]">{{ $invoice->bill_to_address }}</p>@endif
                     @if ($invoice->bill_to_email)<p class="text-sm text-[var(--color-muted)]">{{ $invoice->bill_to_email }}</p>@endif
