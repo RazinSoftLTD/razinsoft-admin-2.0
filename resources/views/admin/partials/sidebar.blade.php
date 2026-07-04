@@ -24,7 +24,8 @@
             'label' => 'Invoices',
             'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4',
             'items' => [
-                ['label' => 'All Invoices', 'route' => 'admin.invoices.index', 'active' => 'admin.invoices.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
+                ['label' => 'All Invoices', 'route' => 'admin.invoices.index', 'active' => ['admin.invoices.index', 'admin.invoices.edit', 'admin.invoices.show'], 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
+                ['label' => 'Create Invoice', 'route' => 'admin.invoices.create', 'active' => 'admin.invoices.create', 'icon' => 'M12 5v14M5 12h14'],
                 ['label' => 'Recurring', 'route' => 'admin.recurring.index', 'active' => 'admin.recurring.*', 'icon' => 'M4 4v6h6 M20 20v-6h-6 M20 8a8 8 0 0 0-14-3M4 16a8 8 0 0 0 14 3'],
                 ['label' => 'Templates', 'route' => 'admin.invoice-templates.index', 'active' => 'admin.invoice-templates.*', 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5 M9 13h6M9 17h4'],
                 ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'icon' => 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20 M9.5 9a2.5 2.5 0 0 1 5 0M14.5 15a2.5 2.5 0 0 1-5 0M12 7v10'],
@@ -50,7 +51,7 @@
 <nav class="mt-2 space-y-1 px-3 pb-6">
     <p class="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Menu</p>
     @foreach ($menu as $item)
-        @php $isActive = request()->routeIs($item['active'] ?? $item['route']); @endphp
+        @php $isActive = request()->routeIs(...(array) ($item['active'] ?? $item['route'])); @endphp
         <a href="{{ route($item['route']) }}"
            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $isActive ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
             <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
@@ -65,7 +66,7 @@
 
     {{-- Collapsible groups (admin only) --}}
     @foreach ($groups as $group)
-        @php $groupActive = collect($group['items'])->contains(fn ($i) => request()->routeIs($i['active'] ?? $i['route'])); @endphp
+        @php $groupActive = collect($group['items'])->contains(fn ($i) => request()->routeIs(...(array) ($i['active'] ?? $i['route']))); @endphp
         <div x-data="{ open: {{ $groupActive ? 'true' : 'false' }} }" class="pt-1">
             <button type="button" @click="open = !open"
                     class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $groupActive ? 'text-[var(--color-heading)]' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
@@ -80,7 +81,7 @@
                 <div class="min-h-0 overflow-hidden">
                     <div class="mt-1 space-y-1 border-l border-gray-100 pl-3 ml-4">
                         @foreach ($group['items'] as $item)
-                            @php $isActive = request()->routeIs($item['active'] ?? $item['route']); @endphp
+                            @php $isActive = request()->routeIs(...(array) ($item['active'] ?? $item['route'])); @endphp
                             <a href="{{ route($item['route']) }}"
                                class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }}">
                                 <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
