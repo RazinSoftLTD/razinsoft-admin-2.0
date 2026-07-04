@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\License;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\FulfillmentService;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class OrderController extends Controller
 {
@@ -64,5 +67,29 @@ class OrderController extends Controller
         $order->load('user', 'items.license', 'items.product', 'invoice', 'payments');
 
         return view('admin.orders.show', compact('order'));
+    }
+
+    /** Stream the order's invoice PDF (self-heals: generates it if missing). */
+    public function downloadInvoice(Order $order, FulfillmentService $fulfillment)
+    {
+        $invoice = $order->invoice;
+        if (! $invoice || ! $invoice->pdf_path || ! Storage::disk('local')->exists($invoice->pdf_path)) {
+            $invoice = $fulfillment->generateInvoice($order->load('items', 'user'));
+        }
+
+        abort_unless($invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path), 404, 'Invoice file not available.');
+
+        return Storage::disk('local')->download($invoice->pdf_path, "{$invoice->invoice_number}.pdf");
+    }
+
+    /** Stream a license certificate for one of the order's items. */
+    public function downloadLicense(Order $order, License $license)
+    {
+        abort_unless($license->orderItem && $license->orderItem->order_id === $order->id, 404);
+        abort_unless($license->file_path && Storage::disk('local')->exists($license->file_path), 404, 'License file not available yet — it is issued once the order is paid.');
+
+        $ext = pathinfo($license->file_path, PATHINFO_EXTENSION) ?: 'pdf';
+
+        return Storage::disk('local')->download($license->file_path, "{$license->license_key}.{$ext}");
     }
 }

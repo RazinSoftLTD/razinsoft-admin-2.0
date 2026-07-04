@@ -21,7 +21,17 @@
                         @foreach ($order->items as $it)
                             <tr>
                                 <td class="py-3 font-semibold text-[var(--color-heading)]">{{ $it->product_name }}</td>
-                                <td class="py-3 text-[var(--color-muted)]">{{ $it->plan_name ?? 'License' }} @if($it->license)<span class="ml-1 font-mono text-xs text-gray-400">{{ $it->license->license_key }}</span>@endif</td>
+                                <td class="py-3 text-[var(--color-muted)]">
+                                    {{ $it->plan_name ?? 'License' }}
+                                    @if ($it->license)
+                                        <span class="ml-1 font-mono text-xs text-gray-400">{{ $it->license->license_key }}</span>
+                                        @if ($it->license->file_path)
+                                            <a href="{{ route('admin.orders.license.download', [$order, $it->license]) }}" class="ml-1 inline-flex items-center gap-1 align-middle text-xs font-semibold text-[var(--color-primary)] hover:underline" title="Download license certificate">
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>License
+                                            </a>
+                                        @endif
+                                    @endif
+                                </td>
                                 <td class="py-3 text-right">{{ $it->quantity }}</td>
                                 <td class="py-3 text-right font-semibold">${{ number_format($it->line_total, 2) }}</td>
                             </tr>
@@ -44,6 +54,22 @@
                     <p class="text-[var(--color-muted)]">Gateway: <span class="capitalize">{{ $order->payment_gateway ?? '—' }}</span></p>
                     <p class="text-[var(--color-muted)]">Placed: {{ $order->created_at->format('M d, Y H:i') }}</p>
                     @if ($order->invoice)<p class="text-[var(--color-muted)]">Invoice: <span class="font-mono text-xs">{{ $order->invoice->invoice_number }}</span></p>@endif
+                </div>
+
+                {{-- Downloads: invoice PDF + license certificates --}}
+                <div class="mt-4 space-y-2 border-t border-gray-100 pt-4">
+                    <a href="{{ route('admin.orders.invoice.download', $order) }}" class="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+                        Download Invoice PDF
+                    </a>
+                    @foreach ($order->items as $it)
+                        @if ($it->license && $it->license->file_path)
+                            <a href="{{ route('admin.orders.license.download', [$order, $it->license]) }}" class="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+                                License — {{ \Illuminate\Support\Str::limit($it->product_name, 20) }}
+                            </a>
+                        @endif
+                    @endforeach
                 </div>
             </div>
         </aside>

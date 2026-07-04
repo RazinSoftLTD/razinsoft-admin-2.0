@@ -64,6 +64,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
             Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
             Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
+            Route::get('orders/{order}/invoice', [OrderController::class, 'downloadInvoice'])->name('orders.invoice.download');
+            Route::get('orders/{order}/licenses/{license}', [OrderController::class, 'downloadLicense'])->name('orders.license.download');
             Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         });
 
