@@ -7,7 +7,7 @@
         'proposal' => 'bg-orange-50 text-orange-700', 'negotiation' => 'bg-amber-50 text-amber-700',
         'won' => 'bg-emerald-50 text-emerald-700', 'lost' => 'bg-red-50 text-red-600',
     ];
-    $cur = ['USD' => '$', 'BDT' => '৳', 'EUR' => '€', 'GBP' => '£'];
+    $cur = \App\Models\Currency::symbolMap();
 @endphp
 
 @section('content')
@@ -50,7 +50,8 @@
                     <div class="space-y-2">
                         @forelse ($col as $deal)
                             <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-                                <a href="{{ route('admin.deals.edit', $deal) }}" class="font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $deal->title }}</a>
+                                <a href="{{ route('admin.deals.show', $deal) }}" class="font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $deal->title }}</a>
+                                @if ($deal->isOverdue())<span class="ml-1 inline-flex items-center gap-1 align-middle text-[10px] font-semibold text-red-600"><span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>Overdue</span>@endif
                                 <p class="mt-1 text-lg font-bold text-[var(--color-heading)]">{{ $cur[$deal->currency] ?? '' }}{{ number_format($deal->value, 0) }}</p>
                                 <div class="mt-2 flex items-center justify-between text-xs text-[var(--color-muted)]">
                                     <span>{{ $deal->client?->name ?? '—' }}</span>
@@ -88,7 +89,10 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($deals as $deal)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-5 py-3 font-semibold text-[var(--color-heading)]">{{ $deal->title }}</td>
+                                <td class="px-5 py-3">
+                                    <a href="{{ route('admin.deals.show', $deal) }}" class="font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $deal->title }}</a>
+                                    @if ($deal->lead)<p class="text-xs text-[var(--color-muted)]">from lead: {{ $deal->lead->full_name }}</p>@endif
+                                </td>
                                 <td class="px-5 py-3 text-[var(--color-muted)]">{{ $deal->client?->name ?? '—' }}</td>
                                 <td class="px-5 py-3 text-right font-medium text-[var(--color-heading)]">{{ $cur[$deal->currency] ?? '' }}{{ number_format($deal->value, 2) }}</td>
                                 <td class="px-5 py-3"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $stageBadge[$deal->stage] ?? '' }}">{{ \App\Models\Deal::STAGES[$deal->stage] ?? $deal->stage }}</span></td>
@@ -97,6 +101,7 @@
                                 <td class="px-5 py-3">
                                     <div class="flex items-center justify-end gap-1">
                                         @if ($deal->isWon())<form method="POST" action="{{ route('admin.deals.invoice', $deal) }}">@csrf<button class="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50" title="Create invoice"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M7 3h7l5 5v13H7zM14 3v5h5"/></svg></button></form>@endif
+                                        <a href="{{ route('admin.deals.show', $deal) }}" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="View"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="2.5"/></svg></a>
                                         <a href="{{ route('admin.deals.edit', $deal) }}" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Edit"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg></a>
                                         <form method="POST" action="{{ route('admin.deals.destroy', $deal) }}" onsubmit="return confirm('Delete this deal?')">@csrf @method('DELETE')<button class="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Delete"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg></button></form>
                                     </div>

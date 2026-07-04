@@ -42,11 +42,24 @@
                                     <p class="text-xs text-gray-400">Assigned</p>
                                     <p class="font-medium text-[var(--color-heading)]">{{ $lead->assignee?->name ?? '—' }}</p>
                                 </div>
-                                <form method="POST" action="{{ route('admin.leads.mark-contacted', $lead) }}" class="flex items-center gap-2">
-                                    @csrf
-                                    <input type="date" name="next_follow_up_at" class="h-9 rounded-lg border border-gray-200 px-2 text-sm" title="Next follow-up (blank = done)">
-                                    <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]" title="Mark contacted now">Mark Contacted</button>
-                                </form>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    {{-- Snooze: reschedule without recording a contact --}}
+                                    @foreach ([3 => '+3d', 7 => '+7d'] as $days => $lbl)
+                                        <form method="POST" action="{{ route('admin.leads.snooze', $lead) }}">
+                                            @csrf<input type="hidden" name="days" value="{{ $days }}">
+                                            <button class="rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-[var(--color-muted)] hover:bg-gray-50" title="Snooze {{ $days }} days">{{ $lbl }}</button>
+                                        </form>
+                                    @endforeach
+                                    {{-- Mark contacted: set status + next follow-up --}}
+                                    <form method="POST" action="{{ route('admin.leads.mark-contacted', $lead) }}" class="flex items-center gap-2">
+                                        @csrf
+                                        <select name="lead_status" class="h-9 rounded-lg border border-gray-200 px-2 text-sm" title="Update status">
+                                            @foreach (\App\Models\Lead::STATUSES as $sk => $sl)<option value="{{ $sk }}" @selected($lead->lead_status === $sk)>{{ $sl }}</option>@endforeach
+                                        </select>
+                                        <input type="date" name="next_follow_up_at" class="h-9 rounded-lg border border-gray-200 px-2 text-sm" title="Next follow-up (blank = done)">
+                                        <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]" title="Mark contacted now">Mark Contacted</button>
+                                    </form>
+                                </div>
                             </div>
                         @endforeach
                     </div>

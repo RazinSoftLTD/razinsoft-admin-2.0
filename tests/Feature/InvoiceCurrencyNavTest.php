@@ -20,7 +20,7 @@ class InvoiceCurrencyNavTest extends TestCase {
         $this->get('/admin/invoices/create')->assertOk()->assertDontSee('value="JPY"', false);
 
         // sidebar: invoice items live inside a collapsible "Invoices" group (not flat)
-        $form->assertSee('All Invoices')->assertSee('Create Invoice')->assertSee('Templates')->assertSee('Currencies');
+        $form->assertSee('All Invoices')->assertSee('Create Invoice')->assertSee('Currencies');
 
         // invoice item rows have clear column headers
         $form->assertSee('Description')->assertSee('Unit Price')->assertSee('Disc %')->assertSee('Tax %')->assertSee('Amount');

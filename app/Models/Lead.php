@@ -36,6 +36,12 @@ class Lead extends Model
         return $this->belongsTo(User::class, 'converted_client_id');
     }
 
+    /** Deals opened from this lead. */
+    public function deals(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Deal::class);
+    }
+
     public function isConverted(): bool
     {
         return ! is_null($this->converted_client_id);

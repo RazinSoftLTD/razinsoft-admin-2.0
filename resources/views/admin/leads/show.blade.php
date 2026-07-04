@@ -79,8 +79,33 @@
                     <div class="flex items-center justify-between"><span class="text-gray-400">Priority</span><span class="font-medium capitalize text-[var(--color-heading)]">{{ \App\Models\Lead::PRIORITIES[$lead->priority] ?? $lead->priority }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Assigned To</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->assignee?->name ?? '—' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Team</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->team ?? '—' }}</span></div>
+                    <div class="flex items-center justify-between"><span class="text-gray-400">Last Contacted</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->last_contacted_at?->format('d M Y') ?? '—' }}</span></div>
+                    <div class="flex items-center justify-between"><span class="text-gray-400">Next Follow-up</span><span class="font-medium {{ $lead->next_follow_up_at && $lead->next_follow_up_at->isPast() ? 'text-red-600' : 'text-[var(--color-heading)]' }}">{{ $lead->next_follow_up_at?->format('d M Y') ?? '—' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Created</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->created_at->format('d M Y') }}</span></div>
                 </div>
+            </div>
+
+            {{-- Deals from this lead --}}
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div class="mb-3 flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Deals</h2>
+                    <a href="{{ route('admin.deals.create', ['lead' => $lead->id]) }}" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">+ New</a>
+                </div>
+                @php
+                    $dealSym = \App\Models\Currency::symbolMap();
+                    $dealStageBadge = ['new'=>'bg-gray-100 text-gray-600','qualified'=>'bg-indigo-50 text-indigo-700','proposal'=>'bg-orange-50 text-orange-700','negotiation'=>'bg-amber-50 text-amber-700','won'=>'bg-emerald-50 text-emerald-700','lost'=>'bg-red-50 text-red-600'];
+                @endphp
+                @forelse ($lead->deals->sortByDesc('id') as $deal)
+                    <a href="{{ route('admin.deals.show', $deal) }}" class="flex items-center justify-between gap-2 border-t border-gray-50 py-2.5 first:border-t-0 hover:opacity-80">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-medium text-[var(--color-heading)]">{{ $deal->title }}</p>
+                            <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $dealStageBadge[$deal->stage] ?? '' }}">{{ \App\Models\Deal::STAGES[$deal->stage] ?? $deal->stage }}</span>
+                        </div>
+                        <span class="shrink-0 text-sm font-semibold text-[var(--color-heading)]">{{ $dealSym[$deal->currency] ?? '' }}{{ number_format($deal->value, 0) }}</span>
+                    </a>
+                @empty
+                    <p class="text-sm text-[var(--color-muted)]">No deals yet.</p>
+                @endforelse
             </div>
         </div>
     </div>

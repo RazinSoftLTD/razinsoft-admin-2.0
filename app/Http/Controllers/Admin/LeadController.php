@@ -117,6 +117,16 @@ class LeadController extends Controller
         return back()->with('status', 'Lead marked contacted.');
     }
 
+    /** Push the follow-up date out by N days without recording a contact (couldn't reach yet). */
+    public function snooze(Request $request, Lead $lead)
+    {
+        $this->authorizeLead($request, $lead);
+        $days = (int) $request->validate(['days' => ['required', 'integer', 'min:1', 'max:365']])['days'];
+        $lead->update(['next_follow_up_at' => now()->addDays($days)->toDateString()]);
+
+        return back()->with('status', "Follow-up snoozed {$days} day(s).");
+    }
+
     public function importForm()
     {
         return view('admin.leads.import', [
@@ -208,7 +218,7 @@ class LeadController extends Controller
     public function show(Request $request, Lead $lead)
     {
         $this->authorizeLead($request, $lead);
-        $lead->load('assignee:id,name', 'convertedClient:id,name,email');
+        $lead->load('assignee:id,name', 'convertedClient:id,name,email', 'deals');
 
         return view('admin.leads.show', compact('lead'));
     }

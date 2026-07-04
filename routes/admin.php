@@ -29,9 +29,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class);
         Route::post('leads/{lead}/convert', [\App\Http\Controllers\Admin\LeadController::class, 'convert'])->name('leads.convert');
         Route::post('leads/{lead}/mark-contacted', [\App\Http\Controllers\Admin\LeadController::class, 'markContacted'])->name('leads.mark-contacted');
+        Route::post('leads/{lead}/snooze', [\App\Http\Controllers\Admin\LeadController::class, 'snooze'])->name('leads.snooze');
 
         // CRM — deals (staff scoped in the controller)
-        Route::resource('deals', \App\Http\Controllers\Admin\DealController::class)->except('show');
+        Route::resource('deals', \App\Http\Controllers\Admin\DealController::class);
         Route::post('deals/{deal}/stage', [\App\Http\Controllers\Admin\DealController::class, 'stage'])->name('deals.stage');
         Route::post('deals/{deal}/invoice', [\App\Http\Controllers\Admin\DealController::class, 'invoice'])->name('deals.invoice');
     });

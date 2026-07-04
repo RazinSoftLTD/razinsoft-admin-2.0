@@ -15,7 +15,7 @@ class DealController extends Controller
 {
     public function index(Request $request)
     {
-        $base = Deal::query()->with('client:id,name', 'assignee:id,name');
+        $base = Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name');
 
         // Staff see only their own deals.
         if ($request->user()->isStaff()) {
@@ -41,6 +41,15 @@ class DealController extends Controller
             'deals' => $view === 'list' ? (clone $base)->latest('id')->paginate(20)->withQueryString() : null,
             'stats' => $stats,
         ]);
+    }
+
+    /** Read-only deal detail with its linked lead, client and any invoices raised. */
+    public function show(Request $request, Deal $deal)
+    {
+        $this->authorizeDeal($request, $deal);
+        $deal->load('client', 'lead', 'assignee', 'invoices');
+
+        return view('admin.deals.show', ['deal' => $deal]);
     }
 
     public function create(Request $request)
@@ -114,6 +123,7 @@ class DealController extends Controller
             'invoice_number' => ClientInvoice::nextNumber(),
             'public_token' => Str::random(40),
             'client_id' => $client?->id,
+            'deal_id' => $deal->id,
             'bill_to_name' => $client?->name ?? $deal->title,
             'bill_to_company' => $client?->company,
             'bill_to_email' => $client?->email,
