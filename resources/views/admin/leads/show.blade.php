@@ -87,8 +87,19 @@
                     <div class="flex items-center justify-between"><span class="text-gray-400">Assigned To</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->assignee?->name ?? '—' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Team</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->team ?? '—' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Last Contacted</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->last_contacted_at?->format('d M Y') ?? '—' }}</span></div>
-                    <div class="flex items-center justify-between"><span class="text-gray-400">Next Follow-up</span><span class="font-medium {{ $lead->next_follow_up_at && $lead->next_follow_up_at->isPast() ? 'text-red-600' : 'text-[var(--color-heading)]' }}">{{ $lead->next_follow_up_at?->format('d M Y') ?? '—' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Created</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->created_at->format('d M Y') }}</span></div>
+                </div>
+
+                {{-- Set the next follow-up date right here --}}
+                <div class="mt-4 border-t border-gray-100 pt-4">
+                    <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Next Follow-up</p>
+                    <form method="POST" action="{{ route('admin.leads.schedule-follow-up', $lead) }}" class="flex items-center gap-2">
+                        @csrf
+                        <input type="date" name="next_follow_up_at" value="{{ optional($lead->next_follow_up_at)->toDateString() }}"
+                               class="h-9 flex-1 rounded-lg border border-gray-200 px-2 text-sm {{ $lead->next_follow_up_at && $lead->next_follow_up_at->isPast() ? 'text-red-600' : '' }}">
+                        <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save</button>
+                    </form>
+                    <p class="mt-1.5 text-xs text-[var(--color-muted)]">Puts this lead on the Follow-up page. Clear the date to remove it.</p>
                 </div>
             </div>
 

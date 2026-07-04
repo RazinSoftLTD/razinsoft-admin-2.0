@@ -117,6 +117,16 @@ class LeadController extends Controller
         return back()->with('status', 'Lead marked contacted.');
     }
 
+    /** Set/clear the next follow-up date from the lead detail page (blank = remove from follow-ups). */
+    public function scheduleFollowUp(Request $request, Lead $lead)
+    {
+        $this->authorizeLead($request, $lead);
+        $data = $request->validate(['next_follow_up_at' => ['nullable', 'date']]);
+        $lead->update(['next_follow_up_at' => $data['next_follow_up_at'] ?? null]);
+
+        return back()->with('status', $data['next_follow_up_at'] ? 'Follow-up scheduled.' : 'Follow-up cleared.');
+    }
+
     /** Quick status change from the list or the detail page (no other fields touched). */
     public function status(Request $request, Lead $lead)
     {
