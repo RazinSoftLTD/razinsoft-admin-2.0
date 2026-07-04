@@ -30,6 +30,16 @@ class ClientInvoice extends Model
 
     public const PAYMENT_METHODS = ['Bank Transfer', 'Stripe', 'PayPal', 'Cash', 'Cheque', 'Other'];
 
+    /** INV-YYYY-#### with a zero-padded, per-year running sequence. */
+    public static function nextNumber(): string
+    {
+        $year = now()->format('Y');
+        $last = static::where('invoice_number', 'like', "INV-{$year}-%")->orderByDesc('id')->value('invoice_number');
+        $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
+
+        return sprintf('INV-%s-%04d', $year, $seq);
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');

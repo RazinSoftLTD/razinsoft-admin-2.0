@@ -253,14 +253,8 @@ class ClientInvoiceController extends Controller
         ]);
     }
 
-    /** INV-YYYY-#### with a zero-padded, per-year running sequence. */
     private function nextNumber(): string
     {
-        $year = now()->format('Y');
-        $last = ClientInvoice::where('invoice_number', 'like', "INV-{$year}-%")
-            ->orderByDesc('id')->value('invoice_number');
-        $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
-
-        return sprintf('INV-%s-%04d', $year, $seq);
+        return ClientInvoice::nextNumber();
     }
 }
