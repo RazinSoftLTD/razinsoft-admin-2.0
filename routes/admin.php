@@ -23,6 +23,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // CRM — leads (staff see only their own; admin sees all — enforced in the controller).
         Route::get('leads/follow-up', [\App\Http\Controllers\Admin\LeadController::class, 'followUp'])->name('leads.follow-up');
+        Route::get('leads/import', [\App\Http\Controllers\Admin\LeadController::class, 'importForm'])->name('leads.import.form');
+        Route::get('leads/import/sample', [\App\Http\Controllers\Admin\LeadController::class, 'importSample'])->name('leads.import.sample');
+        Route::post('leads/import', [\App\Http\Controllers\Admin\LeadController::class, 'import'])->name('leads.import');
         Route::resource('leads', \App\Http\Controllers\Admin\LeadController::class);
         Route::post('leads/{lead}/convert', [\App\Http\Controllers\Admin\LeadController::class, 'convert'])->name('leads.convert');
         Route::post('leads/{lead}/mark-contacted', [\App\Http\Controllers\Admin\LeadController::class, 'markContacted'])->name('leads.mark-contacted');

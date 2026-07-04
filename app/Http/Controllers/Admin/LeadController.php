@@ -117,6 +117,79 @@ class LeadController extends Controller
         return back()->with('status', 'Lead marked contacted.');
     }
 
+    public function importForm()
+    {
+        return view('admin.leads.import', [
+            'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    /** Downloadable CSV template with the expected headers. */
+    public function importSample()
+    {
+        $headers = ['full_name', 'email', 'phone', 'company_name', 'job_title', 'lead_source', 'industry', 'lead_status', 'priority'];
+
+        return response()->streamDownload(function () use ($headers) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, $headers);
+            fputcsv($out, ['John Doe', 'john@example.com', '+880 17XXXXXXXX', 'Acme Ltd', 'Manager', 'Website', 'Technology', 'new', 'high']);
+            fclose($out);
+        }, 'leads-import-template.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    /** Parse the uploaded CSV → create leads (validate + skip bad rows, dedupe by email). */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'assigned_to' => ['required', 'exists:users,id'],
+        ]);
+
+        $rows = array_map('str_getcsv', file($request->file('file')->getRealPath()));
+        $header = array_map(fn ($h) => strtolower(trim((string) $h)), array_shift($rows) ?: []);
+
+        $created = 0;
+        $skipped = [];
+        foreach ($rows as $n => $row) {
+            if (count(array_filter($row, fn ($c) => trim((string) $c) !== '')) === 0) {
+                continue; // blank line
+            }
+            $data = array_combine($header, array_pad($row, count($header), null)) ?: [];
+            $name = trim((string) ($data['full_name'] ?? ''));
+            $phone = trim((string) ($data['phone'] ?? ''));
+            $email = trim((string) ($data['email'] ?? ''));
+
+            if ($name === '' || $phone === '') {
+                $skipped[] = 'Row '.($n + 2).': missing name or phone';
+
+                continue;
+            }
+            if ($email !== '' && Lead::where('email', $email)->exists()) {
+                $skipped[] = 'Row '.($n + 2)." ({$email}): duplicate";
+
+                continue;
+            }
+
+            Lead::create([
+                'full_name' => $name,
+                'email' => $email ?: null,
+                'phone' => $phone,
+                'company_name' => $data['company_name'] ?? null,
+                'job_title' => $data['job_title'] ?? null,
+                'lead_source' => in_array($data['lead_source'] ?? null, Lead::SOURCES, true) ? $data['lead_source'] : 'Other',
+                'industry' => in_array($data['industry'] ?? null, Lead::INDUSTRIES, true) ? $data['industry'] : null,
+                'lead_status' => array_key_exists($data['lead_status'] ?? '', Lead::STATUSES) ? $data['lead_status'] : 'new',
+                'priority' => array_key_exists($data['priority'] ?? '', Lead::PRIORITIES) ? $data['priority'] : 'medium',
+                'assigned_to' => $request->input('assigned_to'),
+            ]);
+            $created++;
+        }
+
+        return redirect()->route('admin.leads.index')
+            ->with('status', "Imported {$created} lead(s)".(count($skipped) ? ', skipped '.count($skipped).'.' : '.'))
+            ->with('import_skipped', array_slice($skipped, 0, 20));
+    }
+
     public function create()
     {
         return view('admin.leads.form', [
