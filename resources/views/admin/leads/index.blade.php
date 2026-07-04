@@ -152,7 +152,14 @@
                             <td class="px-4 py-3 text-[var(--color-muted)]">{{ $lead->phone }}</td>
                             <td class="px-4 py-3 text-[var(--color-muted)]">{{ $lead->lead_source }}</td>
                             <td class="px-4 py-3">
-                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusBadge[$lead->lead_status] ?? 'bg-gray-100 text-gray-600' }}">{{ \App\Models\Lead::STATUSES[$lead->lead_status] ?? $lead->lead_status }}</span>
+                                <form method="POST" action="{{ route('admin.leads.status', $lead) }}">
+                                    @csrf
+                                    <select name="lead_status" onchange="this.form.submit()" title="Change status"
+                                            class="cursor-pointer appearance-none rounded-full border-0 py-1 pl-2.5 pr-6 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] {{ $statusBadge[$lead->lead_status] ?? 'bg-gray-100 text-gray-600' }}"
+                                            style="background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%223%22 viewBox=%220 0 24 24%22><path d=%22m6 9 6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 0.4rem center;background-size:0.7em;">
+                                        @foreach (\App\Models\Lead::STATUSES as $sk => $sl)<option value="{{ $sk }}" @selected($lead->lead_status === $sk)>{{ $sl }}</option>@endforeach
+                                    </select>
+                                </form>
                             </td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $priorityBadge[$lead->priority] ?? 'bg-gray-100 text-gray-600' }}">{{ \App\Models\Lead::PRIORITIES[$lead->priority] ?? $lead->priority }}</span>

@@ -117,6 +117,16 @@ class LeadController extends Controller
         return back()->with('status', 'Lead marked contacted.');
     }
 
+    /** Quick status change from the list or the detail page (no other fields touched). */
+    public function status(Request $request, Lead $lead)
+    {
+        $this->authorizeLead($request, $lead);
+        $data = $request->validate(['lead_status' => ['required', Rule::in(array_keys(Lead::STATUSES))]]);
+        $lead->update($data);
+
+        return back()->with('status', "Status updated to {$data['lead_status']}.");
+    }
+
     /** Push the follow-up date out by N days without recording a contact (couldn't reach yet). */
     public function snooze(Request $request, Lead $lead)
     {

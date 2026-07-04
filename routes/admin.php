@@ -30,6 +30,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('leads/{lead}/convert', [\App\Http\Controllers\Admin\LeadController::class, 'convert'])->name('leads.convert');
         Route::post('leads/{lead}/mark-contacted', [\App\Http\Controllers\Admin\LeadController::class, 'markContacted'])->name('leads.mark-contacted');
         Route::post('leads/{lead}/snooze', [\App\Http\Controllers\Admin\LeadController::class, 'snooze'])->name('leads.snooze');
+        Route::post('leads/{lead}/status', [\App\Http\Controllers\Admin\LeadController::class, 'status'])->name('leads.status');
 
         // CRM — deals (staff scoped in the controller)
         Route::resource('deals', \App\Http\Controllers\Admin\DealController::class);
