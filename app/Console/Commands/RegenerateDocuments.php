@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ClientInvoice;
 use App\Models\Invoice;
 use App\Models\License;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -39,10 +40,9 @@ class RegenerateDocuments extends Command
                 continue;
             }
 
-            $pdf = Pdf::loadView('invoices.pdf', [
-                'order' => $order,
-                'invoice' => $invoice,
-                'billing' => (array) ($order->billing ?? []),
+            // Render with the shared CRM invoice layout (same as FulfillmentService).
+            $pdf = Pdf::loadView('admin.invoices.pdf', [
+                'invoice' => ClientInvoice::fromOrder($order, $invoice),
             ])->setPaper('a4');
 
             $path = "invoices/{$invoice->invoice_number}.pdf";

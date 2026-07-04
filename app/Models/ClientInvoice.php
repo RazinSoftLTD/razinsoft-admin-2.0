@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class ClientInvoice extends Model
 {
@@ -36,14 +37,81 @@ class ClientInvoice extends Model
         return Currency::symbolMap()[$this->currency] ?? $this->currency;
     }
 
-    /** INV-YYYY-#### with a zero-padded, per-year running sequence. */
+    /**
+     * INV-YYYY-#### from a single per-year counter shared by CRM invoices AND web-order
+     * invoices, so the two interleave in one continuous serial. Row-locked to stay unique.
+     */
     public static function nextNumber(): string
     {
         $year = now()->format('Y');
-        $last = static::where('invoice_number', 'like', "INV-{$year}-%")->orderByDesc('id')->value('invoice_number');
-        $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
 
-        return sprintf('INV-%s-%04d', $year, $seq);
+        return DB::transaction(function () use ($year) {
+            if (! DB::table('invoice_sequences')->where('year', $year)->exists()) {
+                // First allocation this year: seed from any pre-existing INV-YYYY-#### in either table.
+                $seed = max(self::maxSeq('client_invoices', $year), self::maxSeq('invoices', $year));
+                DB::table('invoice_sequences')->insertOrIgnore(['year' => $year, 'last_seq' => $seed]);
+            }
+
+            $row = DB::table('invoice_sequences')->where('year', $year)->lockForUpdate()->first();
+            $next = ((int) $row->last_seq) + 1;
+            DB::table('invoice_sequences')->where('year', $year)->update(['last_seq' => $next]);
+
+            return sprintf('INV-%s-%04d', $year, $next);
+        });
+    }
+
+    /** Highest existing INV-YYYY-#### sequence in a given invoice table (0 if none). */
+    protected static function maxSeq(string $table, string $year): int
+    {
+        $last = DB::table($table)
+            ->where('invoice_number', 'like', "INV-{$year}-%")
+            ->orderByDesc('invoice_number')
+            ->value('invoice_number');
+
+        return $last ? (int) substr($last, -4) : 0;
+    }
+
+    /**
+     * Build a transient (unsaved) CRM invoice from a web order + its Invoice row, so order
+     * invoices render with the exact same PDF layout. Not persisted — for display/PDF only.
+     */
+    public static function fromOrder(Order $order, Invoice $invoice): self
+    {
+        $order->loadMissing('items', 'user');
+        $billing = (array) ($order->billing ?? []);
+        $paid = $order->isPaid();
+
+        $ci = new self([
+            'invoice_number' => $invoice->invoice_number,
+            'invoice_date' => $invoice->issued_at ?? $order->created_at,
+            'due_date' => null,
+            'currency' => $order->currency,
+            'bill_to_name' => $billing['name'] ?? $order->user?->name,
+            'bill_to_company' => $billing['company'] ?? null,
+            'bill_to_email' => $billing['email'] ?? $order->user?->email,
+            'bill_to_address' => collect([$billing['address'] ?? null, $billing['city'] ?? null, $billing['country'] ?? null])->filter()->implode(', ') ?: null,
+            'subtotal' => (float) $order->subtotal,
+            'discount_total' => (float) $order->discount,
+            'tax_total' => 0,
+            'total' => (float) $order->total,
+            'amount_paid' => $paid ? (float) $order->total : 0,
+            'status' => $paid ? 'paid' : 'sent',
+            'notes' => 'Thank you for your purchase. This invoice is generated for order '.$order->order_number.'.',
+            'terms' => null,
+        ]);
+
+        $ci->setRelation('items', $order->items->map(fn ($i) => new ClientInvoiceItem([
+            'description' => $i->product_name,
+            'sub_description' => $i->plan_name,
+            'qty' => (float) $i->quantity,
+            'unit_price' => (float) $i->unit_price,
+            'discount_percent' => 0,
+            'tax_percent' => 0,
+            'amount' => (float) $i->line_total,
+        ])));
+        $ci->setRelation('payments', collect());
+
+        return $ci;
     }
 
     public function client(): BelongsTo

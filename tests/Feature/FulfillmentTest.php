@@ -49,7 +49,8 @@ class FulfillmentTest extends TestCase
         $invoice = $order->fresh()->invoice;
         $this->assertNotNull($invoice->pdf_path);
         Storage::disk('local')->assertExists($invoice->pdf_path);
-        $this->assertMatchesRegularExpression('/^RS-\d{2}\d{5}$/', $invoice->invoice_number);
+        // Number now comes from the shared INV-YYYY-#### serial (same counter the CRM uses).
+        $this->assertMatchesRegularExpression('/^INV-\d{4}-\d{4}$/', $invoice->invoice_number);
 
         // License per item
         $item = $order->items()->first();

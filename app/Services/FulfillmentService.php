@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\OrderFulfilledMail;
+use App\Models\ClientInvoice;
 use App\Models\Invoice;
 use App\Models\License;
 use App\Models\Order;
@@ -45,19 +46,17 @@ class FulfillmentService
      */
     public function generateInvoice(Order $order): Invoice
     {
-        // Invoice number = order number (e.g. RS-2600001), so they always match.
-        $number = $order->order_number;
-
+        // Number is drawn once from the shared INV-YYYY-#### serial (same counter the CRM uses),
+        // so web-order invoices and admin invoices interleave in one continuous sequence.
         $invoice = $order->invoice()->first()
-            ?? $order->invoice()->create(['invoice_number' => $number, 'issued_at' => now()]);
+            ?? $order->invoice()->create(['invoice_number' => ClientInvoice::nextNumber(), 'issued_at' => now()]);
 
-        $pdf = Pdf::loadView('invoices.pdf', [
-            'order' => $order->loadMissing('items', 'user'),
-            'invoice' => $invoice,
-            'billing' => (array) ($order->billing ?? []),
+        // Render with the shared CRM invoice layout so both look identical.
+        $pdf = Pdf::loadView('admin.invoices.pdf', [
+            'invoice' => ClientInvoice::fromOrder($order, $invoice),
         ])->setPaper('a4');
 
-        $path = "invoices/{$number}.pdf";
+        $path = "invoices/{$invoice->invoice_number}.pdf";
         Storage::disk('local')->put($path, $pdf->output());
         $invoice->update(['pdf_path' => $path]);
 
