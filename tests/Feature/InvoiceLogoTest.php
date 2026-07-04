@@ -16,10 +16,11 @@ class InvoiceLogoTest extends TestCase {
         $this->assertStringContainsString('data:image/png;base64,', $html, 'logo embedded as base64');
         $this->assertStringNotContainsString('class="brand">RazinSoft', $html, 'text brand fallback not used');
 
-        // notes (left) + terms (right) shown side by side
+        // notes (left column) + terms (right column) side by side, both text left-aligned
         $this->assertStringContainsString('Thanks for your business', $html);
         $this->assertStringContainsString('Net 30 days', $html);
-        $this->assertStringContainsString('padding-left:12px" class="right"', $html, 'terms column right-aligned');
+        $this->assertStringContainsString('width:50%;vertical-align:top;padding-left:12px"', $html, 'terms in the right column');
+        $this->assertStringNotContainsString('padding-left:12px" class="right"', $html, 'terms text not right-aligned');
 
         // dompdf actually produces a PDF with the image without erroring
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->output();

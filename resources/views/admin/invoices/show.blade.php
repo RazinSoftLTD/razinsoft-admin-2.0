@@ -115,7 +115,7 @@
                         <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Notes</p>
                         <p>{{ $invoice->notes ?: '—' }}</p>
                     </div>
-                    <div class="sm:text-right">
+                    <div>
                         <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Terms</p>
                         <p>{{ $invoice->terms ?: '—' }}</p>
                     </div>

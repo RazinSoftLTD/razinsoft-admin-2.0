@@ -112,7 +112,7 @@
         <div class="muted" style="font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px">Notes</div>
         <div style="margin-top:3px">{{ $invoice->notes ?: '—' }}</div>
       </td>
-      <td style="border:none;width:50%;vertical-align:top;padding-left:12px" class="right">
+      <td style="border:none;width:50%;vertical-align:top;padding-left:12px">
         <div class="muted" style="font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px">Terms</div>
         <div style="margin-top:3px">{{ $invoice->terms ?: '—' }}</div>
       </td>
