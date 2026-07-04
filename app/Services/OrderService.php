@@ -121,19 +121,12 @@ class OrderService
         return $order->fresh();
     }
 
-    /** Sequential number RS-{2-digit year}{5-digit serial}; serial restarts at 1 each year. Invoice reuses this. */
+    /**
+     * RS-{2-digit year}{5-digit serial}, drawn from the serial shared with CRM invoices
+     * (so orders and invoices form one continuous sequence). The order's invoice reuses this.
+     */
     private function newOrderNumber(): string
     {
-        $prefix = 'RS-'.now()->format('y'); // e.g. RS-26
-
-        do {
-            $last = Order::where('order_number', 'like', $prefix.'%')
-                ->orderByDesc('order_number')
-                ->value('order_number');
-            $seq = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
-            $n = $prefix.str_pad((string) $seq, 5, '0', STR_PAD_LEFT);
-        } while (Order::where('order_number', $n)->exists());
-
-        return $n;
+        return \App\Support\InvoiceSerial::next();
     }
 }

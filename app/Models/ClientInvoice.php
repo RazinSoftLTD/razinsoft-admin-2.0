@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 
 class ClientInvoice extends Model
 {
@@ -38,37 +37,12 @@ class ClientInvoice extends Model
     }
 
     /**
-     * INV-YYYY-#### from a single per-year counter shared by CRM invoices AND web-order
-     * invoices, so the two interleave in one continuous serial. Row-locked to stay unique.
+     * Next invoice number, drawn from the single serial shared with orders — same
+     * RS-{yy}##### format as order numbers, so everything reads as one sequence.
      */
     public static function nextNumber(): string
     {
-        $year = now()->format('Y');
-
-        return DB::transaction(function () use ($year) {
-            if (! DB::table('invoice_sequences')->where('year', $year)->exists()) {
-                // First allocation this year: seed from any pre-existing INV-YYYY-#### in either table.
-                $seed = max(self::maxSeq('client_invoices', $year), self::maxSeq('invoices', $year));
-                DB::table('invoice_sequences')->insertOrIgnore(['year' => $year, 'last_seq' => $seed]);
-            }
-
-            $row = DB::table('invoice_sequences')->where('year', $year)->lockForUpdate()->first();
-            $next = ((int) $row->last_seq) + 1;
-            DB::table('invoice_sequences')->where('year', $year)->update(['last_seq' => $next]);
-
-            return sprintf('INV-%s-%04d', $year, $next);
-        });
-    }
-
-    /** Highest existing INV-YYYY-#### sequence in a given invoice table (0 if none). */
-    protected static function maxSeq(string $table, string $year): int
-    {
-        $last = DB::table($table)
-            ->where('invoice_number', 'like', "INV-{$year}-%")
-            ->orderByDesc('invoice_number')
-            ->value('invoice_number');
-
-        return $last ? (int) substr($last, -4) : 0;
+        return \App\Support\InvoiceSerial::next();
     }
 
     /**

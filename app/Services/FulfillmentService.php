@@ -46,10 +46,10 @@ class FulfillmentService
      */
     public function generateInvoice(Order $order): Invoice
     {
-        // Number is drawn once from the shared INV-YYYY-#### serial (same counter the CRM uses),
-        // so web-order invoices and admin invoices interleave in one continuous sequence.
+        // Invoice number = order number (RS-{yy}#####). Order numbers already come from the
+        // serial shared with CRM invoices, so all invoice numbers read as one sequence.
         $invoice = $order->invoice()->first()
-            ?? $order->invoice()->create(['invoice_number' => ClientInvoice::nextNumber(), 'issued_at' => now()]);
+            ?? $order->invoice()->create(['invoice_number' => $order->order_number, 'issued_at' => now()]);
 
         // Render with the shared CRM invoice layout so both look identical.
         $pdf = Pdf::loadView('admin.invoices.pdf', [
