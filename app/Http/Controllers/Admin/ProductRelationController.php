@@ -45,7 +45,7 @@ class ProductRelationController extends Controller
             'tech' => ['rel' => 'tech', 'rules' => ['name' => 'required|string|max:255', 'color' => 'nullable|string|max:50', 'sort_order' => 'nullable|integer']],
             'suitable' => ['rel' => 'suitableFor', 'rules' => ['label' => 'required|string|max:255', 'sort_order' => 'nullable|integer']],
             'docs' => ['rel' => 'docs', 'rules' => ['title' => 'required|string|max:255', 'type' => 'nullable|string|max:50', 'url' => 'nullable|url', 'sort_order' => 'nullable|integer']],
-            'demos' => ['rel' => 'demos', 'rules' => ['type' => 'nullable|string|max:50', 'title' => 'required|string|max:255', 'subtitle' => 'nullable|string|max:255', 'badge' => 'nullable|string|max:50', 'url' => 'required|url', 'sort_order' => 'nullable|integer']],
+            'demos' => ['rel' => 'demos', 'rules' => ['type' => 'nullable|string|max:50', 'icon' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif,svg|max:2048', 'title' => 'required|string|max:255', 'subtitle' => 'nullable|string|max:255', 'badge' => 'nullable|string|max:50', 'url' => 'required|url', 'sort_order' => 'nullable|integer']],
             'faqs' => ['rel' => 'faqs', 'rules' => ['question' => 'required|string|max:255', 'answer' => 'nullable|string', 'sort_order' => 'nullable|integer']],
             'gallery-groups' => ['rel' => 'galleryGroups', 'rules' => ['name' => 'required|string|max:255', 'sort_order' => 'nullable|integer']],
         ];
@@ -125,6 +125,16 @@ class ProductRelationController extends Controller
         if ($relation === 'plans') {
             $data['is_popular'] = $request->boolean('is_popular');
             $data['perks'] = collect(preg_split('/\r\n|\r|\n/', (string) $request->input('perks')))->map(fn ($l) => trim($l))->filter()->values()->all();
+        }
+
+        // Demo icon: store the uploaded image (keeps original filename); leave untouched when none.
+        if ($relation === 'demos') {
+            if ($request->hasFile('icon')) {
+                $file = $request->file('icon');
+                $data['icon'] = $file->storeAs('products/demo-icons', $file->getClientOriginalName(), 'public');
+            } else {
+                unset($data['icon']); // don't overwrite the existing icon with null on edit
+            }
         }
 
         // Let the column default apply instead of inserting NULL when left blank.

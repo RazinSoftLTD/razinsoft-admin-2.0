@@ -49,6 +49,7 @@ class ProductResource extends JsonResource
             // Dynamic, unlimited demo & download links (admin-managed) → "Try It Live" cards.
             'demos' => $this->whenLoaded('demos', fn () => $this->demos->map(fn ($d) => [
                 'type' => $d->type,
+                'icon' => $d->icon ? self::media($d->icon) : null, // uploaded icon (null → website uses the type preset)
                 'title' => $d->title,
                 'subtitle' => $d->subtitle,
                 'badge' => $d->badge,

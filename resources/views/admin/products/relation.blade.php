@@ -158,16 +158,24 @@
                                 <x-admin.del-button :action="$del('demos', $d->id)" />
                             </div>
                         </div>
-                        <form x-show="edit" x-cloak method="POST" action="{{ $edit('demos', $d->id) }}" class="mt-3 space-y-3">
+                        <form x-show="edit" x-cloak method="POST" action="{{ $edit('demos', $d->id) }}" enctype="multipart/form-data" class="mt-3 space-y-3">
                             @csrf @method('PUT')
                             <div class="grid gap-3 sm:grid-cols-2">
                                 <div>
-                                    <label class="mb-1.5 block text-sm font-medium">Type</label>
+                                    <label class="mb-1.5 block text-sm font-medium">Type <span class="font-normal text-gray-400">(fallback icon)</span></label>
                                     <select name="type" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
                                         @foreach ($demoTypes as $val => $lbl)<option value="{{ $val }}" @selected($d->type === $val)>{{ $lbl }}</option>@endforeach
                                     </select>
                                 </div>
                                 <x-admin.field label="Title" name="title" :value="$d->title" required />
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium">Icon <span class="font-normal text-gray-400">(optional image — overrides the type icon)</span></label>
+                                <div class="flex items-center gap-3">
+                                    @if ($d->icon)<img src="{{ \App\Http\Resources\ProductResource::media($d->icon) }}" class="h-9 w-9 rounded-md border border-gray-100 object-contain p-1">@endif
+                                    <input type="file" name="icon" accept="image/*,.svg" class="text-xs file:mr-2 file:rounded file:border-0 file:bg-[var(--color-primary-soft)] file:px-2 file:py-1 file:text-xs file:font-semibold file:text-[var(--color-primary)]">
+                                </div>
+                                <p class="mt-1 text-xs text-[var(--color-muted)]">PNG/SVG, square recommended (e.g. 64×64). Leave empty to keep current / use the type icon.</p>
                             </div>
                             <div class="grid gap-3 sm:grid-cols-2">
                                 <x-admin.field label="Subtitle" name="subtitle" :value="$d->subtitle" />
@@ -181,15 +189,20 @@
                 @empty
                     <p class="rounded-xl border border-dashed border-gray-200 bg-white py-8 text-center text-sm text-gray-400">No demo or download links yet.</p>
                 @endforelse
-                <x-admin.add-form :action="$add('demos')" title="Add demo / download link">
+                <x-admin.add-form :action="$add('demos')" enctype="multipart/form-data" title="Add demo / download link">
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
-                            <label class="mb-1.5 block text-sm font-medium">Type</label>
+                            <label class="mb-1.5 block text-sm font-medium">Type <span class="font-normal text-gray-400">(fallback icon)</span></label>
                             <select name="type" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
                                 @foreach ($demoTypes as $val => $lbl)<option value="{{ $val }}">{{ $lbl }}</option>@endforeach
                             </select>
                         </div>
                         <x-admin.field label="Title" name="title" required placeholder="Admin Demo" />
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium">Icon <span class="font-normal text-gray-400">(optional image — overrides the type icon)</span></label>
+                        <input type="file" name="icon" accept="image/*,.svg" class="text-xs file:mr-2 file:rounded file:border-0 file:bg-[var(--color-primary-soft)] file:px-2 file:py-1 file:text-xs file:font-semibold file:text-[var(--color-primary)]">
+                        <p class="mt-1 text-xs text-[var(--color-muted)]">PNG/SVG, square recommended (e.g. 64×64). Leave empty to use the type icon.</p>
                     </div>
                     <div class="grid gap-3 sm:grid-cols-2">
                         <x-admin.field label="Subtitle" name="subtitle" placeholder="Access the admin panel" />
