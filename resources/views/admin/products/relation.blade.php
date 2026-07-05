@@ -5,6 +5,7 @@
     $del = fn($rel, $id) => route('admin.products.relation.destroy', [$product, $rel, $id]);
     $add = fn($rel) => route('admin.products.relation.store', [$product, $rel]);
     $edit = fn($rel, $id) => route('admin.products.relation.update', [$product, $rel, $id]);
+    $move = fn($id) => route('admin.products.gallery.move', [$product, $id]);
     $demoTypes = ['live' => 'Live Demo', 'admin' => 'Admin Demo', 'customer' => 'Customer Demo', 'web' => 'Web App', 'android' => 'Android App', 'ios' => 'iOS App', 'download' => 'Download', 'link' => 'Other Link'];
 @endphp
 
@@ -101,9 +102,15 @@
                             </div>
                         </div>
                         <div class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                            @foreach ($g->images as $img)
+                            @foreach ($g->images as $iLoop => $img)
                                 <div class="group relative" x-data="{ cap: false }">
+                                    <span class="absolute left-1 top-1 z-10 rounded-md bg-black/50 px-1.5 text-[10px] font-bold text-white">{{ $iLoop + 1 }}</span>
                                     <img src="{{ \App\Http\Resources\ProductResource::media($img->image) }}" class="h-20 w-full rounded-lg border border-gray-100 object-cover">
+                                    {{-- Reorder: move earlier / later within the group --}}
+                                    <div class="absolute inset-x-1 bottom-1 flex justify-between opacity-0 transition-opacity group-hover:opacity-100">
+                                        <form method="POST" action="{{ $move($img->id) }}">@csrf<input type="hidden" name="direction" value="up"><button {{ $iLoop === 0 ? 'disabled' : '' }} class="rounded-md bg-white/90 p-1 text-gray-700 shadow disabled:opacity-30" title="Move earlier"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6"/></svg></button></form>
+                                        <form method="POST" action="{{ $move($img->id) }}">@csrf<input type="hidden" name="direction" value="down"><button {{ $iLoop === $g->images->count() - 1 ? 'disabled' : '' }} class="rounded-md bg-white/90 p-1 text-gray-700 shadow disabled:opacity-30" title="Move later"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg></button></form>
+                                    </div>
                                     <div class="absolute right-1 top-1 flex gap-1">
                                         <button type="button" @click="cap=!cap" class="rounded-md bg-white/90 p-1 text-gray-600 shadow" title="Edit caption"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg></button>
                                         <form method="POST" action="{{ $del('gallery-images', $img->id) }}">@csrf @method('DELETE')<button class="rounded-md bg-white/90 p-1 text-red-600 shadow"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg></button></form>

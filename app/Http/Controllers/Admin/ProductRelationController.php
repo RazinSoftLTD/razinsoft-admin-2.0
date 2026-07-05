@@ -151,9 +151,36 @@ class ProductRelationController extends Controller
             'image' => $image->storeAs('products/gallery', $image->getClientOriginalName(), 'public'),
             'caption' => $data['caption'] ?? null,
             'alt' => $data['alt'] ?? null,
+            'sort_order' => (int) GalleryImage::where('gallery_group_id', $group->id)->max('sort_order') + 1, // append at the end of the serial
         ]);
 
         return back()->with('status', 'Image uploaded.');
+    }
+
+    /** Move a gallery image earlier/later within its group (re-sequences the group). */
+    public function moveGalleryImage(Request $request, Product $product, GalleryImage $image)
+    {
+        abort_unless($image->group && $image->group->product_id === $product->id, 404);
+        $dir = $request->input('direction') === 'up' ? 'up' : 'down';
+
+        $list = GalleryImage::where('gallery_group_id', $image->gallery_group_id)
+            ->orderBy('sort_order')->orderBy('id')->get()->values();
+        $idx = $list->search(fn ($i) => $i->id === $image->id);
+        $target = $dir === 'up' ? $idx - 1 : $idx + 1;
+
+        if ($idx === false || $target < 0 || $target >= $list->count()) {
+            return back(); // already at the edge
+        }
+
+        $ordered = $list->all();
+        [$ordered[$idx], $ordered[$target]] = [$ordered[$target], $ordered[$idx]];
+        foreach ($ordered as $pos => $img) {
+            if ((int) $img->sort_order !== $pos) {
+                $img->update(['sort_order' => $pos]);
+            }
+        }
+
+        return back()->with('status', 'Image reordered.');
     }
 
     private function storeFile(Request $request, Product $product)

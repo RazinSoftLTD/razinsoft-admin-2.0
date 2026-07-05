@@ -53,6 +53,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::resource('products', ProductController::class);
             Route::post('products/{product}/publish', [ProductController::class, 'togglePublish'])->name('products.publish');
             Route::post('products/{product}/clone', [ProductController::class, 'clone'])->name('products.clone');
+            Route::post('products/{product}/gallery-images/{image}/move', [ProductRelationController::class, 'moveGalleryImage'])->name('products.gallery.move');
             Route::get('products/{product}/manage/{relation}', [ProductRelationController::class, 'edit'])->name('products.relation.edit');
             Route::post('products/{product}/{relation}', [ProductRelationController::class, 'store'])->name('products.relation.store');
             Route::put('products/{product}/{relation}/{id}', [ProductRelationController::class, 'update'])->name('products.relation.update');
