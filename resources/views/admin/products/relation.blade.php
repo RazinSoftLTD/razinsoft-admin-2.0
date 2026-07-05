@@ -121,6 +121,7 @@
                             <input type="file" name="image" accept="image/*" required class="text-xs file:mr-2 file:rounded file:border-0 file:bg-[var(--color-primary-soft)] file:px-2 file:py-1 file:text-xs file:font-semibold file:text-[var(--color-primary)]">
                             <input type="text" name="caption" placeholder="Caption" class="h-9 rounded-lg border border-gray-200 px-2 text-sm">
                             <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white">Upload</button>
+                            <p class="w-full text-xs text-[var(--color-muted)]">{{ \App\Support\ImageSpecs::hint('gallery') }}</p>
                         </form>
                     </div>
                 @endforeach

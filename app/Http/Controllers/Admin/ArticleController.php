@@ -85,7 +85,7 @@ class ArticleController extends Controller
             'published_at' => ['nullable', 'date'],
             'read_time' => ['nullable', 'string', 'max:50'],
             'image_url' => ['nullable', 'string', 'max:500'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('article')],
             'image_alt' => ['nullable', 'string', 'max:255'],
             'tags' => ['nullable', 'string'],
             'content' => ['nullable', 'string'],
@@ -96,6 +96,8 @@ class ArticleController extends Controller
             'meta_keywords' => ['nullable', 'string', 'max:500'],
             'is_featured' => ['boolean'],
             'status' => ['required', 'in:draft,published'],
+        ], [
+            'image.dimensions' => \App\Support\ImageSpecs::message('article', 'featured image'),
         ]);
 
         $data = [
@@ -132,7 +134,10 @@ class ArticleController extends Controller
     /** Inline image upload for the rich-text editor. Returns a public URL. */
     public function uploadImage(Request $request)
     {
-        $request->validate(['file' => ['required', 'image', 'max:8192']]);
+        $request->validate(
+            ['file' => ['required', 'image', 'max:8192', \App\Support\ImageSpecs::rule('article_inline')]],
+            ['file.dimensions' => \App\Support\ImageSpecs::message('article_inline', 'image')],
+        );
         $file = $request->file('file');
         $path = $file->storeAs('articles/content', $file->getClientOriginalName(), 'public');
 

@@ -24,7 +24,7 @@
                     @endif
                     <input type="file" name="photo" accept="image/*" class="text-sm text-[var(--color-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
                 </div>
-                <p class="mt-1 text-xs text-[var(--color-muted)]">JPG/PNG, max 5MB.</p>
+                <p class="mt-1 text-xs text-[var(--color-muted)]">{{ \App\Support\ImageSpecs::hint('avatar') }} JPG/PNG, max 5MB.</p>
             </div>
 
             <div class="grid gap-5 sm:grid-cols-2">

@@ -81,6 +81,7 @@
                     <label class="mb-1.5 block text-sm font-medium">Upload image</label>
                     @if ($article->image)<img src="{{ \App\Http\Resources\ProductResource::media($article->image) }}" class="mb-2 h-24 rounded-lg border border-gray-100 object-cover">@endif
                     <input type="file" name="image" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
+                    <p class="mt-1 text-xs text-[var(--color-muted)]">{{ \App\Support\ImageSpecs::hint('article') }}</p>
                 </div>
                 <x-admin.field label="…or image URL" name="image_url" value="" hint="Paste an external image URL (used if no file uploaded)." />
             </div>

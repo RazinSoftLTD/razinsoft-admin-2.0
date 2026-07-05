@@ -139,9 +139,11 @@ class ProductRelationController extends Controller
     {
         $data = $request->validate([
             'gallery_group_id' => ['required', 'integer', 'exists:gallery_groups,id'],
-            'image' => ['required', 'image', 'max:4096'],
+            'image' => ['required', 'image', 'max:4096', \App\Support\ImageSpecs::rule('gallery')],
             'caption' => ['nullable', 'string', 'max:255'],
             'alt' => ['nullable', 'string', 'max:255'],
+        ], [
+            'image.dimensions' => \App\Support\ImageSpecs::message('gallery', 'gallery image'),
         ]);
         $group = $product->galleryGroups()->findOrFail($data['gallery_group_id']);
         $image = $request->file('image');

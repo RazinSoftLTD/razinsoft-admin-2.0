@@ -98,7 +98,7 @@ class AdminActionsTest extends TestCase
         // Gallery image upload
         $this->post("/admin/products/{$product->id}/gallery-images", [
             'gallery_group_id' => $group->id,
-            'image' => UploadedFile::fake()->image('shot.png'),
+            'image' => UploadedFile::fake()->image('shot.png', 1280, 720), // 16:9
         ])->assertRedirect();
         $this->assertSame(1, $group->images()->count());
         Storage::disk('public')->assertExists($group->images()->first()->image);
@@ -114,7 +114,7 @@ class AdminActionsTest extends TestCase
         // Thumbnail on update
         $this->put("/admin/products/{$product->id}", [
             'name' => 'Media P', 'status' => 'published', 'currency' => 'USD',
-            'thumbnail' => UploadedFile::fake()->image('thumb.png'),
+            'thumbnail' => UploadedFile::fake()->image('thumb.png', 1200, 800), // 3:2
         ])->assertRedirect();
         $this->assertNotNull($product->fresh()->thumbnail);
         Storage::disk('public')->assertExists($product->fresh()->thumbnail);

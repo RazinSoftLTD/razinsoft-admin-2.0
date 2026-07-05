@@ -33,6 +33,7 @@
                     <label class="mb-1.5 block text-sm font-medium">Thumbnail</label>
                     @if ($product->thumbnail)<img src="{{ \App\Http\Resources\ProductResource::media($product->thumbnail) }}" class="mb-2 h-20 rounded-lg border border-gray-100 object-cover">@endif
                     <input type="file" name="thumbnail" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
+                    <p class="mt-1 text-xs text-[var(--color-muted)]">{{ \App\Support\ImageSpecs::hint('product') }}</p>
                 </div>
                 <x-admin.field label="Thumbnail alt" name="thumbnail_alt" :value="$product->thumbnail_alt" />
             </div>
@@ -41,6 +42,7 @@
                     <label class="mb-1.5 block text-sm font-medium">Hero image</label>
                     @if ($product->hero_image)<img src="{{ \App\Http\Resources\ProductResource::media($product->hero_image) }}" class="mb-2 h-20 rounded-lg border border-gray-100 object-cover">@endif
                     <input type="file" name="hero_image" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
+                    <p class="mt-1 text-xs text-[var(--color-muted)]">{{ \App\Support\ImageSpecs::hint('product') }}</p>
                 </div>
                 <x-admin.field label="Hero alt" name="hero_alt" :value="$product->hero_alt" />
             </div>

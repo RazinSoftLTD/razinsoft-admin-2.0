@@ -46,7 +46,9 @@ class AuthorController extends Controller
             'name' => ['required', 'string', 'max:255', Rule::unique('authors', 'name')->ignore($author)],
             'role' => ['nullable', 'string', 'max:100'],
             'bio' => ['nullable', 'string', 'max:1000'],
-            'photo' => ['nullable', 'image', 'max:4096'],
+            'photo' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('avatar')],
+        ], [
+            'photo.dimensions' => \App\Support\ImageSpecs::message('avatar', 'photo'),
         ]);
 
         $data = [

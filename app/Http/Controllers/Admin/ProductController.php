@@ -145,8 +145,11 @@ class ProductController extends Controller
             'thumbnail_alt' => ['nullable', 'string', 'max:255'],
             'hero_alt' => ['nullable', 'string', 'max:255'],
             'overview' => ['nullable', 'string'],
-            'thumbnail' => ['nullable', 'image', 'max:4096'],
-            'hero_image' => ['nullable', 'image', 'max:4096'],
+            'thumbnail' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('product')],
+            'hero_image' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('product')],
+        ], [
+            'thumbnail.dimensions' => \App\Support\ImageSpecs::message('product', 'thumbnail'),
+            'hero_image.dimensions' => \App\Support\ImageSpecs::message('product', 'hero image'),
         ]);
 
         $data['slug'] = Str::slug(($data['slug'] ?? '') ?: $data['name']);

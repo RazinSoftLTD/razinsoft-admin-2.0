@@ -41,7 +41,7 @@
                     <div>
                         <label class="mb-1.5 block text-sm font-medium">Profile photo</label>
                         <input type="file" name="photo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
-                        <p class="mt-1 text-xs text-gray-400">Leave empty to keep the current photo.</p>
+                        <p class="mt-1 text-xs text-gray-400">{{ \App\Support\ImageSpecs::hint('avatar') }} Leave empty to keep the current photo.</p>
                     </div>
                     <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save author</button>
                 </form>
@@ -59,6 +59,7 @@
             <div>
                 <label class="mb-1.5 block text-sm font-medium">Profile photo</label>
                 <input type="file" name="photo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
+                <p class="mt-1 text-xs text-gray-400">{{ \App\Support\ImageSpecs::hint('avatar') }}</p>
             </div>
         </x-admin.add-form>
     </div>

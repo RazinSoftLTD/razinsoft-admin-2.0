@@ -81,9 +81,11 @@ class StaffController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff)],
             'phone' => ['nullable', 'string', 'max:40'],
             'job_title' => ['nullable', 'string', 'max:120'],
-            'photo' => ['nullable', 'image', 'max:5120'],
+            'photo' => ['nullable', 'image', 'max:5120', \App\Support\ImageSpecs::rule('avatar')],
             'password' => [$staff ? 'nullable' : 'required', 'string', 'min:8'],
             'permissions' => ['nullable', 'array'],
+        ], [
+            'photo.dimensions' => \App\Support\ImageSpecs::message('avatar', 'photo'),
         ]);
 
         // Keep only valid permission keys; a brand-new staff defaults to a sensible starter set.
