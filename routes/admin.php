@@ -247,6 +247,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // ---- Super admin only (role=admin): staff, roles/permissions, admin users ----
     Route::middleware('admin')->group(function () {
+        Route::get('staff/{staff}/permissions', [StaffController::class, 'permissions'])->whereNumber('staff')->name('staff.permissions');
+        Route::put('staff/{staff}/permissions', [StaffController::class, 'updatePermissions'])->whereNumber('staff')->name('staff.permissions.update');
         Route::resource('staff', StaffController::class)->except('show');
         Route::resource('roles', RoleController::class)->except('show');
         Route::resource('users', UserController::class)->except('show');

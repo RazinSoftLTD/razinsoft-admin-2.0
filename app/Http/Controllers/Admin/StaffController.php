@@ -84,12 +84,34 @@ class StaffController extends Controller
             'photo' => ['nullable', 'image', 'max:5120', \App\Support\ImageSpecs::rule('avatar')],
             'password' => [$staff ? 'nullable' : 'required', 'string', 'min:8'],
             'role_id' => ['nullable', 'exists:roles,id'],
-            'override' => ['nullable', 'array'],
         ], [
             'photo.dimensions' => \App\Support\ImageSpecs::message('avatar', 'photo'),
         ]);
 
-        // Per-user override map {key:bool}: '1' = allow, '0' = deny, '' = inherit from role (skipped).
+        // The staff form only assigns a role. Per-user permission overrides are edited on the
+        // dedicated Permissions page (staff.permissions), so they aren't touched here.
+        $data['role_id'] = $request->input('role_id') ?: null;
+        unset($data['photo']); // handled separately
+
+        return $data;
+    }
+
+    /** Dedicated per-user permissions page (Inherit/Allow/Deny overrides on top of the role). */
+    public function permissions(User $staff)
+    {
+        abort_unless($staff->isStaff(), 404);
+
+        return view('admin.staff.permissions', [
+            'staff' => $staff->load('assignedRole'),
+        ]);
+    }
+
+    /** Save the per-user permission override map. */
+    public function updatePermissions(Request $request, User $staff)
+    {
+        abort_unless($staff->isStaff(), 404);
+        $request->validate(['override' => ['nullable', 'array']]);
+
         $override = [];
         foreach ((array) $request->input('override', []) as $key => $val) {
             if (! in_array($key, \App\Support\Permissions::keys(), true)) {
@@ -101,11 +123,9 @@ class StaffController extends Controller
                 $override[$key] = false;
             }
         }
-        $data['role_id'] = $request->input('role_id') ?: null;
-        $data['permissions'] = $override;
-        unset($data['photo']); // handled separately
+        $staff->update(['permissions' => $override]);
 
-        return $data;
+        return redirect()->route('admin.staff.index')->with('status', "Permissions updated for {$staff->name}.");
     }
 
     /** Store the uploaded photo keeping its ORIGINAL filename (per project rule). */

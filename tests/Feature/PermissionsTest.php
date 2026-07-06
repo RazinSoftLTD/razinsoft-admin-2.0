@@ -97,15 +97,17 @@ class PermissionsTest extends TestCase {
         $role = Role::where('name','Sales Rep')->first();
         $this->assertSame(['leads.view','leads.create'], $role->permissions); // invalid key dropped
 
-        // create staff on that role + an override
-        $this->post('/admin/staff', [
-            'name'=>'Rep','email'=>'rep@test.local','password'=>'password123',
-            'role_id'=>$role->id, 'override'=>['leads.delete'=>'1','deals.view'=>'0','junk'=>'1'],
-        ])->assertRedirect();
+        // create staff on that role (the staff form only assigns a role now)
+        $this->post('/admin/staff', ['name'=>'Rep','email'=>'rep@test.local','password'=>'password123','role_id'=>$role->id])->assertRedirect();
         $staff = User::where('email','rep@test.local')->first();
         $this->assertSame($role->id, $staff->role_id);
+        $this->assertTrue($staff->allows('leads','view'));   // from role
+
+        // the dedicated permissions page renders and saves per-user overrides
+        $this->get("/admin/staff/{$staff->id}/permissions")->assertOk()->assertSee('Permissions — Rep');
+        $this->put("/admin/staff/{$staff->id}/permissions", ['override'=>['leads.delete'=>'1','deals.view'=>'0','junk'=>'1']])->assertRedirect();
+        $staff->refresh();
         $this->assertSame(['leads.delete'=>true, 'deals.view'=>false], $staff->permissions); // junk dropped, inherit skipped
-        $this->assertTrue($staff->allows('leads','view'));    // from role
         $this->assertTrue($staff->allows('leads','delete'));  // from override
     }
 }

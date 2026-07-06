@@ -52,6 +52,9 @@
                             </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center justify-end gap-1">
+                                    <a href="{{ route('admin.staff.permissions', $s) }}" class="rounded-lg p-2 text-gray-400 hover:bg-amber-50 hover:text-amber-600" title="Permissions">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.5 7.5a4.5 4.5 0 1 0-4.9 4.48L4 19v2h3l1-1v-2h2l1-1v-2l1.02-1.02A4.5 4.5 0 0 0 15.5 7.5Z M16.5 7h.01"/></svg>
+                                    </a>
                                     <a href="{{ route('admin.staff.edit', $s) }}" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Edit">
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
                                     </a>
