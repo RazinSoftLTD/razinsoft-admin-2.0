@@ -42,15 +42,13 @@
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $s->job_title ?? '—' }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $s->assigned_leads_count }}</td>
                             <td class="px-5 py-3">
-                                @php $perms = (array) $s->permissions; @endphp
-                                @if (count($perms))
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach (array_slice($perms, 0, 3) as $p)<span class="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">{{ \App\Support\Permissions::label($p) }}</span>@endforeach
-                                        @if (count($perms) > 3)<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">+{{ count($perms) - 3 }}</span>@endif
-                                    </div>
+                                @php $overrides = count((array) $s->permissions); @endphp
+                                @if ($s->assignedRole)
+                                    <span class="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">{{ $s->assignedRole->name }}</span>
                                 @else
-                                    <span class="text-xs text-gray-400">No access</span>
+                                    <span class="text-xs text-gray-400">No role</span>
                                 @endif
+                                @if ($overrides)<span class="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500" title="Per-user overrides">+{{ $overrides }} custom</span>@endif
                             </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center justify-end gap-1">

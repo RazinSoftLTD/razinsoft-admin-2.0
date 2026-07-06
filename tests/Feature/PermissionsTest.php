@@ -80,6 +80,15 @@ class PermissionsTest extends TestCase {
         $this->get('/admin/staff')->assertOk();
     }
 
+    public function test_staff_list_renders_with_role_and_overrides(): void {
+        $role = Role::create(['name'=>'Sales','permissions'=>['leads.view']]);
+        User::create(['name'=>'Rep','email'=>'listed@test.local','password'=>'password','role'=>'staff','role_id'=>$role->id,'permissions'=>['deals.view'=>true]]);
+        $this->actingAs($this->admin());
+
+        // the Access column shows the role name (regression: used to call a removed Permissions::label)
+        $this->get('/admin/staff')->assertOk()->assertSee('Sales')->assertSee('Rep');
+    }
+
     public function test_super_admin_creates_role_and_assigns_via_staff_form(): void {
         $this->actingAs($this->admin());
 

@@ -14,7 +14,7 @@ class StaffController extends Controller
     public function index()
     {
         return view('admin.staff.index', [
-            'staff' => User::staff()->withCount('assignedLeads')->latest()->paginate(15),
+            'staff' => User::staff()->with('assignedRole')->withCount('assignedLeads')->latest()->paginate(15),
         ]);
     }
 
