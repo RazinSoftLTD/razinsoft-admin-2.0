@@ -18,7 +18,7 @@ class DealController extends Controller
         $base = Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name');
 
         // Staff see only their own deals.
-        if ($request->user()->isStaff()) {
+        if (! $request->user()->seesAll('deals')) {
             $base->where('assigned_to', $request->user()->id);
         }
 
@@ -161,6 +161,6 @@ class DealController extends Controller
 
     private function authorizeDeal(Request $request, Deal $deal): void
     {
-        abort_if($request->user()->isStaff() && $deal->assigned_to !== $request->user()->id, 403);
+        abort_if(! $request->user()->seesAll('deals') && $deal->assigned_to !== $request->user()->id, 403);
     }
 }

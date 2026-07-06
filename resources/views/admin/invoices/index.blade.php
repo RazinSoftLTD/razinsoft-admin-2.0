@@ -15,9 +15,11 @@
             <h1 class="text-xl font-bold text-[var(--color-heading)]">All Invoices</h1>
             <p class="mt-1 text-sm text-[var(--color-muted)]">{{ $invoices->total() }} invoice(s)</p>
         </div>
+        @if (auth()->user()->allows('invoices', 'create'))
         <a href="{{ route('admin.invoices.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Create Invoice
         </a>
+        @endif
     </div>
 
     <form method="GET" class="mb-4 flex flex-wrap gap-2">

@@ -17,7 +17,7 @@ class LeadController extends Controller
         $q = Lead::query()->with('assignee:id,name')->latest('id');
 
         // Staff only see the leads assigned to them; admins see everything.
-        if ($request->user()->isStaff()) {
+        if (! $request->user()->seesAll('leads')) {
             $q->where('assigned_to', $request->user()->id);
         }
 
@@ -85,7 +85,7 @@ class LeadController extends Controller
             ->whereNull('converted_client_id')
             ->whereNotNull('next_follow_up_at');
 
-        if ($request->user()->isStaff()) {
+        if (! $request->user()->seesAll('leads')) {
             $q->where('assigned_to', $request->user()->id);
         }
 
@@ -317,7 +317,7 @@ class LeadController extends Controller
     /** Staff may only touch leads assigned to them; admins have full access. */
     private function authorizeLead(Request $request, Lead $lead): void
     {
-        abort_if($request->user()->isStaff() && $lead->assigned_to !== $request->user()->id, 403);
+        abort_if(! $request->user()->seesAll('leads') && $lead->assigned_to !== $request->user()->id, 403);
     }
 
     private function validated(Request $request): array

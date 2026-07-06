@@ -37,22 +37,44 @@
             </div>
             <x-admin.field label="Password" name="password" type="password" :required="!$staff->exists" :hint="$staff->exists ? 'Leave blank to keep the current password.' : 'Min 8 characters — staff use this to log in.'" />
 
-            {{-- Permissions — which panel sections this staff member can access --}}
-            @php $granted = old('permissions', $staff->permissions ?? \App\Support\Permissions::DEFAULTS); @endphp
+            {{-- Role — the base permission set --}}
+            @php $override = old('override', (array) ($staff->permissions ?? [])); @endphp
             <div class="border-t border-gray-100 pt-5">
-                <p class="text-sm font-semibold text-[var(--color-heading)]">Permissions</p>
-                <p class="mb-3 text-xs text-[var(--color-muted)]">Tick the sections this staff member can see and manage. (Admins always have full access.)</p>
-                <div class="grid gap-5 sm:grid-cols-3">
-                    @foreach (\App\Support\Permissions::CATALOG as $group => $perms)
+                <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Role</label>
+                <select name="role_id" class="h-11 w-full max-w-sm rounded-lg border border-gray-200 px-3 text-sm">
+                    <option value="">— No role —</option>
+                    @foreach ($roles as $r)<option value="{{ $r->id }}" @selected((string) old('role_id', $staff->role_id) === (string) $r->id)>{{ $r->name }}</option>@endforeach
+                </select>
+                <p class="mt-1 text-xs text-[var(--color-muted)]">The role gives the base permissions. Manage roles from <a href="{{ route('admin.roles.index') }}" class="font-semibold text-[var(--color-primary)] hover:underline">Roles &amp; Permissions</a>.</p>
+            </div>
+
+            {{-- Per-user override (optional) — Inherit / Allow / Deny on top of the role --}}
+            <div x-data="{ open: {{ count($override) ? 'true' : 'false' }} }" class="border-t border-gray-100 pt-5">
+                <button type="button" @click="open=!open" class="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]">
+                    <svg class="h-4 w-4 transition-transform" :class="open && 'rotate-90'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 6 6 6-6 6"/></svg>
+                    Custom access (override this role)
+                </button>
+                <p class="mt-1 text-xs text-[var(--color-muted)]">Leave everything on <strong>Inherit</strong> to just use the role. Set <strong>Allow</strong> / <strong>Deny</strong> to override a specific permission for this person only.</p>
+                <div x-show="open" x-cloak class="mt-4 space-y-5">
+                    @foreach (\App\Support\Permissions::grouped() as $group => $modules)
                         <div>
                             <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">{{ $group }}</p>
-                            <div class="space-y-2">
-                                @foreach ($perms as $key => $label)
-                                    <label class="flex items-center gap-2 text-sm text-[var(--color-heading)]">
-                                        <input type="checkbox" name="permissions[]" value="{{ $key }}" @checked(in_array($key, (array) $granted, true))
-                                               class="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
-                                        {{ $label }}
-                                    </label>
+                            <div class="divide-y divide-gray-50 rounded-lg border border-gray-100">
+                                @foreach ($modules as $mod => $cfg)
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+                                        <span class="w-24 shrink-0 text-sm font-semibold text-[var(--color-heading)]">{{ $cfg['label'] }}</span>
+                                        @foreach (\App\Support\Permissions::actionsFor($mod) as $act)
+                                            @php $key = "$mod.$act"; $cur = array_key_exists($key, $override) ? ($override[$key] ? '1' : '0') : ''; @endphp
+                                            <label class="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
+                                                <span class="{{ $act === 'view_all' || $act === 'finance' ? 'font-semibold text-[var(--color-primary)]' : '' }}">{{ \App\Support\Permissions::actionLabel($act) }}</span>
+                                                <select name="override[{{ $key }}]" class="h-8 rounded border-gray-200 text-xs">
+                                                    <option value="" @selected($cur==='')>Inherit</option>
+                                                    <option value="1" @selected($cur==='1')>Allow</option>
+                                                    <option value="0" @selected($cur==='0')>Deny</option>
+                                                </select>
+                                            </label>
+                                        @endforeach
+                                    </div>
                                 @endforeach
                             </div>
                         </div>

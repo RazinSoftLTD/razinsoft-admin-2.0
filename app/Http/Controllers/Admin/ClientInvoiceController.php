@@ -16,6 +16,11 @@ class ClientInvoiceController extends Controller
     {
         $q = ClientInvoice::query()->with('client:id,name')->latest('id');
 
+        // Own-scope: without invoices.view_all a user only sees invoices they created.
+        if (! $request->user()->seesAll('invoices')) {
+            $q->where('created_by', $request->user()->id);
+        }
+
         if ($search = trim((string) $request->query('search'))) {
             $q->where(fn ($w) => $w
                 ->where('invoice_number', 'like', "%{$search}%")
@@ -70,6 +75,9 @@ class ClientInvoiceController extends Controller
 
     public function show(ClientInvoice $invoice)
     {
+        // Own-scope: without invoices.view_all you can only open invoices you created.
+        abort_if(! request()->user()->seesAll('invoices') && $invoice->created_by !== request()->user()->id, 403);
+
         $invoice->load('items', 'client', 'payments.recorder');
 
         return view('admin.invoices.show', compact('invoice'));

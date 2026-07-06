@@ -20,7 +20,7 @@ class StaffController extends Controller
 
     public function create()
     {
-        return view('admin.staff.form', ['staff' => new User(['role' => User::ROLE_STAFF])]);
+        return view('admin.staff.form', ['staff' => new User(['role' => User::ROLE_STAFF]), 'roles' => \App\Models\Role::orderBy('name')->get()]);
     }
 
     public function store(Request $request)
@@ -39,7 +39,7 @@ class StaffController extends Controller
     {
         abort_unless($staff->isStaff(), 404);
 
-        return view('admin.staff.form', compact('staff'));
+        return view('admin.staff.form', ['staff' => $staff, 'roles' => \App\Models\Role::orderBy('name')->get()]);
     }
 
     public function update(Request $request, User $staff)
@@ -83,16 +83,26 @@ class StaffController extends Controller
             'job_title' => ['nullable', 'string', 'max:120'],
             'photo' => ['nullable', 'image', 'max:5120', \App\Support\ImageSpecs::rule('avatar')],
             'password' => [$staff ? 'nullable' : 'required', 'string', 'min:8'],
-            'permissions' => ['nullable', 'array'],
+            'role_id' => ['nullable', 'exists:roles,id'],
+            'override' => ['nullable', 'array'],
         ], [
             'photo.dimensions' => \App\Support\ImageSpecs::message('avatar', 'photo'),
         ]);
 
-        // Keep only valid permission keys; a brand-new staff defaults to a sensible starter set.
-        $data['permissions'] = array_values(array_intersect(
-            $request->input('permissions', $staff ? [] : \App\Support\Permissions::DEFAULTS),
-            \App\Support\Permissions::keys(),
-        ));
+        // Per-user override map {key:bool}: '1' = allow, '0' = deny, '' = inherit from role (skipped).
+        $override = [];
+        foreach ((array) $request->input('override', []) as $key => $val) {
+            if (! in_array($key, \App\Support\Permissions::keys(), true)) {
+                continue;
+            }
+            if ($val === '1') {
+                $override[$key] = true;
+            } elseif ($val === '0') {
+                $override[$key] = false;
+            }
+        }
+        $data['role_id'] = $request->input('role_id') ?: null;
+        $data['permissions'] = $override;
         unset($data['photo']); // handled separately
 
         return $data;

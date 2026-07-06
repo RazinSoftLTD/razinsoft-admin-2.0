@@ -7,9 +7,11 @@
             <h1 class="text-xl font-bold text-[var(--color-heading)]">Clients</h1>
             <p class="mt-1 text-sm text-[var(--color-muted)]">{{ $clients->total() }} client(s) — from website sign-up, admin entry, or lead conversion.</p>
         </div>
+        @if (auth()->user()->allows('clients', 'create'))
         <a href="{{ route('admin.clients.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> New Client
         </a>
+        @endif
     </div>
 
     <form method="GET" class="mb-4">

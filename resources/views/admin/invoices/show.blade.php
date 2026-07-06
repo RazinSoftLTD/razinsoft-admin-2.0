@@ -185,6 +185,8 @@
                 </div>
             @endif
 
+            {{-- Finance (payment history + recording) — hidden without the invoices.finance permission --}}
+            @if (auth()->user()->allows('invoices', 'finance'))
             {{-- Payment history --}}
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Payment History</h2>
@@ -238,6 +240,7 @@
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center text-sm font-semibold text-emerald-700">
                     ✓ Fully paid
                 </div>
+            @endif
             @endif
 
         </div>
