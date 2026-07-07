@@ -18,6 +18,7 @@ class Product extends Model
 
     protected $casts = [
         'is_featured' => 'boolean',
+        'for_home' => 'boolean',
         'price' => 'decimal:2',
         'ext_price' => 'decimal:2',
         'rating' => 'decimal:1',

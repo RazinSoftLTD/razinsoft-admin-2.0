@@ -1,4 +1,4 @@
-@props(['label' => null, 'name', 'type' => 'text', 'value' => null, 'options' => null, 'rows' => 3, 'required' => false, 'hint' => null, 'placeholder' => null])
+@props(['label' => null, 'name', 'type' => 'text', 'value' => null, 'options' => null, 'rows' => 3, 'required' => false, 'hint' => null, 'placeholder' => null, 'step' => null, 'min' => null, 'max' => null])
 
 @php
     $val = old($name, $value);
@@ -25,7 +25,7 @@
             {{ $label }}
         </label>
     @else
-        <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val }}" @if($required) required @endif placeholder="{{ $placeholder }}" class="{{ $base }} h-11">
+        <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val }}" @if($required) required @endif @if(!is_null($step)) step="{{ $step }}" @endif @if(!is_null($min)) min="{{ $min }}" @endif @if(!is_null($max)) max="{{ $max }}" @endif placeholder="{{ $placeholder }}" class="{{ $base }} h-11">
     @endif
 
     @if ($hint)<p class="mt-1 text-xs text-gray-400">{{ $hint }}</p>@endif

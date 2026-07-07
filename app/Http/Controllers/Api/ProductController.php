@@ -23,6 +23,12 @@ class ProductController extends Controller
             $q->where('category', $cat);
         }
 
+        // Homepage picks: only products the admin flagged for_home. Fall back to the normal
+        // list when none are flagged yet, so the homepage is never empty.
+        if ($request->boolean('for_home') && Product::published()->where('for_home', true)->exists()) {
+            $q->where('for_home', true);
+        }
+
         match ($request->query('sort')) {
             'sellers' => $q->orderByDesc('sales_count'),
             'rated' => $q->orderByDesc('rating'),

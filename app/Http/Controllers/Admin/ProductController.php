@@ -137,6 +137,7 @@ class ProductController extends Controller
             'badge' => ['nullable', 'in:best_seller,new,free'],
             'version' => ['nullable', 'string', 'max:50'],
             'is_featured' => ['boolean'],
+            'for_home' => ['boolean'],
             'sort_order' => ['nullable', 'integer'],
             'currency' => ['nullable', 'string', 'size:3'],
             'rating' => ['nullable', 'numeric', 'between:0,5'],

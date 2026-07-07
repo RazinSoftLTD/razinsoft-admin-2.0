@@ -16,7 +16,10 @@
                 <x-admin.field label="Sort order" name="sort_order" type="number" :value="$product->sort_order" />
                 <x-admin.field label="Currency" name="currency" :value="$product->currency ?? 'USD'" />
             </div>
-            <x-admin.field name="is_featured" type="checkbox" label="Featured product" :value="$product->is_featured" />
+            <div class="flex flex-wrap gap-x-8 gap-y-2">
+                <x-admin.field name="is_featured" type="checkbox" label="Featured product" :value="$product->is_featured" />
+                <x-admin.field name="for_home" type="checkbox" label="Show on homepage (max 6)" :value="$product->for_home" />
+            </div>
         </div>
     </div>
 
@@ -24,7 +27,7 @@
         <h3 class="mb-4 text-sm font-bold uppercase tracking-wide text-gray-400">Stats & media</h3>
         <div class="space-y-5">
             <div class="grid gap-5 sm:grid-cols-3">
-                <x-admin.field label="Rating" name="rating" type="number" :value="$product->rating" hint="0–5" />
+                <x-admin.field label="Rating" name="rating" type="number" step="0.1" min="0" max="5" :value="$product->rating" hint="0–5 (e.g. 4.5)" />
                 <x-admin.field label="Reviews count" name="reviews_count" type="number" :value="$product->reviews_count" />
                 <x-admin.field label="Sales count" name="sales_count" type="number" :value="$product->sales_count" />
             </div>
