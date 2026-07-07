@@ -138,4 +138,64 @@ class CheckoutTest extends TestCase
         app(OrderService::class)->markPaid($order);
         $this->postJson("/api/orders/{$order->order_number}/repay")->assertStatus(409);
     }
+
+    public function test_paypal_checkout_creates_order_and_confirm_captures_and_fulfils(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        config()->set('services.paypal.client_id', 'id');
+        config()->set('services.paypal.secret', 'secret');
+        config()->set('services.paypal.mode', 'sandbox');
+
+        \Illuminate\Support\Facades\Http::fake([
+            '*/v1/oauth2/token' => \Illuminate\Support\Facades\Http::response(['access_token' => 'tok']),
+            '*/v2/checkout/orders/*/capture' => \Illuminate\Support\Facades\Http::response(['status' => 'COMPLETED', 'id' => 'PPORDER1']),
+            '*/v2/checkout/orders' => \Illuminate\Support\Facades\Http::response(['id' => 'PPORDER1', 'links' => [['rel' => 'approve', 'href' => 'https://paypal.test/approve']]]),
+        ]);
+
+        $p = $this->product();
+        $plan = $p->plans()->first();
+        Sanctum::actingAs($this->customer());
+
+        $res = $this->postJson('/api/checkout', [
+            'items' => [['slug' => 'ready-x', 'plan_id' => $plan->id, 'qty' => 1]],
+            'gateway' => 'paypal',
+        ])->assertStatus(201)
+            ->assertJsonPath('provider', 'paypal')
+            ->assertJsonPath('checkout_url', 'https://paypal.test/approve');
+
+        $orderNumber = $res->json('order_number');
+        $this->assertDatabaseHas('payments', ['gateway_session_id' => 'PPORDER1', 'status' => 'pending']);
+
+        // Success page returns with ?token=<paypal-order-id> → capture + fulfil.
+        $this->postJson("/api/orders/{$orderNumber}/confirm?token=PPORDER1")
+            ->assertOk()->assertJsonPath('paid', true);
+
+        $this->assertTrue(\App\Models\Order::where('order_number', $orderNumber)->first()->isPaid());
+    }
+
+    public function test_paypal_webhook_fulfils_only_on_capture_completed(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $this->product();
+        $cust = $this->customer();
+        $order = app(OrderService::class)->createFromCheckout($cust, [
+            'items' => [['slug' => 'ready-x', 'qty' => 1]], 'gateway' => 'paypal',
+        ]);
+
+        // Approval alone must NOT mark the order paid (money isn't captured yet).
+        $this->postJson('/api/webhooks/paypal', [
+            'event_type' => 'CHECKOUT.ORDER.APPROVED',
+            'resource' => ['id' => 'PPX', 'purchase_units' => [['reference_id' => $order->order_number]]],
+        ])->assertOk();
+        $this->assertFalse($order->fresh()->isPaid());
+
+        // A completed capture fulfils it.
+        $this->postJson('/api/webhooks/paypal', [
+            'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
+            'resource' => ['id' => 'CAP1', 'purchase_units' => [['reference_id' => $order->order_number]]],
+        ])->assertOk();
+        $this->assertTrue($order->fresh()->isPaid());
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
 use Stripe\Webhook;
@@ -37,14 +38,23 @@ class WebhookController extends Controller
     public function paypal(Request $request, OrderService $orders)
     {
         $event = $request->all();
-        $type = $event['event_type'] ?? null;
 
-        if (in_array($type, ['CHECKOUT.ORDER.APPROVED', 'PAYMENT.CAPTURE.COMPLETED'], true)) {
-            $ref = data_get($event, 'resource.purchase_units.0.reference_id')
-                ?? data_get($event, 'resource.supplementary_data.related_ids.order_id');
-            if ($ref && ($order = Order::where('order_number', $ref)->first())) {
-                $orders->markPaid($order, ['payment_id' => data_get($event, 'resource.id'), 'payload' => ['gateway' => 'paypal']]);
-            }
+        // Only a completed capture means the money was taken — approval alone must NOT fulfil.
+        if (($event['event_type'] ?? null) !== 'PAYMENT.CAPTURE.COMPLETED') {
+            return response()->json(['received' => true]);
+        }
+
+        // Our order_number is the reference_id; fall back to the PayPal order id stored on the payment.
+        $ref = data_get($event, 'resource.purchase_units.0.reference_id')
+            ?? data_get($event, 'resource.invoice_id');
+        $order = $ref ? Order::where('order_number', $ref)->first() : null;
+
+        if (! $order && ($paypalOrderId = data_get($event, 'resource.supplementary_data.related_ids.order_id'))) {
+            $order = Payment::where('gateway_session_id', $paypalOrderId)->latest()->first()?->order;
+        }
+
+        if ($order) {
+            $orders->markPaid($order, ['payment_id' => data_get($event, 'resource.id'), 'payload' => ['gateway' => 'paypal']]);
         }
 
         return response()->json(['received' => true]);

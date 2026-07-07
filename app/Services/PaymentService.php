@@ -99,33 +99,84 @@ class PaymentService
 
     private function paypal(Order $order): string
     {
-        $id = config('services.paypal.client_id');
-        $secret = config('services.paypal.secret');
+        $token = $this->paypalToken();
+        if (! $token) {
+            return $this->devUrl($order);
+        }
 
-        $base = config('services.paypal.mode') === 'live'
-            ? 'https://api-m.paypal.com'
-            : 'https://api-m.sandbox.paypal.com';
-
-        $token = Http::asForm()->withBasicAuth($id, $secret)
-            ->post("{$base}/v1/oauth2/token", ['grant_type' => 'client_credentials'])
-            ->json('access_token');
-
-        $res = Http::withToken($token)->post("{$base}/v2/checkout/orders", [
+        $res = Http::withToken($token)->post("{$this->paypalBase()}/v2/checkout/orders", [
             'intent' => 'CAPTURE',
             'purchase_units' => [[
                 'reference_id' => $order->order_number,
                 'amount' => ['currency_code' => $order->currency, 'value' => number_format((float) $order->total, 2, '.', '')],
             ]],
             'application_context' => [
+                'brand_name' => config('app.name'),
+                'user_action' => 'PAY_NOW',
+                'shipping_preference' => 'NO_SHIPPING',
                 'return_url' => $this->frontend("/payment/success?order={$order->order_number}"),
                 'cancel_url' => $this->frontend("/payment/cancel?order={$order->order_number}"),
             ],
         ])->json();
 
+        // Store PayPal's order id so we can capture it on return / match it from a webhook.
         $order->payments()->latest()->first()?->update(['gateway_session_id' => $res['id'] ?? null]);
         $approve = collect($res['links'] ?? [])->firstWhere('rel', 'approve')['href'] ?? null;
 
         return $approve ?? $this->devUrl($order);
+    }
+
+    /**
+     * Capture an approved PayPal order — money is only taken at capture, not at approval.
+     * Called from the success page so the order fulfils synchronously without relying on
+     * webhooks (mirrors stripeSessionPaid()). Idempotent: an already-captured order is "paid".
+     */
+    public function paypalCapture(Order $order, ?string $paypalOrderId = null): bool
+    {
+        if (! config('services.paypal.client_id') || ! config('services.paypal.secret')) {
+            return false;
+        }
+
+        $paypalOrderId ??= $order->payments()->latest()->first()?->gateway_session_id;
+        if (! $paypalOrderId) {
+            return false;
+        }
+
+        $token = $this->paypalToken();
+        if (! $token) {
+            return false;
+        }
+
+        try {
+            $res = Http::withToken($token)
+                ->post("{$this->paypalBase()}/v2/checkout/orders/{$paypalOrderId}/capture")
+                ->json();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        // A re-confirm after the webhook already captured returns 422 ORDER_ALREADY_CAPTURED.
+        if (data_get($res, 'details.0.issue') === 'ORDER_ALREADY_CAPTURED') {
+            return true;
+        }
+
+        return ($res['status'] ?? null) === 'COMPLETED'
+            || data_get($res, 'purchase_units.0.payments.captures.0.status') === 'COMPLETED';
+    }
+
+    private function paypalBase(): string
+    {
+        return config('services.paypal.mode') === 'live'
+            ? 'https://api-m.paypal.com'
+            : 'https://api-m.sandbox.paypal.com';
+    }
+
+    private function paypalToken(): ?string
+    {
+        return Http::asForm()
+            ->withBasicAuth(config('services.paypal.client_id'), config('services.paypal.secret'))
+            ->post("{$this->paypalBase()}/v1/oauth2/token", ['grant_type' => 'client_credentials'])
+            ->json('access_token');
     }
 
     /** Local-only fallback so the full flow is testable without real gateway keys. */
