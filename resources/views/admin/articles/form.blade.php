@@ -147,16 +147,25 @@
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Register the font family whitelist (values are used as CSS class suffixes).
+            const fonts = ['sans-serif', 'serif', 'monospace', 'arial', 'georgia', 'tahoma', 'verdana', 'times', 'courier'];
+            const Font = Quill.import('formats/font');
+            Font.whitelist = fonts;
+            Quill.register(Font, true);
+
             const quill = new Quill('#editor', {
                 theme: 'snow',
                 placeholder: 'Write the article… use the toolbar to format text and insert images.',
                 modules: {
                     toolbar: {
                         container: [
-                            [{ header: [2, 3, false] }],
-                            ['bold', 'italic', 'underline'],
-                            ['blockquote'],
+                            [{ font: fonts }, { size: ['small', false, 'large', 'huge'] }],
+                            [{ header: [1, 2, 3, 4, 5, 6, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ color: [] }, { background: [] }],
+                            ['blockquote', 'code-block'],
                             [{ list: 'ordered' }, { list: 'bullet' }],
+                            [{ align: [] }],
                             ['link', 'image'],
                             ['clean'],
                         ],
@@ -200,5 +209,38 @@
             });
         });
     </script>
-    <style>#editor{min-height:340px}#editor .ql-editor{min-height:340px;font-size:15px}</style>
+    <style>
+        #editor{min-height:340px}
+        #editor .ql-editor{min-height:340px;font-size:15px}
+        /* Toolbar stays visible while scrolling the page */
+        .ql-toolbar.ql-snow{position:sticky;top:0;z-index:30;background:#fff;border-top-left-radius:.5rem;border-top-right-radius:.5rem}
+        /* Font families (whitelist → .ql-font-<value>) */
+        .ql-font-arial{font-family:Arial,Helvetica,sans-serif}
+        .ql-font-georgia{font-family:Georgia,serif}
+        .ql-font-tahoma{font-family:Tahoma,Geneva,sans-serif}
+        .ql-font-verdana{font-family:Verdana,Geneva,sans-serif}
+        .ql-font-times{font-family:'Times New Roman',Times,serif}
+        .ql-font-courier{font-family:'Courier New',Courier,monospace}
+        .ql-font-serif{font-family:Georgia,'Times New Roman',serif}
+        .ql-font-monospace{font-family:Menlo,Consolas,monospace}
+        /* Font-picker labels */
+        .ql-snow .ql-picker.ql-font{width:120px}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=sans-serif]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=sans-serif]::before{content:'Sans Serif';font-family:sans-serif}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=serif]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=serif]::before{content:'Serif';font-family:Georgia,serif}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=monospace]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=monospace]::before{content:'Monospace';font-family:Menlo,monospace}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=arial]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=arial]::before{content:'Arial';font-family:Arial}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=georgia]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=georgia]::before{content:'Georgia';font-family:Georgia}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=tahoma]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=tahoma]::before{content:'Tahoma';font-family:Tahoma}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=verdana]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=verdana]::before{content:'Verdana';font-family:Verdana}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=times]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=times]::before{content:'Times';font-family:'Times New Roman'}
+        .ql-snow .ql-picker.ql-font .ql-picker-label[data-value=courier]::before,.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=courier]::before{content:'Courier';font-family:'Courier New'}
+        /* Heading picker labels 4–6 (Quill styles 1–3 by default) */
+        .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="4"]::before,.ql-snow .ql-picker.ql-header .ql-picker-item[data-value="4"]::before{content:'Heading 4'}
+        .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="5"]::before,.ql-snow .ql-picker.ql-header .ql-picker-item[data-value="5"]::before{content:'Heading 5'}
+        .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="6"]::before,.ql-snow .ql-picker.ql-header .ql-picker-item[data-value="6"]::before{content:'Heading 6'}
+        /* Render H4–H6 sensibly inside the editor */
+        #editor .ql-editor h4{font-size:1.1em;font-weight:700;margin:.6em 0}
+        #editor .ql-editor h5{font-size:1em;font-weight:700;margin:.6em 0}
+        #editor .ql-editor h6{font-size:.9em;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:.6em 0}
+    </style>
 @endsection
