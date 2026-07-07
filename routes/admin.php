@@ -233,15 +233,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:blog.edit')->group(function () {
             Route::put('article-categories/{article_category}', [ArticleCategoryController::class, 'update'])->whereNumber('article_category')->name('article-categories.update');
             Route::put('authors/{author}', [AuthorController::class, 'update'])->whereNumber('author')->name('authors.update');
-            Route::get('articles/{article}/edit', [ArticleController::class, 'edit'])->whereNumber('article')->name('articles.edit');
-            Route::put('articles/{article}', [ArticleController::class, 'update'])->whereNumber('article')->name('articles.update');
+            Route::get('articles/{article}/edit', [ArticleController::class, 'edit'])->name('articles.edit'); // Article binds by slug (no whereNumber)
+            Route::put('articles/{article}', [ArticleController::class, 'update'])->name('articles.update');
             Route::post('articles/{article}/publish', [ArticleController::class, 'togglePublish'])->name('articles.publish');
             Route::post('article-image', [ArticleController::class, 'uploadImage'])->name('articles.upload-image');
         });
         Route::middleware('permission:blog.delete')->group(function () {
             Route::delete('article-categories/{article_category}', [ArticleCategoryController::class, 'destroy'])->whereNumber('article_category')->name('article-categories.destroy');
             Route::delete('authors/{author}', [AuthorController::class, 'destroy'])->whereNumber('author')->name('authors.destroy');
-            Route::delete('articles/{article}', [ArticleController::class, 'destroy'])->whereNumber('article')->name('articles.destroy');
+            Route::delete('articles/{article}', [ArticleController::class, 'destroy'])->name('articles.destroy'); // slug-bound
         });
     });
 
