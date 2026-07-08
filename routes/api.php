@@ -38,6 +38,10 @@ Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhooks/paypal', [WebhookController::class, 'paypal']);
 Route::get('/dev/pay/{order}', [WebhookController::class, 'devPay']); // local-only
 
+// ---- Email verification link (signed, opened from the email — no auth token in the browser) ----
+Route::get('/account/email/verify/{id}/{hash}', [AccountController::class, 'verifyEmail'])
+    ->middleware('signed')->name('account.email.verify');
+
 // ---- Authenticated ----
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
@@ -54,6 +58,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ---- Account (customer area) ----
     Route::get('/account/dashboard', [AccountController::class, 'dashboard']);
+
+    // Profile management
+    Route::put('/account/profile', [AccountController::class, 'updateProfile']);
+    Route::put('/account/password', [AccountController::class, 'updatePassword']);
+    Route::post('/account/avatar', [AccountController::class, 'updateAvatar']);
+    Route::post('/account/email/verify', [AccountController::class, 'sendEmailVerification']);
+    Route::delete('/account', [AccountController::class, 'destroy']);
+
     Route::get('/account/orders', [AccountController::class, 'orders']);
     Route::get('/account/orders/{orderNumber}', [AccountController::class, 'order']);
     Route::get('/account/invoices', [AccountController::class, 'invoices']);

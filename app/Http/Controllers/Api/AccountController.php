@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
+use App\Mail\VerifyEmailLink;
 use App\Models\Invoice;
 use App\Models\License;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\Rules\Password;
 
 class AccountController extends Controller
 {
@@ -224,5 +230,121 @@ class AccountController extends Controller
             'license_download_url' => route('account.license.download', $l->id),
             'source_download_url' => $this->sourceUrl($l->user_id, $l->product_id),
         ];
+    }
+
+    /* ----------------------------------------------------------------------
+     |  Profile management (customer)
+     * ------------------------------------------------------------------- */
+
+    /** Update the signed-in customer's personal information. */
+    public function updateProfile(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:120'],
+            'country' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $request->user()->update($data);
+
+        return new UserResource($request->user()->fresh());
+    }
+
+    /** Change the password — requires the current one (verified against the Sanctum user). */
+    public function updatePassword(Request $request)
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        if (! Hash::check($data['current_password'], $request->user()->password)) {
+            return response()->json([
+                'message' => 'The current password is incorrect.',
+                'errors' => ['current_password' => ['The current password is incorrect.']],
+            ], 422);
+        }
+
+        $request->user()->update(['password' => $data['password']]); // 'hashed' cast hashes it
+
+        return response()->json(['message' => 'Password updated successfully.']);
+    }
+
+    /** Upload / replace the profile photo (avatar). Keeps the original filename per-user. */
+    public function updateAvatar(Request $request)
+    {
+        $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        $file = $request->file('photo');
+        $path = $file->storeAs("avatars/{$user->id}", $file->getClientOriginalName(), 'public');
+
+        // Drop the previous stored file (skip external URLs) if it was replaced by a new name.
+        if ($user->photo && ! str_starts_with($user->photo, 'http') && $user->photo !== $path) {
+            Storage::disk('public')->delete($user->photo);
+        }
+
+        $user->update(['photo' => $path]);
+
+        return new UserResource($user->fresh());
+    }
+
+    /** Send an email-verification link to the signed-in user. */
+    public function sendEmailVerification(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->email_verified_at) {
+            return response()->json(['message' => 'Your email is already verified.']);
+        }
+
+        $url = URL::temporarySignedRoute('account.email.verify', now()->addHour(), [
+            'id' => $user->id,
+            'hash' => sha1($user->email),
+        ]);
+
+        Mail::to($user->email)->send(new VerifyEmailLink($user, $url));
+
+        return response()->json(['message' => 'Verification link sent — check your inbox.']);
+    }
+
+    /** Verify the email from the signed link (opened in the browser); redirect back to the profile. */
+    public function verifyEmail(Request $request, int $id, string $hash)
+    {
+        $frontend = rtrim((string) config('services.frontend_url'), '/');
+        $user = User::find($id);
+
+        if (! $user || ! hash_equals(sha1($user->email), (string) $hash)) {
+            return redirect()->away("{$frontend}/dashboard/profile?verified=0");
+        }
+
+        if (! $user->email_verified_at) {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
+        return redirect()->away("{$frontend}/dashboard/profile?verified=1");
+    }
+
+    /** Danger zone — permanently delete the account (requires the current password). */
+    public function destroy(Request $request)
+    {
+        $data = $request->validate(['password' => ['required', 'string']]);
+
+        $user = $request->user();
+        if (! Hash::check($data['password'], $user->password)) {
+            return response()->json([
+                'message' => 'The password is incorrect.',
+                'errors' => ['password' => ['The password is incorrect.']],
+            ], 422);
+        }
+
+        $user->tokens()->delete(); // revoke every Sanctum token
+        $user->delete();
+
+        return response()->json(['message' => 'Your account has been deleted.']);
     }
 }
