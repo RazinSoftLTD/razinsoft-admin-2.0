@@ -13,7 +13,7 @@
             </div>
             <div class="grid gap-5 sm:grid-cols-3">
                 <x-admin.field label="Version" name="version" :value="$product->version" placeholder="1.0.0" />
-                <x-admin.field label="Sort order" name="sort_order" type="number" :value="$product->sort_order" />
+                <x-admin.field label="Serial (sort order)" name="sort_order" type="number" min="0" :value="$product->sort_order" hint="Lower number shows first on the website." />
                 <x-admin.field label="Currency" name="currency" :value="$product->currency ?? 'USD'" />
             </div>
             <div class="flex flex-wrap gap-x-8 gap-y-2">

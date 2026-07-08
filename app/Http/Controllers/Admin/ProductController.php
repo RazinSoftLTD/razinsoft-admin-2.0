@@ -12,7 +12,10 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $products = Product::with('firstPlan')->withMin('plans', 'price')->latest('updated_at')->paginate(15);
+        // Same order the storefront uses: serial (sort_order) first, then featured, then newest.
+        $products = Product::with('firstPlan')->withMin('plans', 'price')
+            ->orderBy('sort_order')->orderByDesc('is_featured')->latest('updated_at')
+            ->paginate(15);
 
         return view('admin.products.index', compact('products'));
     }

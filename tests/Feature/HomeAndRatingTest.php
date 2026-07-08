@@ -34,12 +34,26 @@ class HomeAndRatingTest extends TestCase {
 
         $this->put("/admin/products/{$p->id}", [
             'name'=>'Rated','status'=>'published','currency'=>'USD',
-            'rating'=>4.5, 'for_home'=>'1',
+            'rating'=>4.5, 'for_home'=>'1', 'sort_order'=>7,
             'thumbnail'=>UploadedFile::fake()->image('t.jpg', 1200, 800),
         ])->assertRedirect();
 
         $p->refresh();
         $this->assertSame('4.5', (string) $p->rating, 'fractional rating saved');
         $this->assertTrue($p->for_home);
+        $this->assertSame(7, $p->sort_order, 'serial (sort_order) saved from admin');
+    }
+
+    public function test_storefront_lists_products_in_serial_order(): void {
+        $second = $this->product(['name'=>'Beta','sort_order'=>2]);
+        $first = $this->product(['name'=>'Alpha','sort_order'=>1]);
+
+        // Default (unsorted) list uses sort_order ascending → the serial the admin sets.
+        $slugs = collect($this->getJson('/api/products')->assertOk()->json('data'))->pluck('slug')->all();
+        $this->assertLessThan(
+            array_search($second->slug, $slugs, true),
+            array_search($first->slug, $slugs, true),
+            'lower serial appears first',
+        );
     }
 }

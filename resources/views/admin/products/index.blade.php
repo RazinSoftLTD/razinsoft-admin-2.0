@@ -14,6 +14,7 @@
             <table class="w-full text-left text-sm">
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
                     <tr>
+                        <th class="px-5 py-3 font-semibold" title="Serial — lower shows first on the site">Serial</th>
                         <th class="px-5 py-3 font-semibold">Name</th>
                         <th class="px-5 py-3 font-semibold">Category</th>
                         <th class="px-5 py-3 font-semibold">From</th>
@@ -25,6 +26,9 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($products as $p)
                         <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-3">
+                                <span class="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-gray-100 px-2 text-sm font-semibold text-[var(--color-heading)]">{{ $p->sort_order }}</span>
+                            </td>
                             <td class="px-5 py-3">
                                 <a href="{{ route('admin.products.show', $p) }}" class="font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $p->name }}</a>
                                 <p class="text-xs text-gray-400">{{ $p->tagline }}</p>
@@ -54,7 +58,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-5 py-10 text-center text-gray-400">No products yet.</td></tr>
+                        <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">No products yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
