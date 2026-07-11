@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 // ---- Auth (public) ----
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // ---- Products (public) ----
 Route::get('/products', [ProductController::class, 'index']);
@@ -23,6 +25,11 @@ Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 
 // ---- Contact form (public) ----
 Route::post('/contact', [\App\Http\Controllers\Api\ContactController::class, 'store']);
+
+// ---- Book a Meeting (public calendar) ----
+Route::get('/meetings/config', [\App\Http\Controllers\Api\MeetingController::class, 'config']);
+Route::get('/meetings/availability', [\App\Http\Controllers\Api\MeetingController::class, 'availability']);
+Route::post('/meetings/book', [\App\Http\Controllers\Api\MeetingController::class, 'book']);
 
 // ---- Blog "Follow" subscription (public) ----
 Route::post('/subscribe', [\App\Http\Controllers\Api\SubscriberController::class, 'store']);
@@ -64,6 +71,7 @@ Route::middleware(['auth:sanctum', 'client.active'])->group(function () {
 
     // ---- Account (customer area) ----
     Route::get('/account/dashboard', [AccountController::class, 'dashboard']);
+    Route::get('/account/meetings', [AccountController::class, 'meetings']);
 
     // Profile management
     Route::put('/account/profile', [AccountController::class, 'updateProfile']);

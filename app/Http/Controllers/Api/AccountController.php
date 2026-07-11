@@ -43,6 +43,31 @@ class AccountController extends Controller
     }
 
     /** Authenticated user's orders. */
+    /** The logged-in client's booked meetings (by account or booking email). */
+    public function meetings(Request $request)
+    {
+        $user = $request->user();
+        $meetings = \App\Models\Meeting::where('client_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->with('assignee')
+            ->orderByDesc('date')->orderByDesc('start_time')
+            ->get();
+
+        return response()->json([
+            'data' => $meetings->map(fn ($m) => [
+                'id' => $m->id,
+                'date' => $m->date->toDateString(),
+                'day' => $m->date->format('l, F j, Y'),
+                'slot' => $m->slot_label,
+                'status' => $m->status,
+                'is_upcoming' => $m->starts_at->isFuture(),
+                'meeting_link' => $m->meeting_link,
+                'host' => $m->assignee->name ?? null,
+                'notes' => $m->notes,
+            ])->values(),
+        ]);
+    }
+
     public function orders(Request $request)
     {
         $orders = $request->user()->orders()->with('items', 'invoice')->latest()->paginate(15);

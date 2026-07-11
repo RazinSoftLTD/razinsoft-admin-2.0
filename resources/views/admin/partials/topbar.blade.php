@@ -11,12 +11,6 @@
     <h1 class="text-base font-bold text-[var(--color-heading)] sm:text-lg">@yield('title', 'Dashboard')</h1>
 
     <div class="ml-auto flex items-center gap-2">
-        <a href="{{ config('app.frontend_url', config('services.frontend_url')) }}" target="_blank" rel="noopener"
-           class="hidden items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] hover:bg-gray-50 sm:flex">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5h5v5M19 5l-9 9M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
-            View site
-        </a>
-
         {{-- ───── Teams message notifications (live + sound) ───── --}}
         @php
             $me = auth()->user();

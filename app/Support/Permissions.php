@@ -30,6 +30,8 @@ class Permissions
         'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete']],
         // Team chat — direct messaging is open to every panel user; only group creation is gated.
         'chat' => ['label' => 'Team Chat', 'group' => 'Support', 'actions' => ['create_group']],
+        // Booking
+        'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'scope' => 'assigned_to'],
         // HR
         'employees' => ['label' => 'Employees', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
         'designations' => ['label' => 'Designations', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
@@ -41,7 +43,7 @@ class Permissions
     public const ACTION_LABELS = [
         'view' => 'View', 'view_all' => 'View all', 'create' => 'Create', 'edit' => 'Edit',
         'delete' => 'Delete', 'finance' => 'Finance', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
-        'create_group' => 'Create groups',
+        'create_group' => 'Create groups', 'assign' => 'Assign', 'settings' => 'Settings',
     ];
 
     /** A brand-new staff/role starts with read access to the CRM basics. */

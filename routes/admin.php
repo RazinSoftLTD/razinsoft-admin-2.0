@@ -59,6 +59,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('chat/{conversation}/typing', [\App\Http\Controllers\Admin\ChatController::class, 'typing'])->whereNumber('conversation')->name('chat.typing');
         Route::post('chat/{conversation}/read', [\App\Http\Controllers\Admin\ChatController::class, 'read'])->whereNumber('conversation')->name('chat.read');
 
+        // ===== Book a Meeting =====
+        Route::middleware('permission:meetings.settings')->group(function () {
+            Route::get('meetings/settings', [\App\Http\Controllers\Admin\MeetingController::class, 'settings'])->name('meetings.settings');
+            Route::post('meetings/settings', [\App\Http\Controllers\Admin\MeetingController::class, 'updateSettings'])->name('meetings.settings.update');
+        });
+        Route::middleware('permission:meetings.view')->group(function () {
+            Route::get('meetings', [\App\Http\Controllers\Admin\MeetingController::class, 'index'])->name('meetings.index');
+            Route::get('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'show'])->whereNumber('meeting')->name('meetings.show');
+        });
+        Route::middleware('permission:meetings.edit')->group(function () {
+            Route::patch('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'update'])->whereNumber('meeting')->name('meetings.update');
+            Route::patch('meetings/{meeting}/quick', [\App\Http\Controllers\Admin\MeetingController::class, 'quickUpdate'])->whereNumber('meeting')->name('meetings.quick');
+            Route::get('meetings/{meeting}/edit', [\App\Http\Controllers\Admin\MeetingController::class, 'edit'])->whereNumber('meeting')->name('meetings.edit');
+            Route::patch('meetings/{meeting}/reschedule', [\App\Http\Controllers\Admin\MeetingController::class, 'reschedule'])->whereNumber('meeting')->name('meetings.reschedule');
+        });
+        Route::delete('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'destroy'])->whereNumber('meeting')->middleware('permission:meetings.delete')->name('meetings.destroy');
+
         // ===== Leads =====
         Route::middleware('permission:leads.view')->group(function () {
             Route::get('leads/follow-up', [LeadController::class, 'followUp'])->name('leads.follow-up');
@@ -308,6 +325,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->whereNumber('role')->name('roles.duplicate');
         Route::resource('roles', RoleController::class)->except('show');
         Route::resource('users', UserController::class)->except('show');
+
+        // Email / SMTP settings + templates
+        Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');
+        Route::post('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'update'])->name('email-settings.update');
+        Route::post('email-settings/test', [\App\Http\Controllers\Admin\EmailSettingController::class, 'sendTest'])->name('email-settings.test');
+        Route::get('email-settings/templates/{template}', [\App\Http\Controllers\Admin\EmailSettingController::class, 'editTemplate'])->whereNumber('template')->name('email-settings.templates.edit');
+        Route::put('email-settings/templates/{template}', [\App\Http\Controllers\Admin\EmailSettingController::class, 'updateTemplate'])->whereNumber('template')->name('email-settings.templates.update');
     });
 
     // ---- HR (permission-gated: super admin can grant these to employee roles) ----
