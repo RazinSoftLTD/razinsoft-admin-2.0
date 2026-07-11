@@ -12,8 +12,26 @@ class RoleController extends Controller
     public function index()
     {
         return view('admin.roles.index', [
-            'roles' => Role::withCount('users')->orderBy('name')->get(),
+            // Root Admin first, then Employee, Client, then the rest alphabetically.
+            'roles' => Role::withCount('users')
+                ->orderByRaw("CASE name WHEN 'Root Admin' THEN 0 WHEN 'Employee' THEN 1 WHEN 'Client' THEN 2 ELSE 3 END")
+                ->orderBy('name')
+                ->get(),
         ]);
+    }
+
+    /** Clone a role (name + permissions) into a new, editable non-system role. */
+    public function duplicate(Role $role)
+    {
+        $copy = new Role([
+            'name' => $role->name.' (copy)',
+            'description' => $role->description,
+            'permissions' => $role->permissions ?? [],
+        ]);
+        $copy->is_system = false;
+        $copy->save();
+
+        return redirect()->route('admin.roles.edit', $copy)->with('status', 'Role duplicated — edit the copy.');
     }
 
     public function create()
@@ -30,11 +48,19 @@ class RoleController extends Controller
 
     public function edit(Role $role)
     {
+        if ($role->name === 'Root Admin') {
+            return redirect()->route('admin.roles.index')->with('error', 'Root Admin always has full access and can’t be edited.');
+        }
+
         return view('admin.roles.form', compact('role'));
     }
 
     public function update(Request $request, Role $role)
     {
+        if ($role->name === 'Root Admin') {
+            return redirect()->route('admin.roles.index')->with('error', 'Root Admin always has full access and can’t be edited.');
+        }
+
         $role->update($this->validated($request));
 
         return redirect()->route('admin.roles.index')->with('status', 'Role updated.');

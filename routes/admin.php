@@ -38,6 +38,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('staff')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+        // My Profile — self-service for any panel user (no permission gate).
+        Route::get('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'edit'])->name('my-profile.edit');
+        Route::post('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'update'])->name('my-profile.update');
+
+        // ===== Team Chat — open to every panel user; group creation is gated =====
+        Route::get('chat', [\App\Http\Controllers\Admin\ChatController::class, 'index'])->name('chat.index');
+        Route::get('chat/new-group', [\App\Http\Controllers\Admin\ChatController::class, 'createGroup'])
+            ->middleware('permission:chat.create_group')->name('chat.groups.create');
+        Route::post('chat/groups', [\App\Http\Controllers\Admin\ChatController::class, 'storeGroup'])
+            ->middleware('permission:chat.create_group')->name('chat.groups.store');
+        Route::post('chat/heartbeat', [\App\Http\Controllers\Admin\ChatController::class, 'heartbeat'])->name('chat.heartbeat');
+        Route::post('chat/offline', [\App\Http\Controllers\Admin\ChatController::class, 'offline'])->name('chat.offline');
+        Route::delete('chat/messages/{message}', [\App\Http\Controllers\Admin\ChatController::class, 'destroyMessage'])->whereNumber('message')->name('chat.messages.destroy');
+        Route::get('chat/{conversation}/settings', [\App\Http\Controllers\Admin\ChatController::class, 'editGroup'])->whereNumber('conversation')->name('chat.groups.edit');
+        Route::post('chat/{conversation}/settings', [\App\Http\Controllers\Admin\ChatController::class, 'updateGroup'])->whereNumber('conversation')->name('chat.groups.update');
+        Route::get('chat/with/{user}', [\App\Http\Controllers\Admin\ChatController::class, 'direct'])->whereNumber('user')->name('chat.direct');
+        Route::get('chat/{conversation}', [\App\Http\Controllers\Admin\ChatController::class, 'show'])->whereNumber('conversation')->name('chat.show');
+        Route::post('chat/{conversation}/messages', [\App\Http\Controllers\Admin\ChatController::class, 'sendMessage'])->whereNumber('conversation')->name('chat.messages.store');
+        Route::post('chat/{conversation}/typing', [\App\Http\Controllers\Admin\ChatController::class, 'typing'])->whereNumber('conversation')->name('chat.typing');
+        Route::post('chat/{conversation}/read', [\App\Http\Controllers\Admin\ChatController::class, 'read'])->whereNumber('conversation')->name('chat.read');
+
         // ===== Leads =====
         Route::middleware('permission:leads.view')->group(function () {
             Route::get('leads/follow-up', [LeadController::class, 'followUp'])->name('leads.follow-up');
@@ -86,19 +107,54 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== Clients =====
         Route::middleware('permission:clients.view')->group(function () {
             Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
+            Route::get('clients/export', [ClientController::class, 'export'])->name('clients.export');
             Route::get('clients/{client}', [ClientController::class, 'show'])->whereNumber('client')->name('clients.show');
         });
         Route::middleware('permission:clients.create')->group(function () {
             Route::get('clients/create', [ClientController::class, 'create'])->name('clients.create');
             Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
+            Route::post('clients/quick', [ClientController::class, 'quickStore'])->name('clients.quick');
+            Route::post('clients/import', [ClientController::class, 'import'])->name('clients.import');
         });
         Route::middleware('permission:clients.edit')->group(function () {
             Route::get('clients/{client}/edit', [ClientController::class, 'edit'])->whereNumber('client')->name('clients.edit');
             Route::put('clients/{client}', [ClientController::class, 'update'])->whereNumber('client')->name('clients.update');
+            Route::patch('clients/{client}/status', [ClientController::class, 'updateStatus'])->whereNumber('client')->name('clients.status');
+            Route::post('clients/{client}/documents', [ClientController::class, 'storeDocument'])->whereNumber('client')->name('clients.documents.store');
+            Route::delete('clients/{client}/documents/{document}', [ClientController::class, 'destroyDocument'])->whereNumber('client')->whereNumber('document')->name('clients.documents.destroy');
         });
         Route::middleware('permission:clients.delete')->group(function () {
             Route::delete('clients/{client}', [ClientController::class, 'destroy'])->whereNumber('client')->name('clients.destroy');
         });
+
+        // ===== Support tickets =====
+        Route::middleware('permission:tickets.view')->group(function () {
+            Route::get('tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('tickets.index');
+            Route::get('tickets/export', [\App\Http\Controllers\Admin\TicketController::class, 'export'])->name('tickets.export');
+            Route::get('tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->whereNumber('ticket')->name('tickets.show');
+        });
+        Route::middleware('permission:tickets.create')->group(function () {
+            Route::get('tickets/create', [\App\Http\Controllers\Admin\TicketController::class, 'create'])->name('tickets.create');
+            Route::post('tickets', [\App\Http\Controllers\Admin\TicketController::class, 'store'])->name('tickets.store');
+            Route::post('ticket-groups', [\App\Http\Controllers\Admin\TicketController::class, 'storeGroup'])->name('tickets.groups.store');
+            Route::post('ticket-types', [\App\Http\Controllers\Admin\TicketController::class, 'storeType'])->name('tickets.types.store');
+        });
+        Route::post('tickets/{ticket}/replies', [\App\Http\Controllers\Admin\TicketController::class, 'reply'])->whereNumber('ticket')->middleware('permission:tickets.reply')->name('tickets.reply');
+        Route::middleware('permission:tickets.edit')->group(function () {
+            Route::patch('tickets/{ticket}/status', [\App\Http\Controllers\Admin\TicketController::class, 'updateStatus'])->whereNumber('ticket')->name('tickets.status');
+            Route::patch('tickets/{ticket}/assign', [\App\Http\Controllers\Admin\TicketController::class, 'assign'])->whereNumber('ticket')->name('tickets.assign');
+            // Ticket settings (agents, types, reply templates)
+            Route::get('ticket-settings', [\App\Http\Controllers\Admin\TicketSettingController::class, 'index'])->name('tickets.settings');
+            Route::post('ticket-settings/agents', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeAgent'])->name('tickets.settings.agents.store');
+            Route::patch('ticket-settings/agents/{agent}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateAgent'])->name('tickets.settings.agents.update');
+            Route::delete('ticket-settings/agents/{agent}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyAgent'])->name('tickets.settings.agents.destroy');
+            Route::post('ticket-settings/types', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeType'])->name('tickets.settings.types.store');
+            Route::delete('ticket-settings/types/{type}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyType'])->name('tickets.settings.types.destroy');
+            Route::post('ticket-settings/templates', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeTemplate'])->name('tickets.settings.templates.store');
+            Route::patch('ticket-settings/templates/{template}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateTemplate'])->name('tickets.settings.templates.update');
+            Route::delete('ticket-settings/templates/{template}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyTemplate'])->name('tickets.settings.templates.destroy');
+        });
+        Route::delete('tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'destroy'])->whereNumber('ticket')->name('tickets.destroy');
 
         // ===== Products =====
         Route::middleware('permission:products.view')->group(function () {
@@ -245,12 +301,39 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
     });
 
-    // ---- Super admin only (role=admin): staff, roles/permissions, admin users ----
+    // ---- Super admin only (role=admin): per-user permission overrides, roles, admin users ----
     Route::middleware('admin')->group(function () {
         Route::get('staff/{staff}/permissions', [StaffController::class, 'permissions'])->whereNumber('staff')->name('staff.permissions');
         Route::put('staff/{staff}/permissions', [StaffController::class, 'updatePermissions'])->whereNumber('staff')->name('staff.permissions.update');
-        Route::resource('staff', StaffController::class)->except('show');
+        Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->whereNumber('role')->name('roles.duplicate');
         Route::resource('roles', RoleController::class)->except('show');
         Route::resource('users', UserController::class)->except('show');
+    });
+
+    // ---- HR (permission-gated: super admin can grant these to employee roles) ----
+    Route::middleware('staff')->group(function () {
+        Route::middleware('permission:employees.view')->group(function () {
+            Route::patch('staff/{staff}/role', [StaffController::class, 'updateRole'])->whereNumber('staff')->name('staff.role');
+            Route::post('staff-designations', [StaffController::class, 'storeDesignation'])->name('staff.designations.store');
+            Route::post('staff-departments', [StaffController::class, 'storeDepartment'])->name('staff.departments.store');
+            Route::resource('staff', StaffController::class)->except('show');
+        });
+        Route::middleware('permission:designations.view')->group(function () {
+            Route::resource('designations', \App\Http\Controllers\Admin\DesignationController::class)->only(['index', 'store', 'update', 'destroy']);
+        });
+        Route::middleware('permission:departments.view')->group(function () {
+            Route::resource('departments', \App\Http\Controllers\Admin\DepartmentController::class)->only(['index', 'store', 'update', 'destroy']);
+        });
+
+        // Leave — employees request their own; approvers review.
+        Route::middleware('permission:leave.view')->group(function () {
+            Route::get('leaves', [\App\Http\Controllers\Admin\LeaveController::class, 'index'])->name('leaves.index');
+            Route::delete('leaves/{leave}', [\App\Http\Controllers\Admin\LeaveController::class, 'destroy'])->whereNumber('leave')->name('leaves.destroy');
+            Route::patch('leaves/{leave}/status', [\App\Http\Controllers\Admin\LeaveController::class, 'updateStatus'])->whereNumber('leave')->name('leaves.status');
+        });
+        Route::middleware('permission:leave.create')->group(function () {
+            Route::get('leaves/create', [\App\Http\Controllers\Admin\LeaveController::class, 'create'])->name('leaves.create');
+            Route::post('leaves', [\App\Http\Controllers\Admin\LeaveController::class, 'store'])->name('leaves.store');
+        });
     });
 });

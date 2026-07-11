@@ -1,0 +1,374 @@
+@extends('admin.layouts.app')
+@section('title', 'Teams')
+
+@php
+    $me = auth()->user();
+
+    $groups = $conversations->where('type', 'group');
+    $directByUser = [];
+    foreach ($conversations->where('type', 'direct') as $c) {
+        $other = $c->counterpart($me);
+        if ($other) $directByUser[$other->id] = $c;
+    }
+
+    $avatar = function ($u, $size = 'h-9 w-9') {
+        if ($u && $u->photo_url) {
+            return '<img src="'.e($u->photo_url).'" class="'.$size.' rounded-full object-cover" alt="">';
+        }
+        $initial = strtoupper(substr($u->name ?? '?', 0, 1));
+        return '<span class="'.$size.' grid place-items-center rounded-full bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary)]">'.$initial.'</span>';
+    };
+@endphp
+
+@push('head')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
+    <style>
+        .chat-html a { text-decoration: underline; }
+        .chat-html p { margin: 0; }
+        .chat-html ul, .chat-html ol { margin: .25rem 0; padding-left: 1.25rem; }
+        .chat-html ul { list-style: disc; }
+        .chat-html ol { list-style: decimal; }
+        #chat-editor .ql-editor { min-height: 2.5rem; max-height: 10rem; font-size: .875rem; padding: .5rem .75rem; }
+        #chat-editor .ql-editor.ql-blank::before { left: .75rem; font-style: normal; color: #9ca3af; }
+        .chat-composer .ql-toolbar.ql-snow { border: 0; border-bottom: 1px solid #f0f0f0; padding: .35rem .5rem; }
+        .chat-composer .ql-container.ql-snow { border: 0; }
+        /* Conversation rows — smooth active/hover states (no full-page reload) */
+        [data-conv-link] { transition: background-color .12s ease; }
+        [data-conv-link]:hover { background: #f9fafb; }
+        [data-conv-link].active-conv, [data-conv-link].active-conv:hover { background: var(--color-primary-soft); }
+        [data-conv-link].active-conv .conv-name { color: var(--color-primary); }
+        /* Thread crossfade — the new conversation eases in each time it's swapped */
+        @keyframes chatFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        #thread-root { animation: chatFadeIn .2s ease; }
+        #thread-pane.is-loading { cursor: progress; }
+    </style>
+@endpush
+
+@section('content')
+    <div class="flex h-[calc(100vh-7rem)] min-h-[34rem] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+
+        {{-- ───────── Left rail ───────── --}}
+        <aside class="flex w-72 shrink-0 flex-col border-r border-gray-100">
+            <div class="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
+                <h1 class="text-sm font-bold text-[var(--color-heading)]">Teams</h1>
+                @if ($me->hasPermission('chat.create_group'))
+                    <a href="{{ route('admin.chat.groups.create') }}" title="New group"
+                       class="grid h-8 w-8 place-items-center rounded-lg border border-gray-200 text-[var(--color-heading)] hover:bg-gray-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    </a>
+                @endif
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+                <input type="text" data-chat-search placeholder="Search people…"
+                       class="mb-3 h-9 w-full rounded-lg border border-gray-200 px-3 text-sm">
+
+                <p class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Channels</p>
+                @forelse ($groups as $g)
+                    @php $un = $g->unreadCountFor($me); $on = $active && $active->id === $g->id; @endphp
+                    <a href="{{ route('admin.chat.show', $g) }}" data-conv-link data-chat-row="{{ strtolower($g->name) }}"
+                       class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                        <span class="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-gray-100 text-gray-500">
+                            @if ($g->photo_url)
+                                <img src="{{ $g->photo_url }}" class="h-full w-full object-cover" alt="">
+                            @else
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 9h12M6 15h12M9 4 7 20M17 4l-2 16"/></svg>
+                            @endif
+                        </span>
+                        <span class="conv-name min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-heading)]">{{ $g->name }}</span>
+                        @if ($un)<span data-unread class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                    </a>
+                @empty
+                    <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No channels yet.</p>
+                @endforelse
+
+                <p class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
+                @forelse ($people as $p)
+                    @php $c = $directByUser[$p->id] ?? null; $un = $c ? $c->unreadCountFor($me) : 0; $on = $active && $c && $active->id === $c->id; @endphp
+                    <a href="{{ route('admin.chat.direct', $p) }}" data-conv-link data-chat-row="{{ strtolower($p->name) }}"
+                       class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                        <span class="relative shrink-0">
+                            {!! $avatar($p) !!}
+                            <span data-online="{{ $p->id }}" class="{{ $p->isOnline() ? '' : 'hidden' }} absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white"></span>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="conv-name block truncate text-sm font-medium text-[var(--color-heading)]">{{ $p->name }}</span>
+                            <span class="block truncate text-xs text-[var(--color-muted)]">{{ $p->designation->name ?? 'Team member' }}</span>
+                        </span>
+                        @if ($un)<span data-unread class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                    </a>
+                @empty
+                    <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No teammates yet.</p>
+                @endforelse
+            </div>
+        </aside>
+
+        {{-- ───────── Right: thread (AJAX-swapped) ───────── --}}
+        <section id="thread-pane" class="flex min-w-0 flex-1 flex-col transition-opacity duration-150">
+            @if ($active)
+                @include('admin.chat._thread')
+            @else
+                <div id="thread-empty" class="grid flex-1 place-items-center text-center">
+                    <div>
+                        <span class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+                            <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10Z"/></svg>
+                        </span>
+                        <p class="mt-3 text-sm font-semibold text-[var(--color-heading)]">Your team conversations</p>
+                        <p class="mt-1 text-sm text-[var(--color-muted)]">Pick a teammate or channel on the left to start chatting.</p>
+                    </div>
+                </div>
+            @endif
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+    (function () {
+        const ME = {{ (int) $me->id }};
+        const CHAT_BASE = @js(url('admin/chat'));
+        const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+        const pane = document.getElementById('thread-pane');
+        const aside = document.querySelector('aside');
+        const EMPTY_HTML = document.getElementById('thread-empty') ? document.getElementById('thread-empty').outerHTML : '';
+        window.Razin = window.Razin || {};
+
+        // ── Left-list search ──
+        const search = document.querySelector('[data-chat-search]');
+        if (search) search.addEventListener('input', function () {
+            const q = this.value.trim().toLowerCase();
+            document.querySelectorAll('[data-chat-row]').forEach(function (row) {
+                row.style.display = row.dataset.chatRow.includes(q) ? '' : 'none';
+            });
+        });
+
+        // ── Message sound (custom MP3, defined globally in the layout) ──
+        function playSound() { if (window.Razin && typeof window.Razin.playMessageSound === 'function') window.Razin.playMessageSound(); }
+
+        const esc = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+        // ── Highlight the active row without a reload ──
+        function setActive(anchor) {
+            document.querySelectorAll('[data-conv-link].active-conv').forEach(el => el.classList.remove('active-conv'));
+            if (anchor) anchor.classList.add('active-conv');
+        }
+
+        // ── Prefetch a thread on hover so the click feels instant ──
+        const prefetch = new Map();  // href -> Promise<html>
+        function warm(url) {
+            if (prefetch.has(url)) return prefetch.get(url);
+            const p = fetch(url + (url.includes('?') ? '&' : '?') + 'partial=1', {
+                headers: { 'X-Chat-Partial': '1', 'Accept': 'text/html' },
+            }).then(r => r.text());
+            prefetch.set(url, p);
+            setTimeout(() => prefetch.delete(url), 10000);  // keep it fresh
+            return p;
+        }
+
+        // ── Load a conversation into the right pane (smooth, no full reload) ──
+        let loadSeq = 0;
+        async function openConv(url, push, anchor) {
+            const seq = ++loadSeq;
+            pane.classList.add('is-loading');
+            try {
+                const html = await warm(url);
+                if (seq !== loadSeq) return;            // a newer click superseded this one
+                pane.innerHTML = html;                  // old content stays until this instant → no grey flash
+                const root = pane.querySelector('#thread-root');
+                if (root && push) history.pushState({ conv: root.dataset.convId }, '', root.dataset.url);
+                if (anchor) { const b = anchor.querySelector('[data-unread]'); if (b) b.remove(); }
+                initThread();
+            } catch (e) {
+                window.location.href = url;             // fall back to a normal navigation
+                return;
+            } finally {
+                pane.classList.remove('is-loading');
+            }
+        }
+
+        // Intercept conversation clicks in the sidebar; prefetch on hover.
+        aside.addEventListener('click', function (e) {
+            const a = e.target.closest('a[data-conv-link]');
+            if (!a) return;
+            e.preventDefault();
+            setActive(a);
+            openConv(a.href, true, a);
+        });
+        aside.addEventListener('mouseover', function (e) {
+            const a = e.target.closest('a[data-conv-link]');
+            // Skip direct links (/with/…) — fetching those would lazily CREATE a conversation.
+            if (a && !a.href.includes('/chat/with/')) warm(a.href);
+        });
+
+        // Back / forward buttons.
+        window.addEventListener('popstate', function () {
+            const m = location.pathname.match(/\/chat\/(\d+)/);
+            if (m) {
+                const link = document.querySelector('[data-conv-link][href$="/chat/' + m[1] + '"]');
+                setActive(link || null);
+                openConv(CHAT_BASE + '/' + m[1], false, link);
+            } else {
+                setActive(null);
+                pane.innerHTML = EMPTY_HTML;
+                window.Razin.openConversation = null;
+                unsubscribeThread();
+            }
+        });
+
+        function unsubscribeThread() {
+            if (window.Razin.currentConvChannel && window.Razin.pusher) {
+                window.Razin.pusher.unsubscribe(window.Razin.currentConvChannel);
+                window.Razin.currentConvChannel = null;
+            }
+        }
+
+        // ── Wire up the freshly-loaded thread (Quill, live updates, typing, delete, sound) ──
+        function initThread() {
+            const root = document.getElementById('thread-root');
+            if (!root) { window.Razin.openConversation = null; unsubscribeThread(); return; }
+
+            const CONV = Number(root.dataset.convId);
+            const isGroup = root.dataset.isGroup === '1';
+            const IS_ADMIN = root.dataset.isAdmin === '1';
+            const STORE_URL = root.dataset.storeUrl;
+            const TYPING_URL = root.dataset.typingUrl;
+            const READ_URL = root.dataset.readUrl;
+            const DEL_BASE = root.dataset.delBase;
+
+            const scroll = document.getElementById('chat-scroll');
+            const form = document.getElementById('chat-form');
+            const fileInput = document.getElementById('chat-file');
+            const fileChip = document.getElementById('chat-file-chip');
+            const fileName = document.getElementById('chat-file-name');
+            const seen = new Set();
+            document.querySelectorAll('[data-msg-id]').forEach(el => seen.add(Number(el.dataset.msgId)));
+
+            window.Razin.openConversation = CONV;
+            // Opening it = reading it: clear the unread number from the bell + sidebar immediately.
+            if (typeof window.Razin.markConversationRead === 'function') window.Razin.markConversationRead(CONV);
+
+            const toBottom = () => { scroll.scrollTop = scroll.scrollHeight; };
+            toBottom();
+
+            // Keep the conversation marked read on the server as messages arrive while it's open.
+            let lastReadPing = 0;
+            function markReadPing() {
+                const now = Date.now(); if (now - lastReadPing < 1200) return; lastReadPing = now;
+                fetch(READ_URL, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } }).catch(() => {});
+            }
+
+            const quill = new Quill('#chat-editor', {
+                theme: 'snow',
+                placeholder: 'Write a message…',
+                modules: { toolbar: [
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ background: ['#fff3bf', '#d3f9d8', '#ffe3e3', '#e5dbff', false] }],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    ['link', 'clean'],
+                ] },
+            });
+            quill.keyboard.addBinding({ key: 13 }, { shiftKey: false }, function () { form.requestSubmit(); return false; });
+
+            fileInput.addEventListener('change', function () {
+                if (this.files.length) { fileName.textContent = this.files[0].name; fileChip.classList.remove('hidden'); fileChip.classList.add('flex'); }
+            });
+            document.getElementById('chat-file-remove').addEventListener('click', function () {
+                fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
+            });
+
+            const delBtn = (id) => '<button type="button" data-del="' + id + '" title="Delete message" class="mb-5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg></button>';
+            function fileChipHtml(d, mine) {
+                if (!d.attachment) return '';
+                if (d.is_image) return '<a href="' + d.attachment + '" target="_blank" rel="noopener"><img src="' + d.attachment + '" class="mt-1 max-h-56 rounded-lg" alt=""></a>';
+                const box = mine ? 'bg-white/15' : 'bg-gray-50 border border-gray-100';
+                return '<a href="' + d.attachment + '" target="_blank" rel="noopener" class="mt-1 flex items-center gap-2 rounded-lg ' + box + ' px-3 py-2"><svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg><span class="truncate text-xs font-medium">' + esc(d.attachment_name || 'file') + '</span></a>';
+            }
+            function avatarHtml(d, mine) {
+                if (mine) return '';
+                if (d.avatar) return '<img src="' + d.avatar + '" class="h-7 w-7 rounded-full object-cover" alt="">';
+                return '<span class="h-7 w-7 grid place-items-center rounded-full bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary)]">' + esc((d.author || '?').charAt(0).toUpperCase()) + '</span>';
+            }
+            function append(d) {
+                if (seen.has(Number(d.id))) return;
+                seen.add(Number(d.id));
+                const mine = Number(d.user_id) === ME;
+                const canDel = mine || IS_ADMIN;
+                const name = (isGroup && !mine) ? '<p class="mb-0.5 px-1 text-xs font-semibold text-[var(--color-heading)]">' + esc(d.author) + '</p>' : '';
+                const bubble = mine ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-white text-[var(--color-heading)] border border-gray-100 rounded-bl-sm';
+                const bodyHtml = d.body ? '<div class="chat-html break-words">' + d.body + '</div>' : '';
+                const row = document.createElement('div');
+                row.className = 'group flex items-end gap-2 ' + (mine ? 'flex-row-reverse' : '');
+                row.dataset.msgId = d.id;
+                row.innerHTML = avatarHtml(d, mine) + (canDel ? delBtn(d.id) : '')
+                    + '<div class="max-w-[75%]">' + name
+                    + '<div class="rounded-2xl px-3.5 py-2 text-sm ' + bubble + '">' + bodyHtml + fileChipHtml(d, mine) + '</div>'
+                    + '<p class="mt-0.5 px-1 text-[11px] text-gray-400 ' + (mine ? 'text-right' : '') + '">' + (d.time || '') + '</p></div>';
+                scroll.appendChild(row); toBottom();
+            }
+            function removeMsg(id) { const el = scroll.querySelector('[data-msg-id="' + id + '"]'); if (el) el.remove(); }
+
+            // Delete (author or admin)
+            scroll.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-del]'); if (!btn) return;
+                if (!confirm('Delete this message?')) return;
+                fetch(DEL_BASE + '/' + btn.dataset.del, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } })
+                    .then(r => r.json()).then(() => removeMsg(btn.dataset.del)).catch(() => {});
+            });
+
+            // Typing indicator
+            const typingInd = document.getElementById('typing-ind');
+            const typingText = document.getElementById('typing-text');
+            let typingHideTimer = null, lastTypingSent = 0;
+            function showTyping(nm) {
+                typingText.textContent = isGroup ? (nm + ' is typing…') : 'typing…';
+                typingInd.classList.remove('hidden'); typingInd.classList.add('flex');
+                clearTimeout(typingHideTimer);
+                typingHideTimer = setTimeout(() => { typingInd.classList.add('hidden'); typingInd.classList.remove('flex'); }, 3500);
+            }
+            quill.on('text-change', function (_d, _o, source) {
+                if (source !== 'user') return;
+                const now = Date.now(); if (now - lastTypingSent < 2500) return; lastTypingSent = now;
+                fetch(TYPING_URL, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } }).catch(() => {});
+            });
+
+            // Send
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const hasText = quill.getText().trim().length > 0;
+                const hasFile = fileInput.files.length > 0;
+                if (!hasText && !hasFile) return;
+                const fd = new FormData();
+                fd.append('_token', CSRF);
+                fd.append('body', hasText ? quill.root.innerHTML : '');
+                if (hasFile) fd.append('attachment', fileInput.files[0]);
+                fetch(STORE_URL, { method: 'POST', headers: { 'Accept': 'application/json' }, body: fd })
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time });
+                        quill.setContents([]); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
+                    }).catch(() => {});
+            });
+
+            // Live peer online/offline text (direct chats)
+            window.Razin.onPresence = function (online) {
+                const el = document.getElementById('peer-status');
+                if (el) el.textContent = online.has(Number(el.dataset.peer)) ? 'Online' : 'Offline';
+            };
+
+            // Reverb subscription (swap channels cleanly when switching conversations)
+            unsubscribeThread();
+            (function subscribe() {
+                if (!window.Razin.pusher) return setTimeout(subscribe, 400);
+                const chName = 'chat.conversation.' + CONV;
+                window.Razin.currentConvChannel = chName;
+                const ch = window.Razin.pusher.subscribe(chName);
+                ch.bind('message.posted', function (d) { if (seen.has(Number(d.id))) return; append(d); if (Number(d.user_id) !== ME) { playSound(); markReadPing(); } });
+                ch.bind('message.deleted', function (d) { removeMsg(d.id); });
+                ch.bind('typing', function (d) { if (Number(d.user_id) !== ME) showTyping(d.name); });
+            })();
+        }
+
+        // First load (if a conversation is already open server-side).
+        initThread();
+    })();
+    </script>
+@endsection

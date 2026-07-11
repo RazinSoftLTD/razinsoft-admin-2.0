@@ -43,9 +43,15 @@ Route::get('/account/email/verify/{id}/{hash}', [AccountController::class, 'veri
     ->middleware('signed')->name('account.email.verify');
 
 // ---- Authenticated ----
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'client.active'])->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    // Support tickets — reachable even for inactive accounts (support-only path).
+    Route::get('/support/tickets', [\App\Http\Controllers\Api\SupportTicketController::class, 'index']);
+    Route::post('/support/tickets', [\App\Http\Controllers\Api\SupportTicketController::class, 'store']);
+    Route::get('/support/tickets/{ticket}', [\App\Http\Controllers\Api\SupportTicketController::class, 'show'])->whereNumber('ticket');
+    Route::post('/support/tickets/{ticket}/replies', [\App\Http\Controllers\Api\SupportTicketController::class, 'reply'])->whereNumber('ticket');
 
     Route::post('/products/{slug}/questions', [ProductController::class, 'storeQuestion']);
     Route::post('/products/{slug}/questions/{question}/answers', [ProductController::class, 'storeAnswer']);

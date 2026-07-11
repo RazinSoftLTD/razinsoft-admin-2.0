@@ -45,6 +45,11 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => ['These credentials do not match our records.']]);
         }
 
+        // Blocked accounts cannot sign in at all. (Inactive accounts may sign in but are limited to support.)
+        if (! $user->canLogin()) {
+            throw ValidationException::withMessages(['email' => ['This account is blocked. Please contact support.']]);
+        }
+
         return $this->respondWithToken($user);
     }
 

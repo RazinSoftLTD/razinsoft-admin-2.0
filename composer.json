@@ -9,8 +9,11 @@
         "php": "^8.3",
         "barryvdh/laravel-dompdf": "^3.1",
         "laravel/framework": "^13.8",
+        "laravel/reverb": "^1.10",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
+        "mews/purifier": "^3.4",
+        "pusher/pusher-php-server": "^7.2",
         "stripe/stripe-php": "^20.3"
     },
     "require-dev": {

@@ -10,6 +10,7 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         then: function (): void {
             Illuminate\Support\Facades\Route::middleware('web')->group(__DIR__.'/../routes/admin.php');
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => App\Http\Middleware\EnsureAdmin::class,
             'staff' => App\Http\Middleware\EnsureStaff::class,
             'permission' => App\Http\Middleware\EnsurePermission::class,
+            'client.active' => App\Http\Middleware\EnsureClientActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -26,12 +26,22 @@ class Permissions
         'questions' => ['label' => 'Questions', 'group' => 'Content', 'actions' => ['view', 'answer', 'delete']],
         'messages' => ['label' => 'Messages', 'group' => 'Content', 'actions' => ['view', 'delete']],
         'searches' => ['label' => 'Searches', 'group' => 'Content', 'actions' => ['view', 'delete']],
+        // Support
+        'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete']],
+        // Team chat — direct messaging is open to every panel user; only group creation is gated.
+        'chat' => ['label' => 'Team Chat', 'group' => 'Support', 'actions' => ['create_group']],
+        // HR
+        'employees' => ['label' => 'Employees', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'designations' => ['label' => 'Designations', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'departments' => ['label' => 'Departments', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'leave' => ['label' => 'Leave', 'group' => 'HR', 'actions' => ['view', 'create', 'approve', 'delete'], 'scope' => 'user_id'],
     ];
 
     /** Human labels for each action (used in the matrix UI). */
     public const ACTION_LABELS = [
         'view' => 'View', 'view_all' => 'View all', 'create' => 'Create', 'edit' => 'Edit',
-        'delete' => 'Delete', 'finance' => 'Finance', 'answer' => 'Answer',
+        'delete' => 'Delete', 'finance' => 'Finance', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
+        'create_group' => 'Create groups',
     ];
 
     /** A brand-new staff/role starts with read access to the CRM basics. */

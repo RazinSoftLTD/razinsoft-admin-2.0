@@ -44,12 +44,15 @@
                     <div class="grid gap-5 sm:grid-cols-2">
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Customer</label>
-                            <select name="client_id" x-model="clientId" @change="pickClient()" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                <option value="">Walk-in / no account</option>
-                                @foreach ($clients as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }}{{ $c->company ? ' — '.$c->company : '' }}</option>
-                                @endforeach
-                            </select>
+                            <div class="flex gap-2">
+                                <select name="client_id" x-model="clientId" x-ref="clientSelect" @change="pickClient()" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                                    <option value="">Walk-in / no account</option>
+                                    @foreach ($clients as $c)
+                                        <option value="{{ $c->id }}">{{ $c->name }}{{ $c->company ? ' — '.$c->company : '' }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" @click="qa.open = true" class="h-11 shrink-0 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">Add</button>
+                            </div>
                         </div>
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Invoice Number</label>
@@ -191,6 +194,46 @@
             </div>
         @endif
     </form>
+
+    {{-- Quick "Add new customer" modal (only the essentials) --}}
+    <div x-show="qa.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="qa.open = false">
+        <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 class="text-base font-bold text-[var(--color-heading)]">Add new customer</h3>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Create a customer without leaving this invoice.</p>
+
+            <div class="mt-4 space-y-4">
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client Name <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="qa.name" placeholder="e.g. John Doe" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Email <span class="text-red-500">*</span></label>
+                    <input type="email" x-model="qa.email" placeholder="e.g. john@example.com" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Company Name</label>
+                    <input type="text" x-model="qa.company" placeholder="e.g. Acme Corporation" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Login Allowed?</label>
+                    <div class="mt-1 flex items-center gap-5 text-sm">
+                        <label class="inline-flex items-center gap-2"><input type="radio" :checked="qa.login === true" @change="qa.login = true" class="accent-[var(--color-primary)]"> Yes</label>
+                        <label class="inline-flex items-center gap-2"><input type="radio" :checked="qa.login === false" @change="qa.login = false" class="accent-[var(--color-primary)]"> No</label>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-400">Yes = customer can sign in on the website · No = cannot sign in.</p>
+                </div>
+
+                <p x-show="qa.error" x-cloak class="text-sm text-red-600" x-text="qa.error"></p>
+
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" @click="qa.open = false" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
+                    <button type="button" @click="quickAddSave()" :disabled="qa.saving" class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-60">
+                        <span x-text="qa.saving ? 'Saving…' : 'Add customer'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -199,10 +242,41 @@ function invoiceForm(cfg) {
         clients: cfg.clients, items: cfg.items, clientId: cfg.clientId, currency: cfg.currency,
         invoiceNumber: cfg.invoiceNumber, invoiceDate: cfg.invoiceDate, dueDate: cfg.dueDate, amountPaid: cfg.amountPaid,
         bill: { name: '', company: '', email: '', phone: '', address: '' },
+        qa: { open: false, name: '', email: '', company: '', login: false, saving: false, error: '' },
         init() { this.pickClient(); },
         pickClient() {
             const c = this.clients[this.clientId];
             this.bill = c ? { name: c.name, company: c.company, email: c.email, phone: c.phone, address: c.address } : { name: '', company: '', email: '', phone: '', address: '' };
+        },
+        async quickAddSave() {
+            if (!this.qa.name.trim()) { this.qa.error = 'Client name is required.'; return; }
+            if (!this.qa.email.trim()) { this.qa.error = 'Email is required.'; return; }
+            this.qa.error = ''; this.qa.saving = true;
+            try {
+                const res = await fetch('{{ route('admin.clients.quick') }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ name: this.qa.name, email: this.qa.email, company: this.qa.company, login_allowed: this.qa.login ? 1 : 0 }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    this.qa.error = err.errors ? Object.values(err.errors).flat().join(' ') : (err.message || 'Could not add the customer.');
+                    this.qa.saving = false;
+                    return;
+                }
+                const c = await res.json();
+                this.clients[c.id] = c;
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + (c.company ? ' — ' + c.company : '');
+                this.$refs.clientSelect.appendChild(opt);
+                this.clientId = String(c.id);
+                this.pickClient();
+                this.qa = { open: false, name: '', email: '', company: '', login: false, saving: false, error: '' };
+            } catch (e) {
+                this.qa.error = 'Something went wrong. Please try again.';
+                this.qa.saving = false;
+            }
         },
         addItem() { this.items.push({ description: '', sub_description: '', qty: 1, unit_price: 0, discount_percent: 0, tax_percent: 0 }); },
         removeItem(i) { this.items.splice(i, 1); },

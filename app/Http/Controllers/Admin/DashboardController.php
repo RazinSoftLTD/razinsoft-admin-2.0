@@ -13,6 +13,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        // Employees (non-admin staff) get a personal self-service dashboard — their own info only.
+        $me = auth()->user();
+        if ($me && $me->isStaff() && ! $me->isAdmin()) {
+            return $this->employeeDashboard($me);
+        }
+
         $paid = fn () => Order::whereIn('status', ['paid', 'processing', 'completed']);
 
         // ---- KPI cards (with month-over-month change) ----
@@ -55,6 +61,38 @@ class DashboardController extends Controller
         $recentOrders = Order::with('user', 'items')->latest()->take(7)->get();
 
         return view('admin.dashboard', compact('kpis', 'series', 'statuses', 'topProducts', 'active', 'recentOrders'));
+    }
+
+    /** Personal dashboard for an employee — only their own information. */
+    private function employeeDashboard(User $me)
+    {
+        $me->loadMissing('designation', 'department', 'reportsTo');
+
+        $assignedTickets = \App\Models\Ticket::where('assigned_to', $me->id)
+            ->with('client')
+            ->latest('last_reply_at')->latest('id')
+            ->take(6)->get();
+
+        $ticketStats = [
+            'open' => \App\Models\Ticket::where('assigned_to', $me->id)->where('status', 'open')->count(),
+            'pending' => \App\Models\Ticket::where('assigned_to', $me->id)->where('status', 'pending')->count(),
+            'total' => \App\Models\Ticket::where('assigned_to', $me->id)->count(),
+        ];
+
+        // Upcoming birthdays across the team (next occurrence).
+        $birthdays = User::assignable()->whereNotNull('date_of_birth')->with('designation')->get()
+            ->map(function ($u) {
+                $next = Carbon::parse($u->date_of_birth)->setYear((int) now()->year);
+                if ($next->isPast()) {
+                    $next->addYear();
+                }
+                $u->next_birthday = $next;
+
+                return $u;
+            })
+            ->sortBy('next_birthday')->take(5)->values();
+
+        return view('admin.dashboard-employee', compact('me', 'assignedTickets', 'ticketStats', 'birthdays'));
     }
 
     /** Percentage change of this month vs last month (count, or sum of $column). */
