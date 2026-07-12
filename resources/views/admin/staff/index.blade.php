@@ -43,7 +43,7 @@
                             <th class="px-5 py-3">Employee ID</th>
                             <th class="px-5 py-3">Name</th>
                             <th class="px-5 py-3">Email</th>
-                            <th class="px-5 py-3">User Role</th>
+                            @if (auth()->user()->isAdmin())<th class="px-5 py-3">User Role</th>@endif
                             <th class="px-5 py-3">Reporting To</th>
                             <th class="px-5 py-3">Status</th>
                             <th class="px-5 py-3 text-right">Action</th>
@@ -69,15 +69,17 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-4 align-top text-[var(--color-muted)]">{{ $s->email }}</td>
-                                <td class="px-5 py-4 align-top">
-                                    <form method="POST" action="{{ route('admin.staff.role', $s) }}">
-                                        @csrf @method('PATCH')
-                                        <select name="role_id" onchange="this.form.submit()" class="h-9 w-40 rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                                            <option value="">No role</option>
-                                            @foreach ($roles as $r)<option value="{{ $r->id }}" @selected($s->role_id == $r->id)>{{ $r->name }}</option>@endforeach
-                                        </select>
-                                    </form>
-                                </td>
+                                @if (auth()->user()->isAdmin())
+                                    <td class="px-5 py-4 align-top">
+                                        <form method="POST" action="{{ route('admin.staff.role', $s) }}">
+                                            @csrf @method('PATCH')
+                                            <select name="role_id" onchange="this.form.submit()" class="h-9 w-40 rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                                <option value="">No role</option>
+                                                @foreach ($roles as $r)<option value="{{ $r->id }}" @selected($s->role_id == $r->id)>{{ $r->name }}</option>@endforeach
+                                            </select>
+                                        </form>
+                                    </td>
+                                @endif
                                 <td class="px-5 py-4 align-top text-[var(--color-muted)]">{{ $s->reportsTo->name ?? '—' }}</td>
                                 <td class="px-5 py-4 align-top">
                                     @if ($s->status === \App\Models\User::STATUS_ACTIVE)
@@ -91,15 +93,23 @@
                                         <button @click="open = !open; if (open) place($el)" @click.outside="open = false" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
                                             <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>
                                         </button>
+                                        @php $me = auth()->user(); @endphp
                                         <div x-show="open" x-cloak @click="open = false" :style="`top:${y}px; left:${x - 176}px`" class="fixed z-50 w-44 rounded-lg border border-gray-100 bg-white py-1 text-sm shadow-xl ring-1 ring-black/5">
+                                            <a href="{{ route('admin.staff.show', $s) }}" class="block px-4 py-2 text-[var(--color-heading)] hover:bg-gray-50">View</a>
                                             @if ($s->isStaff())
-                                                <a href="{{ route('admin.staff.edit', $s) }}" class="block px-4 py-2 text-[var(--color-heading)] hover:bg-gray-50">Edit</a>
-                                                <a href="{{ route('admin.staff.permissions', $s) }}" class="block px-4 py-2 text-[var(--color-heading)] hover:bg-gray-50">Permissions</a>
-                                                <div class="my-1 border-t border-gray-100"></div>
-                                                <form method="POST" action="{{ route('admin.staff.destroy', $s) }}" onsubmit="return confirm('Remove this employee?')">
-                                                    @csrf @method('DELETE')
-                                                    <button class="block w-full px-4 py-2 text-left text-red-600 hover:bg-red-50">Delete</button>
-                                                </form>
+                                                @if ($me->canAct('employees', 'edit', $s))
+                                                    <a href="{{ route('admin.staff.edit', $s) }}" class="block px-4 py-2 text-[var(--color-heading)] hover:bg-gray-50">Edit</a>
+                                                @endif
+                                                @if ($me->isAdmin())
+                                                    <a href="{{ route('admin.staff.permissions', $s) }}" class="block px-4 py-2 text-[var(--color-heading)] hover:bg-gray-50">Permissions</a>
+                                                @endif
+                                                @if ($me->canAct('employees', 'delete', $s))
+                                                    <div class="my-1 border-t border-gray-100"></div>
+                                                    <form method="POST" action="{{ route('admin.staff.destroy', $s) }}" onsubmit="return confirm('Remove this employee?')">
+                                                        @csrf @method('DELETE')
+                                                        <button class="block w-full px-4 py-2 text-left text-red-600 hover:bg-red-50">Delete</button>
+                                                    </form>
+                                                @endif
                                             @else
                                                 <span class="block px-4 py-2 text-gray-400">Admin — protected</span>
                                             @endif
@@ -108,7 +118,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="8" class="px-5 py-12 text-center text-gray-400">No employees found.</td></tr>
+                            <tr><td colspan="{{ auth()->user()->isAdmin() ? 8 : 7 }}" class="px-5 py-12 text-center text-gray-400">No employees found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

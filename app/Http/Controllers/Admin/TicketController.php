@@ -22,13 +22,28 @@ class TicketController extends Controller
             'from' => $request->query('from', ''),
             'to' => $request->query('to', ''),
             'counts' => [
-                'all' => Ticket::count(),
-                'open' => Ticket::where('status', 'open')->count(),
-                'pending' => Ticket::where('status', 'pending')->count(),
-                'resolved' => Ticket::where('status', 'resolved')->count(),
-                'closed' => Ticket::where('status', 'closed')->count(),
+                'all' => $this->scopedCount($request),
+                'open' => $this->scopedCount($request, 'open'),
+                'pending' => $this->scopedCount($request, 'pending'),
+                'resolved' => $this->scopedCount($request, 'resolved'),
+                'closed' => $this->scopedCount($request, 'closed'),
             ],
         ]);
+    }
+
+    /** Count tickets visible under the user's view scope, optionally by status. */
+    private function scopedCount(Request $request, ?string $status = null): int
+    {
+        $q = Ticket::query();
+        $request->user()->applyScope($q, 'tickets', 'view');
+
+        return $q->when($status, fn ($x) => $x->where('status', $status))->count();
+    }
+
+    /** Row-level access: the user's ticket view scope must cover this ticket. */
+    private function authorizeTicket(Request $request, Ticket $ticket, string $action = 'view'): void
+    {
+        abort_unless($request->user()->canAct('tickets', $action, $ticket), 403);
     }
 
     /** Shared list query with status / priority / search / date-range filters. */
@@ -38,6 +53,9 @@ class TicketController extends Controller
             ->withCount('replies')
             ->withCount(['replies as admin_replies_count' => fn ($r) => $r->where('is_admin', true)])
             ->latest('last_reply_at')->latest('id');
+
+        // "Owned" ticket scope = tickets the user raised (client_id = them).
+        $request->user()->applyScope($q, 'tickets', 'view');
 
         if (array_key_exists($request->query('status'), Ticket::STATUSES)) {
             $q->where('status', $request->query('status'));
@@ -89,9 +107,12 @@ class TicketController extends Controller
 
     public function store(Request $request)
     {
+        // Scoped users (e.g. employees with "owned" tickets) raise tickets for themselves only.
+        $selfOnly = ! $request->user()->seesAll('tickets');
+
         $data = $request->validate([
-            'requester_type' => ['required', Rule::in(['client', 'employee'])],
-            'client_id' => ['required', 'exists:users,id'],
+            'requester_type' => [$selfOnly ? 'nullable' : 'required', Rule::in(['client', 'employee'])],
+            'client_id' => [$selfOnly ? 'nullable' : 'required', 'exists:users,id'],
             'group_id' => ['nullable', 'exists:ticket_groups,id'],
             'type_id' => ['nullable', 'exists:ticket_types,id'],
             'assigned_to' => ['nullable', 'exists:users,id'],
@@ -100,6 +121,12 @@ class TicketController extends Controller
             'message' => ['required', 'string', 'max:20000'],
             'attachment' => ['nullable', 'file', 'max:10240'],
         ]);
+
+        if ($selfOnly) {
+            $data['client_id'] = $request->user()->id;   // the ticket belongs to (is owned by) them
+            $data['requester_type'] = 'employee';
+            $data['assigned_to'] = null;
+        }
 
         $ticket = Ticket::create([
             'ticket_number' => Ticket::nextNumber(),
@@ -147,8 +174,9 @@ class TicketController extends Controller
         return response()->json(['id' => $t->id, 'name' => $t->name]);
     }
 
-    public function show(Ticket $ticket)
+    public function show(Request $request, Ticket $ticket)
     {
+        $this->authorizeTicket($request, $ticket);
         // Admin opened it — clear the "new message" flag for staff.
         if ($ticket->unread_by_admin) {
             $ticket->forceFill(['unread_by_admin' => false])->save();
@@ -166,6 +194,7 @@ class TicketController extends Controller
     /** Assign the ticket to a team member (staff/admin) or unassign. */
     public function assign(Request $request, Ticket $ticket)
     {
+        $this->authorizeTicket($request, $ticket, 'edit');
         $data = $request->validate(['assigned_to' => ['nullable', 'exists:users,id']]);
         $ticket->update(['assigned_to' => $data['assigned_to'] ?: null]);
 
@@ -174,6 +203,7 @@ class TicketController extends Controller
 
     public function reply(Request $request, Ticket $ticket)
     {
+        $this->authorizeTicket($request, $ticket);
         $data = $request->validate([
             'message' => ['required', 'string', 'max:10000'],
             'attachment' => ['nullable', 'file', 'max:10240'],
@@ -203,6 +233,7 @@ class TicketController extends Controller
 
     public function updateStatus(Request $request, Ticket $ticket)
     {
+        $this->authorizeTicket($request, $ticket, 'edit');
         $data = $request->validate([
             'status' => ['nullable', Rule::in(array_keys(Ticket::STATUSES))],
             'priority' => ['nullable', Rule::in(array_keys(Ticket::PRIORITIES))],

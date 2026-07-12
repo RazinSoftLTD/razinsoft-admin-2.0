@@ -89,7 +89,9 @@
                 <x-admin.field label="Reporting To" name="reporting_to" type="select" :value="$val('reporting_to')"
                     :options="['' => '--'] + $reportable->when($staff->exists, fn ($c) => $c->where('id', '!=', $staff->id))->pluck('name', 'id')->all()" />
                 <x-admin.field label="Language" name="language" type="select" :value="$val('language', 'en')" :options="$languages" />
-                <x-admin.field label="User Role" name="role_id" type="select" :value="$val('role_id')" :options="['' => 'No role'] + $roles->pluck('name', 'id')->all()" />
+                @if (auth()->user()->isAdmin())
+                    <x-admin.field label="User Role" name="role_id" type="select" :value="$val('role_id')" :options="['' => 'No role'] + $roles->pluck('name', 'id')->all()" />
+                @endif
             </div>
 
             <div class="mt-5 grid gap-5">

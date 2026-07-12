@@ -19,27 +19,30 @@
     <form method="POST" action="{{ route('admin.staff.permissions.update', $staff) }}" class="max-w-4xl">
         @csrf @method('PUT')
 
+        @php use App\Support\Permissions; @endphp
         <div class="space-y-6">
-            @foreach (\App\Support\Permissions::grouped() as $group => $modules)
+            @foreach (Permissions::grouped() as $group => $modules)
                 <div class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
                     <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-gray-400">{{ $group }}</p>
                     <div class="divide-y divide-gray-50">
                         @foreach ($modules as $mod => $cfg)
                             <div class="flex flex-wrap items-center gap-x-5 gap-y-2 py-3">
                                 <span class="w-28 shrink-0 text-sm font-semibold text-[var(--color-heading)]">{{ $cfg['label'] }}</span>
-                                @foreach (\App\Support\Permissions::actionsFor($mod) as $act)
+                                @foreach ($cfg['actions'] as $act)
                                     @php
                                         $key = "$mod.$act";
-                                        $cur = array_key_exists($key, $override) ? ($override[$key] ? '1' : '0') : '';
-                                        $roleHas = (bool) optional($staff->assignedRole)->hasPermission($key);
+                                        $isCrud = in_array($act, ['view', 'create', 'edit', 'delete'], true);
+                                        $scopes = $isCrud ? Permissions::scopesFor($mod, $act) : ['none', 'all'];
+                                        $cur = array_key_exists($key, $override) ? Permissions::scopeValue($override[$key]) : '';
+                                        $roleScope = optional($staff->assignedRole)->grantedScope($key) ?? 'none';
                                     @endphp
                                     <label class="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
-                                        <span class="{{ $act === 'view_all' || $act === 'finance' ? 'font-semibold text-[var(--color-primary)]' : '' }}">{{ \App\Support\Permissions::actionLabel($act) }}</span>
-                                        <select name="override[{{ $key }}]" class="h-8 rounded border-gray-200 text-xs
-                                            {{ $cur === '1' ? 'bg-emerald-50 text-emerald-700' : ($cur === '0' ? 'bg-red-50 text-red-600' : '') }}">
-                                            <option value="" @selected($cur==='')>Inherit ({{ $roleHas ? 'Allow' : 'Deny' }})</option>
-                                            <option value="1" @selected($cur==='1')>Allow</option>
-                                            <option value="0" @selected($cur==='0')>Deny</option>
+                                        <span class="{{ ! $isCrud ? 'font-semibold text-[var(--color-primary)]' : '' }}">{{ Permissions::actionLabel($act) }}</span>
+                                        <select name="override[{{ $key }}]" class="h-8 rounded border-gray-200 text-xs {{ $cur !== '' ? 'bg-indigo-50 text-indigo-700' : '' }}">
+                                            <option value="" @selected($cur === '')>Inherit ({{ Permissions::scopeLabel($roleScope) }})</option>
+                                            @foreach ($scopes as $scope)
+                                                <option value="{{ $scope }}" @selected($cur === $scope)>{{ Permissions::scopeLabel($scope) }}</option>
+                                            @endforeach
                                         </select>
                                     </label>
                                 @endforeach

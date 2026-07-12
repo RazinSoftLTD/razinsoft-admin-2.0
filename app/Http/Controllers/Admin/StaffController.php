@@ -23,6 +23,9 @@ class StaffController extends Controller
             ->withCount('assignedLeads')
             ->latest();
 
+        // Employees "view" scope — "Owned" (owner column = id) limits the list to the user's own record (self).
+        $request->user()->applyScope($q, 'employees', 'view');
+
         if (array_key_exists($request->query('role'), [User::ROLE_ADMIN => 1, User::ROLE_STAFF => 1])) {
             $q->where('role', $request->query('role'));
         }
@@ -45,8 +48,22 @@ class StaffController extends Controller
         ]);
     }
 
-    public function create()
+    /** Read-only employee profile — respects the "view" scope so staff can open their own record. */
+    public function show(Request $request, User $staff)
     {
+        abort_unless($staff->isStaff() || $staff->isAdmin(), 404);
+        abort_unless($request->user()->canAct('employees', 'view', $staff), 403);
+
+        return view('admin.staff.show', [
+            'staff' => $staff->load('assignedRole', 'designation', 'department', 'reportsTo'),
+            'canEdit' => $request->user()->canAct('employees', 'edit', $staff),
+        ]);
+    }
+
+    public function create(Request $request)
+    {
+        abort_unless($request->user()->hasPermission('employees.create'), 403);
+
         return view('admin.staff.form', array_merge($this->formData(), [
             'staff' => new User([
                 'role' => User::ROLE_STAFF,
@@ -60,6 +77,7 @@ class StaffController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless($request->user()->hasPermission('employees.create'), 403);
         $data = $this->validated($request);
         $data['role'] = User::ROLE_STAFF;
         // Default new employees to the "Employee" role unless a role was explicitly chosen.
@@ -77,9 +95,10 @@ class StaffController extends Controller
         return redirect()->route('admin.staff.index')->with('status', 'Employee added.');
     }
 
-    public function edit(User $staff)
+    public function edit(Request $request, User $staff)
     {
         abort_unless($staff->isStaff(), 404);
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
 
         return view('admin.staff.form', array_merge($this->formData(), ['staff' => $staff]));
     }
@@ -87,8 +106,13 @@ class StaffController extends Controller
     public function update(Request $request, User $staff)
     {
         abort_unless($staff->isStaff(), 404);
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
 
         $data = $this->validated($request, $staff);
+        // User Role is super-admin territory — never let a non-admin change it.
+        if (! $request->user()->isAdmin()) {
+            unset($data['role_id']);
+        }
         if ($request->filled('password')) {
             $data['password'] = $request->input('password'); // hashed by cast
         }
@@ -104,9 +128,11 @@ class StaffController extends Controller
         return redirect()->route('admin.staff.index')->with('status', 'Employee updated.');
     }
 
-    public function destroy(User $staff)
+    public function destroy(Request $request, User $staff)
     {
         abort_unless($staff->isStaff(), 404);
+        // Delete scope: "Owned" (id = self) lets a user remove only their own employee record.
+        abort_unless($request->user()->canAct('employees', 'delete', $staff), 403);
 
         if ($staff->photo) {
             Storage::disk('public')->delete($staff->photo);
@@ -212,15 +238,18 @@ class StaffController extends Controller
         abort_unless($staff->isStaff(), 404);
         $request->validate(['override' => ['nullable', 'array']]);
 
+        // Store explicit per-user scope overrides. '' = inherit (skip). Others are scope keys.
         $override = [];
         foreach ((array) $request->input('override', []) as $key => $val) {
-            if (! in_array($key, \App\Support\Permissions::keys(), true)) {
+            if ($val === '' || $val === null || ! in_array($key, \App\Support\Permissions::keys(), true)) {
                 continue;
             }
-            if ($val === '1') {
-                $override[$key] = true;
-            } elseif ($val === '0') {
-                $override[$key] = false;
+            [$mod, $act] = explode('.', $key, 2);
+            $allowed = in_array($act, ['view', 'create', 'edit', 'delete'], true)
+                ? \App\Support\Permissions::scopesFor($mod, $act)
+                : ['none', 'all'];
+            if (in_array($val, $allowed, true)) {
+                $override[$key] = $val;
             }
         }
         $staff->update(['permissions' => $override]);

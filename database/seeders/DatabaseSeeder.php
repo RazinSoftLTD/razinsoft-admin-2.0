@@ -28,5 +28,7 @@ class DatabaseSeeder extends Seeder
         Coupon::updateOrCreate(['code' => 'SAVE20'], ['type' => 'percent', 'value' => 20, 'is_active' => true]);
 
         $this->call(ProductSeeder::class);
+        $this->call(ChecklistTemplateSeeder::class);
+        $this->call(EmployeeRoleSeeder::class);
     }
 }

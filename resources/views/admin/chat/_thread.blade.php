@@ -15,6 +15,8 @@
 
 <div id="thread-root" class="flex min-h-0 flex-1 flex-col"
      data-conv-id="{{ $active->id }}"
+     data-me="{{ (int) $me->id }}"
+     data-counterpart-id="{{ optional($active->counterpart($me))->id }}"
      data-is-group="{{ $isGroup ? '1' : '0' }}"
      data-is-admin="{{ $me->isAdmin() ? '1' : '0' }}"
      data-url="{{ route('admin.chat.show', $active) }}"
@@ -24,7 +26,7 @@
      data-del-base="{{ url('admin/chat/messages') }}">
 
     {{-- Header --}}
-    <div class="flex items-center gap-3 border-b border-gray-100 px-5 py-3">
+    <div class="flex shrink-0 items-center gap-3 border-b border-gray-100 px-5 py-3">
         @if ($isGroup)
             <span class="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-gray-100 text-gray-500">
                 @if ($active->photo_url)
@@ -100,7 +102,7 @@
     </div>
 
     {{-- Typing indicator --}}
-    <div id="typing-ind" class="hidden items-center gap-2 px-5 py-1.5 text-xs text-[var(--color-muted)]">
+    <div id="typing-ind" class="hidden shrink-0 items-center gap-2 px-5 py-1.5 text-xs text-[var(--color-muted)]">
         <span class="flex gap-0.5">
             <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:0ms"></span>
             <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:120ms"></span>
@@ -109,8 +111,8 @@
         <span id="typing-text"></span>
     </div>
 
-    {{-- Rich composer --}}
-    <form id="chat-form" class="border-t border-gray-100">
+    {{-- Rich composer — always pinned at the bottom, never shrinks --}}
+    <form id="chat-form" class="shrink-0 border-t border-gray-100">
         @csrf
         <div id="chat-file-chip" class="hidden items-center gap-2 border-b border-gray-100 px-4 py-2 text-xs">
             <svg class="h-4 w-4 text-[var(--color-muted)]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>

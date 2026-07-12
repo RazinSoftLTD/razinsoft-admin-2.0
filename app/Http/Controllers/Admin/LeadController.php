@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BookingSetting;
+use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\Meeting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,10 +19,8 @@ class LeadController extends Controller
     {
         $q = Lead::query()->with('assignee:id,name')->latest('id');
 
-        // Staff only see the leads assigned to them; admins see everything.
-        if (! $request->user()->seesAll('leads')) {
-            $q->where('assigned_to', $request->user()->id);
-        }
+        // Constrain to the rows this user's "view" scope allows (owned / added / both / all).
+        $request->user()->applyScope($q, 'leads', 'view');
 
         if ($search = trim((string) $request->query('search'))) {
             $q->where(fn ($w) => $w
@@ -41,6 +42,24 @@ class LeadController extends Controller
             $q->where('priority', $priority);
         }
 
+        // Created-date filter: preset range and/or a custom from–to range.
+        match ($request->query('date_range')) {
+            'today' => $q->whereDate('created_at', today()),
+            'week' => $q->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]),
+            'month' => $q->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]),
+            'year' => $q->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]),
+            default => null,
+        };
+        if ($from = $request->query('from')) {
+            $q->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->query('to')) {
+            $q->whereDate('created_at', '<=', $to);
+        }
+        if ($country = $request->query('country')) {
+            $q->where('country', $country);
+        }
+
         if ($request->query('export') === 'csv') {
             return $this->exportCsv($q->get());
         }
@@ -58,44 +77,47 @@ class LeadController extends Controller
         $total = Lead::count();
         $totalPrev = Lead::where('created_at', '<', $monthStart)->count();
         $new = Lead::where('lead_status', 'new')->count();
-        $qualified = Lead::whereIn('lead_status', ['qualified', 'proposal', 'negotiation'])->count();
-        $unqualified = Lead::where('lead_status', 'lost')->count();
-        $won = Lead::where('lead_status', 'won')->count();
+        $qualified = Lead::where('lead_status', 'qualified')->count();
+        $unqualified = Lead::where('lead_status', 'unqualified')->count();
+        $converted = Lead::whereNotNull('converted_client_id')->count();
 
         $stats = [
             ['label' => 'Total Leads', 'value' => number_format($total), 'delta' => $delta($total, $totalPrev), 'tone' => 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'],
             ['label' => 'New Leads', 'value' => number_format($new), 'delta' => null, 'tone' => 'bg-emerald-50 text-emerald-600', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6'],
-            ['label' => 'Qualified Leads', 'value' => number_format($qualified), 'delta' => null, 'tone' => 'bg-amber-50 text-amber-600', 'icon' => 'M9 12h6m-6 4h6M8 3h8l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z'],
+            ['label' => 'Qualified Leads', 'value' => number_format($qualified), 'delta' => null, 'tone' => 'bg-emerald-50 text-emerald-600', 'icon' => 'm5 13 4 4L19 7'],
             ['label' => 'Unqualified Leads', 'value' => number_format($unqualified), 'delta' => null, 'tone' => 'bg-red-50 text-red-500', 'icon' => 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM9 10h.01M15 10h.01M9.5 15.5c.7-.7 1.5-1 2.5-1s1.8.3 2.5 1'],
-            ['label' => 'Conversion Rate', 'value' => ($total ? round($won / $total * 100, 1) : 0) . '%', 'delta' => null, 'tone' => 'bg-sky-50 text-sky-600', 'icon' => 'M9 11l3 3 8-8M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11'],
+            ['label' => 'Conversion Rate', 'value' => ($total ? round($converted / $total * 100, 1) : 0).'%', 'delta' => null, 'tone' => 'bg-sky-50 text-sky-600', 'icon' => 'M9 11l3 3 8-8M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11'],
         ];
+
+        // Country-wise qualified vs unqualified breakdown (respects staff scope + the date range).
+        $scoped = Lead::query()->when(! $request->user()->seesAll('leads'), fn ($x) => $x->where('assigned_to', $request->user()->id));
+        match ($request->query('date_range')) {
+            'today' => $scoped->whereDate('created_at', today()),
+            'week' => $scoped->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]),
+            'month' => $scoped->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]),
+            'year' => $scoped->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]),
+            default => null,
+        };
+        if ($from = $request->query('from')) $scoped->whereDate('created_at', '>=', $from);
+        if ($to = $request->query('to')) $scoped->whereDate('created_at', '<=', $to);
+
+        $countryBreakdown = (clone $scoped)
+            ->selectRaw("COALESCE(NULLIF(country, ''), 'Unknown') as country_name")
+            ->selectRaw("SUM(CASE WHEN lead_status = 'qualified' THEN 1 ELSE 0 END) as qualified")
+            ->selectRaw("SUM(CASE WHEN lead_status = 'unqualified' THEN 1 ELSE 0 END) as unqualified")
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('country_name')->orderByDesc('total')->get();
+
+        $countries = Lead::query()->when(! $request->user()->seesAll('leads'), fn ($x) => $x->where('assigned_to', $request->user()->id))
+            ->whereNotNull('country')->where('country', '!=', '')->distinct()->orderBy('country')->pluck('country');
 
         return view('admin.leads.index', [
             'leads' => $q->paginate($perPage)->withQueryString(),
             'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'stats' => $stats,
             'perPage' => $perPage,
-        ]);
-    }
-
-    /** Follow-up page: leads with a scheduled follow-up, grouped Overdue / Today / Upcoming. */
-    public function followUp(Request $request)
-    {
-        $q = Lead::query()->with('assignee:id,name')
-            ->whereNull('converted_client_id')
-            ->whereNotNull('next_follow_up_at');
-
-        if (! $request->user()->seesAll('leads')) {
-            $q->where('assigned_to', $request->user()->id);
-        }
-
-        $leads = $q->orderBy('next_follow_up_at')->get();
-        $today = now()->startOfDay();
-
-        return view('admin.leads.followup', [
-            'overdue' => $leads->filter(fn ($l) => $l->next_follow_up_at->lt($today)),
-            'today' => $leads->filter(fn ($l) => $l->next_follow_up_at->isSameDay($today)),
-            'upcoming' => $leads->filter(fn ($l) => $l->next_follow_up_at->gt($today)),
+            'countryBreakdown' => $countryBreakdown,
+            'countries' => $countries,
         ]);
     }
 
@@ -224,15 +246,95 @@ class LeadController extends Controller
     {
         return view('admin.leads.form', [
             'lead' => new Lead(['lead_status' => 'new', 'priority' => 'high']),
-            'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
+            'users' => $this->leadOwners(),
         ]);
+    }
+
+    /** Users who can own a lead — only staff/admins granted the leads.view permission. */
+    private function leadOwners()
+    {
+        return User::assignable()->with('assignedRole')->orderBy('name')->get()
+            ->filter(fn (User $u) => $u->hasPermission('leads.view'))
+            ->values();
     }
 
     public function store(Request $request)
     {
-        Lead::create($this->validated($request));
+        $data = $this->validated($request);
 
-        return redirect()->route('admin.leads.index')->with('status', 'Lead saved.');
+        // Validate the deal fields up front (so a bad deal never leaves an orphan lead).
+        $dealData = null;
+        if ($request->boolean('create_deal')) {
+            $dealData = $request->validate([
+                'deal_name' => ['required', 'string', 'max:255'],
+                'deal_stage' => ['required', Rule::in(array_keys(Deal::STAGES))],
+                'deal_value' => ['required', 'numeric', 'min:0'],
+                'deal_currency' => ['nullable', 'string', 'max:8'],
+            ]);
+        }
+
+        $data['added_by'] = $request->user()->id;
+        $lead = Lead::create($data);
+
+        if ($dealData) {
+            Deal::create([
+                'title' => $dealData['deal_name'],
+                'lead_id' => $lead->id,
+                'stage' => $dealData['deal_stage'],
+                'value' => $dealData['deal_value'],
+                'currency' => $dealData['deal_currency'] ?? 'BDT',
+                'assigned_to' => $lead->assigned_to,
+            ]);
+        }
+
+        // "Save & Create Meeting" → book a meeting for this lead and open it (needs meetings access).
+        if ($request->input('after') === 'meeting' && $request->user()->allows('meetings', 'view')) {
+            if ($meeting = $this->meetingForLead($lead)) {
+                return redirect()->route('admin.meetings.show', $meeting)
+                    ->with('status', 'Lead saved. Set the meeting date/time and confirm below.');
+            }
+        }
+
+        return redirect()->route('admin.leads.index')
+            ->with('status', $dealData ? 'Lead & deal created.' : 'Lead saved.');
+    }
+
+    /** Book a meeting for a lead at the next available slot (they adjust the exact time after). */
+    private function meetingForLead(Lead $lead): ?Meeting
+    {
+        $s = BookingSetting::current();
+
+        // Find the next free slot within the bookable window.
+        for ($i = 0; $i <= max(1, (int) $s->advance_days); $i++) {
+            $date = today()->addDays($i);
+            foreach ($s->slotsFor($date) as $slot) {
+                if (! $slot['available']) {
+                    continue;
+                }
+                // The unique (date, start_time) index also blocks cancelled meetings — skip on collision.
+                if (Meeting::whereDate('date', $date->toDateString())->where('start_time', $slot['start'].':00')->exists()) {
+                    continue;
+                }
+                try {
+                    return Meeting::create([
+                        'name' => $lead->full_name,
+                        'email' => $lead->email ?: '',
+                        'phone' => $lead->phone,
+                        'dial_code' => $lead->dial_code,
+                        'company' => $lead->company_name,
+                        'date' => $date->toDateString(),
+                        'start_time' => $slot['start'],
+                        'end_time' => $slot['end'],
+                        'status' => 'pending',
+                        'assigned_to' => $lead->assigned_to,
+                    ]);
+                } catch (\Illuminate\Database\QueryException $e) {
+                    continue; // slot taken between check and insert — try the next one
+                }
+            }
+        }
+
+        return null;
     }
 
     public function show(Request $request, Lead $lead)
@@ -278,7 +380,7 @@ class LeadController extends Controller
         }
 
         $lead->update([
-            'lead_status' => 'won',
+            'lead_status' => 'qualified',
             'converted_client_id' => $client->id,
             'converted_at' => now(),
         ]);
@@ -288,13 +390,31 @@ class LeadController extends Controller
             ->with('status', "Lead converted to client {$client->client_code}.");
     }
 
+    /** Open a deal from this lead and jump to the deal editor to fill in the details. */
+    public function convertDeal(Request $request, Lead $lead)
+    {
+        $this->authorizeLead($request, $lead);
+        abort_unless($request->user()->allows('deals', 'create'), 403);
+
+        $deal = Deal::create([
+            'title' => ($lead->company_name ?: $lead->full_name).' — Deal',
+            'lead_id' => $lead->id,
+            'stage' => 'new',
+            'value' => 0,
+            'currency' => 'BDT',
+            'assigned_to' => $lead->assigned_to,
+        ]);
+
+        return redirect()->route('admin.deals.edit', $deal)->with('status', 'Deal created from lead — add the details.');
+    }
+
     public function edit(Request $request, Lead $lead)
     {
         $this->authorizeLead($request, $lead);
 
         return view('admin.leads.form', [
             'lead' => $lead,
-            'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
+            'users' => $this->leadOwners(),
         ]);
     }
 
@@ -314,18 +434,22 @@ class LeadController extends Controller
         return back()->with('status', 'Lead deleted.');
     }
 
-    /** Staff may only touch leads assigned to them; admins have full access. */
+    /** Row-level access: the user's lead "view" scope must cover this record. */
     private function authorizeLead(Request $request, Lead $lead): void
     {
-        abort_if(! $request->user()->seesAll('leads') && $lead->assigned_to !== $request->user()->id, 403);
+        abort_unless($request->user()->canAct('leads', 'view', $lead), 403);
     }
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
+            'salutation' => ['nullable', Rule::in(Lead::SALUTATIONS)],
             'full_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
+            'dial_code' => ['nullable', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:30'],
+            'mobile' => ['nullable', 'string', 'max:40'],
+            'office_phone' => ['nullable', 'string', 'max:40'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'website' => ['nullable', 'string', 'max:255'],
             'job_title' => ['nullable', 'string', 'max:255'],
@@ -343,6 +467,10 @@ class LeadController extends Controller
             'priority' => ['required', Rule::in(array_keys(Lead::PRIORITIES))],
             'next_follow_up_at' => ['nullable', 'date'],
         ]);
+
+        $data['is_whatsapp'] = $request->boolean('is_whatsapp');
+
+        return $data;
     }
 
     private function exportCsv($leads): StreamedResponse

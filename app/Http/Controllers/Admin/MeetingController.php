@@ -31,13 +31,22 @@ class MeetingController extends Controller
         $canEdit = $me->allows('meetings', 'edit');
         $canDelete = $me->allows('meetings', 'delete');
 
+        $scoped = fn () => Meeting::when(! $seeAll, fn ($q) => $q->where('assigned_to', $me->id));
         $stats = [
-            'upcoming' => Meeting::when(! $seeAll, fn ($q) => $q->where('assigned_to', $me->id))->upcoming()->count(),
-            'pending' => Meeting::when(! $seeAll, fn ($q) => $q->where('assigned_to', $me->id))->where('status', 'pending')->count(),
-            'today' => Meeting::when(! $seeAll, fn ($q) => $q->where('assigned_to', $me->id))->whereDate('date', today())->count(),
+            'new' => $scoped()->unread()->count(),
+            'pending' => $scoped()->where('status', 'pending')->count(),
+            'today' => $scoped()->whereDate('date', today())->count(),
         ];
 
         return view('admin.meetings.index', compact('meetings', 'stats', 'seeAll', 'employees', 'canAssign', 'canEdit', 'canDelete'));
+    }
+
+    /** New/unread bookings for the current user — powers the sidebar "Book Meeting" number. */
+    public static function unreadCount(User $me): int
+    {
+        return Meeting::unread()
+            ->when(! $me->seesAll('meetings'), fn ($q) => $q->where('assigned_to', $me->id))
+            ->count();
     }
 
     /** Inline updates from the list (status / assignee / follow-up date). */
@@ -113,6 +122,11 @@ class MeetingController extends Controller
     {
         $me = $request->user();
         abort_unless($me->seesAll('meetings') || $meeting->assigned_to === $me->id, 403);
+
+        // Opening the details marks this booking as read → clears the sidebar "new" number.
+        if ($meeting->seen_at === null) {
+            $meeting->forceFill(['seen_at' => now()])->save();
+        }
 
         $meeting->load('assignee', 'client');
         $employees = User::assignable()->orderBy('name')->get(['id', 'name']);

@@ -10,15 +10,34 @@ class Meeting extends Model
 {
     protected $fillable = [
         'name', 'email', 'client_id', 'phone', 'dial_code', 'company', 'notes', 'date', 'start_time', 'end_time',
-        'status', 'follow_up_date', 'assigned_to', 'meeting_link', 'admin_notes',
+        'status', 'seen_at', 'follow_up_date', 'assigned_to', 'meeting_link', 'admin_notes',
     ];
 
     protected $casts = [
         'date' => 'date',
         'follow_up_date' => 'date',
+        'seen_at' => 'datetime',
     ];
 
-    public const STATUSES = ['pending', 'confirmed', 'cancelled', 'completed'];
+    public const STATUSES = ['pending', 'waiting_for_client', 'confirmed', 'completed', 'cancelled'];
+
+    public const STATUS_LABELS = [
+        'pending' => 'Pending',
+        'waiting_for_client' => 'Waiting for Client',
+        'confirmed' => 'Confirm',
+        'completed' => 'Complete',
+        'cancelled' => 'Cancel',
+    ];
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUS_LABELS[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
+    }
+
+    public function scopeUnread($q)
+    {
+        return $q->whereNull('seen_at');
+    }
 
     public function assignee(): BelongsTo
     {

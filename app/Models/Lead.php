@@ -10,11 +10,14 @@ class Lead extends Model
     protected $guarded = [];
 
     /** Dropdown option sets — single source of truth for the form + validation. */
+    public const SALUTATIONS = ['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'];
+
     public const SOURCES = ['Website', 'Facebook', 'LinkedIn', 'WhatsApp', 'Referral', 'Cold Call', 'Advertisement', 'Other'];
 
     public const INDUSTRIES = ['Technology', 'eCommerce', 'Education', 'Healthcare', 'Retail', 'Real Estate', 'Finance', 'Logistics', 'Other'];
 
-    public const STATUSES = ['new' => 'New', 'contacted' => 'Contacted', 'qualified' => 'Qualified', 'proposal' => 'Proposal Sent', 'negotiation' => 'Negotiation', 'won' => 'Won', 'lost' => 'Lost'];
+    /** A lead is just a quality signal — the full sales pipeline lives on Deals. */
+    public const STATUSES = ['new' => 'New', 'qualified' => 'Qualified', 'unqualified' => 'Unqualified'];
 
     public const TEAMS = ['Sales', 'Support', 'Development', 'Marketing'];
 
@@ -24,7 +27,13 @@ class Lead extends Model
         'converted_at' => 'datetime',
         'next_follow_up_at' => 'date',
         'last_contacted_at' => 'datetime',
+        'is_whatsapp' => 'boolean',
     ];
+
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by');
+    }
 
     /** Assign an LD-{yy}#### code on creation (any path: form, import, etc.). */
     protected static function booted(): void

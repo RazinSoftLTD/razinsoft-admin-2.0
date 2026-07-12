@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ArticleCategoryController;
 use App\Http\Controllers\Admin\ArticleController;
 use App\Http\Controllers\Admin\Auth\LoginController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AuthorController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ClientInvoiceController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductRelationController;
+use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\RecurringInvoiceController;
 use App\Http\Controllers\Admin\ReviewController;
@@ -76,9 +78,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::delete('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'destroy'])->whereNumber('meeting')->middleware('permission:meetings.delete')->name('meetings.destroy');
 
+        // ===== CRM Analytics (reports · follow-ups · by country) =====
+        Route::middleware('permission:leads.view')->group(function () {
+            Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+        });
+
         // ===== Leads =====
         Route::middleware('permission:leads.view')->group(function () {
-            Route::get('leads/follow-up', [LeadController::class, 'followUp'])->name('leads.follow-up');
             Route::get('leads/import/sample', [LeadController::class, 'importSample'])->name('leads.import.sample');
             Route::get('leads', [LeadController::class, 'index'])->name('leads.index');
             Route::get('leads/{lead}', [LeadController::class, 'show'])->whereNumber('lead')->name('leads.show');
@@ -93,6 +99,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('leads/{lead}/edit', [LeadController::class, 'edit'])->whereNumber('lead')->name('leads.edit');
             Route::put('leads/{lead}', [LeadController::class, 'update'])->whereNumber('lead')->name('leads.update');
             Route::post('leads/{lead}/convert', [LeadController::class, 'convert'])->name('leads.convert');
+            Route::post('leads/{lead}/convert-deal', [LeadController::class, 'convertDeal'])->name('leads.convert-deal');
             Route::post('leads/{lead}/mark-contacted', [LeadController::class, 'markContacted'])->name('leads.mark-contacted');
             Route::post('leads/{lead}/snooze', [LeadController::class, 'snooze'])->name('leads.snooze');
             Route::post('leads/{lead}/status', [LeadController::class, 'status'])->name('leads.status');
@@ -115,10 +122,58 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->whereNumber('deal')->name('deals.edit');
             Route::put('deals/{deal}', [DealController::class, 'update'])->whereNumber('deal')->name('deals.update');
             Route::post('deals/{deal}/stage', [DealController::class, 'stage'])->name('deals.stage');
+            Route::post('deals/{deal}/follow-up', [DealController::class, 'followUp'])->name('deals.follow-up');
+            Route::post('deals/{deal}/follow-up/{followUp}/complete', [DealController::class, 'followUpComplete'])->name('deals.follow-up.complete');
+            Route::delete('deals/{deal}/follow-up/{followUp}', [DealController::class, 'followUpDestroy'])->name('deals.follow-up.destroy');
+            Route::put('deals/{deal}/description', [DealController::class, 'description'])->name('deals.description');
+            Route::post('deals/{deal}/attachments', [DealController::class, 'attachmentStore'])->name('deals.attachments.store');
+            Route::delete('deals/{deal}/attachments/{attachment}', [DealController::class, 'attachmentDestroy'])->name('deals.attachments.destroy');
+            Route::post('deals/{deal}/activity', [DealController::class, 'activity'])->name('deals.activity');
             Route::post('deals/{deal}/invoice', [DealController::class, 'invoice'])->name('deals.invoice');
         });
         Route::middleware('permission:deals.delete')->group(function () {
             Route::delete('deals/{deal}', [DealController::class, 'destroy'])->whereNumber('deal')->name('deals.destroy');
+        });
+
+        // ===== Workspace : Projects =====
+        Route::middleware('permission:projects.view')->group(function () {
+            Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
+            Route::get('projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
+        });
+        Route::middleware('permission:projects.create')->group(function () {
+            Route::get('projects/create', [ProjectController::class, 'create'])->name('projects.create');
+            Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
+        });
+        Route::middleware('permission:projects.edit')->group(function () {
+            Route::get('projects/{project}/edit', [ProjectController::class, 'edit'])->whereNumber('project')->name('projects.edit');
+            Route::put('projects/{project}', [ProjectController::class, 'update'])->whereNumber('project')->name('projects.update');
+            Route::post('projects/{project}/status', [ProjectController::class, 'status'])->name('projects.status');
+
+            Route::post('projects/{project}/workstreams', [ProjectController::class, 'workstreamStore'])->name('projects.workstreams.store');
+            Route::put('projects/{project}/workstreams/{workstream}', [ProjectController::class, 'workstreamUpdate'])->name('projects.workstreams.update');
+            Route::delete('projects/{project}/workstreams/{workstream}', [ProjectController::class, 'workstreamDestroy'])->name('projects.workstreams.destroy');
+
+            Route::post('projects/{project}/tasks', [ProjectController::class, 'taskStore'])->name('projects.tasks.store');
+            Route::put('projects/{project}/tasks/{task}', [ProjectController::class, 'taskUpdate'])->name('projects.tasks.update');
+            Route::delete('projects/{project}/tasks/{task}', [ProjectController::class, 'taskDestroy'])->name('projects.tasks.destroy');
+
+            Route::post('projects/{project}/checklist/generate', [ProjectController::class, 'checklistGenerate'])->name('projects.checklist.generate');
+            Route::post('projects/{project}/checklist', [ProjectController::class, 'checklistStore'])->name('projects.checklist.store');
+            Route::put('projects/{project}/checklist/{item}', [ProjectController::class, 'checklistUpdate'])->name('projects.checklist.update');
+            Route::delete('projects/{project}/checklist/{item}', [ProjectController::class, 'checklistDestroy'])->name('projects.checklist.destroy');
+
+            Route::post('projects/{project}/documents', [ProjectController::class, 'documentStore'])->name('projects.documents.store');
+            Route::delete('projects/{project}/documents/{document}', [ProjectController::class, 'documentDestroy'])->name('projects.documents.destroy');
+
+            Route::post('projects/{project}/members', [ProjectController::class, 'memberStore'])->name('projects.members.store');
+            Route::delete('projects/{project}/members/{member}', [ProjectController::class, 'memberDestroy'])->name('projects.members.destroy');
+
+            Route::post('projects/{project}/change-requests', [ProjectController::class, 'changeRequestStore'])->name('projects.change-requests.store');
+            Route::put('projects/{project}/change-requests/{changeRequest}', [ProjectController::class, 'changeRequestUpdate'])->name('projects.change-requests.update');
+            Route::delete('projects/{project}/change-requests/{changeRequest}', [ProjectController::class, 'changeRequestDestroy'])->name('projects.change-requests.destroy');
+        });
+        Route::middleware('permission:projects.delete')->group(function () {
+            Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->whereNumber('project')->name('projects.destroy');
         });
 
         // ===== Clients =====
@@ -160,7 +215,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:tickets.edit')->group(function () {
             Route::patch('tickets/{ticket}/status', [\App\Http\Controllers\Admin\TicketController::class, 'updateStatus'])->whereNumber('ticket')->name('tickets.status');
             Route::patch('tickets/{ticket}/assign', [\App\Http\Controllers\Admin\TicketController::class, 'assign'])->whereNumber('ticket')->name('tickets.assign');
-            // Ticket settings (agents, types, reply templates)
+        });
+        // Ticket settings (agents, types, reply templates) — separate, admin/manager-level gate.
+        Route::middleware('permission:tickets.settings')->group(function () {
             Route::get('ticket-settings', [\App\Http\Controllers\Admin\TicketSettingController::class, 'index'])->name('tickets.settings');
             Route::post('ticket-settings/agents', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeAgent'])->name('tickets.settings.agents.store');
             Route::patch('ticket-settings/agents/{agent}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateAgent'])->name('tickets.settings.agents.update');
@@ -320,6 +377,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // ---- Super admin only (role=admin): per-user permission overrides, roles, admin users ----
     Route::middleware('admin')->group(function () {
+        Route::patch('staff/{staff}/role', [StaffController::class, 'updateRole'])->whereNumber('staff')->name('staff.role');
         Route::get('staff/{staff}/permissions', [StaffController::class, 'permissions'])->whereNumber('staff')->name('staff.permissions');
         Route::put('staff/{staff}/permissions', [StaffController::class, 'updatePermissions'])->whereNumber('staff')->name('staff.permissions.update');
         Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->whereNumber('role')->name('roles.duplicate');
@@ -337,10 +395,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // ---- HR (permission-gated: super admin can grant these to employee roles) ----
     Route::middleware('staff')->group(function () {
         Route::middleware('permission:employees.view')->group(function () {
-            Route::patch('staff/{staff}/role', [StaffController::class, 'updateRole'])->whereNumber('staff')->name('staff.role');
             Route::post('staff-designations', [StaffController::class, 'storeDesignation'])->name('staff.designations.store');
             Route::post('staff-departments', [StaffController::class, 'storeDepartment'])->name('staff.departments.store');
             Route::resource('staff', StaffController::class)->except('show');
+            Route::get('staff/{staff}', [StaffController::class, 'show'])->whereNumber('staff')->name('staff.show');
         });
         Route::middleware('permission:designations.view')->group(function () {
             Route::resource('designations', \App\Http\Controllers\Admin\DesignationController::class)->only(['index', 'store', 'update', 'destroy']);

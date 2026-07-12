@@ -6,11 +6,12 @@
     $canEdit = $me->allows('meetings', 'edit');
     $canAssign = $me->allows('meetings', 'assign');
     $chip = fn ($s) => match ($s) {
-        'pending'   => ['Pending', 'bg-amber-50 text-amber-700 ring-amber-200'],
-        'confirmed' => ['Confirmed', 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
-        'completed' => ['Completed', 'bg-gray-100 text-gray-600 ring-gray-200'],
-        'cancelled' => ['Cancelled', 'bg-red-50 text-red-600 ring-red-200'],
-        default     => [ucfirst($s), 'bg-gray-100 text-gray-600 ring-gray-200'],
+        'pending'            => ['Pending', 'bg-amber-50 text-amber-700 ring-amber-200'],
+        'waiting_for_client' => ['Waiting for Client', 'bg-blue-50 text-blue-700 ring-blue-200'],
+        'confirmed'          => ['Confirm', 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
+        'completed'          => ['Complete', 'bg-gray-100 text-gray-600 ring-gray-200'],
+        'cancelled'          => ['Cancel', 'bg-red-50 text-red-600 ring-red-200'],
+        default              => [ucfirst($s), 'bg-gray-100 text-gray-600 ring-gray-200'],
     };
     [$sl, $sc] = $chip($meeting->status);
 @endphp
@@ -74,7 +75,7 @@
                 <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Status</label>
                 <select name="status" @disabled(! $canEdit) class="mb-4 h-11 w-full rounded-lg border border-gray-200 px-3 text-sm">
                     @foreach (\App\Models\Meeting::STATUSES as $s)
-                        <option value="{{ $s }}" @selected($meeting->status === $s)>{{ ucfirst($s) }}</option>
+                        <option value="{{ $s }}" @selected($meeting->status === $s)>{{ \App\Models\Meeting::STATUS_LABELS[$s] ?? ucfirst($s) }}</option>
                     @endforeach
                 </select>
 

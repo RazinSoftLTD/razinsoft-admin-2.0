@@ -87,8 +87,8 @@ class RoleController extends Controller
             'permissions' => ['nullable', 'array'],
         ]);
 
-        // Keep only valid permission keys.
-        $data['permissions'] = array_values(array_intersect($request->input('permissions', []), Permissions::keys()));
+        // Store as a {"module.action": "scope"} map, dropping unknown keys / 'none' / invalid scopes.
+        $data['permissions'] = Permissions::normalize($request->input('permissions', []));
 
         return $data;
     }

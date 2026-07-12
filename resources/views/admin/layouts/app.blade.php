@@ -4,8 +4,26 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- Don't cache snapshots — pages re-render fresh so Quill/Alpine/real-time widgets re-init cleanly. --}}
+    <meta name="turbo-cache-control" content="no-cache">
     <title>@yield('title', 'Admin') · RazinSoft</title>
+    <style>[x-cloak]{display:none!important}</style>
     @vite(['resources/css/app.css'])
+
+    {{-- Hotwire Turbo: SPA-like navigation (menus swap without a full reload). --}}
+    <script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.12/dist/turbo.es2017-umd.min.js"></script>
+    <script>
+        // Keep <form> submits as normal full-page requests (safest with Laravel validation,
+        // redirects, flash messages and file uploads). Only link navigation is boosted.
+        if (window.Turbo) window.Turbo.setFormMode('off');
+        // When we land on a page that isn't a chat thread, clear the "open conversation" flag
+        // so message badges resume updating.
+        document.addEventListener('turbo:load', function () {
+            window.Razin = window.Razin || {};
+            if (!document.getElementById('thread-root')) window.Razin.openConversation = null;
+        });
+    </script>
+
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     @stack('head')
 </head>
@@ -53,8 +71,6 @@
         </main>
     </div>
 
-    <style>[x-cloak]{display:none!important}</style>
-
     {{-- Global real-time: live Tickets badge on every panel page (Laravel Reverb). --}}
     @php $reverb = config('broadcasting.connections.reverb'); @endphp
     @if (! empty($reverb['key']) && auth()->check() && auth()->user()->isPanelUser())
@@ -62,6 +78,9 @@
         <script>
             window.Razin = window.Razin || {};
             (function () {
+                // Persist across Turbo navigations — connect only once.
+                if (window.__razinReverb) return;
+                window.__razinReverb = true;
                 try {
                     const pusher = new Pusher(@json($reverb['key']), {
                         wsHost: @json($reverb['options']['host'] ?? 'localhost'),
@@ -101,6 +120,8 @@
         <script>
             (function () {
                 window.Razin = window.Razin || {};
+                if (window.__razinSound) return;   // one Audio instance across Turbo navigations
+                window.__razinSound = true;
                 const audio = new Audio(@js(asset('sounds/razinsoft-message.mp3')));
                 audio.preload = 'auto'; audio.volume = 0.75;
                 let primed = false;
@@ -116,6 +137,9 @@
     @if (auth()->check() && auth()->user()->isPanelUser())
         <script>
             (function () {
+                window.Razin = window.Razin || {};
+                if (window.__razinHeartbeat) return;   // one heartbeat loop across Turbo navigations
+                window.__razinHeartbeat = true;
                 const url = @js(route('admin.chat.heartbeat'));
                 const offlineUrl = @js(route('admin.chat.offline'));
                 const token = document.querySelector('meta[name="csrf-token"]').content;

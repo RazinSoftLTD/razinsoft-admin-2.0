@@ -42,14 +42,15 @@ class ChatController extends Controller
 
     public function show(Request $request, Conversation $conversation)
     {
-        if ($this->wantsPartial($request)) {
-            return $this->threadPartial($conversation);
+        // AJAX thread-swap → just the right pane (only the thread changes, no page flash); else full page.
+        if ($request->hasHeader('X-Chat-Partial')) {
+            return $this->pane($conversation);
         }
 
         return $this->index($conversation);
     }
 
-    /** Open (or lazily create) the 1:1 conversation between me and another user. */
+    /** Open (or lazily create) the 1:1 conversation between me and another user, then show it. */
     public function direct(Request $request, User $user)
     {
         $me = auth()->user();
@@ -61,20 +62,15 @@ class ChatController extends Controller
                 $c->members()->attach([$me->id, $user->id]);
             });
 
-        if ($this->wantsPartial($request)) {
-            return $this->threadPartial($conversation);
+        if ($request->hasHeader('X-Chat-Partial')) {
+            return $this->pane($conversation);
         }
 
         return redirect()->route('admin.chat.show', $conversation);
     }
 
-    private function wantsPartial(Request $request): bool
-    {
-        return $request->boolean('partial') || $request->hasHeader('X-Chat-Partial');
-    }
-
-    /** Just the right-pane thread markup — swapped in via AJAX for smooth navigation. */
-    private function threadPartial(Conversation $conversation)
+    /** The right-pane thread only — fetched and swapped in on conversation switch (no full-page render). */
+    private function pane(Conversation $conversation)
     {
         $me = auth()->user();
         abort_unless($conversation->members->contains($me->id), 403);
@@ -83,7 +79,7 @@ class ChatController extends Controller
         $messages = $conversation->messages()->with('author')->orderBy('id')->get();
         $this->markRead($conversation, $me);
 
-        return view('admin.chat._thread', compact('active', 'messages', 'me'));
+        return view('admin.chat._pane', compact('active', 'messages', 'me'));
     }
 
     public function createGroup()

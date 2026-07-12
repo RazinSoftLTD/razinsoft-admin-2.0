@@ -21,6 +21,7 @@
             <h2 class="mb-5 text-base font-bold text-[var(--color-heading)]">Ticket Details</h2>
 
             <div class="grid gap-5 lg:grid-cols-3">
+                @if (auth()->user()->seesAll('tickets'))
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Requester Name <span class="text-red-500">*</span></label>
                     <select name="client_id" required class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
@@ -29,6 +30,7 @@
                     </select>
                     @error('client_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
+                @endif
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Assign Group</label>
                     <div class="flex gap-2">
@@ -42,6 +44,7 @@
             </div>
 
             <div class="mt-5 grid gap-5 lg:grid-cols-3">
+                @if (auth()->user()->seesAll('tickets'))
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Agent</label>
                     <select name="assigned_to" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
@@ -49,6 +52,7 @@
                         @foreach ($agents as $a)<option value="{{ $a->id }}">{{ $a->name }}</option>@endforeach
                     </select>
                 </div>
+                @endif
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Type</label>
                     <div class="flex gap-2">

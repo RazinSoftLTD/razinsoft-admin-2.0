@@ -5,9 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ClientInvoice;
 use App\Models\Deal;
+use App\Models\DealActivity;
+use App\Models\DealAttachment;
+use App\Models\DealFollowUp;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -15,39 +19,39 @@ class DealController extends Controller
 {
     public function index(Request $request)
     {
-        $base = Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name');
-
-        // Staff see only their own deals.
-        if (! $request->user()->seesAll('deals')) {
-            $base->where('assigned_to', $request->user()->id);
-        }
+        $base = fn () => Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name')
+            ->when(! $request->user()->seesAll('deals'), fn ($q) => $q->where('assigned_to', $request->user()->id));
 
         $view = $request->query('view') === 'list' ? 'list' : 'board';
+        $all = $base()->latest('id')->get();
 
-        // Kanban columns grouped by stage.
-        $byStage = (clone $base)->latest('id')->get()->groupBy('stage');
+        $open = $all->whereIn('stage', Deal::OPEN_STAGES);
+        $won = $all->where('stage', 'won');
+        $lost = $all->where('stage', 'lost');
+        $closed = $won->count() + $lost->count();
 
-        $open = ['new', 'qualified', 'proposal', 'negotiation'];
+        $money = fn ($n) => number_format((float) $n, 0);
         $stats = [
-            ['label' => 'Open Deals', 'value' => (clone $base)->whereIn('stage', $open)->count(), 'tone' => 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]'],
-            ['label' => 'Pipeline Value', 'value' => number_format((float) (clone $base)->whereIn('stage', $open)->sum('value')), 'tone' => 'bg-amber-50 text-amber-600'],
-            ['label' => 'Won', 'value' => (clone $base)->where('stage', 'won')->count(), 'tone' => 'bg-emerald-50 text-emerald-600'],
-            ['label' => 'Won Value', 'value' => number_format((float) (clone $base)->where('stage', 'won')->sum('value')), 'tone' => 'bg-sky-50 text-sky-600'],
+            ['label' => 'Open Deals', 'value' => $open->count(), 'sub' => count(Deal::OPEN_STAGES).' active stages', 'tone' => 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]', 'icon' => 'M3 3v18h18M7 14l4-4 3 3 5-6'],
+            ['label' => 'Pipeline Value', 'value' => $money($open->sum('value')), 'sub' => 'open deals total', 'tone' => 'bg-indigo-50 text-indigo-600', 'icon' => 'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'],
+            ['label' => 'Weighted Forecast', 'value' => $money($open->sum(fn ($d) => $d->weighted_value)), 'sub' => 'value × win %', 'tone' => 'bg-amber-50 text-amber-600', 'icon' => 'M3 3v18h18M18.7 8l-5.2 5.2-3-3L7 14'],
+            ['label' => 'Won Value', 'value' => $money($won->sum('value')), 'sub' => $won->count().' deals won', 'tone' => 'bg-emerald-50 text-emerald-600', 'icon' => 'm5 13 4 4L19 7'],
+            ['label' => 'Win Rate', 'value' => ($closed ? round($won->count() / $closed * 100) : 0).'%', 'sub' => "{$won->count()} won · {$lost->count()} lost", 'tone' => 'bg-sky-50 text-sky-600', 'icon' => 'M9 11l3 3 8-8M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11'],
+            ['label' => 'Avg Deal Size', 'value' => $money($won->count() ? $won->avg('value') : $open->avg('value')), 'sub' => 'per won deal', 'tone' => 'bg-fuchsia-50 text-fuchsia-600', 'icon' => 'M4 4h16v4H4zM4 12h10v8H4zM18 12h2v8h-2z'],
         ];
 
         return view('admin.deals.index', [
             'view' => $view,
-            'byStage' => $byStage,
-            'deals' => $view === 'list' ? (clone $base)->latest('id')->paginate(20)->withQueryString() : null,
+            'byStage' => $all->groupBy('stage'),
+            'deals' => $view === 'list' ? $base()->latest('id')->paginate(20)->withQueryString() : null,
             'stats' => $stats,
         ]);
     }
 
-    /** Read-only deal detail with its linked lead, client and any invoices raised. */
     public function show(Request $request, Deal $deal)
     {
         $this->authorizeDeal($request, $deal);
-        $deal->load('client', 'lead', 'assignee', 'invoices');
+        $deal->load('client', 'lead', 'assignee', 'followUps.user:id,name', 'attachments.user:id,name');
 
         return view('admin.deals.show', ['deal' => $deal]);
     }
@@ -58,7 +62,7 @@ class DealController extends Controller
 
         return view('admin.deals.form', [
             'deal' => new Deal([
-                'stage' => 'new', 'currency' => 'USD',
+                'stage' => 'new', 'currency' => 'BDT', 'priority' => 'medium',
                 'title' => $lead ? ($lead->company_name ?: $lead->full_name).' — Deal' : '',
                 'lead_id' => $lead?->id,
                 'client_id' => $lead?->converted_client_id,
@@ -71,9 +75,9 @@ class DealController extends Controller
 
     public function store(Request $request)
     {
-        Deal::create($this->validated($request));
+        $deal = Deal::create($this->stamped($this->validated($request)));
 
-        return redirect()->route('admin.deals.index')->with('status', 'Deal created.');
+        return redirect()->route('admin.deals.show', $deal)->with('status', 'Deal created.');
     }
 
     public function edit(Request $request, Deal $deal)
@@ -90,19 +94,137 @@ class DealController extends Controller
     public function update(Request $request, Deal $deal)
     {
         $this->authorizeDeal($request, $deal);
-        $deal->update($this->validated($request));
+        $deal->update($this->stamped($this->validated($request), $deal));
 
-        return redirect()->route('admin.deals.index')->with('status', 'Deal updated.');
+        return redirect()->route('admin.deals.show', $deal)->with('status', 'Deal updated.');
     }
 
-    /** Quick stage change from the board/list (e.g. move to Won). */
+    /** Drag-and-drop / quick stage change. Returns JSON for the board, redirect otherwise. */
     public function stage(Request $request, Deal $deal)
     {
         $this->authorizeDeal($request, $deal);
         $data = $request->validate(['stage' => ['required', Rule::in(array_keys(Deal::STAGES))]]);
-        $deal->update($data);
+
+        if ($data['stage'] !== $deal->stage) {
+            $from = Deal::STAGES[$deal->stage] ?? $deal->stage;
+            $deal->stage = $data['stage'];
+            $deal->probability = Deal::STAGE_PROBABILITY[$data['stage']] ?? null;
+            $deal->won_at = $data['stage'] === 'won' ? now() : null;
+            $deal->lost_at = $data['stage'] === 'lost' ? now() : null;
+            $deal->save();
+
+            DealActivity::create([
+                'deal_id' => $deal->id, 'user_id' => $request->user()->id, 'type' => 'stage',
+                'body' => "Moved from {$from} to ".(Deal::STAGES[$deal->stage] ?? $deal->stage).'.',
+            ]);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true, 'stage' => $deal->stage, 'probability' => $deal->effective_probability]);
+        }
 
         return back()->with('status', "Deal moved to {$deal->stage}.");
+    }
+
+    /** Log a note / call / meeting / email on the deal timeline. */
+    public function activity(Request $request, Deal $deal)
+    {
+        $this->authorizeDeal($request, $deal);
+        $data = $request->validate([
+            'type' => ['required', Rule::in(array_keys(DealActivity::TYPES))],
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $deal->activities()->create(['user_id' => $request->user()->id, 'type' => $data['type'], 'body' => $data['body']]);
+
+        return back()->with('status', 'Activity logged.');
+    }
+
+    /** Schedule a follow-up (title, note, date+time) — appended to the deal's follow-up history. */
+    public function followUp(Request $request, Deal $deal)
+    {
+        $this->authorizeDeal($request, $deal);
+        $data = $request->validate([
+            'next_follow_up_at' => ['required', 'date'],
+            'follow_up_title' => ['nullable', 'string', 'max:255'],
+            'follow_up_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $deal->followUps()->create([
+            'user_id' => $request->user()->id,
+            'title' => $data['follow_up_title'] ?? null,
+            'note' => $data['follow_up_note'] ?? null,
+            'due_at' => $data['next_follow_up_at'],
+        ]);
+        $deal->syncNextFollowUp();
+
+        return back()->with('status', 'Follow-up scheduled.');
+    }
+
+    /** Toggle a follow-up done / pending. */
+    public function followUpComplete(Request $request, Deal $deal, DealFollowUp $followUp)
+    {
+        $this->authorizeDeal($request, $deal);
+        abort_if($followUp->deal_id !== $deal->id, 404);
+
+        $followUp->update(['completed_at' => $followUp->completed_at ? null : now()]);
+        $deal->syncNextFollowUp();
+
+        return back()->with('status', $followUp->completed_at ? 'Follow-up marked done.' : 'Follow-up reopened.');
+    }
+
+    /** Remove a follow-up from the history. */
+    public function followUpDestroy(Request $request, Deal $deal, DealFollowUp $followUp)
+    {
+        $this->authorizeDeal($request, $deal);
+        abort_if($followUp->deal_id !== $deal->id, 404);
+
+        $followUp->delete();
+        $deal->syncNextFollowUp();
+
+        return back()->with('status', 'Follow-up removed.');
+    }
+
+    /** Update the deal description (inline from the detail page). */
+    public function description(Request $request, Deal $deal)
+    {
+        $this->authorizeDeal($request, $deal);
+        $data = $request->validate(['notes' => ['nullable', 'string', 'max:5000']]);
+        $deal->update(['notes' => $data['notes'] ?? null]);
+
+        return back()->with('status', 'Description saved.');
+    }
+
+    /** Attach a file (image / document) to the deal. */
+    public function attachmentStore(Request $request, Deal $deal)
+    {
+        $this->authorizeDeal($request, $deal);
+        $request->validate([
+            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip,rar,csv'],
+        ]);
+
+        $file = $request->file('file');
+        $deal->attachments()->create([
+            'user_id' => $request->user()->id,
+            'path' => $file->store('deals', 'public'),
+            'name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'mime' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', 'Attachment uploaded.');
+    }
+
+    /** Delete a deal attachment (file + row). */
+    public function attachmentDestroy(Request $request, Deal $deal, DealAttachment $attachment)
+    {
+        $this->authorizeDeal($request, $deal);
+        abort_if($attachment->deal_id !== $deal->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', 'Attachment removed.');
     }
 
     public function destroy(Request $request, Deal $deal)
@@ -110,13 +232,18 @@ class DealController extends Controller
         $this->authorizeDeal($request, $deal);
         $deal->delete();
 
-        return back()->with('status', 'Deal deleted.');
+        return redirect()->route('admin.deals.index')->with('status', 'Deal deleted.');
     }
 
     /** Create a draft invoice from a won deal, pre-filled with one line for the deal value. */
     public function invoice(Request $request, Deal $deal)
     {
         $this->authorizeDeal($request, $deal);
+
+        // An invoice needs a client to bill — a lead-only deal can't be invoiced.
+        if (! $deal->canInvoice()) {
+            return back()->with('error', 'Link a client to this won deal before creating an invoice.');
+        }
 
         $client = $deal->client;
         $invoice = ClientInvoice::create([
@@ -148,15 +275,28 @@ class DealController extends Controller
     {
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'project_type' => ['nullable', Rule::in(Deal::PROJECT_TYPES)],
             'client_id' => ['nullable', 'exists:users,id'],
             'lead_id' => ['nullable', 'exists:leads,id'],
             'stage' => ['required', Rule::in(array_keys(Deal::STAGES))],
+            'priority' => ['required', Rule::in(array_keys(Deal::PRIORITIES))],
+            'probability' => ['nullable', 'integer', 'between:0,100'],
             'value' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'max:8'],
             'expected_close_date' => ['nullable', 'date'],
             'assigned_to' => ['nullable', 'exists:users,id'],
+            'lost_reason' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+    }
+
+    /** Keep won_at / lost_at in sync with the chosen stage. */
+    private function stamped(array $data, ?Deal $deal = null): array
+    {
+        $data['won_at'] = $data['stage'] === 'won' ? ($deal?->won_at ?? now()) : null;
+        $data['lost_at'] = $data['stage'] === 'lost' ? ($deal?->lost_at ?? now()) : null;
+
+        return $data;
     }
 
     private function authorizeDeal(Request $request, Deal $deal): void

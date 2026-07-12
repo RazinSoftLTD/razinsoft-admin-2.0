@@ -3,11 +3,12 @@
 
 @php
     $chip = fn ($s) => match ($s) {
-        'pending'   => ['Pending', 'bg-amber-50 text-amber-700 ring-amber-200'],
-        'confirmed' => ['Confirmed', 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
-        'completed' => ['Completed', 'bg-gray-100 text-gray-600 ring-gray-200'],
-        'cancelled' => ['Cancelled', 'bg-red-50 text-red-600 ring-red-200'],
-        default     => [ucfirst($s), 'bg-gray-100 text-gray-600 ring-gray-200'],
+        'pending'            => ['Pending', 'bg-amber-50 text-amber-700 ring-amber-200'],
+        'waiting_for_client' => ['Waiting for Client', 'bg-blue-50 text-blue-700 ring-blue-200'],
+        'confirmed'          => ['Confirm', 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
+        'completed'          => ['Complete', 'bg-gray-100 text-gray-600 ring-gray-200'],
+        'cancelled'          => ['Cancel', 'bg-red-50 text-red-600 ring-red-200'],
+        default              => [ucfirst($s), 'bg-gray-100 text-gray-600 ring-gray-200'],
     };
 @endphp
 
@@ -29,7 +30,7 @@
     <div class="mb-5 grid grid-cols-3 gap-3 sm:max-w-lg">
         <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"><p class="text-2xl font-bold text-[var(--color-heading)]">{{ $stats['today'] }}</p><p class="text-xs text-[var(--color-muted)]">Today</p></div>
         <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"><p class="text-2xl font-bold text-amber-600">{{ $stats['pending'] }}</p><p class="text-xs text-[var(--color-muted)]">Pending</p></div>
-        <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"><p class="text-2xl font-bold text-[var(--color-primary)]">{{ $stats['upcoming'] }}</p><p class="text-xs text-[var(--color-muted)]">Upcoming</p></div>
+        <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"><p class="text-2xl font-bold text-[var(--color-primary)]">{{ $stats['new'] }}</p><p class="text-xs text-[var(--color-muted)]">New</p></div>
     </div>
 
     {{-- Filters --}}
@@ -37,7 +38,7 @@
         <select name="status" onchange="this.form.submit()" class="h-10 rounded-lg border border-gray-200 px-3 text-sm">
             <option value="">All statuses</option>
             @foreach (\App\Models\Meeting::STATUSES as $s)
-                <option value="{{ $s }}" @selected(request('status') === $s)>{{ ucfirst($s) }}</option>
+                <option value="{{ $s }}" @selected(request('status') === $s)>{{ \App\Models\Meeting::STATUS_LABELS[$s] ?? ucfirst($s) }}</option>
             @endforeach
         </select>
         <select name="scope" onchange="this.form.submit()" class="h-10 rounded-lg border border-gray-200 px-3 text-sm">
@@ -64,16 +65,21 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse ($meetings as $m)
-                    @php [$sl, $sc] = $chip($m->status); @endphp
-                    <tr class="hover:bg-gray-50">
-                        {{-- ID --}}
+                    @php [$sl, $sc] = $chip($m->status); $unread = $m->seen_at === null; @endphp
+                    <tr class="hover:bg-gray-50 {{ $unread ? 'bg-[var(--color-primary-soft)]/40' : '' }}">
+                        {{-- ID (click → details) --}}
                         <td class="px-4 py-3">
                             <a href="{{ route('admin.meetings.show', $m) }}" class="font-mono text-sm font-semibold text-[var(--color-primary)] hover:underline">#{{ $m->id }}</a>
                         </td>
-                        {{-- Client --}}
+                        {{-- Client (click → details) --}}
                         <td class="px-4 py-3">
-                            <div class="font-medium text-[var(--color-heading)]">{{ $m->name }}</div>
-                            <div class="text-xs text-[var(--color-muted)]">{{ $m->email }}</div>
+                            <a href="{{ route('admin.meetings.show', $m) }}" class="group flex items-center gap-2">
+                                @if ($unread)<span class="h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]" title="New booking"></span>@endif
+                                <span class="min-w-0">
+                                    <span class="block truncate {{ $unread ? 'font-bold' : 'font-medium' }} text-[var(--color-heading)] group-hover:text-[var(--color-primary)]">{{ $m->name }}</span>
+                                    <span class="block truncate text-xs text-[var(--color-muted)]">{{ $m->email }}</span>
+                                </span>
+                            </a>
                         </td>
                         {{-- Schedule --}}
                         <td class="hidden px-4 py-3 lg:table-cell">
@@ -114,7 +120,7 @@
                                     @csrf @method('PATCH')
                                     <select name="status" onchange="this.form.submit()" class="h-9 rounded-full border px-2.5 text-xs font-semibold {{ $sc }}">
                                         @foreach (\App\Models\Meeting::STATUSES as $st)
-                                            <option value="{{ $st }}" @selected($m->status === $st)>{{ ucfirst($st) }}</option>
+                                            <option value="{{ $st }}" @selected($m->status === $st)>{{ \App\Models\Meeting::STATUS_LABELS[$st] ?? ucfirst($st) }}</option>
                                         @endforeach
                                     </select>
                                 </form>

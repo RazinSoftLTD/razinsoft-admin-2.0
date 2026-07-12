@@ -19,8 +19,20 @@ class Role extends Model
         return $this->hasMany(User::class);
     }
 
+    /** The role's granted permissions as a clean {"module.action": "scope"} map. */
+    public function permissionMap(): array
+    {
+        return \App\Support\Permissions::normalize($this->permissions);
+    }
+
+    /** Scope granted for a key (none if not granted). */
+    public function grantedScope(string $key): string
+    {
+        return $this->permissionMap()[$key] ?? 'none';
+    }
+
     public function hasPermission(string $key): bool
     {
-        return in_array($key, (array) $this->permissions, true);
+        return $this->grantedScope($key) !== 'none';
     }
 }

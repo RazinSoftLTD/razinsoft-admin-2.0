@@ -97,20 +97,39 @@ class User extends Authenticatable
     }
 
     /**
-     * Effective permission for a `module.action` key. Admins hold everything. Otherwise a
-     * per-user override (permissions map {key:bool}) wins; failing that, the role decides.
+     * Effective SCOPE for a module+action (none · owned · added · both · all).
+     * Admins hold everything. A per-user override wins; failing that, the role decides.
+     */
+    public function permissionScope(string $module, string $action): string
+    {
+        if ($this->isAdmin()) {
+            return 'all';
+        }
+
+        // Per-user override wins (raw map so an explicit "None"/Deny is honoured, not dropped).
+        $override = (array) $this->permissions;
+        if (array_key_exists("{$module}.{$action}", $override)) {
+            return \App\Support\Permissions::scopeValue($override["{$module}.{$action}"]);
+        }
+
+        return optional($this->assignedRole)->grantedScope("{$module}.{$action}") ?? 'none';
+    }
+
+    /**
+     * Whether the user may perform a `module.action` key at all (any scope but none).
+     * Backward compatible: `module.view_all` maps to "view scope is all".
      */
     public function hasPermission(string $key): bool
     {
         if ($this->isAdmin()) {
             return true;
         }
-        $override = (array) $this->permissions;
-        if (array_key_exists($key, $override)) {
-            return (bool) $override[$key];
+        if (str_ends_with($key, '.view_all')) {
+            return $this->permissionScope(substr($key, 0, -9), 'view') === 'all';
         }
+        [$module, $action] = array_pad(explode('.', $key, 2), 2, null);
 
-        return (bool) optional($this->assignedRole)->hasPermission($key);
+        return $action !== null && $this->permissionScope($module, $action) !== 'none';
     }
 
     /** Convenience: `$user->allows('clients', 'edit')`. */
@@ -122,7 +141,66 @@ class User extends Authenticatable
     /** Whether the user may see EVERYONE's rows in a scopable module (else only their own). */
     public function seesAll(string $module): bool
     {
-        return $this->isAdmin() || $this->hasPermission("{$module}.view_all");
+        return $this->permissionScope($module, 'view') === 'all';
+    }
+
+    /**
+     * Constrain a query to the rows this user may act on for a module+action.
+     * Applies the owner/creator column filter implied by the scope. `all` = no filter,
+     * `none` = an impossible condition. Unknown columns fall back to no filter.
+     */
+    public function applyScope($query, string $module, string $action)
+    {
+        $scope = $this->permissionScope($module, $action);
+        if ($scope === 'all') {
+            return $query;
+        }
+        if ($scope === 'none') {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $owner = \App\Support\Permissions::owner($module);
+        $creator = \App\Support\Permissions::creator($module);
+
+        return $query->where(function ($q) use ($scope, $owner, $creator) {
+            $applied = false;
+            if (($scope === 'owned' || $scope === 'both') && $owner) {
+                $q->orWhere($owner, $this->id);
+                $applied = true;
+            }
+            if (($scope === 'added' || $scope === 'both') && $creator) {
+                $q->orWhere($creator, $this->id);
+                $applied = true;
+            }
+            if (! $applied) {
+                // Scope requested a column this module doesn't have — don't hide everything.
+                $q->whereRaw('1 = 1');
+            }
+        });
+    }
+
+    /** Whether this user may act on a specific record under the module+action scope. */
+    public function canAct(string $module, string $action, $model): bool
+    {
+        $scope = $this->permissionScope($module, $action);
+        if ($scope === 'all') {
+            return true;
+        }
+        if ($scope === 'none') {
+            return false;
+        }
+
+        $owner = \App\Support\Permissions::owner($module);
+        $creator = \App\Support\Permissions::creator($module);
+        $isOwner = $owner && (int) $model->{$owner} === (int) $this->id;
+        $isCreator = $creator && (int) $model->{$creator} === (int) $this->id;
+
+        return match ($scope) {
+            'owned' => $isOwner,
+            'added' => $isCreator,
+            'both' => $isOwner || $isCreator,
+            default => false,
+        };
     }
 
     public function isStaff(): bool
