@@ -248,6 +248,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('products/{product}/gallery-images/{image}/move', [ProductRelationController::class, 'moveGalleryImage'])->name('products.gallery.move');
             Route::post('products/{product}/{relation}', [ProductRelationController::class, 'store'])->name('products.relation.store');
             Route::put('products/{product}/{relation}/{id}', [ProductRelationController::class, 'update'])->name('products.relation.update');
+            Route::post('products/{product}/{relation}/{id}/toggle', [ProductRelationController::class, 'toggle'])->name('products.relation.toggle');
             Route::delete('products/{product}/{relation}/{id}', [ProductRelationController::class, 'destroy'])->name('products.relation.destroy');
         });
         Route::middleware('permission:products.delete')->group(function () {

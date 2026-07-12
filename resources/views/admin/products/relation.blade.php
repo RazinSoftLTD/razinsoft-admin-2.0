@@ -5,6 +5,7 @@
     $del = fn($rel, $id) => route('admin.products.relation.destroy', [$product, $rel, $id]);
     $add = fn($rel) => route('admin.products.relation.store', [$product, $rel]);
     $edit = fn($rel, $id) => route('admin.products.relation.update', [$product, $rel, $id]);
+    $toggle = fn($rel, $id) => route('admin.products.relation.toggle', [$product, $rel, $id]);
     $move = fn($id) => route('admin.products.gallery.move', [$product, $id]);
     $demoTypes = ['live' => 'Live Demo', 'admin' => 'Admin Demo', 'customer' => 'Customer Demo', 'web' => 'Web App', 'android' => 'Android App', 'ios' => 'iOS App', 'download' => 'Download', 'link' => 'Other Link'];
 @endphp
@@ -269,11 +270,33 @@
         @case('docs')
             <div class="max-w-2xl space-y-4">
                 @foreach ($product->docs as $doc)
-                    <div class="rounded-lg border border-gray-100 bg-white px-4 py-3 text-sm shadow-sm" x-data="{ edit: false }">
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold" x-show="!edit">{{ $doc->title }}</span>
+                    <div x-data="{ edit: false, on: {{ $doc->is_enabled ? 'true' : 'false' }}, busy: false,
+                            async flip() {
+                                if (this.busy) return; this.busy = true; const prev = this.on; this.on = !this.on;
+                                try {
+                                    const r = await fetch('{{ $toggle('docs', $doc->id) }}', {
+                                        method: 'POST', credentials: 'same-origin',
+                                        headers: { 'X-CSRF-TOKEN': @js(csrf_token()), 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                    });
+                                    if (!r.ok) { this.on = prev; }         // real failure → revert
+                                    else { const d = await r.json().catch(() => null); if (d && typeof d.enabled === 'boolean') this.on = d.enabled; } // JSON → server truth; else keep optimistic
+                                } catch (e) { this.on = prev; } finally { this.busy = false; }
+                            } }"
+                         class="rounded-lg border bg-white px-4 py-3 text-sm shadow-sm transition-colors" :class="on ? 'border-gray-100' : 'border-dashed border-gray-200 bg-gray-50'">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="flex items-center gap-2 font-semibold" :class="on ? '' : 'text-gray-400'" x-show="!edit">
+                                {{ $doc->title }}
+                                <span x-show="!on" x-cloak class="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-bold uppercase text-gray-500">Hidden</span>
+                            </span>
                             <p x-show="edit" class="font-semibold">Edit doc</p>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-3">
+                                {{-- Enable / disable toggle — hides the item on the website without deleting it --}}
+                                <div class="flex items-center gap-1.5" :title="on ? 'Enabled — click to hide from the site' : 'Disabled — click to show on the site'">
+                                    <span class="text-[11px] font-semibold" :class="on ? 'text-emerald-600' : 'text-gray-400'" x-text="on ? 'Enabled' : 'Disabled'"></span>
+                                    <button type="button" @click="flip()" :disabled="busy" class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition" :class="on ? 'bg-emerald-500' : 'bg-gray-300'">
+                                        <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition" :class="on ? 'translate-x-4' : 'translate-x-0.5'"></span>
+                                    </button>
+                                </div>
                                 <button type="button" @click="edit=!edit" class="text-xs font-semibold text-[var(--color-primary)] hover:underline" x-text="edit ? 'Close' : 'Edit'"></button>
                                 <x-admin.del-button :action="$del('docs', $doc->id)" />
                             </div>
@@ -285,8 +308,19 @@
                         </form>
                     </div>
                 @endforeach
+                @if ($product->docs->isEmpty())
+                    <p class="rounded-lg border border-dashed border-gray-200 px-4 py-3 text-xs text-[var(--color-muted)]">
+                        No documentation added — the “Documentation &amp; Resources” section stays hidden on the website until you enable at least one. Add any of:
+                        <span class="font-semibold text-[var(--color-heading)]">Installation Guide, User Manual, Video Tutorials, API Documentation</span> (FAQ is enabled from the FAQs tab).
+                    </p>
+                @endif
                 <x-admin.add-form :action="$add('docs')" title="Add doc">
-                    <div class="grid gap-3 sm:grid-cols-3"><x-admin.field label="Title" name="title" required /><x-admin.field label="Type" name="type" /><x-admin.field label="URL" name="url" /></div>
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <x-admin.field label="Title" name="title" required placeholder="Installation Guide" hint="Use the standard names for matching icons." />
+                        <x-admin.field label="Type" name="type" placeholder="installation / manual / video / api" />
+                        <x-admin.field label="URL" name="url" placeholder="https://…" />
+                    </div>
+                    <datalist id="doc-title-suggestions"><option value="Installation Guide"><option value="User Manual"><option value="Video Tutorials"><option value="API Documentation"></datalist>
                 </x-admin.add-form>
             </div>
             @break

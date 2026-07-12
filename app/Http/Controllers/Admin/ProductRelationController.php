@@ -17,7 +17,7 @@ class ProductRelationController extends Controller
         'demos' => ['title' => 'Demos & Downloads', 'load' => 'demos'],
         'tech' => ['title' => 'Tech Stack', 'load' => 'tech'],
         'suitable' => ['title' => 'Suitable For', 'load' => 'suitableFor'],
-        'docs' => ['title' => 'Docs', 'load' => 'docs'],
+        'docs' => ['title' => 'Documentation & Resources', 'load' => 'docs'],
         'faqs' => ['title' => 'FAQs', 'load' => 'faqs'],
         'files' => ['title' => 'Source Files', 'load' => 'files'],
     ];
@@ -95,6 +95,23 @@ class ProductRelationController extends Controller
         $model->update($data);
 
         return back()->with('status', ucfirst($relation).' updated.');
+    }
+
+    /** Flip a row's visibility (enable/disable) — for relations that carry an `is_enabled` column. */
+    public function toggle(Product $product, string $relation, int $id)
+    {
+        $cfg = $this->cfg($relation);
+        $related = $product->{$cfg['rel']}()->getRelated();
+        abort_unless(\Illuminate\Support\Facades\Schema::hasColumn($related->getTable(), 'is_enabled'), 404);
+
+        $model = $product->{$cfg['rel']}()->findOrFail($id);
+        $model->update(['is_enabled' => ! $model->is_enabled]);
+
+        if (request()->wantsJson()) {
+            return response()->json(['ok' => true, 'enabled' => (bool) $model->is_enabled]);
+        }
+
+        return back()->with('status', $model->is_enabled ? 'Enabled — visible on the website.' : 'Disabled — hidden from the website.');
     }
 
     public function destroy(Product $product, string $relation, int $id)

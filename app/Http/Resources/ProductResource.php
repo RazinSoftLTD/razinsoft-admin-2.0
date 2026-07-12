@@ -61,7 +61,8 @@ class ProductResource extends JsonResource
             ])),
             'tech_stack' => $this->whenLoaded('tech', fn () => $this->tech->map(fn ($t) => ['name' => $t->name, 'color' => $t->color])),
             'suitable_for' => $this->whenLoaded('suitableFor', fn () => $this->suitableFor->pluck('label')),
-            'docs' => $this->whenLoaded('docs', fn () => $this->docs->map(fn ($d) => ['title' => $d->title, 'type' => $d->type, 'url' => $d->url])),
+            // Only enabled docs reach the website; disabled ones are hidden without deleting.
+            'docs' => $this->whenLoaded('docs', fn () => $this->docs->where('is_enabled', true)->map(fn ($d) => ['title' => $d->title, 'type' => $d->type, 'url' => $d->url])->values()),
             'faqs' => $this->whenLoaded('faqs', fn () => $this->faqs->map(fn ($q) => ['question' => $q->question, 'answer' => $q->answer])),
             'questions' => $this->whenLoaded('questions', fn () => $this->questions->map(fn ($q) => [
                 'id' => $q->id,

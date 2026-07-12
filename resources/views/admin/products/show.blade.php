@@ -9,7 +9,7 @@
         ['key' => 'demos', 'title' => 'Demos & Downloads', 'count' => $product->demos_count, 'icon' => 'M12 3v12m0 0 4-4m-4 4-4-4M5 19h14'],
         ['key' => 'tech', 'title' => 'Tech Stack', 'count' => $product->tech_count, 'icon' => 'm8 16-4-4 4-4m8 0 4 4-4 4M14 4l-4 16'],
         ['key' => 'suitable', 'title' => 'Suitable For', 'count' => $product->suitable_for_count, 'icon' => 'M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'],
-        ['key' => 'docs', 'title' => 'Docs', 'count' => $product->docs_count, 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5'],
+        ['key' => 'docs', 'title' => 'Documentation & Resources', 'count' => $product->docs_count, 'icon' => 'M7 3h7l5 5v13H7zM14 3v5h5'],
         ['key' => 'faqs', 'title' => 'FAQs', 'count' => $product->faqs_count, 'icon' => 'M9.1 9a3 3 0 1 1 4 2.8c-.9.4-1.6 1.2-1.6 2.2M12 17h.01'],
         ['key' => 'files', 'title' => 'Source Files', 'count' => $product->files_count, 'icon' => 'M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6l3 3h5a2 2 0 0 1 2 2Z'],
     ];

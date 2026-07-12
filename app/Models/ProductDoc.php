@@ -5,5 +5,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ProductDoc extends Model
 {
     protected $guarded = [];
+
+    protected $casts = ['is_enabled' => 'boolean'];
+
     public function product(): BelongsTo { return $this->belongsTo(Product::class); }
 }
