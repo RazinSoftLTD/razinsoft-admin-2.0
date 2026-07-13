@@ -32,7 +32,7 @@
                                     @php
                                         $key = "$mod.$act";
                                         $isCrud = in_array($act, ['view', 'create', 'edit', 'delete'], true);
-                                        $scopes = $isCrud ? Permissions::scopesFor($mod, $act) : ['none', 'all'];
+                                        $scopes = Permissions::scopesFor($mod, $act);
                                         $cur = array_key_exists($key, $override) ? Permissions::scopeValue($override[$key]) : '';
                                         $roleScope = optional($staff->assignedRole)->grantedScope($key) ?? 'none';
                                     @endphp

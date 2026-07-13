@@ -16,11 +16,27 @@
         'inactive' => ['Inactive', 'text-amber-600', 'bg-amber-400'],
         default => ['Blocked', 'text-red-600', 'bg-red-500'],
     };
-    $tabs = ['profile' => 'Profile', 'projects' => 'Projects', 'invoices' => 'Invoices', 'payments' => 'Payments', 'documents' => 'Documents', 'notes' => 'Notes', 'tickets' => 'Tickets'];
+    // Profile rides on clients.view (reaching this page already required it). Every other
+    // section is scoped per-client: canAct() honours owned/added/all against THIS client.
+    $tabPerm = [
+        'profile' => true,
+        'projects' => $user->canAct('clients', 'projects', $client),
+        'invoices' => $user->canAct('clients', 'invoices', $client),
+        'payments' => $user->canAct('clients', 'payments', $client),
+        'documents' => $user->canAct('clients', 'documents', $client),
+        'notes' => $user->canAct('clients', 'notes', $client),
+        'tickets' => $user->canAct('clients', 'tickets', $client),
+    ];
+    $tabs = collect([
+        'profile' => 'Profile', 'projects' => 'Projects', 'invoices' => 'Invoices',
+        'payments' => 'Payments', 'documents' => 'Documents', 'notes' => 'Notes', 'tickets' => 'Tickets',
+    ])->filter(fn ($label, $key) => $tabPerm[$key] ?? false)->all();
+    // If the requested tab is not permitted, fall back to the first visible one.
+    $activeTab = array_key_exists(request('tab', 'profile'), $tabs) ? request('tab', 'profile') : array_key_first($tabs);
 @endphp
 
 @section('content')
-    <div x-data="{ tab: '{{ request('tab', 'profile') }}' }">
+    <div x-data="{ tab: '{{ $activeTab }}' }">
         {{-- Breadcrumb --}}
         <div class="mb-4 flex items-center gap-2 text-sm">
             <a href="{{ route('admin.clients.index') }}" class="text-[var(--color-muted)] hover:text-[var(--color-heading)]">Clients</a>
@@ -37,6 +53,7 @@
             @endforeach
         </div>
 
+        @if ($tabPerm['profile'])
         {{-- ══ PROFILE ══ --}}
         <div x-show="tab === 'profile'" x-cloak class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
             <div class="mb-5 flex items-center justify-between gap-3">
@@ -71,13 +88,17 @@
                 @endforeach
             </dl>
         </div>
+        @endif
 
+        @if ($tabPerm['projects'])
         {{-- ══ PROJECTS (placeholder) ══ --}}
         <div x-show="tab === 'projects'" x-cloak class="rounded-xl border border-gray-100 bg-white p-12 text-center shadow-sm">
             <p class="text-sm font-semibold text-[var(--color-heading)]">Projects</p>
             <p class="mt-1 text-sm text-[var(--color-muted)]">Coming soon — this section will be implemented later.</p>
         </div>
+        @endif
 
+        @if ($tabPerm['invoices'])
         {{-- ══ INVOICES ══ --}}
         <div x-show="tab === 'invoices'" x-cloak
              x-data="{ q: '', statusFilter: 'all', shown: 0,
@@ -209,7 +230,9 @@
                 </div>
             </div>
         </div>
+        @endif
 
+        @if ($tabPerm['payments'])
         {{-- ══ PAYMENTS ══ --}}
         <div x-show="tab === 'payments'" x-cloak class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <div class="overflow-x-auto">
@@ -239,7 +262,9 @@
                 </table>
             </div>
         </div>
+        @endif
 
+        @if ($tabPerm['documents'])
         {{-- ══ DOCUMENTS ══ --}}
         <div x-show="tab === 'documents'" x-cloak class="space-y-4">
             @if ($user->allows('clients', 'edit'))
@@ -298,7 +323,9 @@
                 </div>
             </div>
         </div>
+        @endif
 
+        @if ($tabPerm['notes'])
         {{-- ══ NOTES ══ --}}
         <div x-show="tab === 'notes'" x-cloak class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
             <h2 class="mb-4 text-base font-bold text-[var(--color-heading)]">Notes</h2>
@@ -308,11 +335,21 @@
                 <p class="text-sm text-[var(--color-muted)]">No notes yet. Add one from the <a href="{{ route('admin.clients.edit', $client) }}" class="font-semibold text-[var(--color-primary)] hover:underline">edit page</a>.</p>
             @endif
         </div>
+        @endif
 
+        @if ($tabPerm['tickets'])
         {{-- ══ TICKETS (placeholder) ══ --}}
         <div x-show="tab === 'tickets'" x-cloak class="rounded-xl border border-gray-100 bg-white p-12 text-center shadow-sm">
             <p class="text-sm font-semibold text-[var(--color-heading)]">Tickets</p>
             <p class="mt-1 text-sm text-[var(--color-muted)]">Coming soon — this section will be implemented later.</p>
         </div>
+        @endif
+
+        @if (empty($tabs))
+        <div class="rounded-xl border border-gray-100 bg-white p-12 text-center shadow-sm">
+            <p class="text-sm font-semibold text-[var(--color-heading)]">No section access</p>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">You don't have permission to view any part of this client's record.</p>
+        </div>
+        @endif
     </div>
 @endsection

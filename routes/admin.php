@@ -79,7 +79,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'destroy'])->whereNumber('meeting')->middleware('permission:meetings.delete')->name('meetings.destroy');
 
         // ===== CRM Analytics (reports · follow-ups · by country) =====
-        Route::middleware('permission:leads.view')->group(function () {
+        Route::middleware('permission:analytics.view')->group(function () {
             Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
         });
 

@@ -34,13 +34,26 @@ class Permissions
     public const SCOPABLE_ACTIONS = ['view', 'edit', 'delete'];
 
     /**
+     * Extra (non-CRUD) actions that ALSO support the owned/added scope ladder,
+     * per module. For clients, each detail-page section can be limited to
+     * owned / added clients rather than a flat none/all.
+     */
+    public const SCOPABLE_EXTRA = [
+        'clients' => ['projects', 'invoices', 'payments', 'documents', 'notes', 'tickets'],
+    ];
+
+    /**
      * module => [label, group, actions[], owner column|null, creator column|null].
      * `owner`/`creator` unlock the owned/added scopes for that module.
      */
     public const MODULES = [
         'leads' => ['label' => 'Leads', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'assigned_to', 'creator' => 'added_by'],
         'deals' => ['label' => 'Deals', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'assigned_to'],
-        'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete']],
+        // clients: view/create/edit/delete are the base CRUD (scoped via account_manager_id
+        // = owned / created_by = added). Profile rides on view; the other section actions each
+        // gate the matching detail-page tab and are individually scopable (owned/added/all).
+        'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
+        'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
         'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance'], 'creator' => 'created_by'],
         'products' => ['label' => 'Products', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
@@ -69,6 +82,9 @@ class Permissions
         'finance' => 'Finance', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
         'create_group' => 'Create groups', 'assign' => 'Assign', 'settings' => 'Settings',
         'clients' => 'Client messages',
+        // Client detail-page sections (Profile rides on view — no separate action).
+        'projects' => 'Projects', 'invoices' => 'Invoices',
+        'payments' => 'Payments', 'documents' => 'Documents', 'notes' => 'Notes', 'tickets' => 'Tickets',
     ];
 
     /** A brand-new staff/role starts with owned read access to the CRM basics. */
@@ -95,7 +111,10 @@ class Permissions
         $owner = self::owner($module);
         $creator = self::creator($module);
 
-        if (! in_array($action, self::SCOPABLE_ACTIONS, true) || (! $owner && ! $creator)) {
+        $scopable = in_array($action, self::SCOPABLE_ACTIONS, true)
+            || in_array($action, self::SCOPABLE_EXTRA[$module] ?? [], true);
+
+        if (! $scopable || (! $owner && ! $creator)) {
             return ['none', 'all'];
         }
 

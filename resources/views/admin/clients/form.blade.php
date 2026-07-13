@@ -106,6 +106,18 @@
                 </div>
 
                 <div>
+                    <label for="account_manager_id" class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Account manager</label>
+                    <select id="account_manager_id" name="account_manager_id" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                        <option value="">— Unassigned —</option>
+                        @foreach ($managers as $m)
+                            <option value="{{ $m->id }}" @selected((int) old('account_manager_id', $client->account_manager_id) === $m->id)>{{ $m->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400">The staff member this client is assigned to — used by the “Owned” client permission scope.</p>
+                    @error('account_manager_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+
+                <div>
                     <label for="password" class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">{{ $client->exists ? 'Reset password' : 'Password' }}</label>
                     <div class="flex gap-2">
                         <input id="password" name="password" type="password" value="{{ old('password') }}" placeholder="Min 8 characters"

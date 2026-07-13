@@ -19,6 +19,9 @@ class ClientController extends Controller
     {
         $q = User::clients();
 
+        // Scope: Owned = my clients (account_manager_id), Added = clients I created (created_by).
+        $request->user()->applyScope($q, 'clients', 'view');
+
         if ($search = trim((string) $request->query('search'))) {
             $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
@@ -53,6 +56,7 @@ class ClientController extends Controller
     public function show(User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
+        abort_unless(auth()->user()->canAct('clients', 'view', $client), 403);
 
         $invoices = ClientInvoice::where('client_id', $client->id)
             ->withCount('items')->latest('id')->get();
@@ -150,13 +154,18 @@ class ClientController extends Controller
 
     public function create()
     {
-        return view('admin.clients.form', ['client' => new User(['role' => User::ROLE_CUSTOMER])]);
+        return view('admin.clients.form', [
+            'client' => new User(['role' => User::ROLE_CUSTOMER]),
+            'managers' => User::assignable()->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function store(Request $request)
     {
         $data = $this->validated($request);
         $data['role'] = User::ROLE_CUSTOMER;
+        // Stamp the creator so the "Added" scope can find clients this staff member added.
+        $data['created_by'] = $request->user()->id;
         // Password is optional — generate a random one when omitted (column is NOT NULL). Hashed by cast.
         $data['password'] = $request->filled('password') ? $request->input('password') : Str::random(16);
         $this->handlePhoto($request, $data);
@@ -169,13 +178,18 @@ class ClientController extends Controller
     public function edit(User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
+        abort_unless(auth()->user()->canAct('clients', 'edit', $client), 403);
 
-        return view('admin.clients.form', compact('client'));
+        return view('admin.clients.form', [
+            'client' => $client,
+            'managers' => User::assignable()->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function update(Request $request, User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
+        abort_unless($request->user()->canAct('clients', 'edit', $client), 403);
 
         $data = $this->validated($request, $client);
         if ($request->filled('password')) {
@@ -191,6 +205,7 @@ class ClientController extends Controller
     public function destroy(User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
+        abort_unless(auth()->user()->canAct('clients', 'delete', $client), 403);
 
         $client->delete();
 
@@ -299,6 +314,7 @@ class ClientController extends Controller
             'zip' => ['nullable', 'string', 'max:20'],
             'note' => ['nullable', 'string', 'max:65535'],
             'status' => ['nullable', Rule::in(array_keys(User::STATUSES))],
+            'account_manager_id' => ['nullable', 'exists:users,id'],
             'password' => ['nullable', 'string', 'min:8'],
         ]);
 
