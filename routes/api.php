@@ -73,6 +73,10 @@ Route::middleware(['auth:sanctum', 'client.active'])->group(function () {
     Route::get('/account/dashboard', [AccountController::class, 'dashboard']);
     Route::get('/account/meetings', [AccountController::class, 'meetings']);
 
+    // Direct messages with the RazinSoft team
+    Route::get('/account/messages', [\App\Http\Controllers\Api\AccountMessageController::class, 'index']);
+    Route::post('/account/messages', [\App\Http\Controllers\Api\AccountMessageController::class, 'store']);
+
     // Profile management
     Route::put('/account/profile', [AccountController::class, 'updateProfile']);
     Route::put('/account/password', [AccountController::class, 'updatePassword']);

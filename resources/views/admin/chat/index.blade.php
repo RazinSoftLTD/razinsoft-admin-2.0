@@ -46,18 +46,30 @@
     <div class="flex h-[calc(100dvh-7rem)] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
 
         {{-- ───────── Left rail ───────── --}}
-        <aside class="flex w-72 shrink-0 flex-col border-r border-gray-100">
+        <aside x-data="{ tab: '{{ $tab }}' }" class="flex w-72 shrink-0 flex-col border-r border-gray-100">
             <div class="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
-                <h1 class="text-sm font-bold text-[var(--color-heading)]">Teams</h1>
+                <h1 class="text-sm font-bold text-[var(--color-heading)]">Messages</h1>
                 @if ($me->hasPermission('chat.create_group'))
-                    <a href="{{ route('admin.chat.groups.create') }}" title="New group"
+                    <a href="{{ route('admin.chat.groups.create') }}" title="New group" x-show="tab === 'team'"
                        class="grid h-8 w-8 place-items-center rounded-lg border border-gray-200 text-[var(--color-heading)] hover:bg-gray-50">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
                     </a>
                 @endif
             </div>
 
-            <div class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+            {{-- Team / Client tabs (Client tab only for staff who hold chat.clients) --}}
+            @if ($canClients)
+                @php $clientUnread = $clientConversations->sum(fn ($c) => $c->unreadCountFor($me)); @endphp
+                <div class="flex gap-1 border-b border-gray-100 px-2 py-2">
+                    <button type="button" @click="tab = 'team'" :class="tab === 'team' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-muted)] hover:bg-gray-50'" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition">Team</button>
+                    <button type="button" @click="tab = 'client'" :class="tab === 'client' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-muted)] hover:bg-gray-50'" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                        Client @if ($clientUnread)<span class="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ $clientUnread }}</span>@endif
+                    </button>
+                </div>
+            @endif
+
+            {{-- Team panel --}}
+            <div x-show="tab === 'team'" class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
                 <input type="text" data-chat-search placeholder="Search people…"
                        class="mb-3 h-9 w-full rounded-lg border border-gray-200 px-3 text-sm">
 
@@ -99,6 +111,38 @@
                     <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No teammates yet.</p>
                 @endforelse
             </div>
+
+            {{-- Client panel — shared inbox of customer conversations --}}
+            @if ($canClients)
+                <div x-show="tab === 'client'" x-cloak class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+                    <input type="text" data-chat-search placeholder="Search clients…" class="mb-3 h-9 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                    <p class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Client Messages</p>
+                    @forelse ($clientConversations as $c)
+                        @php
+                            $client = $c->clientMember() ?? $c->members->first();
+                            $un = $c->unreadCountFor($me);
+                            $on = $active && $active->id === $c->id;
+                        @endphp
+                        <a href="{{ route('admin.chat.show', $c) }}" data-turbo="false" data-conv-link data-conv="{{ $c->id }}" data-chat-row="{{ strtolower($client->name ?? 'client') }}"
+                           class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                            <span class="relative shrink-0">
+                                {!! $avatar($client) !!}
+                                <span class="absolute -bottom-0.5 -right-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-sky-500 ring-2 ring-white" title="Client"><svg class="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0Z"/></svg></span>
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="conv-name block truncate text-sm font-medium text-[var(--color-heading)]">{{ $client->name ?? 'Client' }}</span>
+                                <span class="block truncate text-xs text-[var(--color-muted)]">{{ $c->latestMessage?->preview ?: 'New conversation' }}</span>
+                            </span>
+                            @if ($un)<span data-unread class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                        </a>
+                    @empty
+                        <div class="px-2 py-10 text-center text-xs text-[var(--color-muted)]">
+                            <svg class="mx-auto mb-2 h-8 w-8 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10Z"/></svg>
+                            No client messages yet.
+                        </div>
+                    @endforelse
+                </div>
+            @endif
         </aside>
 
         {{-- ───────── Right: thread (Turbo Frame — only this swaps on conversation switch) ───────── --}}

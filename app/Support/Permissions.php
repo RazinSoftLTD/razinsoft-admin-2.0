@@ -54,7 +54,7 @@ class Permissions
         'searches' => ['label' => 'Searches', 'group' => 'Content', 'actions' => ['view', 'delete']],
         // owner = client_id: the ticket's requester. "Owned" scope = tickets the user raised themselves.
         'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete', 'settings'], 'owner' => 'client_id'],
-        'chat' => ['label' => 'Team Chat', 'group' => 'Support', 'actions' => ['create_group']],
+        'chat' => ['label' => 'Team Chat', 'group' => 'Support', 'actions' => ['create_group', 'clients']],
         'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],
         // owner = 'id': the employee record IS the user, so "Owned" scope means their own (self) record.
         'employees' => ['label' => 'Employees', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'id'],
@@ -68,6 +68,7 @@ class Permissions
         'view' => 'View', 'create' => 'Add', 'edit' => 'Update', 'delete' => 'Delete',
         'finance' => 'Finance', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
         'create_group' => 'Create groups', 'assign' => 'Assign', 'settings' => 'Settings',
+        'clients' => 'Client messages',
     ];
 
     /** A brand-new staff/role starts with owned read access to the CRM basics. */

@@ -16,12 +16,21 @@ class ChatController extends Controller
     public function index(?Conversation $conversation = null)
     {
         $me = auth()->user();
+        $canClients = $me->allows('chat', 'clients');
+        $tab = request('tab') === 'client' && $canClients ? 'client' : 'team';
 
-        // My conversations, most-recently-active first.
+        // My team conversations (staff DMs + groups), most-recently-active first.
         $conversations = $me->conversations()
+            ->whereIn('type', ['direct', 'group'])
             ->with(['members', 'latestMessage'])
             ->orderByRaw('COALESCE(last_message_at, conversations.created_at) DESC')
             ->get();
+
+        // Client (customer) conversations — a shared inbox for staff who hold `chat.clients`.
+        $clientConversations = $canClients
+            ? Conversation::where('type', 'client')->with(['members', 'latestMessage'])
+                ->orderByRaw('COALESCE(last_message_at, conversations.created_at) DESC')->get()
+            : collect();
 
         // Everyone I could start a direct message with (staff + admins, minus me).
         $people = User::assignable()->where('id', '!=', $me->id)
@@ -31,13 +40,29 @@ class ChatController extends Controller
         $active = null;
         $messages = collect();
         if ($conversation && $conversation->exists) {
-            abort_unless($conversation->members->contains($me->id), 403);
+            abort_unless($this->canAccess($me, $conversation), 403);
+            // First staff to open a client conversation joins it (so read/unread tracking works).
+            if ($conversation->type === 'client' && ! $conversation->members->contains($me->id)) {
+                $conversation->members()->attach($me->id);
+                $conversation->load('members');
+            }
             $active = $conversation;
+            $tab = $conversation->type === 'client' ? 'client' : 'team';
             $messages = $conversation->messages()->with('author')->orderBy('id')->get();
             $this->markRead($conversation, $me);
         }
 
-        return view('admin.chat.index', compact('conversations', 'people', 'active', 'messages'));
+        return view('admin.chat.index', compact('conversations', 'clientConversations', 'people', 'active', 'messages', 'tab', 'canClients'));
+    }
+
+    /** Team conversations need membership; client conversations need the `chat.clients` permission. */
+    private function canAccess(User $me, Conversation $conversation): bool
+    {
+        if ($conversation->type === 'client') {
+            return $me->allows('chat', 'clients');
+        }
+
+        return $conversation->members->contains($me->id);
     }
 
     public function show(Request $request, Conversation $conversation)
@@ -73,7 +98,10 @@ class ChatController extends Controller
     private function pane(Conversation $conversation)
     {
         $me = auth()->user();
-        abort_unless($conversation->members->contains($me->id), 403);
+        abort_unless($this->canAccess($me, $conversation), 403);
+        if ($conversation->type === 'client' && ! $conversation->members->contains($me->id)) {
+            $conversation->members()->attach($me->id);
+        }
 
         $active = $conversation->load('members');
         $messages = $conversation->messages()->with('author')->orderBy('id')->get();
@@ -188,7 +216,12 @@ class ChatController extends Controller
     public function sendMessage(Request $request, Conversation $conversation)
     {
         $me = auth()->user();
-        abort_unless($conversation->members->contains($me->id), 403);
+        abort_unless($this->canAccess($me, $conversation), 403);
+        // A staff replying to a client for the first time joins the conversation.
+        if ($conversation->type === 'client' && ! $conversation->members->contains($me->id)) {
+            $conversation->members()->attach($me->id);
+            $conversation->load('members');
+        }
 
         $request->validate([
             'body' => ['nullable', 'string', 'max:20000'],
@@ -244,7 +277,7 @@ class ChatController extends Controller
     public function typing(Request $request, Conversation $conversation)
     {
         $me = auth()->user();
-        abort_unless($conversation->members->contains($me->id), 403);
+        abort_unless($this->canAccess($me, $conversation), 403);
 
         broadcast(new \App\Events\ChatTyping($conversation->id, $me->id, $me->name))->toOthers();
 
@@ -255,7 +288,7 @@ class ChatController extends Controller
     public function read(Conversation $conversation)
     {
         $me = auth()->user();
-        abort_unless($conversation->members->contains($me->id), 403);
+        abort_unless($this->canAccess($me, $conversation), 403);
         $this->markRead($conversation, $me);
 
         return response()->json(['ok' => true]);

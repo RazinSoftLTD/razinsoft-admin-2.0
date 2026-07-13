@@ -74,6 +74,9 @@ class Conversation extends Model
         if ($this->isGroup()) {
             return $this->name ?: 'Untitled group';
         }
+        if ($this->isClient()) {
+            return $this->clientMember()?->name ?? 'Client';
+        }
         $other = $this->members->firstWhere('id', '!=', $viewer->id);
 
         return $other->name ?? 'Direct message';
@@ -83,6 +86,17 @@ class Conversation extends Model
     public function counterpart(User $viewer): ?User
     {
         return $this->isGroup() ? null : $this->members->firstWhere('id', '!=', $viewer->id);
+    }
+
+    public function isClient(): bool
+    {
+        return $this->type === 'client';
+    }
+
+    /** The customer this client conversation belongs to. */
+    public function clientMember(): ?User
+    {
+        return $this->members->firstWhere('role', User::ROLE_CUSTOMER);
     }
 
     /** Unread messages for a viewer = others' messages newer than their last_read_at. */
