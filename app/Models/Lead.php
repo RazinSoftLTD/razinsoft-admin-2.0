@@ -12,7 +12,7 @@ class Lead extends Model
     /** Dropdown option sets — single source of truth for the form + validation. */
     public const SALUTATIONS = ['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'];
 
-    public const SOURCES = ['Website', 'Facebook', 'LinkedIn', 'WhatsApp', 'Referral', 'Cold Call', 'Advertisement', 'Other'];
+    public const SOURCES = ['WhatsApp', 'Website', 'Facebook', 'LinkedIn', 'Email', 'Others'];
 
     public const INDUSTRIES = ['Technology', 'eCommerce', 'Education', 'Healthcare', 'Retail', 'Real Estate', 'Finance', 'Logistics', 'Other'];
 
@@ -22,6 +22,36 @@ class Lead extends Model
     public const TEAMS = ['Sales', 'Support', 'Development', 'Marketing'];
 
     public const PRIORITIES = ['high' => 'High', 'medium' => 'Medium', 'low' => 'Low'];
+
+    /**
+     * Configurable option sets (managed in Settings → CRM Settings). Each falls
+     * back to the const above if the settings table is empty.
+     */
+    public static function sourceOptions(): array
+    {
+        return LeadOption::labels('source') ?: self::SOURCES;
+    }
+
+    public static function departmentOptions(): array
+    {
+        return LeadOption::labels('department') ?: self::TEAMS;
+    }
+
+    /**
+     * Product names: the RazinSoft Products module, plus any extra products added
+     * in Settings → CRM Settings. Deduped and sorted.
+     */
+    public static function productOptions(): array
+    {
+        return Product::pluck('name')
+            ->merge(LeadOption::labels('product'))
+            ->map(fn ($n) => trim((string) $n))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
 
     protected $casts = [
         'converted_at' => 'datetime',

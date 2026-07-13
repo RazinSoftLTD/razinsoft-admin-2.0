@@ -218,6 +218,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('tickets/{ticket}/status', [\App\Http\Controllers\Admin\TicketController::class, 'updateStatus'])->whereNumber('ticket')->name('tickets.status');
             Route::patch('tickets/{ticket}/assign', [\App\Http\Controllers\Admin\TicketController::class, 'assign'])->whereNumber('ticket')->name('tickets.assign');
         });
+        // CRM settings — configurable lead sources & departments.
+        Route::middleware('permission:leads.settings')->group(function () {
+            Route::get('crm-settings', [\App\Http\Controllers\Admin\CrmSettingController::class, 'index'])->name('crm-settings');
+            Route::post('crm-settings/options', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeOption'])->name('crm-settings.options.store');
+            Route::delete('crm-settings/options/{option}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyOption'])->whereNumber('option')->name('crm-settings.options.destroy');
+        });
+
         // Ticket settings (agents, types, reply templates) — separate, admin/manager-level gate.
         Route::middleware('permission:tickets.settings')->group(function () {
             Route::get('ticket-settings', [\App\Http\Controllers\Admin\TicketSettingController::class, 'index'])->name('tickets.settings');

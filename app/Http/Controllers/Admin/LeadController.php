@@ -228,8 +228,8 @@ class LeadController extends Controller
                 'phone' => $phone,
                 'company_name' => $data['company_name'] ?? null,
                 'job_title' => $data['job_title'] ?? null,
-                'lead_source' => in_array($data['lead_source'] ?? null, Lead::SOURCES, true) ? $data['lead_source'] : 'Other',
-                'industry' => in_array($data['industry'] ?? null, Lead::INDUSTRIES, true) ? $data['industry'] : null,
+                'lead_source' => in_array($data['lead_source'] ?? null, Lead::sourceOptions(), true) ? $data['lead_source'] : 'Others',
+                'industry' => trim((string) ($data['industry'] ?? '')) ?: null,   // free-text product name
                 'lead_status' => array_key_exists($data['lead_status'] ?? '', Lead::STATUSES) ? $data['lead_status'] : 'new',
                 'priority' => array_key_exists($data['priority'] ?? '', Lead::PRIORITIES) ? $data['priority'] : 'medium',
                 'assigned_to' => $request->input('assigned_to'),
@@ -444,17 +444,19 @@ class LeadController extends Controller
     {
         $data = $request->validate([
             'salutation' => ['nullable', Rule::in(Lead::SALUTATIONS)],
-            'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'full_name' => ['nullable', 'string', 'max:255'],
+            // Email or phone — at least one identifies the lead.
+            'email' => ['nullable', 'email', 'max:255', 'required_without:phone'],
             'dial_code' => ['nullable', 'string', 'max:8'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', 'max:30', 'required_without:email'],
             'mobile' => ['nullable', 'string', 'max:40'],
             'office_phone' => ['nullable', 'string', 'max:40'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'website' => ['nullable', 'string', 'max:255'],
             'job_title' => ['nullable', 'string', 'max:255'],
-            'lead_source' => ['required', Rule::in(Lead::SOURCES)],
-            'industry' => ['nullable', Rule::in(Lead::INDUSTRIES)],
+            'lead_source' => ['required', Rule::in(Lead::sourceOptions())],
+            // "Product" — a RazinSoft product name (from the Products module). Stored on the industry column.
+            'industry' => ['nullable', 'string', 'max:255'],
             'lead_status' => ['required', Rule::in(array_keys(Lead::STATUSES))],
             'address' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:120'],
@@ -463,12 +465,25 @@ class LeadController extends Controller
             'zip' => ['nullable', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:500'],
             'assigned_to' => ['required', 'exists:users,id'],
-            'team' => ['nullable', Rule::in(Lead::TEAMS)],
-            'priority' => ['required', Rule::in(array_keys(Lead::PRIORITIES))],
+            'team' => ['nullable', Rule::in(Lead::departmentOptions())],
+            'priority' => ['nullable', Rule::in(array_keys(Lead::PRIORITIES))],
             'next_follow_up_at' => ['nullable', 'date'],
+        ], [
+            'email.required_without' => 'Provide at least an email or a phone number.',
+            'phone.required_without' => 'Provide at least an email or a phone number.',
         ]);
 
         $data['is_whatsapp'] = $request->boolean('is_whatsapp');
+
+        // full_name & phone are NOT NULL — normalise and derive a name when left blank.
+        $data['phone'] = trim((string) ($data['phone'] ?? ''));
+        $name = trim((string) ($data['full_name'] ?? ''));
+        if ($name === '') {
+            $name = ! empty($data['email'])
+                ? \Illuminate\Support\Str::of($data['email'])->before('@')->toString()
+                : ($data['phone'] !== '' ? trim(($data['dial_code'] ?? '').' '.$data['phone']) : 'Lead');
+        }
+        $data['full_name'] = $name;
 
         return $data;
     }

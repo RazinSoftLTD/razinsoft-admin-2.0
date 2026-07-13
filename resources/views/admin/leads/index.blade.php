@@ -163,7 +163,7 @@
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Source</label>
                         <select name="source" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
                             <option value="">All Sources</option>
-                            @foreach (\App\Models\Lead::SOURCES as $s)
+                            @foreach (\App\Models\Lead::sourceOptions() as $s)
                                 <option value="{{ $s }}" @selected(request('source') === $s)>{{ $s }}</option>
                             @endforeach
                         </select>

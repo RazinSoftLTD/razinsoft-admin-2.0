@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'Messages')
+@section('title', 'Contact Us')
 
 @section('content')
     <p class="mb-5 text-sm text-[var(--color-muted)]">{{ $messages->total() }} contact message(s) from the website.</p>

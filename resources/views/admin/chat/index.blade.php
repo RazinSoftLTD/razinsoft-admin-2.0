@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'Teams')
+@section('title', 'Messenger')
 
 @php
     $me = auth()->user();
@@ -61,7 +61,7 @@
             @if ($canClients)
                 @php $clientUnread = $clientConversations->sum(fn ($c) => $c->unreadCountFor($me)); @endphp
                 <div class="flex gap-1 border-b border-gray-100 px-2 py-2">
-                    <button type="button" @click="tab = 'team'" :class="tab === 'team' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-muted)] hover:bg-gray-50'" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition">Team</button>
+                    <button type="button" @click="tab = 'team'" :class="tab === 'team' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-muted)] hover:bg-gray-50'" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition">Team Connect</button>
                     <button type="button" @click="tab = 'client'" :class="tab === 'client' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-muted)] hover:bg-gray-50'" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
                         Client @if ($clientUnread)<span class="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ $clientUnread }}</span>@endif
                     </button>

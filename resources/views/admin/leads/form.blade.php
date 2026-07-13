@@ -54,7 +54,9 @@
             <div class="space-y-6 xl:col-span-2">
 
                 {{-- Lead Contact Detail --}}
-                <section class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                {{-- No overflow-hidden here: the country-search dropdown must be able to
+                     extend past this short card without being clipped. --}}
+                <section class="rounded-xl border border-gray-100 bg-white shadow-sm">
                     <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-4">
                         <span class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary)]"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0"/></svg></span>
                         <div>
@@ -64,19 +66,49 @@
                     </div>
                     <div class="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-6">
                         <div class="lg:col-span-1"><x-admin.field label="Salutation" name="salutation" type="select" :value="$lead->salutation" :options="['' => '--'] + array_combine(\App\Models\Lead::SALUTATIONS, \App\Models\Lead::SALUTATIONS)" /></div>
-                        <div class="sm:col-span-1 lg:col-span-2"><x-admin.field label="Name" name="full_name" :value="$lead->full_name" required placeholder="e.g. John Doe" /></div>
-                        <div class="lg:col-span-3"><x-admin.field label="Email" name="email" type="email" :value="$lead->email" placeholder="e.g. johndoe@example.com" hint="Used to send proposals." /></div>
+                        <div class="sm:col-span-1 lg:col-span-2"><x-admin.field label="Name" name="full_name" :value="$lead->full_name" placeholder="e.g. John Doe" hint="Optional." /></div>
+                        <div class="lg:col-span-3"><x-admin.field label="Email" name="email" type="email" :value="$lead->email" placeholder="e.g. johndoe@example.com" hint="Email or phone — at least one is required." /></div>
 
                         {{-- Phone + WhatsApp --}}
                         <div class="sm:col-span-2 lg:col-span-3">
-                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Phone <span class="text-red-500">*</span></label>
-                            <div class="flex">
-                                <select name="dial_code" class="h-11 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 px-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                                    @foreach ($countries as $c)
-                                        <option value="{{ $c['dial'] }}" @selected(old('dial_code', $lead->dial_code ?? '+880') === $c['dial'])>{{ $c['flag'] }} {{ $c['dial'] }}</option>
-                                    @endforeach
-                                </select>
-                                <input name="phone" value="{{ old('phone', $lead->phone) }}" required placeholder="1XXX-XXXXXX" class="h-11 w-full rounded-r-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Phone</label>
+                            <div x-data="{
+                                    open: false, q: '',
+                                    dial: @js(old('dial_code', $lead->dial_code ?? '+880')),
+                                    countries: @js($countries),
+                                    get current() { return this.countries.find(c => c.dial === this.dial) || this.countries[0]; },
+                                    get filtered() { const q = this.q.trim().toLowerCase(); return q ? this.countries.filter(c => c.name.toLowerCase().includes(q) || c.dial.includes(q) || c.code.toLowerCase() === q) : this.countries; },
+                                    pick(c) { this.dial = c.dial; this.open = false; this.q = ''; }
+                                 }" class="flex">
+                                <div class="relative">
+                                    <button type="button" @click="open = !open"
+                                            class="flex h-11 items-center gap-1 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 px-2.5 text-sm text-[var(--color-heading)] hover:bg-gray-100 focus:outline-none">
+                                        <span x-text="current.flag"></span>
+                                        <span x-text="current.dial"></span>
+                                        <svg class="h-3.5 w-3.5 text-gray-400 transition" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <input type="hidden" name="dial_code" :value="dial">
+                                    <div x-show="open" x-cloak @click.outside="open = false"
+                                         class="absolute z-30 mt-1 w-64 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
+                                        <div class="p-2">
+                                            <input x-model="q" @click.stop type="text" placeholder="Search country or code…"
+                                                   class="h-9 w-full rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                        </div>
+                                        <div class="max-h-60 overflow-y-auto pb-1">
+                                            <template x-for="c in filtered" :key="c.code">
+                                                <button type="button" @click="pick(c)"
+                                                        class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                                                        :class="c.dial === dial && 'bg-[var(--color-primary-soft)]'">
+                                                    <span x-text="c.flag"></span>
+                                                    <span class="flex-1 truncate text-[var(--color-heading)]" x-text="c.name"></span>
+                                                    <span class="text-gray-400" x-text="c.dial"></span>
+                                                </button>
+                                            </template>
+                                            <p x-show="!filtered.length" class="px-3 py-2 text-sm text-gray-400">No country found.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input name="phone" value="{{ old('phone', $lead->phone) }}" placeholder="1XXX-XXXXXX" class="h-11 w-full rounded-r-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                             </div>
                             <label class="mt-2 inline-flex cursor-pointer items-center gap-2 text-sm text-[var(--color-heading)]">
                                 <input type="checkbox" name="is_whatsapp" value="1" @checked(old('is_whatsapp', $lead->is_whatsapp)) class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
@@ -88,16 +120,24 @@
                     </div>
                 </section>
 
-                {{-- Company Details --}}
+                {{-- Description / Notes --}}
                 <section class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                    <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-4">
-                        <span class="grid h-9 w-9 place-items-center rounded-lg bg-amber-50 text-amber-600"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 3h12a2 2 0 0 1 2 2v16H4V5a2 2 0 0 1 2-2Z M9 7h.01M9 11h.01M9 15h.01M15 7h.01M15 11h.01M15 15h.01"/></svg></span>
-                        <div>
-                            <h2 class="text-sm font-bold text-[var(--color-heading)]">Company Details</h2>
-                            <p class="text-xs text-[var(--color-muted)]">Optional — organisation & address.</p>
-                        </div>
+                    <div class="p-6">
+                        <x-admin.field label="Description / Notes" name="notes" type="textarea" rows="4" :value="$lead->notes" placeholder="Notes about this lead…" hint="Max 500 characters." />
                     </div>
-                    <div class="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-3">
+                </section>
+
+                {{-- Company Details — collapsible, hidden by default --}}
+                <section x-data="{ show: false }" class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                    <button type="button" @click="show = !show" class="flex w-full items-center gap-3 px-6 py-4 text-left" :class="show ? 'border-b border-gray-100' : ''">
+                        <span class="grid h-9 w-9 place-items-center rounded-lg bg-amber-50 text-amber-600"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 3h12a2 2 0 0 1 2 2v16H4V5a2 2 0 0 1 2-2Z M9 7h.01M9 11h.01M9 15h.01M15 7h.01M15 11h.01M15 15h.01"/></svg></span>
+                        <div class="flex-1">
+                            <h2 class="text-sm font-bold text-[var(--color-heading)]">Company Details</h2>
+                            <p class="text-xs text-[var(--color-muted)]">Optional — organisation & address. <span x-show="!show">Click to expand.</span></p>
+                        </div>
+                        <svg class="h-5 w-5 text-gray-400 transition" :class="show && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div x-show="show" x-cloak class="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-3">
                         <x-admin.field label="Company Name" name="company_name" :value="$lead->company_name" placeholder="Enter company name" />
                         <x-admin.field label="Website" name="website" :value="$lead->website" placeholder="https://…" />
                         <x-admin.field label="Mobile" name="mobile" :value="$lead->mobile" placeholder="Mobile number" />
@@ -107,13 +147,6 @@
                         <x-admin.field label="State / Region" name="state" :value="$lead->state" placeholder="State" />
                         <x-admin.field label="Country" name="country" :value="$lead->country" placeholder="Country" />
                         <x-admin.field label="ZIP / Postal Code" name="zip" :value="$lead->zip" placeholder="ZIP" />
-                    </div>
-                </section>
-
-                {{-- Notes --}}
-                <section class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                    <div class="p-6">
-                        <x-admin.field label="Description / Notes" name="notes" type="textarea" rows="4" :value="$lead->notes" placeholder="Notes about this lead…" hint="Max 500 characters." />
                     </div>
                 </section>
             </div>
@@ -127,7 +160,7 @@
                         <h2 class="text-sm font-bold text-[var(--color-heading)]">Ownership & Status</h2>
                     </div>
                     <div class="space-y-5 p-6">
-                        <x-admin.field label="Lead Source" name="lead_source" type="select" required :value="$lead->lead_source" :options="['' => '--'] + array_combine(\App\Models\Lead::SOURCES, \App\Models\Lead::SOURCES)" />
+                        <x-admin.field label="Lead Source" name="lead_source" type="select" required :value="$lead->lead_source" :options="['' => '--'] + array_combine(\App\Models\Lead::sourceOptions(), \App\Models\Lead::sourceOptions())" />
 
                         {{-- Added By (read-only) --}}
                         <div>
@@ -141,14 +174,13 @@
 
                         <x-admin.field label="Lead Owner" name="assigned_to" type="select" required :value="$lead->assigned_to" :options="['' => 'Select owner'] + $users->pluck('name', 'id')->all()" />
                         <div class="grid grid-cols-2 gap-4">
-                            <x-admin.field label="Status" name="lead_status" type="select" required :value="$lead->lead_status" :options="\App\Models\Lead::STATUSES" />
-                            <x-admin.field label="Priority" name="priority" type="select" required :value="$lead->priority" :options="\App\Models\Lead::PRIORITIES" />
+                            <x-admin.field label="Lead Quality" name="lead_status" type="select" required :value="$lead->lead_status" :options="\App\Models\Lead::STATUSES" />
+                            <x-admin.field label="Priority" name="priority" type="select" :value="$lead->priority" :options="['' => '--'] + \App\Models\Lead::PRIORITIES" />
                         </div>
                         <div class="grid grid-cols-2 gap-4">
-                            <x-admin.field label="Team" name="team" type="select" :value="$lead->team" :options="['' => 'Select'] + array_combine(\App\Models\Lead::TEAMS, \App\Models\Lead::TEAMS)" />
-                            <x-admin.field label="Industry" name="industry" type="select" :value="$lead->industry" :options="['' => 'Select'] + array_combine(\App\Models\Lead::INDUSTRIES, \App\Models\Lead::INDUSTRIES)" />
+                            <x-admin.field label="Lead Department" name="team" type="select" :value="$lead->team" :options="['' => 'Select'] + array_combine(\App\Models\Lead::departmentOptions(), \App\Models\Lead::departmentOptions())" />
+                            <x-admin.field label="Product" name="industry" type="select" :value="$lead->industry" :options="['' => 'Select'] + array_combine(\App\Models\Lead::productOptions(), \App\Models\Lead::productOptions())" />
                         </div>
-                        <x-admin.field label="Next Follow-up Date" name="next_follow_up_at" type="date" :value="optional($lead->next_follow_up_at)->toDateString()" />
                     </div>
                 </section>
 

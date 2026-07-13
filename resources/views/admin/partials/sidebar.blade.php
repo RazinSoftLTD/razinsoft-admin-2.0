@@ -64,11 +64,7 @@
     $nav = [
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
-        ['type' => 'link', 'label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
-        ['type' => 'link', 'label' => 'Tickets', 'route' => 'admin.tickets.index', 'active' => 'admin.tickets.*', 'perm' => 'tickets.view', 'icon' => $ic['tickets'], 'badge' => \App\Models\Ticket::where('unread_by_admin', true)->count() ?: null],
-        ['type' => 'link', 'label' => 'Message', 'route' => 'admin.messages.index', 'active' => 'admin.messages.*', 'perm' => 'messages.view', 'icon' => $ic['messaging'], 'badge' => \App\Models\ContactMessage::where('is_read', false)->count()],
-        ['type' => 'link', 'label' => 'Teams', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
-        ['type' => 'link', 'label' => 'Book Meeting', 'route' => 'admin.meetings.index', 'active' => ['admin.meetings.index', 'admin.meetings.show'], 'perm' => 'meetings.view', 'icon' => $ic['meeting'], 'badge' => \App\Http\Controllers\Admin\MeetingController::unreadCount($user) ?: null],
+        ['type' => 'link', 'label' => 'Messenger', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
 
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
             ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => ['admin.leads.index', 'admin.leads.show', 'admin.leads.edit', 'admin.leads.create', 'admin.leads.import.form'], 'perm' => 'leads.view', 'icon' => $ic['leads']],
@@ -76,9 +72,15 @@
             ['label' => 'Analytics', 'route' => 'admin.analytics.index', 'active' => 'admin.analytics.*', 'perm' => 'analytics.view', 'icon' => $ic['analytics']],
         ]],
 
+        ['type' => 'link', 'label' => 'Tickets', 'route' => 'admin.tickets.index', 'active' => 'admin.tickets.*', 'perm' => 'tickets.view', 'icon' => $ic['tickets'], 'badge' => \App\Models\Ticket::where('unread_by_admin', true)->count() ?: null],
+
         ['type' => 'group', 'label' => 'Workspace', 'icon' => $ic['workspace'], 'items' => [
             ['label' => 'Projects', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'perm' => 'projects.view', 'icon' => $ic['projects']],
         ]],
+
+        ['type' => 'link', 'label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
+        ['type' => 'link', 'label' => 'Contact Us', 'route' => 'admin.messages.index', 'active' => 'admin.messages.*', 'perm' => 'messages.view', 'icon' => $ic['messaging'], 'badge' => \App\Models\ContactMessage::where('is_read', false)->count()],
+        ['type' => 'link', 'label' => 'Book Meeting', 'route' => 'admin.meetings.index', 'active' => ['admin.meetings.index', 'admin.meetings.show'], 'perm' => 'meetings.view', 'icon' => $ic['meeting'], 'badge' => \App\Http\Controllers\Admin\MeetingController::unreadCount($user) ?: null],
 
         ['type' => 'group', 'label' => 'HR', 'icon' => $ic['hr'], 'items' => [
             ['label' => 'Employees', 'route' => 'admin.staff.index', 'active' => 'admin.staff.*', 'perm' => 'employees.view', 'icon' => $ic['employees']],
@@ -124,6 +126,7 @@
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
             ['label' => 'My Profile', 'route' => 'admin.my-profile.edit', 'active' => 'admin.my-profile.*', 'icon' => $ic['author']],
             ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'active' => 'admin.roles.*', 'admin' => true, 'icon' => $ic['roles']],
+            ['label' => 'CRM Settings', 'route' => 'admin.crm-settings', 'active' => 'admin.crm-settings*', 'perm' => 'leads.settings', 'icon' => $ic['crm']],
             ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],

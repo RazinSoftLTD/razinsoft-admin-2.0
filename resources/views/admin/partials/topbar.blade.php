@@ -28,7 +28,7 @@
                  class="absolute right-0 mt-2 w-80 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl">
                 <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                     <p class="text-sm font-bold text-[var(--color-heading)]">Messages</p>
-                    <a href="{{ route('admin.chat.index') }}" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">Open Teams</a>
+                    <a href="{{ route('admin.chat.index') }}" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">Open Messenger</a>
                 </div>
                 <div class="max-h-96 overflow-y-auto">
                     <template x-for="it in items" :key="it.id">

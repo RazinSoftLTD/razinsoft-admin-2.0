@@ -47,7 +47,7 @@ class Permissions
      * `owner`/`creator` unlock the owned/added scopes for that module.
      */
     public const MODULES = [
-        'leads' => ['label' => 'Leads', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'assigned_to', 'creator' => 'added_by'],
+        'leads' => ['label' => 'Leads', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to', 'creator' => 'added_by'],
         'deals' => ['label' => 'Deals', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'assigned_to'],
         // clients: view/create/edit/delete are the base CRUD (scoped via account_manager_id
         // = owned / created_by = added). Profile rides on view; the other section actions each
