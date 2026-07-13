@@ -246,15 +246,13 @@
         const WINDOW_SECS = 60 * 60;       // 1-hour edit/delete window
         const toEpoch = (v) => { if (!v) return 0; if (typeof v === 'number') return v > 1e11 ? Math.floor(v / 1000) : v; const t = Date.parse(v); return isNaN(t) ? 0 : Math.floor(t / 1000); };
 
-        // Per-message actions menu (kebab): Copy · Edit · Forward · Delete, gated by ownership + the 1-hour window.
+        // Per-message actions menu (kebab): Copy · Edit · Forward · Delete.
+        // Edit/Delete for the author are time-gated: they are re-checked every time the
+        // menu opens (see refreshGated), so they disappear once the 1-hour window passes.
         function attachMenu(row) {
             if (row.querySelector('[data-kebab]')) return;
             const id = row.dataset.msgId;
             const mine = row.dataset.mine === '1';
-            const created = Number(row.dataset.created || 0);
-            const inWindow = created && (Date.now() / 1000 - created < WINDOW_SECS);
-            const canEdit = mine && inWindow;
-            const canDelete = (mine && inWindow) || IS_ADMIN;
             const hasText = !!(row.querySelector('.chat-html') && row.querySelector('.chat-html').innerText.trim());
             const svg = (p) => '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">' + p + '</svg>';
             const ICON = {
@@ -263,11 +261,12 @@
                 forward: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M20 12H4"/>'),
                 delete: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/>'),
             };
-            const item = (act, label, danger) => '<button type="button" data-act="' + act + '" data-mid="' + id + '" class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium ' + (danger ? 'text-red-600' : 'text-[var(--color-heading)]') + ' hover:bg-gray-50">' + ICON[act] + '<span>' + label + '</span></button>';
+            // gated=true → hidden automatically once the 1-hour window elapses (checked on open).
+            const item = (act, label, danger, gated) => '<button type="button" data-act="' + act + '" data-mid="' + id + '"' + (gated ? ' data-gated="1"' : '') + ' class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium ' + (danger ? 'text-red-600' : 'text-[var(--color-heading)]') + ' hover:bg-gray-50">' + ICON[act] + '<span>' + label + '</span></button>';
             let items = hasText ? item('copy', 'Copy') : '';
-            if (canEdit) items += item('edit', 'Edit');
+            if (mine) items += item('edit', 'Edit', false, true);            // author only, within window
             items += item('forward', 'Forward');
-            if (canDelete) items += item('delete', 'Delete', true);
+            if (mine || IS_ADMIN) items += item('delete', 'Delete', true, mine && !IS_ADMIN); // author gated; admin anytime
             const wrap = document.createElement('div');
             wrap.className = 'relative mb-5 self-end';
             wrap.innerHTML =
@@ -321,9 +320,16 @@
 
         // ── Per-message menu: open/close + Copy / Edit / Forward / Delete ──
         const closeMenus = () => scroll.querySelectorAll('[data-menu]').forEach(m => m.classList.add('hidden'));
+        // Re-evaluate the 1-hour window at open time: hide the author's Edit/Delete once it has passed.
+        function refreshGated(wrap) {
+            const row = wrap.closest('[data-msg-id]');
+            const created = Number(row.dataset.created || 0);
+            const expired = !created || (Date.now() / 1000 - created >= WINDOW_SECS);
+            wrap.querySelectorAll('[data-gated="1"]').forEach(b => b.classList.toggle('hidden', expired));
+        }
         scroll.addEventListener('click', function (e) {
             const kebab = e.target.closest('[data-kebab]');
-            if (kebab) { const m = kebab.parentElement.querySelector('[data-menu]'); const open = !m.classList.contains('hidden'); closeMenus(); if (!open) m.classList.remove('hidden'); return; }
+            if (kebab) { const wrap = kebab.parentElement; const m = wrap.querySelector('[data-menu]'); const open = !m.classList.contains('hidden'); closeMenus(); if (!open) { refreshGated(wrap); m.classList.remove('hidden'); } return; }
             const act = e.target.closest('[data-act]');
             if (!act) return;
             const id = act.dataset.mid;
