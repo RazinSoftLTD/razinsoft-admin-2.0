@@ -71,16 +71,12 @@
     {{-- Messages --}}
     <div id="chat-scroll" class="min-h-0 flex-1 space-y-3 overflow-y-auto bg-gray-50/60 px-5 py-4">
         @foreach ($messages as $msg)
-            @php $mine = $msg->user_id === $me->id; $canDel = $mine || $me->isAdmin(); @endphp
-            <div class="group flex items-end gap-2 {{ $mine ? 'flex-row-reverse' : '' }}" data-msg-id="{{ $msg->id }}">
+            @php $mine = $msg->user_id === $me->id; @endphp
+            <div class="group flex items-end gap-2 {{ $mine ? 'flex-row-reverse' : '' }}"
+                 data-msg-id="{{ $msg->id }}" data-mine="{{ $mine ? '1' : '0' }}"
+                 data-created="{{ $msg->created_at->timestamp }}">
                 @unless ($mine){!! $avatar($msg->author, 'h-7 w-7') !!}@endunless
-                @if ($canDel)
-                    <button type="button" data-del="{{ $msg->id }}" title="Delete message"
-                            class="mb-5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg>
-                    </button>
-                @endif
-                <div class="max-w-[75%]">
+                <div class="max-w-[75%]" data-bubble-wrap>
                     @if ($isGroup && ! $mine)<p class="mb-0.5 px-1 text-xs font-semibold text-[var(--color-heading)]">{{ $msg->author->name ?? '—' }}</p>@endif
                     <div class="rounded-2xl px-3.5 py-2 text-sm {{ $mine ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-white text-[var(--color-heading)] border border-gray-100 rounded-bl-sm' }}">
                         @if ($msg->body)<div class="chat-html break-words">{!! $msg->body !!}</div>@endif
@@ -95,7 +91,9 @@
                             @endif
                         @endif
                     </div>
-                    <p class="mt-0.5 px-1 text-[11px] text-gray-400 {{ $mine ? 'text-right' : '' }}">{{ $msg->created_at->format('g:i A') }}</p>
+                    <p class="mt-0.5 px-1 text-[11px] text-gray-400 {{ $mine ? 'text-right' : '' }}">
+                        {{ $msg->created_at->format('g:i A') }}<span data-edited-tag class="{{ $msg->edited_at ? '' : 'hidden' }}"> · edited</span>
+                    </p>
                 </div>
             </div>
         @endforeach
@@ -114,6 +112,11 @@
     {{-- Rich composer — always pinned at the bottom, never shrinks --}}
     <form id="chat-form" class="shrink-0 border-t border-gray-100">
         @csrf
+        <div id="chat-edit-banner" class="hidden items-center gap-2 border-b border-indigo-100 bg-indigo-50 px-4 py-2 text-xs text-indigo-700">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            <span class="font-semibold">Editing message</span>
+            <button type="button" id="chat-edit-cancel" class="ml-auto font-semibold text-indigo-500 hover:underline">Cancel</button>
+        </div>
         <div id="chat-file-chip" class="hidden items-center gap-2 border-b border-gray-100 px-4 py-2 text-xs">
             <svg class="h-4 w-4 text-[var(--color-muted)]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
             <span id="chat-file-name" class="truncate font-medium text-[var(--color-heading)]"></span>

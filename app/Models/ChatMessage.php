@@ -7,11 +7,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ChatMessage extends Model
 {
-    protected $fillable = ['conversation_id', 'user_id', 'body', 'attachment', 'attachment_name'];
+    /** How long after posting a message may still be edited or deleted (minutes). */
+    public const MUTATE_WINDOW_MINUTES = 60;
+
+    protected $fillable = ['conversation_id', 'user_id', 'body', 'edited_at', 'attachment', 'attachment_name'];
+
+    protected $casts = ['edited_at' => 'datetime'];
 
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    /** Within the edit/delete window (used to gate the author's edit & delete actions). */
+    public function withinMutateWindow(): bool
+    {
+        return $this->created_at->gt(now()->subMinutes(self::MUTATE_WINDOW_MINUTES));
     }
 
     /** Public URL for an attached file (null if none). */

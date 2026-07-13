@@ -149,6 +149,33 @@
         @include('admin.chat._pane')
     </div>
 
+    {{-- Forward-to-teammate modal (persistent shell — survives thread swaps) --}}
+    <div id="fwd-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl" @click.stop>
+            <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+                <p class="text-sm font-bold text-[var(--color-heading)]">Forward to</p>
+                <button type="button" id="fwd-close" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-gray-50">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+            <div class="p-3">
+                <input id="fwd-search" type="text" placeholder="Search teammates…" class="mb-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                <div id="fwd-list" class="max-h-72 space-y-0.5 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Toast --}}
+    <div id="chat-toast" class="pointer-events-none fixed bottom-6 left-1/2 z-[60] hidden -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-lg"></div>
+
+    @php
+        $chatTeam = $people->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'avatar' => $u->photo_url, 'initial' => strtoupper(substr($u->name, 0, 1))])->values();
+    @endphp
+    <script>
+        window.Razin = window.Razin || {};
+        window.__chatTeam = @json($chatTeam);
+    </script>
+
     <script>
     // Thread initialiser — called deterministically on every frame load (Turbo) and on first render.
     window.__initChatThread = function (root) {
@@ -215,7 +242,40 @@
             fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
         });
 
-        const delBtn = (id) => '<button type="button" data-del="' + id + '" title="Delete message" class="mb-5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg></button>';
+        window.Razin.msgBase = DEL_BASE;   // used by the forward modal (outer scope)
+        const WINDOW_SECS = 60 * 60;       // 1-hour edit/delete window
+        const toEpoch = (v) => { if (!v) return 0; if (typeof v === 'number') return v > 1e11 ? Math.floor(v / 1000) : v; const t = Date.parse(v); return isNaN(t) ? 0 : Math.floor(t / 1000); };
+
+        // Per-message actions menu (kebab): Copy · Edit · Forward · Delete, gated by ownership + the 1-hour window.
+        function attachMenu(row) {
+            if (row.querySelector('[data-kebab]')) return;
+            const id = row.dataset.msgId;
+            const mine = row.dataset.mine === '1';
+            const created = Number(row.dataset.created || 0);
+            const inWindow = created && (Date.now() / 1000 - created < WINDOW_SECS);
+            const canEdit = mine && inWindow;
+            const canDelete = (mine && inWindow) || IS_ADMIN;
+            const hasText = !!(row.querySelector('.chat-html') && row.querySelector('.chat-html').innerText.trim());
+            const svg = (p) => '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">' + p + '</svg>';
+            const ICON = {
+                copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path stroke-linecap="round" d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>'),
+                edit: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+                forward: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M20 12H4"/>'),
+                delete: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/>'),
+            };
+            const item = (act, label, danger) => '<button type="button" data-act="' + act + '" data-mid="' + id + '" class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium ' + (danger ? 'text-red-600' : 'text-[var(--color-heading)]') + ' hover:bg-gray-50">' + ICON[act] + '<span>' + label + '</span></button>';
+            let items = hasText ? item('copy', 'Copy') : '';
+            if (canEdit) items += item('edit', 'Edit');
+            items += item('forward', 'Forward');
+            if (canDelete) items += item('delete', 'Delete', true);
+            const wrap = document.createElement('div');
+            wrap.className = 'relative mb-5 self-end';
+            wrap.innerHTML =
+                '<button type="button" data-kebab class="grid h-7 w-7 place-items-center rounded-full text-gray-400 opacity-0 transition hover:bg-gray-100 group-hover:opacity-100 focus:opacity-100"><svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>' +
+                '<div data-menu class="absolute bottom-9 z-30 hidden min-w-[8.5rem] ' + (mine ? 'right-0' : 'left-0') + ' overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">' + items + '</div>';
+            row.insertBefore(wrap, row.querySelector('[data-bubble-wrap]'));
+        }
+
         function fileChipHtml(d, mine) {
             if (!d.attachment) return '';
             if (d.is_image) return '<a href="' + d.attachment + '" target="_blank" rel="noopener"><img src="' + d.attachment + '" class="mt-1 max-h-56 rounded-lg" alt=""></a>';
@@ -231,27 +291,74 @@
             if (seen.has(Number(d.id))) return;
             seen.add(Number(d.id));
             const mine = Number(d.user_id) === ME;
-            const canDel = mine || IS_ADMIN;
             const name = (isGroup && !mine) ? '<p class="mb-0.5 px-1 text-xs font-semibold text-[var(--color-heading)]">' + esc(d.author) + '</p>' : '';
             const bubble = mine ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-white text-[var(--color-heading)] border border-gray-100 rounded-bl-sm';
             const bodyHtml = d.body ? '<div class="chat-html break-words">' + d.body + '</div>' : '';
             const row = document.createElement('div');
             row.className = 'group flex items-end gap-2 ' + (mine ? 'flex-row-reverse' : '');
             row.dataset.msgId = d.id;
-            row.innerHTML = avatarHtml(d, mine) + (canDel ? delBtn(d.id) : '')
-                + '<div class="max-w-[75%]">' + name
+            row.dataset.mine = mine ? '1' : '0';
+            row.dataset.created = toEpoch(d.created_at) || Math.floor(Date.now() / 1000);
+            row.innerHTML = avatarHtml(d, mine)
+                + '<div class="max-w-[75%]" data-bubble-wrap>' + name
                 + '<div class="rounded-2xl px-3.5 py-2 text-sm ' + bubble + '">' + bodyHtml + fileChipHtml(d, mine) + '</div>'
-                + '<p class="mt-0.5 px-1 text-[11px] text-gray-400 ' + (mine ? 'text-right' : '') + '">' + (d.time || '') + '</p></div>';
-            scroll.appendChild(row); toBottom();
+                + '<p class="mt-0.5 px-1 text-[11px] text-gray-400 ' + (mine ? 'text-right' : '') + '">' + (d.time || '') + '<span data-edited-tag class="' + (d.edited ? '' : 'hidden') + '"> · edited</span></p></div>';
+            scroll.appendChild(row);
+            attachMenu(row);
+            toBottom();
         }
         function removeMsg(id) { const el = scroll.querySelector('[data-msg-id="' + id + '"]'); if (el) el.remove(); }
+        function updateBody(id, html) {
+            const el = scroll.querySelector('[data-msg-id="' + id + '"]');
+            if (!el) return;
+            const body = el.querySelector('.chat-html');
+            if (body) body.innerHTML = html;
+            const tag = el.querySelector('[data-edited-tag]');
+            if (tag) tag.classList.remove('hidden');
+        }
+        // Attach the actions menu to every server-rendered message on first paint.
+        scroll.querySelectorAll('[data-msg-id]').forEach(attachMenu);
 
+        // ── Per-message menu: open/close + Copy / Edit / Forward / Delete ──
+        const closeMenus = () => scroll.querySelectorAll('[data-menu]').forEach(m => m.classList.add('hidden'));
         scroll.addEventListener('click', function (e) {
-            const btn = e.target.closest('[data-del]'); if (!btn) return;
-            if (!confirm('Delete this message?')) return;
-            fetch(DEL_BASE + '/' + btn.dataset.del, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } })
-                .then(r => r.json()).then(() => removeMsg(btn.dataset.del)).catch(() => {});
+            const kebab = e.target.closest('[data-kebab]');
+            if (kebab) { const m = kebab.parentElement.querySelector('[data-menu]'); const open = !m.classList.contains('hidden'); closeMenus(); if (!open) m.classList.remove('hidden'); return; }
+            const act = e.target.closest('[data-act]');
+            if (!act) return;
+            const id = act.dataset.mid;
+            const row = scroll.querySelector('[data-msg-id="' + id + '"]');
+            closeMenus();
+            if (act.dataset.act === 'copy') {
+                const txt = row.querySelector('.chat-html') ? row.querySelector('.chat-html').innerText : '';
+                (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => window.Razin.toast('Copied to clipboard')).catch(() => window.Razin.toast('Copy failed'));
+            } else if (act.dataset.act === 'edit') {
+                startEdit(id, row.querySelector('.chat-html') ? row.querySelector('.chat-html').innerHTML : '');
+            } else if (act.dataset.act === 'forward') {
+                window.Razin.openForward(id);
+            } else if (act.dataset.act === 'delete') {
+                if (!confirm('Delete this message?')) return;
+                fetch(DEL_BASE + '/' + id, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } })
+                    .then(r => r.json()).then(d => { if (d.error) window.Razin.toast(d.error); else removeMsg(id); }).catch(() => {});
+            }
         });
+        document.addEventListener('click', function (e) { if (!e.target.closest('[data-menu]') && !e.target.closest('[data-kebab]')) closeMenus(); });
+
+        // ── Edit mode: load the message into the composer, submit as a PATCH ──
+        let editingId = null;
+        const editBanner = document.getElementById('chat-edit-banner');
+        function startEdit(id, html) {
+            editingId = id;
+            quill.root.innerHTML = html || '';
+            editBanner.classList.remove('hidden'); editBanner.classList.add('flex');
+            quill.focus();
+        }
+        function cancelEdit() {
+            editingId = null;
+            quill.setContents([]);
+            editBanner.classList.add('hidden'); editBanner.classList.remove('flex');
+        }
+        document.getElementById('chat-edit-cancel').addEventListener('click', cancelEdit);
 
         const typingInd = document.getElementById('typing-ind');
         const typingText = document.getElementById('typing-text');
@@ -271,6 +378,23 @@
         form.addEventListener('submit', function (e) {
             e.preventDefault();
             const hasText = quill.getText().trim().length > 0;
+
+            // Editing an existing message → PATCH (text only, within the 1-hour window).
+            if (editingId) {
+                if (!hasText) return;
+                const id = editingId;
+                fetch(DEL_BASE + '/' + id, {
+                    method: 'PATCH',
+                    headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ body: quill.root.innerHTML }),
+                }).then(r => r.json()).then(d => {
+                    if (d.error) { window.Razin.toast(d.error); return; }
+                    updateBody(id, d.body);
+                    cancelEdit();
+                }).catch(() => {});
+                return;
+            }
+
             const hasFile = fileInput.files.length > 0;
             if (!hasText && !hasFile) return;
             const fd = new FormData();
@@ -280,7 +404,7 @@
             fetch(STORE_URL, { method: 'POST', headers: { 'Accept': 'application/json' }, body: fd })
                 .then(r => r.json())
                 .then(d => {
-                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time });
+                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at });
                     quill.setContents([]); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
                 }).catch(() => {});
         });
@@ -301,11 +425,77 @@
             const ch = window.Razin.pusher.subscribe(chName);
             ch.bind('message.posted', function (d) { if (seen.has(Number(d.id))) return; append(d); if (Number(d.user_id) !== ME) { playSound(); markReadPing(); } });
             ch.bind('message.deleted', function (d) { removeMsg(d.id); });
+            ch.bind('message.edited', function (d) { updateBody(d.id, d.body); });
             ch.bind('typing', function (d) { if (Number(d.user_id) !== ME) showTyping(d.name); });
         })();
     };
 
     (function () {
+        window.Razin = window.Razin || {};
+
+        // ── Toast (bound once) ──
+        if (!window.Razin.toast) {
+            let toastTimer = null;
+            window.Razin.toast = function (msg) {
+                const el = document.getElementById('chat-toast');
+                if (!el) return;
+                el.textContent = msg;
+                el.classList.remove('hidden');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => el.classList.add('hidden'), 2200);
+            };
+        }
+
+        // ── Forward modal (bound once) ──
+        if (!window.__chatFwdBound) {
+            window.__chatFwdBound = true;
+            const modal = document.getElementById('fwd-modal');
+            const listEl = document.getElementById('fwd-list');
+            const searchEl = document.getElementById('fwd-search');
+            let fwdMsgId = null;
+            const csrf = () => document.querySelector('meta[name="csrf-token"]').content;
+            const closeModal = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); fwdMsgId = null; };
+
+            function renderList(q) {
+                const team = window.__chatTeam || [];
+                const needle = (q || '').trim().toLowerCase();
+                listEl.innerHTML = team
+                    .filter(p => !needle || p.name.toLowerCase().includes(needle))
+                    .map(p => {
+                        const av = p.avatar
+                            ? '<img src="' + p.avatar + '" class="h-8 w-8 rounded-full object-cover" alt="">'
+                            : '<span class="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary)]">' + p.initial + '</span>';
+                        return '<button type="button" data-fwd-to="' + p.id + '" class="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-gray-50">' + av + '<span class="text-sm font-medium text-[var(--color-heading)]">' + p.name + '</span></button>';
+                    }).join('') || '<p class="px-2 py-4 text-center text-sm text-gray-400">No teammates found.</p>';
+            }
+
+            window.Razin.openForward = function (msgId) {
+                fwdMsgId = msgId;
+                searchEl.value = '';
+                renderList('');
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                searchEl.focus();
+            };
+
+            searchEl.addEventListener('input', () => renderList(searchEl.value));
+            document.getElementById('fwd-close').addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            listEl.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-fwd-to]');
+                if (!btn || !fwdMsgId) return;
+                const base = window.Razin.msgBase || '/admin/chat/messages';
+                fetch(base + '/' + fwdMsgId + '/forward', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf(), 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: Number(btn.dataset.fwdTo) }),
+                }).then(r => r.json()).then(d => {
+                    if (d.error) { window.Razin.toast(d.error); return; }
+                    closeModal();
+                    window.Razin.toast('Forwarded to ' + (d.to || 'teammate'));
+                }).catch(() => window.Razin.toast('Forward failed'));
+            });
+        }
+
         // ── Conversation switch: fetch only the thread and swap it in (no blink, sidebar untouched). ──
         // Bound ONCE on document in the capture phase (must run before the <a> navigation starts).
         window.__chatLoadSeq = window.__chatLoadSeq || 0;

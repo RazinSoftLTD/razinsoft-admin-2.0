@@ -266,6 +266,7 @@ class ChatController extends Controller
                 'attachment' => $message->attachment_url,
                 'attachment_name' => $message->attachment_name,
                 'is_image' => $message->is_image,
+                'created_at' => $message->created_at->timestamp,
                 'time' => $message->created_at->format('g:i A'),
             ]);
         }
@@ -294,11 +295,16 @@ class ChatController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Delete a message — its author or an admin only. Removes any attached file. */
+    /** Delete a message — its author (within 1 hour) or an admin (anytime). Removes any file. */
     public function destroyMessage(ChatMessage $message)
     {
         $me = auth()->user();
-        abort_unless($message->user_id === $me->id || $me->isAdmin(), 403);
+        $isAuthor = $message->user_id === $me->id;
+        abort_unless($isAuthor || $me->isAdmin(), 403);
+        // Authors lose the ability to delete after the 1-hour window; admins may always remove.
+        if ($isAuthor && ! $me->isAdmin() && ! $message->withinMutateWindow()) {
+            return response()->json(['error' => 'The 1-hour window to delete this message has passed.'], 422);
+        }
 
         if ($message->attachment) {
             \Illuminate\Support\Facades\Storage::disk('public')->delete($message->attachment);
@@ -309,6 +315,75 @@ class ChatController extends Controller
         broadcast(new \App\Events\ChatMessageDeleted($conversationId, $message->id));
 
         return response()->json(['ok' => true]);
+    }
+
+    /** Edit a message — its author only, within the 1-hour window. Text only. */
+    public function editMessage(Request $request, ChatMessage $message)
+    {
+        $me = auth()->user();
+        abort_unless($message->user_id === $me->id, 403);
+        if (! $message->withinMutateWindow()) {
+            return response()->json(['error' => 'The 1-hour window to edit this message has passed.'], 422);
+        }
+
+        $request->validate(['body' => ['required', 'string', 'max:20000']]);
+        $body = trim((string) $request->input('body'));
+        $body = $body !== '' ? clean($body) : null;
+        if ($body === null || (strip_tags($body) === '' && ! str_contains($body, '<img'))) {
+            return response()->json(['error' => 'Message cannot be empty.'], 422);
+        }
+
+        $message->update(['body' => $body, 'edited_at' => now()]);
+
+        broadcast(new \App\Events\ChatMessageEdited($message->conversation_id, $message->id, $body))->toOthers();
+
+        return response()->json(['ok' => true, 'id' => $message->id, 'body' => $body, 'edited' => true]);
+    }
+
+    /** Forward a message's content to a teammate's direct conversation. */
+    public function forwardMessage(Request $request, ChatMessage $message)
+    {
+        $me = auth()->user();
+        // Must be able to see the source conversation to forward from it.
+        abort_unless($this->canAccess($me, $message->conversation), 403);
+
+        $data = $request->validate(['user_id' => ['required', 'integer', 'exists:users,id']]);
+        $target = User::findOrFail($data['user_id']);
+        abort_if($target->id === $me->id, 400);
+        abort_unless($target->isPanelUser(), 404);
+
+        // Find or create my 1:1 conversation with the target.
+        $conversation = $this->findDirect($me->id, $target->id)
+            ?? tap(Conversation::create(['type' => 'direct', 'created_by' => $me->id]), function ($c) use ($me, $target) {
+                $c->members()->attach([$me->id, $target->id]);
+            });
+        $conversation->loadMissing('members');
+
+        // Copy the attachment (if any) so deleting the original never breaks the forward.
+        $path = $name = null;
+        if ($message->attachment && \Illuminate\Support\Facades\Storage::disk('public')->exists($message->attachment)) {
+            $ext = pathinfo($message->attachment, PATHINFO_EXTENSION);
+            $path = 'chat/'.\Illuminate\Support\Str::random(40).($ext ? '.'.$ext : '');
+            \Illuminate\Support\Facades\Storage::disk('public')->copy($message->attachment, $path);
+            $name = $message->attachment_name;
+        }
+
+        $forwarded = $conversation->messages()->create([
+            'user_id' => $me->id,
+            'body' => $message->body,
+            'attachment' => $path,
+            'attachment_name' => $name,
+        ]);
+        $conversation->update(['last_message_at' => $forwarded->created_at]);
+        $this->markRead($conversation, $me);
+
+        broadcast(new ChatMessagePosted($forwarded, $conversation->members->pluck('id')->all()))->toOthers();
+
+        return response()->json([
+            'ok' => true,
+            'to' => $target->name,
+            'conversation_url' => route('admin.chat.show', $conversation),
+        ]);
     }
 
     /** Keep the current user's presence fresh and report who else is online. */
