@@ -117,7 +117,7 @@
                     <a href="{{ route('admin.deals.show', $deal) }}" class="flex items-center justify-between gap-2 border-t border-gray-50 py-2.5 first:border-t-0 hover:opacity-80">
                         <div class="min-w-0">
                             <p class="truncate text-sm font-medium text-[var(--color-heading)]">{{ $deal->title }}</p>
-                            <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $dealStageBadge[$deal->stage] ?? '' }}">{{ \App\Models\Deal::STAGES[$deal->stage] ?? $deal->stage }}</span>
+                            <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $dealStageBadge[$deal->stage] ?? '' }}">{{ \App\Models\Deal::stages()[$deal->stage] ?? $deal->stage }}</span>
                         </div>
                         <span class="shrink-0 text-sm font-semibold text-[var(--color-heading)]">{{ $dealSym[$deal->currency] ?? '' }}{{ number_format($deal->value, 0) }}</span>
                     </a>

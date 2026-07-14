@@ -19,7 +19,7 @@
             </a>
             <h1 class="mt-2 flex items-center gap-3 text-xl font-bold text-[var(--color-heading)]">
                 {{ $deal->title }}
-                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $stageBadge[$deal->stage] ?? '' }}">{{ \App\Models\Deal::STAGES[$deal->stage] ?? $deal->stage }}</span>
+                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $stageBadge[$deal->stage] ?? '' }}">{{ \App\Models\Deal::stages()[$deal->stage] ?? $deal->stage }}</span>
             </h1>
         </div>
         <div class="flex items-center gap-2">
@@ -44,7 +44,7 @@
                         @csrf
                         <label class="mb-1 block text-[11px] uppercase tracking-wide text-gray-400">Move stage</label>
                         <select name="stage" onchange="this.form.submit()" class="h-10 rounded-lg border-gray-200 text-sm">
-                            @foreach (\App\Models\Deal::STAGES as $sk => $sl)<option value="{{ $sk }}" @selected($deal->stage === $sk)>{{ $sl }}</option>@endforeach
+                            @foreach (\App\Models\Deal::stages() as $sk => $sl)<option value="{{ $sk }}" @selected($deal->stage === $sk)>{{ $sl }}</option>@endforeach
                         </select>
                     </form>
                 </div>

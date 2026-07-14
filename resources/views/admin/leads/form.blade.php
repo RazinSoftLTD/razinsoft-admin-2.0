@@ -204,7 +204,7 @@
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Deal Stage <span class="text-red-500">*</span></label>
                             <select name="deal_stage" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                @foreach (\App\Models\Deal::STAGES as $k => $label)
+                                @foreach (\App\Models\Deal::stages() as $k => $label)
                                     <option value="{{ $k }}" @selected(old('deal_stage', 'new') === $k)>{{ $label }}</option>
                                 @endforeach
                             </select>

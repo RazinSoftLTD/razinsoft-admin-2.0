@@ -222,6 +222,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:leads.settings')->group(function () {
             Route::get('crm-settings', [\App\Http\Controllers\Admin\CrmSettingController::class, 'index'])->name('crm-settings');
             Route::post('crm-settings/options', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeOption'])->name('crm-settings.options.store');
+            Route::patch('crm-settings/options/{option}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateOption'])->whereNumber('option')->name('crm-settings.options.update');
             Route::delete('crm-settings/options/{option}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyOption'])->whereNumber('option')->name('crm-settings.options.destroy');
         });
 

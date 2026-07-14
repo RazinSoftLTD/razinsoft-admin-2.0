@@ -7,14 +7,14 @@
     </a>
 
     <h1 class="text-xl font-bold text-[var(--color-heading)]">Import Leads</h1>
-    <p class="mt-1 text-sm text-[var(--color-muted)]">Upload a CSV to bulk-create leads.</p>
+    <p class="mt-1 text-sm text-[var(--color-muted)]">Upload a CSV or Excel (.xlsx / .xls) file to bulk-create leads.</p>
 
     <form method="POST" action="{{ route('admin.leads.import') }}" enctype="multipart/form-data" class="mt-6 max-w-2xl space-y-5 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         @csrf
         <div class="rounded-lg bg-gray-50 p-4 text-sm text-[var(--color-muted)]">
-            <p class="font-semibold text-[var(--color-heading)]">CSV columns</p>
-            <p class="mt-1"><code>full_name, email, phone, company_name, job_title, lead_source, industry, lead_status, priority</code></p>
-            <p class="mt-2"><strong>full_name</strong> and <strong>phone</strong> are required. Rows with a duplicate email are skipped.</p>
+            <p class="font-semibold text-[var(--color-heading)]">How columns are read</p>
+            <p class="mt-1">Headers are matched automatically — <strong>Name</strong> / <strong>Full Name</strong>, <strong>Phone</strong> / <strong>Mobile</strong> / <strong>WhatsApp</strong>, <strong>Email</strong>, <strong>Company</strong>, <strong>Source</strong>, <strong>Product</strong>, <strong>Lead Quality</strong>, <strong>Priority</strong>, <strong>Department</strong>, <strong>Country</strong> and more all work, in any order. Extra columns are ignored.</p>
+            <p class="mt-2">Each row needs at least an <strong>email or phone</strong>. Duplicate emails are skipped; a missing name is filled from the email/phone.</p>
             <a href="{{ route('admin.leads.import.sample') }}" class="mt-3 inline-flex items-center gap-1.5 font-semibold text-[var(--color-primary)] hover:underline">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
                 Download template
@@ -22,8 +22,8 @@
         </div>
 
         <div>
-            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">CSV file <span class="text-red-500">*</span></label>
-            <input type="file" name="file" accept=".csv,text/csv" required class="text-sm text-[var(--color-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
+            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">CSV / Excel file <span class="text-red-500">*</span></label>
+            <input type="file" name="file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required class="text-sm text-[var(--color-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
         </div>
 
         <x-admin.field label="Assign imported leads to" name="assigned_to" type="select" required :options="['' => 'Select user'] + $users->pluck('name', 'id')->all()" class="max-w-xs" />

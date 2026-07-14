@@ -3,15 +3,10 @@
 
 @php
     $cur = \App\Models\Currency::symbolMap();
-    $stageBadge = [
-        'new' => 'bg-gray-100 text-gray-600', 'qualified' => 'bg-indigo-50 text-indigo-700',
-        'proposal' => 'bg-orange-50 text-orange-700', 'negotiation' => 'bg-amber-50 text-amber-700',
-        'won' => 'bg-emerald-50 text-emerald-700', 'lost' => 'bg-red-50 text-red-600',
-    ];
-    $stageBar = [
-        'new' => 'bg-gray-400', 'qualified' => 'bg-indigo-500', 'proposal' => 'bg-orange-500',
-        'negotiation' => 'bg-amber-500', 'won' => 'bg-emerald-500', 'lost' => 'bg-red-500',
-    ];
+    // Stage colours are configurable-stage-aware (open stages cycle a palette; Won/Lost fixed).
+    $stageColors = \App\Models\Deal::stageColors();
+    $stageBar = array_map(fn ($c) => $c[0], $stageColors);
+    $stageBadge = array_map(fn ($c) => $c[1], $stageColors);
     $priorityDot = ['high' => 'bg-red-500', 'medium' => 'bg-amber-400', 'low' => 'bg-gray-300'];
 @endphp
 
@@ -32,22 +27,10 @@
         </div>
     </div>
 
-    {{-- Smart stats --}}
-    <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        @foreach ($stats as $s)
-            <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-                <span class="grid h-9 w-9 place-items-center rounded-lg {{ $s['tone'] }}"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $s['icon'] }}"/></svg></span>
-                <p class="mt-3 text-xl font-bold text-[var(--color-heading)]">{{ $s['value'] }}</p>
-                <p class="text-xs text-[var(--color-muted)]">{{ $s['label'] }}</p>
-                <p class="text-[11px] text-gray-400">{{ $s['sub'] }}</p>
-            </div>
-        @endforeach
-    </div>
-
     @if ($view === 'board')
         {{-- Drag-and-drop Kanban --}}
         <div x-data="dealBoard()" class="flex gap-4 overflow-x-auto pb-4">
-            @foreach (\App\Models\Deal::STAGES as $key => $label)
+            @foreach (\App\Models\Deal::stages() as $key => $label)
                 @php $col = $byStage->get($key, collect()); @endphp
                 <div class="w-72 shrink-0" data-stage="{{ $key }}">
                     <div class="mb-2 flex items-center justify-between rounded-lg border border-gray-100 bg-white px-3 py-2">
@@ -158,7 +141,7 @@
                                 <form method="POST" action="{{ route('admin.deals.stage', $deal) }}" data-turbo="false">
                                     @csrf
                                     <select name="stage" onchange="this.form.submit()" class="h-9 rounded-lg border-gray-200 text-xs font-semibold {{ $stageBadge[$deal->stage] ?? '' }} focus:ring-[var(--color-primary)]">
-                                        @foreach (\App\Models\Deal::STAGES as $sk => $sl)<option value="{{ $sk }}" @selected($deal->stage === $sk)>{{ $sl }}</option>@endforeach
+                                        @foreach (\App\Models\Deal::stages() as $sk => $sl)<option value="{{ $sk }}" @selected($deal->stage === $sk)>{{ $sl }}</option>@endforeach
                                     </select>
                                 </form>
                             </td>

@@ -21,7 +21,7 @@
                 <x-admin.field label="Assigned To" name="assigned_to" type="select" :value="$deal->assigned_to" :options="['' => 'Unassigned'] + $staff->pluck('name', 'id')->all()" />
             </div>
             <div class="grid gap-5 sm:grid-cols-3">
-                <x-admin.field label="Stage" name="stage" type="select" :value="$deal->stage" :options="\App\Models\Deal::STAGES" required />
+                <x-admin.field label="Stage" name="stage" type="select" :value="$deal->stage" :options="\App\Models\Deal::stages()" required />
                 <x-admin.field label="Priority" name="priority" type="select" :value="$deal->priority ?? 'medium'" :options="\App\Models\Deal::PRIORITIES" required />
                 <x-admin.field label="Win Probability (%)" name="probability" type="number" :value="$deal->probability" placeholder="auto from stage" hint="Leave blank to use the stage default." />
             </div>

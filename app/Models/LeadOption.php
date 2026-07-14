@@ -15,6 +15,7 @@ class LeadOption extends Model
         'source' => 'Lead Source',
         'department' => 'Lead Department',
         'product' => 'Product',
+        'deal_stage' => 'Deal Stage',
     ];
 
     public function scopeOfType(Builder $q, string $type): Builder

@@ -22,12 +22,17 @@ class LeadController extends Controller
         // Constrain to the rows this user's "view" scope allows (owned / added / both / all).
         $request->user()->applyScope($q, 'leads', 'view');
 
+        // Smart search: every whitespace term must match (AND), each across many
+        // fields (OR) — so "john dhaka" finds John located in Dhaka.
         if ($search = trim((string) $request->query('search'))) {
-            $q->where(fn ($w) => $w
-                ->where('full_name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('phone', 'like', "%{$search}%")
-                ->orWhere('company_name', 'like', "%{$search}%"));
+            $cols = ['full_name', 'email', 'phone', 'company_name', 'job_title', 'lead_source', 'industry', 'city', 'country', 'lead_code'];
+            foreach (preg_split('/\s+/', $search) as $term) {
+                $q->where(function ($w) use ($cols, $term) {
+                    foreach ($cols as $c) {
+                        $w->orWhere($c, 'like', "%{$term}%");
+                    }
+                });
+            }
         }
         if ($status = $request->query('status')) {
             $q->where('lead_status', $status);
@@ -60,63 +65,26 @@ class LeadController extends Controller
             $q->where('country', $country);
         }
 
-        if ($request->query('export') === 'csv') {
-            return $this->exportCsv($q->get());
+        if ($format = $request->query('export')) {
+            return $this->export($q->get(), $format);
         }
 
         $perPage = in_array((int) $request->query('per_page'), [10, 25, 50, 100]) ? (int) $request->query('per_page') : 10;
+        $leads = $q->paginate($perPage)->withQueryString();
 
-        // Stat cards: this month vs last month deltas.
-        $monthStart = now()->startOfMonth();
-        $lastMonth = [now()->subMonthNoOverflow()->startOfMonth(), now()->subMonthNoOverflow()->endOfMonth()];
-        $delta = function (int $current, int $previous): ?float {
-            if ($previous === 0) return null;
-            return round((($current - $previous) / $previous) * 100, 1);
-        };
+        // Live search / pagination fetches only the results fragment (keeps the search box focused).
+        if ($request->ajax()) {
+            return view('admin.leads._results', compact('leads', 'perPage', 'search'));
+        }
 
-        $total = Lead::count();
-        $totalPrev = Lead::where('created_at', '<', $monthStart)->count();
-        $new = Lead::where('lead_status', 'new')->count();
-        $qualified = Lead::where('lead_status', 'qualified')->count();
-        $unqualified = Lead::where('lead_status', 'unqualified')->count();
-        $converted = Lead::whereNotNull('converted_client_id')->count();
-
-        $stats = [
-            ['label' => 'Total Leads', 'value' => number_format($total), 'delta' => $delta($total, $totalPrev), 'tone' => 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'],
-            ['label' => 'New Leads', 'value' => number_format($new), 'delta' => null, 'tone' => 'bg-emerald-50 text-emerald-600', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6'],
-            ['label' => 'Qualified Leads', 'value' => number_format($qualified), 'delta' => null, 'tone' => 'bg-emerald-50 text-emerald-600', 'icon' => 'm5 13 4 4L19 7'],
-            ['label' => 'Unqualified Leads', 'value' => number_format($unqualified), 'delta' => null, 'tone' => 'bg-red-50 text-red-500', 'icon' => 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM9 10h.01M15 10h.01M9.5 15.5c.7-.7 1.5-1 2.5-1s1.8.3 2.5 1'],
-            ['label' => 'Conversion Rate', 'value' => ($total ? round($converted / $total * 100, 1) : 0).'%', 'delta' => null, 'tone' => 'bg-sky-50 text-sky-600', 'icon' => 'M9 11l3 3 8-8M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11'],
-        ];
-
-        // Country-wise qualified vs unqualified breakdown (respects staff scope + the date range).
-        $scoped = Lead::query()->when(! $request->user()->seesAll('leads'), fn ($x) => $x->where('assigned_to', $request->user()->id));
-        match ($request->query('date_range')) {
-            'today' => $scoped->whereDate('created_at', today()),
-            'week' => $scoped->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]),
-            'month' => $scoped->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]),
-            'year' => $scoped->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]),
-            default => null,
-        };
-        if ($from = $request->query('from')) $scoped->whereDate('created_at', '>=', $from);
-        if ($to = $request->query('to')) $scoped->whereDate('created_at', '<=', $to);
-
-        $countryBreakdown = (clone $scoped)
-            ->selectRaw("COALESCE(NULLIF(country, ''), 'Unknown') as country_name")
-            ->selectRaw("SUM(CASE WHEN lead_status = 'qualified' THEN 1 ELSE 0 END) as qualified")
-            ->selectRaw("SUM(CASE WHEN lead_status = 'unqualified' THEN 1 ELSE 0 END) as unqualified")
-            ->selectRaw('COUNT(*) as total')
-            ->groupBy('country_name')->orderByDesc('total')->get();
-
+        // Country list for the filter drawer (respects the staff view scope).
         $countries = Lead::query()->when(! $request->user()->seesAll('leads'), fn ($x) => $x->where('assigned_to', $request->user()->id))
             ->whereNotNull('country')->where('country', '!=', '')->distinct()->orderBy('country')->pluck('country');
 
         return view('admin.leads.index', [
-            'leads' => $q->paginate($perPage)->withQueryString(),
+            'leads' => $leads,
             'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
-            'stats' => $stats,
             'perPage' => $perPage,
-            'countryBreakdown' => $countryBreakdown,
             'countries' => $countries,
         ]);
     }
@@ -179,12 +147,12 @@ class LeadController extends Controller
     /** Downloadable CSV template with the expected headers. */
     public function importSample()
     {
-        $headers = ['full_name', 'email', 'phone', 'company_name', 'job_title', 'lead_source', 'industry', 'lead_status', 'priority'];
+        $headers = ['Full Name', 'Email', 'Phone', 'Company', 'Job Title', 'Source', 'Product', 'Lead Quality', 'Priority', 'Department', 'Country'];
 
         return response()->streamDownload(function () use ($headers) {
             $out = fopen('php://output', 'w');
             fputcsv($out, $headers);
-            fputcsv($out, ['John Doe', 'john@example.com', '+880 17XXXXXXXX', 'Acme Ltd', 'Manager', 'Website', 'Technology', 'new', 'high']);
+            fputcsv($out, ['John Doe', 'john@example.com', '+880 17XXXXXXXX', 'Acme Ltd', 'Manager', 'Website', 'CRM Suite', 'New', 'High', 'Sales', 'Bangladesh']);
             fclose($out);
         }, 'leads-import-template.csv', ['Content-Type' => 'text/csv']);
     }
@@ -193,45 +161,80 @@ class LeadController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
             'assigned_to' => ['required', 'exists:users,id'],
         ]);
 
-        $rows = array_map('str_getcsv', file($request->file('file')->getRealPath()));
-        $header = array_map(fn ($h) => strtolower(trim((string) $h)), array_shift($rows) ?: []);
+        // Read the rows from either a CSV or an Excel (.xlsx/.xls) upload.
+        $file = $request->file('file');
+        if (in_array(strtolower($file->getClientOriginalExtension()), ['xlsx', 'xls'], true)) {
+            $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath())
+                ->getActiveSheet()->toArray(null, true, true, false);
+        } else {
+            $rows = array_map('str_getcsv', file($file->getRealPath()));
+        }
+        // Smart column mapping — match each header to a field regardless of casing /
+        // spacing / wording ("Full Name", "full_name", "Name" all map to the name field).
+        $map = $this->mapImportColumns(array_shift($rows) ?: []);
+        $fields = array_values($map);
+        if (! array_intersect(['full_name', 'email', 'phone'], $fields)) {
+            return back()->with('error', 'Could not recognise a Name, Email or Phone column. Check the header row of your file.');
+        }
 
         $created = 0;
         $skipped = [];
-        foreach ($rows as $n => $row) {
+        foreach ($rows as $n => $rawRow) {
+            $row = array_values($rawRow);
             if (count(array_filter($row, fn ($c) => trim((string) $c) !== '')) === 0) {
                 continue; // blank line
             }
-            $data = array_combine($header, array_pad($row, count($header), null)) ?: [];
-            $name = trim((string) ($data['full_name'] ?? ''));
-            $phone = trim((string) ($data['phone'] ?? ''));
-            $email = trim((string) ($data['email'] ?? ''));
 
-            if ($name === '' || $phone === '') {
-                $skipped[] = 'Row '.($n + 2).': missing name or phone';
+            $data = [];
+            foreach ($map as $i => $field) {
+                $data[$field] = trim((string) ($row[$i] ?? ''));
+            }
+            $name = $data['full_name'] ?? '';
+            $email = $data['email'] ?? '';
+            $phone = $data['phone'] ?? '';
+
+            // At least an email OR a phone identifies the lead (same rule as the Add Lead form).
+            if ($email === '' && $phone === '') {
+                $skipped[] = 'Row '.($n + 2).': no email or phone';
 
                 continue;
+            }
+            if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $email = '';   // ignore a malformed email rather than dropping the whole row
             }
             if ($email !== '' && Lead::where('email', $email)->exists()) {
                 $skipped[] = 'Row '.($n + 2)." ({$email}): duplicate";
 
                 continue;
             }
+            // Derive a name when the file didn't include one.
+            if ($name === '') {
+                $name = $email !== '' ? \Illuminate\Support\Str::before($email, '@') : $phone;
+            }
 
             Lead::create([
                 'full_name' => $name,
                 'email' => $email ?: null,
                 'phone' => $phone,
-                'company_name' => $data['company_name'] ?? null,
-                'job_title' => $data['job_title'] ?? null,
+                'dial_code' => ($data['dial_code'] ?? '') ?: null,
+                'company_name' => ($data['company_name'] ?? '') ?: null,
+                'job_title' => ($data['job_title'] ?? '') ?: null,
+                'website' => ($data['website'] ?? '') ?: null,
+                'address' => ($data['address'] ?? '') ?: null,
+                'city' => ($data['city'] ?? '') ?: null,
+                'state' => ($data['state'] ?? '') ?: null,
+                'country' => ($data['country'] ?? '') ?: null,
+                'zip' => ($data['zip'] ?? '') ?: null,
+                'notes' => ($data['notes'] ?? '') ?: null,
                 'lead_source' => in_array($data['lead_source'] ?? null, Lead::sourceOptions(), true) ? $data['lead_source'] : 'Others',
-                'industry' => trim((string) ($data['industry'] ?? '')) ?: null,   // free-text product name
-                'lead_status' => array_key_exists($data['lead_status'] ?? '', Lead::STATUSES) ? $data['lead_status'] : 'new',
-                'priority' => array_key_exists($data['priority'] ?? '', Lead::PRIORITIES) ? $data['priority'] : 'medium',
+                'industry' => ($data['industry'] ?? '') ?: null,   // free-text product name
+                'lead_status' => $this->resolveStatus($data['lead_status'] ?? ''),
+                'priority' => $this->resolvePriority($data['priority'] ?? ''),
+                'team' => in_array($data['team'] ?? null, Lead::departmentOptions(), true) ? $data['team'] : null,
                 'assigned_to' => $request->input('assigned_to'),
             ]);
             $created++;
@@ -267,7 +270,7 @@ class LeadController extends Controller
         if ($request->boolean('create_deal')) {
             $dealData = $request->validate([
                 'deal_name' => ['required', 'string', 'max:255'],
-                'deal_stage' => ['required', Rule::in(array_keys(Deal::STAGES))],
+                'deal_stage' => ['required', Rule::in(array_keys(Deal::stages()))],
                 'deal_value' => ['required', 'numeric', 'min:0'],
                 'deal_currency' => ['nullable', 'string', 'max:8'],
             ]);
@@ -488,20 +491,153 @@ class LeadController extends Controller
         return $data;
     }
 
+    /** Accepted header spellings (normalised) → lead field, for the smart importer. */
+    private const IMPORT_ALIASES = [
+        'full_name' => ['fullname', 'name', 'leadname', 'contactname', 'customername', 'clientname', 'firstname'],
+        'email' => ['email', 'emailaddress', 'mail', 'emailid', 'emails', 'workemail'],
+        'phone' => ['phone', 'phonenumber', 'phoneno', 'mobile', 'mobilenumber', 'mobileno', 'contact', 'contactnumber', 'contactno', 'cell', 'cellphone', 'whatsapp', 'whatsappnumber', 'number', 'msisdn'],
+        'dial_code' => ['dialcode', 'countrycode', 'phonecode'],
+        'company_name' => ['company', 'companyname', 'organization', 'organisation', 'business', 'businessname', 'firm'],
+        'job_title' => ['jobtitle', 'designation', 'title', 'position', 'role'],
+        'website' => ['website', 'url', 'site', 'web'],
+        'address' => ['address', 'streetaddress', 'street'],
+        'city' => ['city', 'town'],
+        'state' => ['state', 'region', 'province'],
+        'country' => ['country', 'nation'],
+        'zip' => ['zip', 'zipcode', 'postalcode', 'postcode', 'pincode'],
+        'notes' => ['notes', 'note', 'description', 'remarks', 'comment', 'comments', 'message'],
+        'lead_source' => ['source', 'leadsource', 'channel'],
+        'industry' => ['product', 'products', 'industry', 'service', 'interestedin', 'interest'],
+        'lead_status' => ['leadquality', 'quality', 'status', 'leadstatus', 'stage'],
+        'priority' => ['priority', 'urgency'],
+        'team' => ['department', 'leaddepartment', 'team', 'dept'],
+    ];
+
+    /** Map each uploaded column index to a lead field via normalised alias matching. */
+    private function mapImportColumns(array $rawHeader): array
+    {
+        $lookup = [];
+        foreach (self::IMPORT_ALIASES as $field => $aliases) {
+            foreach ($aliases as $alias) {
+                $lookup[$alias] = $field;
+            }
+        }
+
+        $map = [];
+        foreach ($rawHeader as $i => $h) {
+            $key = preg_replace('/[^a-z0-9]/', '', strtolower(trim((string) $h)));
+            if ($key !== '' && isset($lookup[$key]) && ! in_array($lookup[$key], $map, true)) {
+                $map[$i] = $lookup[$key];
+            }
+        }
+
+        return $map;
+    }
+
+    /** Resolve a status key or label ("qualified" / "Qualified") to a valid key. */
+    private function resolveStatus(string $value): string
+    {
+        $v = strtolower(trim($value));
+        if (array_key_exists($v, Lead::STATUSES)) {
+            return $v;
+        }
+        foreach (Lead::STATUSES as $key => $label) {
+            if (strtolower($label) === $v) {
+                return $key;
+            }
+        }
+
+        return 'new';
+    }
+
+    /** Resolve a priority key or label ("high" / "High") to a valid key. */
+    private function resolvePriority(string $value): string
+    {
+        $v = strtolower(trim($value));
+        if (array_key_exists($v, Lead::PRIORITIES)) {
+            return $v;
+        }
+        foreach (Lead::PRIORITIES as $key => $label) {
+            if (strtolower($label) === $v) {
+                return $key;
+            }
+        }
+
+        return 'medium';
+    }
+
+    /** Column headers + row values shared by every export format. */
+    private function exportData($leads): array
+    {
+        $headers = ['Lead ID', 'Full Name', 'Company', 'Job Title', 'Email', 'Phone', 'Source', 'Lead Quality', 'Priority', 'Assigned To', 'Department', 'Country', 'Created At'];
+        $rows = [];
+        foreach ($leads as $l) {
+            $rows[] = [
+                $l->lead_code, $l->full_name, $l->company_name, $l->job_title, $l->email, $l->phone,
+                $l->lead_source, Lead::STATUSES[$l->lead_status] ?? $l->lead_status,
+                Lead::PRIORITIES[$l->priority] ?? $l->priority, $l->assignee?->name, $l->team, $l->country,
+                $l->created_at->format('Y-m-d H:i'),
+            ];
+        }
+
+        return [$headers, $rows];
+    }
+
+    /** Dispatch to the requested export format (csv · excel · pdf). */
+    private function export($leads, string $format)
+    {
+        return match ($format) {
+            'excel' => $this->exportExcel($leads),
+            'pdf' => $this->exportPdf($leads),
+            default => $this->exportCsv($leads),
+        };
+    }
+
     private function exportCsv($leads): StreamedResponse
     {
-        return response()->streamDownload(function () use ($leads) {
+        [$headers, $rows] = $this->exportData($leads);
+
+        return response()->streamDownload(function () use ($headers, $rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Lead ID', 'Full Name', 'Company', 'Job Title', 'Email', 'Phone', 'Source', 'Status', 'Priority', 'Assigned To', 'Team', 'Country', 'Created At']);
-            foreach ($leads as $l) {
-                fputcsv($out, [
-                    $l->lead_code, $l->full_name, $l->company_name, $l->job_title, $l->email, $l->phone,
-                    $l->lead_source, Lead::STATUSES[$l->lead_status] ?? $l->lead_status,
-                    Lead::PRIORITIES[$l->priority] ?? $l->priority, $l->assignee?->name, $l->team, $l->country,
-                    $l->created_at->format('Y-m-d H:i'),
-                ]);
+            fputcsv($out, $headers);
+            foreach ($rows as $r) {
+                fputcsv($out, $r);
             }
             fclose($out);
-        }, 'leads-' . now()->format('Y-m-d') . '.csv', ['Content-Type' => 'text/csv']);
+        }, 'leads-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    private function exportExcel($leads): StreamedResponse
+    {
+        [$headers, $rows] = $this->exportData($leads);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Leads');
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->fromArray($rows, null, 'A2');
+        $sheet->getStyle('A1:'.$sheet->getHighestColumn().'1')->getFont()->setBold(true);
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, 'leads-'.now()->format('Y-m-d').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function exportPdf($leads)
+    {
+        [$headers, $rows] = $this->exportData($leads);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.leads.export-pdf', [
+            'headers' => $headers,
+            'rows' => $rows,
+            'generatedAt' => now()->format('d M Y, g:i A'),
+        ])->setPaper('a4', 'landscape')->download('leads-'.now()->format('Y-m-d').'.pdf');
     }
 }

@@ -25,26 +25,10 @@ class DealController extends Controller
         $view = $request->query('view') === 'list' ? 'list' : 'board';
         $all = $base()->latest('id')->get();
 
-        $open = $all->whereIn('stage', Deal::OPEN_STAGES);
-        $won = $all->where('stage', 'won');
-        $lost = $all->where('stage', 'lost');
-        $closed = $won->count() + $lost->count();
-
-        $money = fn ($n) => number_format((float) $n, 0);
-        $stats = [
-            ['label' => 'Open Deals', 'value' => $open->count(), 'sub' => count(Deal::OPEN_STAGES).' active stages', 'tone' => 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]', 'icon' => 'M3 3v18h18M7 14l4-4 3 3 5-6'],
-            ['label' => 'Pipeline Value', 'value' => $money($open->sum('value')), 'sub' => 'open deals total', 'tone' => 'bg-indigo-50 text-indigo-600', 'icon' => 'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'],
-            ['label' => 'Weighted Forecast', 'value' => $money($open->sum(fn ($d) => $d->weighted_value)), 'sub' => 'value × win %', 'tone' => 'bg-amber-50 text-amber-600', 'icon' => 'M3 3v18h18M18.7 8l-5.2 5.2-3-3L7 14'],
-            ['label' => 'Won Value', 'value' => $money($won->sum('value')), 'sub' => $won->count().' deals won', 'tone' => 'bg-emerald-50 text-emerald-600', 'icon' => 'm5 13 4 4L19 7'],
-            ['label' => 'Win Rate', 'value' => ($closed ? round($won->count() / $closed * 100) : 0).'%', 'sub' => "{$won->count()} won · {$lost->count()} lost", 'tone' => 'bg-sky-50 text-sky-600', 'icon' => 'M9 11l3 3 8-8M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11'],
-            ['label' => 'Avg Deal Size', 'value' => $money($won->count() ? $won->avg('value') : $open->avg('value')), 'sub' => 'per won deal', 'tone' => 'bg-fuchsia-50 text-fuchsia-600', 'icon' => 'M4 4h16v4H4zM4 12h10v8H4zM18 12h2v8h-2z'],
-        ];
-
         return view('admin.deals.index', [
             'view' => $view,
             'byStage' => $all->groupBy('stage'),
             'deals' => $view === 'list' ? $base()->latest('id')->paginate(20)->withQueryString() : null,
-            'stats' => $stats,
         ]);
     }
 
@@ -103,10 +87,10 @@ class DealController extends Controller
     public function stage(Request $request, Deal $deal)
     {
         $this->authorizeDeal($request, $deal);
-        $data = $request->validate(['stage' => ['required', Rule::in(array_keys(Deal::STAGES))]]);
+        $data = $request->validate(['stage' => ['required', Rule::in(array_keys(Deal::stages()))]]);
 
         if ($data['stage'] !== $deal->stage) {
-            $from = Deal::STAGES[$deal->stage] ?? $deal->stage;
+            $from = Deal::stages()[$deal->stage] ?? $deal->stage;
             $deal->stage = $data['stage'];
             $deal->probability = Deal::STAGE_PROBABILITY[$data['stage']] ?? null;
             $deal->won_at = $data['stage'] === 'won' ? now() : null;
@@ -115,7 +99,7 @@ class DealController extends Controller
 
             DealActivity::create([
                 'deal_id' => $deal->id, 'user_id' => $request->user()->id, 'type' => 'stage',
-                'body' => "Moved from {$from} to ".(Deal::STAGES[$deal->stage] ?? $deal->stage).'.',
+                'body' => "Moved from {$from} to ".(Deal::stages()[$deal->stage] ?? $deal->stage).'.',
             ]);
         }
 
@@ -278,7 +262,7 @@ class DealController extends Controller
             'project_type' => ['nullable', Rule::in(Deal::PROJECT_TYPES)],
             'client_id' => ['nullable', 'exists:users,id'],
             'lead_id' => ['nullable', 'exists:leads,id'],
-            'stage' => ['required', Rule::in(array_keys(Deal::STAGES))],
+            'stage' => ['required', Rule::in(array_keys(Deal::stages()))],
             'priority' => ['required', Rule::in(array_keys(Deal::PRIORITIES))],
             'probability' => ['nullable', 'integer', 'between:0,100'],
             'value' => ['required', 'numeric', 'min:0'],
