@@ -4,7 +4,7 @@
 @section('content')
     <div class="mb-6">
         <h1 class="text-xl font-bold text-[var(--color-heading)]">Client Activity</h1>
-        <p class="mt-1 text-sm text-[var(--color-muted)]">Which pages your logged-in clients visited on the website, and when.</p>
+        <p class="mt-1 text-sm text-[var(--color-muted)]">Which pages visitors browse on the website — logged-in clients by name, everyone else as “unknown”, with the country they visit from.</p>
     </div>
 
     {{-- Filters --}}
@@ -42,8 +42,9 @@
             <table class="w-full text-left text-sm">
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
                     <tr>
-                        <th class="px-5 py-3 font-semibold">Client</th>
+                        <th class="px-5 py-3 font-semibold">Visitor</th>
                         <th class="px-5 py-3 font-semibold">Page visited</th>
+                        <th class="px-5 py-3 font-semibold">Country</th>
                         <th class="px-5 py-3 font-semibold">Came from</th>
                         <th class="px-5 py-3 font-semibold">IP</th>
                         <th class="px-5 py-3 font-semibold">When</th>
@@ -66,19 +67,25 @@
                                         </span>
                                     </a>
                                 @else
-                                    <span class="text-[var(--color-muted)]">—</span>
+                                    <span class="inline-flex items-center gap-2 text-[var(--color-muted)]">
+                                        <span class="grid h-7 w-7 place-items-center rounded-full bg-gray-100 text-gray-400">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12a9.5 9.5 0 1 0 19 0 9.5 9.5 0 0 0-19 0Zm0 0h19M12 2.5c2.5 2.6 2.5 16.4 0 19M12 2.5c-2.5 2.6-2.5 16.4 0 19"/></svg>
+                                        </span>
+                                        <span class="italic">Unknown visitor</span>
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-5 py-3">
                                 <span class="font-medium text-[var(--color-heading)]">{{ $log->title ?: '—' }}</span>
                                 <span class="block font-mono text-xs text-[var(--color-primary)]">{{ $log->path }}</span>
                             </td>
+                            <td class="px-5 py-3 text-[var(--color-muted)]">{{ $log->country ?: '—' }}</td>
                             <td class="max-w-[16rem] truncate px-5 py-3 text-xs text-[var(--color-muted)]" title="{{ $log->referrer }}">{{ $log->referrer ?: '—' }}</td>
                             <td class="px-5 py-3 text-xs text-[var(--color-muted)]">{{ $log->ip ?? '—' }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $log->created_at?->format('d M Y, h:i A') }} <span class="text-xs text-gray-400">({{ $log->created_at?->diffForHumans() }})</span></td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No client visits recorded yet.</td></tr>
+                        <tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">No visits recorded yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
