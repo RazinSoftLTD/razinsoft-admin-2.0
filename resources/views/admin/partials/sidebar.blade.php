@@ -130,6 +130,8 @@
             ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
+            ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
+            ['label' => 'Bin', 'route' => 'admin.invoices.bin', 'active' => 'admin.invoices.bin*', 'perm' => 'invoices.bin', 'icon' => $ic['settings']],
             ['label' => 'Email / SMTP', 'route' => 'admin.email-settings', 'active' => 'admin.email-settings*', 'admin' => true, 'icon' => $ic['messaging']],
         ]],
     ];

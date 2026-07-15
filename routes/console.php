@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Generate due recurring invoices every day.
 Schedule::command('invoices:recurring')->dailyAt('06:00');
+
+// Permanently purge invoices sitting in the Bin for more than 30 days.
+Schedule::command('invoices:purge-bin')->dailyAt('03:00');

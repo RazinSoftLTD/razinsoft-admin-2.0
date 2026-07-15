@@ -40,6 +40,8 @@ class Permissions
      */
     public const SCOPABLE_EXTRA = [
         'clients' => ['projects', 'invoices', 'payments', 'documents', 'notes', 'tickets'],
+        // Invoice operations that act on a specific invoice → scopable by "added" (created_by).
+        'invoices' => ['finance', 'send', 'cancel', 'duplicate'],
     ];
 
     /**
@@ -55,7 +57,9 @@ class Permissions
         'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
         'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
-        'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance'], 'creator' => 'created_by'],
+        // invoices: base CRUD scoped via created_by (= added). The extra ops (payments/send/
+        // cancel/duplicate) are individually scopable; configuration + bin are global none/all.
+        'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance', 'send', 'cancel', 'duplicate', 'configure', 'bin'], 'owner' => 'owner_id', 'creator' => 'created_by'],
         'products' => ['label' => 'Products', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
         'orders' => ['label' => 'Orders', 'group' => 'Sales', 'actions' => ['view', 'create']],
         'coupons' => ['label' => 'Coupons', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
@@ -79,9 +83,11 @@ class Permissions
     /** Human labels for each action. */
     public const ACTION_LABELS = [
         'view' => 'View', 'create' => 'Add', 'edit' => 'Update', 'delete' => 'Delete',
-        'finance' => 'Finance', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
+        'finance' => 'Payments', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
         'create_group' => 'Create groups', 'assign' => 'Assign', 'settings' => 'Settings',
         'clients' => 'Client messages',
+        // Invoice operations.
+        'send' => 'Send', 'cancel' => 'Cancel', 'duplicate' => 'Duplicate', 'configure' => 'Configuration', 'bin' => 'Bin',
         // Client detail-page sections (Profile rides on view — no separate action).
         'projects' => 'Projects', 'invoices' => 'Invoices',
         'payments' => 'Payments', 'documents' => 'Documents', 'notes' => 'Notes', 'tickets' => 'Tickets',

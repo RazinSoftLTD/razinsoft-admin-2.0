@@ -16,10 +16,8 @@ class ClientInvoiceController extends Controller
     {
         $q = ClientInvoice::query()->with('client:id,name')->latest('id');
 
-        // Own-scope: without invoices.view_all a user only sees invoices they created.
-        if (! $request->user()->seesAll('invoices')) {
-            $q->where('created_by', $request->user()->id);
-        }
+        // Apply the Owned / Added / Added & Owned / All view scope from the user's role.
+        $request->user()->applyScope($q, 'invoices', 'view');
 
         if ($search = trim((string) $request->query('search'))) {
             $q->where(fn ($w) => $w
@@ -55,10 +53,22 @@ class ClientInvoiceController extends Controller
             'clients' => User::clients()->orderBy('name')->get(['id', 'name', 'company', 'email', 'phone', 'address', 'city', 'state', 'country', 'zip']),
             'items' => $tpl ? collect($tpl->items)->map(fn ($i) => [
                 'description' => $i['description'] ?? '', 'sub_description' => $i['sub_description'] ?? '',
-                'qty' => (float) ($i['qty'] ?? 1), 'unit_price' => (float) ($i['unit_price'] ?? 0),
-                'discount_percent' => (float) ($i['discount_percent'] ?? 0), 'tax_percent' => (float) ($i['tax_percent'] ?? 0),
+                'qty' => (float) ($i['qty'] ?? 1), 'unit' => $i['unit'] ?? \App\Models\InvoiceUnit::defaultName(),
+                'unit_price' => (float) ($i['unit_price'] ?? 0),
+                'discount_percent' => (float) ($i['discount_percent'] ?? 0), 'taxIds' => [],
             ])->all() : [],
-        ]);
+        ] + $this->configData());
+    }
+
+    /** Shared config lists for the invoice form (units, taxes, branding). */
+    private function configData(): array
+    {
+        return [
+            'units' => \App\Models\InvoiceUnit::options(),
+            'taxes' => \App\Models\InvoiceTax::options(),
+            'branding' => \App\Models\InvoiceSetting::current(),
+            'defaultUnit' => \App\Models\InvoiceUnit::defaultName(),
+        ];
     }
 
     public function store(Request $request)
@@ -69,22 +79,28 @@ class ClientInvoiceController extends Controller
             'public_token' => \Illuminate\Support\Str::random(40),
             'created_by' => $request->user()->id,
         ]), $data, $request));
+        $invoice->logActivity('created', 'Invoice created.');
 
         return redirect()->route('admin.invoices.show', $invoice)->with('status', "Invoice {$invoice->invoice_number} saved.");
     }
 
     public function show(ClientInvoice $invoice)
     {
-        // Own-scope: without invoices.view_all you can only open invoices you created.
-        abort_if(! request()->user()->seesAll('invoices') && $invoice->created_by !== request()->user()->id, 403);
+        // Honour the Owned / Added / Added & Owned / All view scope.
+        abort_unless(request()->user()->canAct('invoices', 'view', $invoice), 403);
 
-        $invoice->load('items', 'client', 'payments.recorder');
+        $invoice->load('items', 'client', 'payments.recorder', 'payments.project', 'activities.user');
 
-        return view('admin.invoices.show', compact('invoice'));
+        return view('admin.invoices.show', [
+            'invoice' => $invoice,
+            'projects' => \App\Models\Project::when($invoice->client_id, fn ($q) => $q->where('client_id', $invoice->client_id))
+                ->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function edit(ClientInvoice $invoice)
     {
+        abort_unless(auth()->user()->canAct('invoices', 'edit', $invoice), 403);
         $invoice->load('items');
 
         return view('admin.invoices.form', [
@@ -92,28 +108,32 @@ class ClientInvoiceController extends Controller
             'clients' => User::clients()->orderBy('name')->get(['id', 'name', 'company', 'email', 'phone', 'address', 'city', 'state', 'country', 'zip']),
             'items' => $invoice->items->map(fn ($i) => [
                 'description' => $i->description, 'sub_description' => $i->sub_description,
-                'qty' => (float) $i->qty, 'unit_price' => (float) $i->unit_price,
-                'discount_percent' => (float) $i->discount_percent, 'tax_percent' => (float) $i->tax_percent,
+                'qty' => (float) $i->qty, 'unit' => $i->unit ?? \App\Models\InvoiceUnit::defaultName(),
+                'unit_price' => (float) $i->unit_price, 'discount_percent' => (float) $i->discount_percent,
+                'taxIds' => collect($i->taxes ?? [])->pluck('id')->filter()->values()->all(),
+                'attachment' => $i->attachment,
             ])->all(),
-        ]);
+        ] + $this->configData());
     }
 
     public function update(Request $request, ClientInvoice $invoice)
     {
+        abort_unless($request->user()->canAct('invoices', 'edit', $invoice), 403);
         $data = $this->validated($request);
         DB::transaction(fn () => $this->persist($invoice, $data, $request));
+        $invoice->logActivity('updated', 'Invoice details updated.');
 
         return redirect()->route('admin.invoices.show', $invoice)->with('status', "Invoice {$invoice->invoice_number} updated.");
     }
 
     public function destroy(ClientInvoice $invoice)
     {
-        if ($invoice->attachment) {
-            Storage::disk('public')->delete($invoice->attachment);
-        }
+        abort_unless(auth()->user()->canAct('invoices', 'delete', $invoice), 403);
+        // Soft-delete → the invoice moves to the Bin (recoverable for 30 days). Files are kept.
+        $invoice->logActivity('deleted', 'Invoice moved to the Bin.');
         $invoice->delete();
 
-        return redirect()->route('admin.invoices.index')->with('status', 'Invoice deleted.');
+        return redirect()->route('admin.invoices.index')->with('status', "Invoice {$invoice->invoice_number} moved to the Bin.");
     }
 
     /**
@@ -138,6 +158,7 @@ class ClientInvoiceController extends Controller
     /** Mark sent and (best-effort) email the client the invoice + pay link. */
     public function send(ClientInvoice $invoice)
     {
+        abort_unless(auth()->user()->canAct('invoices', 'send', $invoice), 403);
         if ($invoice->status === 'draft') {
             $invoice->update(['status' => 'sent']);
         }
@@ -147,19 +168,121 @@ class ClientInvoiceController extends Controller
                 \Illuminate\Support\Facades\Mail::to($invoice->bill_to_email)
                     ->send(new \App\Mail\InvoiceSent($invoice));
             } catch (\Throwable $e) {
+                $invoice->logActivity('sent', 'Marked sent (email delivery failed).');
+
                 return back()->with('status', 'Invoice marked sent. Email could not be delivered (mail not configured): '.$e->getMessage());
             }
         }
+        $invoice->logActivity('sent', 'Invoice emailed to '.($invoice->bill_to_email ?: 'the client').'.');
 
         return back()->with('status', 'Invoice sent to '.($invoice->bill_to_email ?: 'the client').'.');
     }
 
-    public function pdf(ClientInvoice $invoice)
+    public function pdf(Request $request, ClientInvoice $invoice)
     {
         $invoice->load('items', 'client', 'payments');
         $pdf = Pdf::loadView('admin.invoices.pdf', ['invoice' => $invoice]);
+        $name = "{$invoice->invoice_number}.pdf";
 
-        return $pdf->stream("{$invoice->invoice_number}.pdf");
+        // ?download=1 forces a file download; otherwise it opens inline in the browser.
+        return $request->boolean('download') ? $pdf->download($name) : $pdf->stream($name);
+    }
+
+    /** Cancel an invoice (keeps it for the record; excluded from due totals by status). */
+    public function cancel(ClientInvoice $invoice)
+    {
+        abort_unless(auth()->user()->canAct('invoices', 'cancel', $invoice), 403);
+        $invoice->update(['status' => 'cancelled']);
+        $invoice->logActivity('cancelled', 'Invoice cancelled.');
+
+        return back()->with('status', "Invoice {$invoice->invoice_number} cancelled.");
+    }
+
+    /** Save/replace the shipping address for an invoice. */
+    public function shippingAddress(Request $request, ClientInvoice $invoice)
+    {
+        abort_unless($request->user()->canAct('invoices', 'edit', $invoice), 403);
+        $data = $request->validate(['shipping_address' => ['nullable', 'string', 'max:1000']]);
+        $invoice->update(['shipping_address' => $data['shipping_address'] ?? null]);
+        $invoice->logActivity('shipping_updated', 'Shipping address updated.');
+
+        return back()->with('status', 'Shipping address saved.');
+    }
+
+    /** Email the client a payment reminder (re-sends the invoice + pay link). */
+    public function reminder(ClientInvoice $invoice)
+    {
+        abort_unless(auth()->user()->canAct('invoices', 'send', $invoice), 403);
+        if (! $invoice->bill_to_email) {
+            return back()->with('error', 'This invoice has no client email to remind.');
+        }
+        try {
+            \Illuminate\Support\Facades\Mail::to($invoice->bill_to_email)->send(new \App\Mail\InvoiceSent($invoice, true));
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Reminder could not be delivered (mail not configured): '.$e->getMessage());
+        }
+        $invoice->logActivity('reminder_sent', 'Payment reminder emailed to '.$invoice->bill_to_email.'.');
+
+        return back()->with('status', 'Payment reminder sent to '.$invoice->bill_to_email.'.');
+    }
+
+    /** Clone an invoice (+ its items) into a fresh draft and open it for editing. */
+    public function duplicate(Request $request, ClientInvoice $invoice)
+    {
+        abort_unless($request->user()->canAct('invoices', 'duplicate', $invoice), 403);
+        $invoice->load('items');
+        $copy = DB::transaction(function () use ($invoice, $request) {
+            $new = $invoice->replicate([
+                'invoice_number', 'public_token', 'status', 'amount_paid', 'requested_amount', 'created_at', 'updated_at',
+            ]);
+            $new->invoice_number = $this->nextNumber();
+            $new->public_token = \Illuminate\Support\Str::random(40);
+            $new->status = 'draft';
+            $new->amount_paid = 0;
+            $new->requested_amount = null;
+            $new->invoice_date = now()->toDateString();
+            $new->created_by = $request->user()->id;
+            $new->save();
+
+            foreach ($invoice->items as $item) {
+                $line = $item->replicate(['id', 'client_invoice_id']);
+                $new->items()->save($line);
+            }
+
+            return $new;
+        });
+        $copy->logActivity('created', "Duplicated from {$invoice->invoice_number}.");
+
+        return redirect()->route('admin.invoices.edit', $copy)->with('status', "Duplicated to draft {$copy->invoice_number}.");
+    }
+
+    // ===== Bin (soft-deleted invoices) — super admin only =====
+    public function bin()
+    {
+        $trashed = ClientInvoice::onlyTrashed()->with('client:id,name')->latest('deleted_at')->paginate(20);
+
+        return view('admin.invoices.bin', ['invoices' => $trashed, 'retentionDays' => 30]);
+    }
+
+    public function restore(int $id)
+    {
+        $invoice = ClientInvoice::onlyTrashed()->findOrFail($id);
+        $invoice->restore();
+        $invoice->logActivity('restored', 'Invoice restored from the Bin.');
+
+        return back()->with('status', "Invoice {$invoice->invoice_number} restored.");
+    }
+
+    public function forceDelete(int $id)
+    {
+        $invoice = ClientInvoice::onlyTrashed()->findOrFail($id);
+        if ($invoice->attachment) {
+            Storage::disk('public')->delete($invoice->attachment);
+        }
+        $number = $invoice->invoice_number;
+        $invoice->forceDelete();
+
+        return back()->with('status', "Invoice {$number} permanently deleted.");
     }
 
     /** Create/update the invoice + its items and recompute totals from the line data. */
@@ -169,6 +292,9 @@ class ClientInvoiceController extends Controller
 
         $invoice->fill([
             'client_id' => $client?->id,
+            // Owner = the staff managing the invoice's client (falls back to the creator) →
+            // powers the "Owned" permission scope. Set once; kept stable on later edits.
+            'owner_id' => $invoice->owner_id ?: ($client?->account_manager_id ?: $invoice->created_by),
             'bill_to_name' => $client?->name ?? $data['bill_to_name'] ?? null,
             'bill_to_company' => $client?->company,
             'bill_to_email' => $client?->email,
@@ -189,6 +315,7 @@ class ClientInvoiceController extends Controller
         }
 
         // ---- Totals from line items ----
+        $taxCatalog = \App\Models\InvoiceTax::whereIn('id', collect($data['items'])->pluck('taxes')->flatten()->filter()->unique())->get()->keyBy('id');
         $subtotal = $discountTotal = $taxTotal = 0;
         $lines = [];
         foreach ($data['items'] as $i => $row) {
@@ -197,16 +324,32 @@ class ClientInvoiceController extends Controller
             $gross = $qty * $price;
             $discount = $gross * ((float) ($row['discount_percent'] ?? 0)) / 100;
             $net = $gross - $discount;
-            $tax = $net * ((float) ($row['tax_percent'] ?? 0)) / 100;
+
+            // Resolve the selected taxes server-side (never trust submitted rates).
+            $applied = collect($row['taxes'] ?? [])
+                ->map(fn ($id) => $taxCatalog->get($id))
+                ->filter()
+                ->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'rate' => (float) $t->rate])
+                ->values();
+            $rate = $applied->sum('rate');
+            $tax = $net * $rate / 100;
 
             $subtotal += $gross;
             $discountTotal += $discount;
             $taxTotal += $tax;
 
+            // Per-line attachment (optional) — keep the existing one unless a new file is uploaded.
+            $attachment = $row['existing_attachment'] ?? null;
+            if ($request->hasFile("items.$i.attachment")) {
+                $f = $request->file("items.$i.attachment");
+                $attachment = $f->store('invoices/items', 'public');
+            }
+
             $lines[] = [
                 'description' => $row['description'], 'sub_description' => $row['sub_description'] ?? null,
-                'qty' => $qty, 'unit_price' => $price,
-                'discount_percent' => (float) ($row['discount_percent'] ?? 0), 'tax_percent' => (float) ($row['tax_percent'] ?? 0),
+                'qty' => $qty, 'unit' => $row['unit'] ?? null, 'unit_price' => $price,
+                'discount_percent' => (float) ($row['discount_percent'] ?? 0), 'tax_percent' => $rate,
+                'taxes' => $applied->all(), 'attachment' => $attachment,
                 'amount' => round($net, 2), 'sort_order' => $i,
             ];
         }
@@ -226,8 +369,7 @@ class ClientInvoiceController extends Controller
     private function validated(Request $request): array
     {
         return $request->validate([
-            'client_id' => ['nullable', 'exists:users,id'],
-            'bill_to_name' => ['nullable', 'string', 'max:255'],
+            'client_id' => ['required', 'exists:users,id'],
             'invoice_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:invoice_date'],
             'currency' => ['required', 'string', 'max:8'],
@@ -238,11 +380,17 @@ class ClientInvoiceController extends Controller
             'attachment' => ['nullable', 'file', 'max:5120'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
-            'items.*.sub_description' => ['nullable', 'string', 'max:255'],
+            'items.*.sub_description' => ['nullable', 'string', 'max:5000'],
             'items.*.qty' => ['required', 'numeric', 'min:0'],
+            'items.*.unit' => ['nullable', 'string', 'max:60'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'items.*.tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'items.*.taxes' => ['nullable', 'array'],
+            'items.*.taxes.*' => ['integer', 'exists:invoice_taxes,id'],
+            'items.*.attachment' => ['nullable', 'file', 'max:5120'],
+            'items.*.existing_attachment' => ['nullable', 'string', 'max:255'],
+        ], [
+            'client_id.required' => 'Please select a client for this invoice.',
         ]);
     }
 

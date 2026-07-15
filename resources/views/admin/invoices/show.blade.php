@@ -21,11 +21,15 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('admin.invoices.pdf', $invoice) }}" target="_blank" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Download PDF</a>
-            <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}">
-                @csrf
-                <button class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Save &amp; Send</button>
-            </form>
-            <a href="{{ route('admin.invoices.edit', $invoice) }}" class="rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Edit</a>
+            @if (auth()->user()->allows('invoices', 'send'))
+                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}">
+                    @csrf
+                    <button class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Save &amp; Send</button>
+                </form>
+            @endif
+            @if (auth()->user()->allows('invoices', 'edit'))
+                <a href="{{ route('admin.invoices.edit', $invoice) }}" class="rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Edit</a>
+            @endif
         </div>
     </div>
 
@@ -88,7 +92,7 @@
                         <tbody class="divide-y divide-gray-100">
                             @foreach ($invoice->items as $item)
                                 <tr>
-                                    <td class="px-3 py-3"><p class="font-medium text-[var(--color-heading)]">{{ $item->description }}</p>@if ($item->sub_description)<p class="mt-0.5 text-xs text-[var(--color-muted)]">{{ $item->sub_description }}</p>@endif</td>
+                                    <td class="px-3 py-3"><p class="font-medium text-[var(--color-heading)]">{{ $item->description }}</p>@if ($item->sub_description)<div class="mt-0.5 text-xs text-[var(--color-muted)]">{!! $item->formattedSubDescription() !!}</div>@endif</td>
                                     <td class="px-3 py-3 text-right text-[var(--color-muted)]">{{ rtrim(rtrim(number_format($item->qty, 2), '0'), '.') }}</td>
                                     <td class="px-3 py-3 text-right text-[var(--color-muted)]">{{ $cur }}{{ number_format($item->unit_price, 2) }}</td>
                                     <td class="px-3 py-3 text-right text-[var(--color-muted)]">{{ rtrim(rtrim(number_format($item->tax_percent, 2), '0'), '.') }}%</td>
@@ -129,120 +133,155 @@
             @endif
         </div>
 
-        {{-- Side: summary + payments (C5 fills this) --}}
-        <div class="space-y-4">
+        {{-- Side: summary + pay link + payments + activity --}}
+        <div class="space-y-4" x-data="{ payOpen: false }" x-init="if (location.hash === '#add-payment' && {{ $invoice->amountDue() > 0 ? 'true' : 'false' }}) payOpen = true">
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Summary</h2>
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between"><span class="text-gray-400">Total</span><span class="font-medium text-[var(--color-heading)]">{{ $cur }}{{ number_format($invoice->total, 2) }}</span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Paid</span><span class="font-medium text-emerald-600">{{ $cur }}{{ number_format($invoice->amount_paid, 2) }}</span></div>
-                    <div class="flex justify-between border-t border-gray-100 pt-3"><span class="text-gray-400">Amount Due</span><span class="font-bold text-red-600">{{ $cur }}{{ number_format($invoice->amountDue(), 2) }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Payment Method</span><span class="text-[var(--color-heading)]">{{ $invoice->payment_method ?? '—' }}</span></div>
+                    <div class="flex justify-between border-t border-gray-100 pt-3"><span class="text-gray-400">Amount Due</span><span class="font-bold {{ $invoice->amountDue() > 0 ? 'text-red-600' : 'text-emerald-600' }}">{{ $cur }}{{ number_format($invoice->amountDue(), 2) }}</span></div>
                     @if ($invoice->client)<div class="flex justify-between"><span class="text-gray-400">Client</span><a href="{{ route('admin.clients.edit', $invoice->client) }}" class="font-medium text-[var(--color-primary)] hover:underline">{{ $invoice->client->client_code }}</a></div>@endif
                 </div>
+                @if ($invoice->amountDue() <= 0)
+                    <p class="mt-4 rounded-lg bg-emerald-50 py-2.5 text-center text-sm font-semibold text-emerald-700">✓ Fully paid</p>
+                @endif
             </div>
 
-            {{-- Pay link (client pays online via Stripe) --}}
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Client Pay Link</h2>
-                <div class="flex items-center gap-2" x-data="{ link: @js($invoice->payUrl()), copied: false, async copy() { try { await navigator.clipboard.writeText(this.link); } catch (e) { const i = this.$refs.input; i.select(); document.execCommand('copy'); } this.copied = true; setTimeout(() => this.copied = false, 1500); } }">
-                    <input x-ref="input" type="text" readonly :value="link" @click="copy()" class="h-9 flex-1 cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-[var(--color-muted)]">
-                    <button type="button" @click="copy()" class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-primary-soft)] px-3 text-xs font-semibold text-[var(--color-primary)]">
-                        <span x-show="!copied" class="inline-flex items-center gap-1.5">
-                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                            Copy
-                        </span>
-                        <span x-show="copied" x-cloak class="inline-flex items-center gap-1.5 text-emerald-600">
-                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
-                            Copied
-                        </span>
-                    </button>
-                </div>
-                <p class="mt-2 text-xs text-[var(--color-muted)]">Share this link — the client pays online (Stripe). Payment is recorded automatically.</p>
-            </div>
-
-            {{-- Amount to receive (what the online pay link charges) --}}
-            @if ($invoice->amountDue() > 0)
+            {{-- Client Pay Link — only while payment is NOT complete --}}
+            @if ($invoice->amountDue() > 0 && ! in_array($invoice->status, ['paid', 'cancelled'], true))
                 <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <h2 class="mb-1 text-sm font-bold text-[var(--color-heading)]">Amount to Receive</h2>
-                    <p class="mb-3 text-xs text-[var(--color-muted)]">How much to collect now — the client's pay link will charge exactly this. Max the current due ({{ $cur }}{{ number_format($invoice->amountDue(), 2) }}).</p>
-                    @if (! is_null($invoice->requested_amount))
-                        <p class="mb-3 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-700">Pay link will charge <strong>{{ $cur }}{{ number_format($invoice->payableAmount(), 2) }}</strong>.</p>
-                    @endif
-                    <form method="POST" action="{{ route('admin.invoices.request-payment', $invoice) }}" class="flex items-center gap-2">
-                        @csrf
-                        <span class="text-sm text-[var(--color-muted)]">{{ $cur }}</span>
-                        <input type="number" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}" name="requested_amount" value="{{ $invoice->requested_amount ? number_format($invoice->requested_amount, 2, '.', '') : number_format($invoice->amountDue(), 2, '.', '') }}" class="h-9 flex-1 rounded-lg border border-gray-200 px-2 text-sm">
-                        <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Set</button>
-                    </form>
-                    @error('requested_amount')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
-                    @if (! is_null($invoice->requested_amount))
-                        <form method="POST" action="{{ route('admin.invoices.request-payment', $invoice) }}" class="mt-2">
-                            @csrf <input type="hidden" name="requested_amount" value="">
-                            <button class="text-xs text-[var(--color-muted)] hover:text-red-600">Clear — charge the full due instead</button>
-                        </form>
-                    @endif
+                    <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Client Pay Link</h2>
+                    <div class="flex items-center gap-2" x-data="{ link: @js($invoice->payUrl()), copied: false, async copy() { try { await navigator.clipboard.writeText(this.link); } catch (e) { const i = this.$refs.input; i.select(); document.execCommand('copy'); } this.copied = true; setTimeout(() => this.copied = false, 1500); } }">
+                        <input x-ref="input" type="text" readonly :value="link" @click="copy()" class="h-9 flex-1 cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-[var(--color-muted)]">
+                        <button type="button" @click="copy()" class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-primary-soft)] px-3 text-xs font-semibold text-[var(--color-primary)]">
+                            <span x-show="!copied" class="inline-flex items-center gap-1.5">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                Copy
+                            </span>
+                            <span x-show="copied" x-cloak class="inline-flex items-center gap-1.5 text-emerald-600">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
+                                Copied
+                            </span>
+                        </button>
+                    </div>
+                    <p class="mt-2 text-xs text-[var(--color-muted)]">Share this link — the client pays online. Payment is recorded automatically.</p>
                 </div>
             @endif
 
-            {{-- Finance (payment history + recording) — hidden without the invoices.finance permission --}}
+            {{-- Payment history (detailed) — finance only --}}
             @if (auth()->user()->allows('invoices', 'finance'))
-            {{-- Payment history --}}
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Payment History</h2>
-                @forelse ($invoice->payments as $p)
-                    <div class="flex items-start justify-between border-b border-gray-50 py-2.5 last:border-0">
-                        <div>
-                            <p class="text-sm font-semibold text-[var(--color-heading)]">{{ $cur }}{{ number_format($p->amount, 2) }}</p>
-                            <p class="text-xs text-[var(--color-muted)]">{{ $p->paid_at->format('d M Y') }} · {{ $p->method ?? '—' }}</p> {{-- @if ($p->reference) · {{ $p->reference }}@endif --}}
+                <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h2 class="text-sm font-bold text-[var(--color-heading)]">Payment History</h2>
+                        @if ($invoice->amountDue() > 0)<button type="button" @click="payOpen = true" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">+ Add</button>@endif
+                    </div>
+                    @forelse ($invoice->payments as $p)
+                        <div class="border-b border-gray-100 py-3 last:border-0">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <p class="text-sm font-bold text-[var(--color-heading)]">{{ $cur }}{{ number_format($p->amount, 2) }}
+                                        @if ($p->currency && $p->currency !== $invoice->currency)<span class="text-xs font-normal text-gray-400">({{ $p->currency }}@if ($p->exchange_rate) @ {{ rtrim(rtrim(number_format($p->exchange_rate, 4), '0'), '.') }}@endif)</span>@endif
+                                    </p>
+                                    <p class="text-xs text-[var(--color-muted)]">{{ $p->paid_at->format('d M Y') }} · {{ $p->method ?? '—' }}</p>
+                                </div>
+                                <form method="POST" action="{{ route('admin.invoices.payments.destroy', [$invoice, $p]) }}" onsubmit="return confirm('Remove this payment?')">
+                                    @csrf @method('DELETE')
+                                    <button class="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Remove">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                                    </button>
+                                </form>
+                            </div>
+                            <dl class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-[var(--color-muted)]">
+                                @if ($p->reference)<dt class="text-gray-400">Txn ID</dt><dd class="text-[var(--color-heading)]">{{ $p->reference }}</dd>@endif
+                                @if ($p->bank_account)<dt class="text-gray-400">Bank</dt><dd>{{ $p->bank_account }}</dd>@endif
+                                @if ($p->project)<dt class="text-gray-400">Project</dt><dd>{{ $p->project->name }}</dd>@endif
+                                @if ($p->note)<dt class="text-gray-400">Remark</dt><dd>{{ $p->note }}</dd>@endif
+                                <dt class="text-gray-400">Recorded by</dt><dd>{{ $p->recorder->name ?? 'Client (online)' }}</dd>
+                                @if ($p->receipt_url)<dt class="text-gray-400">Receipt</dt><dd><a href="{{ $p->receipt_url }}" target="_blank" class="text-[var(--color-primary)] hover:underline">View file</a></dd>@endif
+                            </dl>
                         </div>
-                        {{-- <form method="POST" action="{{ route('admin.invoices.payments.destroy', [$invoice, $p]) }}" onsubmit="return confirm('Remove this payment?')">
-                            @csrf @method('DELETE')
-                            <button class="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Remove">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
-                            </button>
-                        </form> --}}
+                    @empty
+                        <p class="text-sm text-gray-400">No payments recorded yet.</p>
+                    @endforelse
+                </div>
+            @endif
+
+            {{-- Activity log --}}
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Activity</h2>
+                @forelse ($invoice->activities as $a)
+                    <div class="flex gap-3 pb-3 last:pb-0">
+                        <div class="mt-1 flex flex-col items-center">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]"></span>
+                            @if (! $loop->last)<span class="mt-0.5 w-px flex-1 bg-gray-100"></span>@endif
+                        </div>
+                        <div class="-mt-0.5">
+                            <p class="text-sm text-[var(--color-heading)]">{{ $a->description }}</p>
+                            <p class="text-xs text-[var(--color-muted)]">{{ $a->actorLabel() }} · {{ $a->created_at->format('d M Y, h:i A') }} <span class="text-gray-300">({{ $a->created_at->diffForHumans() }})</span></p>
+                        </div>
                     </div>
                 @empty
-                    <p class="text-sm text-gray-400">No payments recorded yet.</p>
+                    <p class="text-sm text-gray-400">No activity yet.</p>
                 @endforelse
             </div>
 
-            {{-- Record a payment --}}
-            @if ($invoice->amountDue() > 0)
-                <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Record Payment</h2>
-                    <form method="POST" action="{{ route('admin.invoices.payments.store', $invoice) }}" class="space-y-3">
+            {{-- ===== Add Payment modal ===== --}}
+            @if (auth()->user()->allows('invoices', 'finance'))
+                <div x-show="payOpen" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-10" @click.self="payOpen = false">
+                    <form method="POST" action="{{ route('admin.invoices.payments.store', $invoice) }}" enctype="multipart/form-data" class="w-full max-w-3xl rounded-xl bg-white shadow-xl">
                         @csrf
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Amount ({{ $cur }})</label>
-                            <input type="number" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}" name="amount" value="{{ number_format($invoice->amountDue(), 2, '.', '') }}" required class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
-                            <p class="mt-1 text-[11px] text-[var(--color-muted)]">Max due: {{ $cur }}{{ number_format($invoice->amountDue(), 2) }}</p>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Date</label>
-                                <input type="date" name="paid_at" value="{{ now()->toDateString() }}" required class="h-10 w-full rounded-lg border border-gray-200 px-2 text-sm">
+                        <div class="border-b border-gray-100 px-6 py-4"><h3 class="text-base font-bold text-[var(--color-heading)]">Add Payment</h3></div>
+                        <div class="space-y-5 p-6">
+                            <p class="text-sm font-semibold text-[var(--color-heading)]">Payment details</p>
+                            <div class="grid gap-5 sm:grid-cols-3">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Invoice</label>
+                                    <input type="text" value="{{ $invoice->invoice_number }}" readonly class="h-11 w-full rounded-lg border border-gray-200 bg-gray-100 px-3 text-sm text-[var(--color-muted)]">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Paid On <span class="text-red-500">*</span></label>
+                                    <input type="date" name="paid_at" value="{{ now()->toDateString() }}" required class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Amount <span class="text-red-500">*</span></label>
+                                    <input type="number" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}" name="amount" value="{{ number_format($invoice->amountDue(), 2, '.', '') }}" required class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                                </div>
+                            </div>
+                            <div class="grid gap-5 sm:grid-cols-2">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Transaction Id</label>
+                                    <input type="text" name="reference" placeholder="Enter transaction ID of the payment" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Payment Gateway</label>
+                                    <select name="method" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                                        @foreach (\App\Models\ClientInvoice::PAYMENT_METHODS as $m)<option value="{{ $m }}" @selected($invoice->payment_method === $m)>{{ $m }}</option>@endforeach
+                                    </select>
+                                </div>
                             </div>
                             <div>
-                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Method</label>
-                                <select name="method" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm">
-                                    @foreach (\App\Models\ClientInvoice::PAYMENT_METHODS as $m)<option value="{{ $m }}" @selected($invoice->payment_method === $m)>{{ $m }}</option>@endforeach
-                                </select>
+                                <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Bank Information</label>
+                                <textarea name="bank_account" rows="3" placeholder="Bank name, account number, branch… (optional)" class="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Receipt</label>
+                                <input type="file" name="receipt" accept="image/*,.pdf" class="block w-full text-sm text-[var(--color-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-[var(--color-heading)] hover:file:bg-gray-200">
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Remark</label>
+                                <textarea name="note" rows="3" placeholder="Enter a summary of the payment." class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
                             </div>
                         </div>
-                        <input type="text" name="reference" placeholder="Reference / txn id (optional)" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
-                        <input type="text" name="note" placeholder="Note (optional)" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
-                        <button class="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Record Payment</button>
+                        <div class="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                            <button type="button" @click="payOpen = false" class="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
+                            <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Payment</button>
+                        </div>
                     </form>
                 </div>
-            @else
-                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center text-sm font-semibold text-emerald-700">
-                    ✓ Fully paid
-                </div>
             @endif
-            @endif
-
         </div>
     </div>
+
+    <style>[x-cloak]{display:none!important}</style>
 @endsection

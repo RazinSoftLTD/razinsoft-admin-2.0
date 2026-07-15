@@ -122,15 +122,20 @@ class InvoicePayController extends Controller
         }
 
         if ($amount > 0 && ! InvoicePayment::where('client_invoice_id', $invoice->id)->where('reference', $reference)->exists()) {
+            $charged = min($amount, $invoice->amountDue());
             $invoice->payments()->create([
-                'amount' => min($amount, $invoice->amountDue()),
+                'amount' => $charged,
                 'paid_at' => now()->toDateString(),
                 'method' => 'Stripe',
+                'currency' => $invoice->currency,
                 'reference' => $reference,
                 'note' => 'Paid online',
             ]);
             $invoice->update(['requested_amount' => null]);
             $invoice->recomputePaid();
+            $invoice->logActivity('payment_added',
+                'Client paid '.$invoice->currencySymbol().number_format($charged, 2).' online (Stripe).',
+                'client', $invoice->client);
         }
 
         return redirect()->away($invoice->payUrl().'?paid=1');

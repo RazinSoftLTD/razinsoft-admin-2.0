@@ -181,13 +181,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== Clients =====
         Route::middleware('permission:clients.view')->group(function () {
             Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
-            Route::get('clients/export', [ClientController::class, 'export'])->name('clients.export');
+            Route::get('clients/import/sample', [ClientController::class, 'importSample'])->name('clients.import.sample');
             Route::get('clients/{client}', [ClientController::class, 'show'])->whereNumber('client')->name('clients.show');
         });
         Route::middleware('permission:clients.create')->group(function () {
             Route::get('clients/create', [ClientController::class, 'create'])->name('clients.create');
             Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
             Route::post('clients/quick', [ClientController::class, 'quickStore'])->name('clients.quick');
+            Route::get('clients/import', [ClientController::class, 'importForm'])->name('clients.import.form');
             Route::post('clients/import', [ClientController::class, 'import'])->name('clients.import');
         });
         Route::middleware('permission:clients.edit')->group(function () {
@@ -311,7 +312,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('invoices/{invoice}/edit', [ClientInvoiceController::class, 'edit'])->whereNumber('invoice')->name('invoices.edit');
             Route::put('invoices/{invoice}', [ClientInvoiceController::class, 'update'])->whereNumber('invoice')->name('invoices.update');
             Route::post('invoices/{invoice}/request-payment', [ClientInvoiceController::class, 'requestPayment'])->name('invoices.request-payment');
-            Route::post('invoices/{invoice}/send', [ClientInvoiceController::class, 'send'])->name('invoices.send');
+            Route::post('invoices/{invoice}/shipping-address', [ClientInvoiceController::class, 'shippingAddress'])->whereNumber('invoice')->name('invoices.shipping-address');
             Route::get('recurring/{recurring}/edit', [RecurringInvoiceController::class, 'edit'])->whereNumber('recurring')->name('recurring.edit');
             Route::put('recurring/{recurring}', [RecurringInvoiceController::class, 'update'])->whereNumber('recurring')->name('recurring.update');
             Route::post('recurring/{recurring}/run', [RecurringInvoiceController::class, 'run'])->name('recurring.run');
@@ -324,6 +325,35 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('recurring/{recurring}', [RecurringInvoiceController::class, 'destroy'])->whereNumber('recurring')->name('recurring.destroy');
             Route::delete('invoice-templates/{invoice_template}', [InvoiceTemplateController::class, 'destroy'])->whereNumber('invoice_template')->name('invoice-templates.destroy');
             Route::delete('currencies/{currency}', [CurrencyController::class, 'destroy'])->whereNumber('currency')->name('currencies.destroy');
+        });
+        // Granular invoice operations (each its own permission — see Roles & Permissions).
+        Route::middleware('permission:invoices.send')->group(function () {
+            Route::post('invoices/{invoice}/send', [ClientInvoiceController::class, 'send'])->whereNumber('invoice')->name('invoices.send');
+            Route::post('invoices/{invoice}/reminder', [ClientInvoiceController::class, 'reminder'])->whereNumber('invoice')->name('invoices.reminder');
+        });
+        Route::middleware('permission:invoices.cancel')->group(function () {
+            Route::post('invoices/{invoice}/cancel', [ClientInvoiceController::class, 'cancel'])->whereNumber('invoice')->name('invoices.cancel');
+        });
+        Route::middleware('permission:invoices.duplicate')->group(function () {
+            Route::post('invoices/{invoice}/duplicate', [ClientInvoiceController::class, 'duplicate'])->whereNumber('invoice')->name('invoices.duplicate');
+        });
+        // Bin — recoverable deleted invoices.
+        Route::middleware('permission:invoices.bin')->group(function () {
+            Route::get('invoices-bin', [ClientInvoiceController::class, 'bin'])->name('invoices.bin');
+            Route::post('invoices-bin/{id}/restore', [ClientInvoiceController::class, 'restore'])->whereNumber('id')->name('invoices.bin.restore');
+            Route::delete('invoices-bin/{id}', [ClientInvoiceController::class, 'forceDelete'])->whereNumber('id')->name('invoices.bin.force-delete');
+        });
+        // Invoice Configuration — units, taxes/charges, branding logo.
+        Route::middleware('permission:invoices.configure')->group(function () {
+            $ic = \App\Http\Controllers\Admin\InvoiceConfigController::class;
+            Route::get('invoice-config', [$ic, 'index'])->name('invoice-config');
+            Route::post('invoice-config/branding', [$ic, 'updateBranding'])->name('invoice-config.branding');
+            Route::post('invoice-config/units', [$ic, 'storeUnit'])->name('invoice-config.units.store');
+            Route::patch('invoice-config/units/{unit}', [$ic, 'updateUnit'])->whereNumber('unit')->name('invoice-config.units.update');
+            Route::delete('invoice-config/units/{unit}', [$ic, 'destroyUnit'])->whereNumber('unit')->name('invoice-config.units.destroy');
+            Route::post('invoice-config/taxes', [$ic, 'storeTax'])->name('invoice-config.taxes.store');
+            Route::patch('invoice-config/taxes/{tax}', [$ic, 'updateTax'])->whereNumber('tax')->name('invoice-config.taxes.update');
+            Route::delete('invoice-config/taxes/{tax}', [$ic, 'destroyTax'])->whereNumber('tax')->name('invoice-config.taxes.destroy');
         });
         Route::middleware('permission:invoices.finance')->group(function () {
             Route::post('invoices/{invoice}/payments', [InvoicePaymentController::class, 'store'])->name('invoices.payments.store');

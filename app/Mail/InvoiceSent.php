@@ -11,7 +11,7 @@ class InvoiceSent extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public ClientInvoice $invoice) {}
+    public function __construct(public ClientInvoice $invoice, public bool $reminder = false) {}
 
     public function build()
     {
@@ -20,8 +20,12 @@ class InvoiceSent extends Mailable
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.invoices.pdf', ['invoice' => $this->invoice->load('payments')]);
 
-        return $this->subject("Invoice {$this->invoice->invoice_number} from RazinSoft")
-            ->view('emails.invoice', ['invoice' => $this->invoice, 'payUrl' => $payUrl])
+        $subject = $this->reminder
+            ? "Payment reminder — Invoice {$this->invoice->invoice_number} from RazinSoft"
+            : "Invoice {$this->invoice->invoice_number} from RazinSoft";
+
+        return $this->subject($subject)
+            ->view('emails.invoice', ['invoice' => $this->invoice, 'payUrl' => $payUrl, 'reminder' => $this->reminder])
             ->attachData($pdf->output(), "{$this->invoice->invoice_number}.pdf", ['mime' => 'application/pdf']);
     }
 }

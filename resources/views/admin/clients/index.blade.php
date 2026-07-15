@@ -18,7 +18,17 @@
 @endphp
 
 @section('content')
-    <div x-data="{ importOpen: false }">
+    <div>
+        @if (session('status'))
+            <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ session('status') }}</div>
+        @endif
+        @if (session('import_skipped') && count(session('import_skipped')))
+            <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p class="font-semibold">Some rows were skipped:</p>
+                <ul class="mt-1 list-inside list-disc">@foreach (session('import_skipped') as $s)<li>{{ $s }}</li>@endforeach</ul>
+            </div>
+        @endif
+
         {{-- Top toolbar --}}
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
@@ -26,13 +36,34 @@
                     <a href="{{ route('admin.clients.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Client
                     </a>
-                    <button type="button" @click="importOpen = true" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15V3m0 0L8 7m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Import
-                    </button>
                 @endif
-                <a href="{{ route('admin.clients.export', request()->only('search')) }}" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Export
-                </a>
+
+                {{-- Export dropdown: CSV · Excel · PDF --}}
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                    <button type="button" @click="open = !open" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Export
+                        <svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div x-show="open" x-cloak class="absolute z-20 mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'page' => null]) }}" class="block px-4 py-2 text-sm font-medium text-[var(--color-heading)] hover:bg-gray-50">CSV</a>
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'excel', 'page' => null]) }}" class="block px-4 py-2 text-sm font-medium text-[var(--color-heading)] hover:bg-gray-50">Excel</a>
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf', 'page' => null]) }}" class="block px-4 py-2 text-sm font-medium text-[var(--color-heading)] hover:bg-gray-50">PDF</a>
+                    </div>
+                </div>
+
+                {{-- Import dropdown: CSV · Excel --}}
+                @if ($user->allows('clients', 'create'))
+                    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                        <button type="button" @click="open = !open" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15V3m0 0L8 7m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Import
+                            <svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div x-show="open" x-cloak class="absolute z-20 mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                            <a href="{{ route('admin.clients.import.form') }}" class="block px-4 py-2 text-sm font-medium text-[var(--color-heading)] hover:bg-gray-50">CSV file</a>
+                            <a href="{{ route('admin.clients.import.form') }}" class="block px-4 py-2 text-sm font-medium text-[var(--color-heading)] hover:bg-gray-50">Excel file</a>
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <div class="flex items-center gap-2">
@@ -194,41 +225,20 @@
         </div>
         @endif
 
-        {{-- Footer: per-page + count + pagination --}}
-        <div class="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm text-[var(--color-muted)]">
-            <form method="GET" class="flex items-center gap-2">
-                @foreach (request()->except(['per_page', 'page']) as $k => $v)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endforeach
-                <span>Show</span>
-                <select name="per_page" onchange="this.form.submit()" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                    @foreach ([10, 25, 50, 100] as $n)<option value="{{ $n }}" @selected($perPage === $n)>{{ $n }}</option>@endforeach
-                </select>
-                <span>entries</span>
-            </form>
-
-            @if ($clients->total())
-                <span>Showing {{ $clients->firstItem() }} to {{ $clients->lastItem() }} of {{ $clients->total() }} entries</span>
-            @endif
-
-            <div>{{ $clients->onEachSide(1)->links() }}</div>
+        {{-- Footer: row count · per-page · compact pagination (same as CRM Leads) --}}
+        <div class="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <div class="flex items-center gap-4 text-sm text-[var(--color-muted)]">
+                <span>Showing <span class="font-semibold text-[var(--color-heading)]">{{ $clients->count() ? $clients->firstItem() : 0 }}</span>–<span class="font-semibold text-[var(--color-heading)]">{{ $clients->lastItem() ?? 0 }}</span> of <span class="font-semibold text-[var(--color-heading)]">{{ $clients->total() }}</span></span>
+                <form method="GET" class="flex items-center gap-2">
+                    @foreach (request()->except('per_page', 'page') as $k => $v)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endforeach
+                    <label class="hidden sm:inline">Show</label>
+                    <select name="per_page" onchange="this.form.submit()" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                        @foreach ([10, 25, 50, 100] as $n)<option value="{{ $n }}" @selected($perPage === $n)>{{ $n }}</option>@endforeach
+                    </select>
+                </form>
+            </div>
+            <div>{{ $clients->links('admin.partials._pagination') }}</div>
         </div>
 
-        {{-- Import modal --}}
-        @if ($user->allows('clients', 'create'))
-            <div x-show="importOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="importOpen = false">
-                <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-                    <h3 class="text-base font-bold text-[var(--color-heading)]">Import clients</h3>
-                    <p class="mt-1 text-sm text-[var(--color-muted)]">Upload a CSV with a header row. Columns: <code>name, email, phone, company, country</code>. Rows with a duplicate or invalid email are skipped.</p>
-                    <form method="POST" action="{{ route('admin.clients.import') }}" enctype="multipart/form-data" class="mt-4 space-y-4">
-                        @csrf
-                        <input type="file" name="file" accept=".csv,text/csv" required class="block w-full text-sm text-[var(--color-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-heading)] hover:file:bg-gray-200">
-                        @error('file')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                        <div class="flex justify-end gap-2">
-                            <button type="button" @click="importOpen = false" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
-                            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Import</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        @endif
     </div>
 @endsection

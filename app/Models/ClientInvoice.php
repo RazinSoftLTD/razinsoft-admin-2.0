@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClientInvoice extends Model
 {
+    use SoftDeletes;
+
     protected $guarded = [];
 
     protected $casts = [
@@ -26,6 +29,7 @@ class ClientInvoice extends Model
         'partially_paid' => 'Partially Paid',
         'paid' => 'Paid',
         'overdue' => 'Overdue',
+        'cancelled' => 'Cancelled',
     ];
 
     public const PAYMENT_METHODS = ['Bank Transfer', 'Stripe', 'PayPal', 'Cash', 'Cheque', 'Other'];
@@ -109,6 +113,26 @@ class ClientInvoice extends Model
         return $this->hasMany(InvoicePayment::class)->orderBy('paid_at')->orderBy('id');
     }
 
+    public function activities(): HasMany
+    {
+        return $this->hasMany(InvoiceActivity::class)->latest('id');
+    }
+
+    /**
+     * Record an activity-log entry. $actor: employee|client|system.
+     * Pass the acting user (defaults to the authenticated user for employee actions).
+     */
+    public function logActivity(string $action, string $description, string $actor = 'employee', ?User $user = null): void
+    {
+        $this->activities()->create([
+            'action' => $action,
+            'description' => $description,
+            'actor' => $actor,
+            'user_id' => $user?->id ?? ($actor === 'employee' ? auth()->id() : null),
+            'created_at' => now(),
+        ]);
+    }
+
     /** Public pay page — served on the FRONTEND domain (website), not the admin. */
     public function payUrl(): string
     {
@@ -143,6 +167,9 @@ class ClientInvoice extends Model
     /** Recompute status from payments + due date. Call after payments change (C5). */
     public function syncStatus(): void
     {
+        if ($this->status === 'cancelled') {
+            return; // a cancelled invoice stays cancelled
+        }
         if (in_array($this->status, ['draft'], true) && (float) $this->amount_paid === 0.0) {
             return; // leave drafts alone until sent
         }

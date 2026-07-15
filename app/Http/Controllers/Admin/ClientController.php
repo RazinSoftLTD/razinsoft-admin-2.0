@@ -36,6 +36,11 @@ class ClientController extends Controller
         $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
         $q->orderBy($sort, $dir);
 
+        // Export the current (filtered) result set in the requested format.
+        if ($format = $request->query('export')) {
+            return $this->export((clone $q)->get(), $format);
+        }
+
         // Per-page — "Show N entries".
         $perPage = (int) $request->query('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
@@ -154,10 +159,25 @@ class ClientController extends Controller
 
     public function create()
     {
-        return view('admin.clients.form', [
-            'client' => new User(['role' => User::ROLE_CUSTOMER]),
+        return view('admin.clients.form', array_merge(
+            ['client' => new User(['role' => User::ROLE_CUSTOMER])],
+            $this->formOptions(),
+        ));
+    }
+
+    /** Shared select-option lists for the Add/Edit Client form. */
+    private function formOptions(): array
+    {
+        return [
             'managers' => User::assignable()->orderBy('name')->get(['id', 'name']),
-        ]);
+            'salutations' => ['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'],
+            'genders' => ['Male', 'Female', 'Other'],
+            'languages' => ['English', 'Bengali', 'Hindi', 'Arabic', 'Urdu'],
+            'categories' => User::clients()->whereNotNull('client_category')->where('client_category', '!=', '')
+                ->distinct()->orderBy('client_category')->pluck('client_category')->all(),
+            'subCategories' => User::clients()->whereNotNull('client_sub_category')->where('client_sub_category', '!=', '')
+                ->distinct()->orderBy('client_sub_category')->pluck('client_sub_category')->all(),
+        ];
     }
 
     public function store(Request $request)
@@ -167,10 +187,12 @@ class ClientController extends Controller
         // Stamp the creator so the "Added" scope can find clients this staff member added.
         $data['created_by'] = $request->user()->id;
         // Password is optional — generate a random one when omitted (column is NOT NULL). Hashed by cast.
-        $data['password'] = $request->filled('password') ? $request->input('password') : Str::random(16);
+        $plain = $request->filled('password') ? $request->input('password') : Str::random(12);
+        $data['password'] = $plain;
         $this->handlePhoto($request, $data);
 
-        User::create($data);
+        $client = User::create($data);
+        $this->recordPassword($client, $plain, $request->user()->id);
 
         return redirect()->route('admin.clients.index')->with('status', 'Client created.');
     }
@@ -180,10 +202,14 @@ class ClientController extends Controller
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
         abort_unless(auth()->user()->canAct('clients', 'edit', $client), 403);
 
-        return view('admin.clients.form', [
-            'client' => $client,
-            'managers' => User::assignable()->orderBy('name')->get(['id', 'name']),
-        ]);
+        return view('admin.clients.form', array_merge(
+            [
+                'client' => $client,
+                // Only a super admin may review the credentials set for a client.
+                'passwordHistory' => auth()->user()->isSuperAdmin() ? $client->passwordHistories()->with('setter')->get() : collect(),
+            ],
+            $this->formOptions(),
+        ));
     }
 
     public function update(Request $request, User $client)
@@ -199,7 +225,21 @@ class ClientController extends Controller
 
         $client->update($data);
 
+        if ($request->filled('password')) {
+            $this->recordPassword($client, $request->input('password'), $request->user()->id);
+        }
+
         return redirect()->route('admin.clients.index')->with('status', 'Client updated.');
+    }
+
+    /** Log the plaintext password (encrypted at rest) so a super admin can review it later. */
+    private function recordPassword(User $client, string $plain, ?int $setBy): void
+    {
+        $client->passwordHistories()->create([
+            'password' => $plain,
+            'set_by' => $setBy,
+            'created_at' => now(),
+        ]);
     }
 
     public function destroy(User $client)
@@ -224,98 +264,261 @@ class ClientController extends Controller
     }
 
     /** Download all clients as a CSV (honours the current search filter). */
-    public function export(Request $request)
+    // ===== Import (CSV / Excel, smart column mapping) =====
+    public function importForm()
     {
-        $q = User::clients()->orderBy('id');
-        if ($search = trim((string) $request->query('search'))) {
-            $q->where(fn ($w) => $w
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('phone', 'like', "%{$search}%")
-                ->orWhere('company', 'like', "%{$search}%"));
-        }
-
-        $filename = 'clients-'.now()->format('Y-m-d').'.csv';
-
-        return response()->streamDownload(function () use ($q) {
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['Id', 'Name', 'Email', 'Mobile', 'Company', 'Country', 'Status', 'Created']);
-            $q->chunk(500, function ($rows) use ($out) {
-                foreach ($rows as $c) {
-                    fputcsv($out, [
-                        $c->id,
-                        $c->name,
-                        $c->email,
-                        trim($c->dial_code.' '.$c->phone),
-                        $c->company,
-                        $c->country,
-                        User::STATUSES[$c->status] ?? $c->status,
-                        $c->created_at?->format('Y-m-d'),
-                    ]);
-                }
-            });
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv']);
+        return view('admin.clients.import', $this->formOptions());
     }
 
-    /** Import clients from a CSV with a header row (name, email, phone, company, country). */
+    /** Downloadable CSV template with the expected headers. */
+    public function importSample()
+    {
+        $headers = ['Name', 'Email', 'Dial Code', 'Mobile', 'Company', 'Website', 'Country', 'City', 'Category', 'Sub Category', 'Note'];
+
+        return response()->streamDownload(function () use ($headers) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, $headers);
+            fputcsv($out, ['John Doe', 'john@example.com', '+880', '1711000000', 'Acme Ltd', 'https://acme.io', 'Bangladesh', 'Dhaka', 'VIP', 'Gold', 'Imported client']);
+            fclose($out);
+        }, 'clients-import-template.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    /** Header aliases → User columns (case / spacing / wording insensitive). */
+    private const IMPORT_ALIASES = [
+        'name' => ['name', 'fullname', 'clientname', 'customername', 'contactname', 'firstname'],
+        'email' => ['email', 'emailaddress', 'mail', 'emailid', 'workemail'],
+        'phone' => ['phone', 'phonenumber', 'phoneno', 'mobile', 'mobilenumber', 'mobileno', 'contact', 'contactnumber', 'cell', 'whatsapp', 'number', 'msisdn'],
+        'dial_code' => ['dialcode', 'countrycode', 'phonecode'],
+        'company' => ['company', 'companyname', 'organization', 'organisation', 'business', 'businessname', 'firm'],
+        'website' => ['website', 'url', 'site', 'web', 'officialwebsite'],
+        'job_title' => ['jobtitle', 'designation', 'title', 'position'],
+        'address' => ['address', 'streetaddress', 'street', 'companyaddress'],
+        'city' => ['city', 'town'],
+        'state' => ['state', 'region', 'province'],
+        'country' => ['country', 'nation'],
+        'zip' => ['zip', 'zipcode', 'postalcode', 'postcode', 'pincode'],
+        'note' => ['note', 'notes', 'description', 'remarks', 'comment', 'comments', 'message'],
+        'gender' => ['gender', 'sex'],
+        'salutation' => ['salutation', 'title'],
+        'tax_name' => ['taxname', 'tax'],
+        'gst_number' => ['gst', 'gstnumber', 'vat', 'vatnumber', 'gstvat'],
+        'office_phone' => ['officephone', 'officephonenumber', 'landline'],
+        'client_category' => ['category', 'clientcategory'],
+        'client_sub_category' => ['subcategory', 'clientsubcategory'],
+    ];
+
+    private function mapImportColumns(array $rawHeader): array
+    {
+        $lookup = [];
+        foreach (self::IMPORT_ALIASES as $field => $aliases) {
+            foreach ($aliases as $alias) {
+                $lookup[$alias] = $field;
+            }
+        }
+
+        $map = [];
+        foreach ($rawHeader as $i => $h) {
+            $key = preg_replace('/[^a-z0-9]/', '', strtolower(trim((string) $h)));
+            if ($key !== '' && isset($lookup[$key]) && ! in_array($lookup[$key], $map, true)) {
+                $map[$i] = $lookup[$key];
+            }
+        }
+
+        return $map;
+    }
+
+    /** Parse the uploaded CSV / Excel → create clients (dedupe by email, skip bad rows). */
     public function import(Request $request)
     {
-        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
+        ]);
 
-        $handle = fopen($request->file('file')->getRealPath(), 'r');
-        $header = array_map(fn ($h) => strtolower(trim($h)), (array) fgetcsv($handle));
+        @set_time_limit(300); // large files can take a while to parse
+
+        // Read rows from either a CSV or an Excel (.xlsx/.xls) upload.
+        $file = $request->file('file');
+        if (in_array(strtolower($file->getClientOriginalExtension()), ['xlsx', 'xls'], true)) {
+            $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath())
+                ->getActiveSheet()->toArray(null, true, true, false);
+        } else {
+            $rows = array_map('str_getcsv', file($file->getRealPath()));
+        }
+
+        $map = $this->mapImportColumns(array_shift($rows) ?: []);
+        if (! in_array('email', $map, true)) {
+            return back()->with('error', 'Could not recognise an Email column. Check the header row of your file.');
+        }
+
+        // Imported clients get a throwaway random password (they set their own via the
+        // "reset password" email). Hash it at a low bcrypt cost so a big import stays fast —
+        // default-cost bcrypt per row is what blows past the execution-time limit.
+        $cheapHash = fn () => \Illuminate\Support\Facades\Hash::make(Str::random(16), ['rounds' => 4]);
 
         $created = 0;
-        $skipped = 0;
-        while (($row = fgetcsv($handle)) !== false) {
-            if ($row === [null] || $row === false) {
+        $skipped = [];
+        foreach ($rows as $n => $rawRow) {
+            $row = array_values($rawRow);
+            if (count(array_filter($row, fn ($c) => trim((string) $c) !== '')) === 0) {
                 continue; // blank line
             }
-            // Normalise the row to the header width so array_combine never mismatches.
-            $row = array_pad(array_slice($row, 0, count($header)), count($header), null);
-            $data = array_combine($header, $row);
-            $email = trim((string) ($data['email'] ?? ''));
-            if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL) || User::where('email', $email)->exists()) {
-                $skipped++;
+
+            $data = [];
+            foreach ($map as $i => $field) {
+                $data[$field] = trim((string) ($row[$i] ?? ''));
+            }
+            $email = $data['email'] ?? '';
+
+            if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $skipped[] = 'Row '.($n + 2).': missing or invalid email';
+
                 continue;
             }
+            if (User::where('email', $email)->exists()) {
+                $skipped[] = 'Row '.($n + 2)." ({$email}): duplicate";
+
+                continue;
+            }
+
             User::create([
-                'name' => trim((string) ($data['name'] ?? '')) ?: Str::of($email)->before('@')->toString(),
+                'name' => ($data['name'] ?? '') !== '' ? $data['name'] : Str::of($email)->before('@')->toString(),
                 'email' => $email,
-                'phone' => $data['phone'] ?? $data['mobile'] ?? null,
-                'company' => $data['company'] ?? null,
-                'country' => $data['country'] ?? null,
+                'phone' => ($data['phone'] ?? '') ?: null,
+                'dial_code' => ($data['dial_code'] ?? '') ?: null,
+                'company' => ($data['company'] ?? '') ?: null,
+                'website' => ($data['website'] ?? '') ?: null,
+                'job_title' => ($data['job_title'] ?? '') ?: null,
+                'address' => ($data['address'] ?? '') ?: null,
+                'city' => ($data['city'] ?? '') ?: null,
+                'state' => ($data['state'] ?? '') ?: null,
+                'country' => ($data['country'] ?? '') ?: null,
+                'zip' => ($data['zip'] ?? '') ?: null,
+                'note' => ($data['note'] ?? '') ?: null,
+                'gender' => in_array($data['gender'] ?? null, ['Male', 'Female', 'Other'], true) ? $data['gender'] : null,
+                'salutation' => ($data['salutation'] ?? '') ?: null,
+                'tax_name' => ($data['tax_name'] ?? '') ?: null,
+                'gst_number' => ($data['gst_number'] ?? '') ?: null,
+                'office_phone' => ($data['office_phone'] ?? '') ?: null,
+                'client_category' => ($data['client_category'] ?? '') ?: null,
+                'client_sub_category' => ($data['client_sub_category'] ?? '') ?: null,
                 'role' => User::ROLE_CUSTOMER,
                 'status' => User::STATUS_ACTIVE,
-                'password' => Str::random(16),
+                'created_by' => $request->user()->id,
+                'password' => $cheapHash(), // already-hashed → the 'hashed' cast keeps it as-is
             ]);
             $created++;
         }
-        fclose($handle);
 
-        return redirect()->route('admin.clients.index')->with('status', "Import complete — {$created} added, {$skipped} skipped.");
+        return redirect()->route('admin.clients.index')
+            ->with('status', "Imported {$created} client(s)".(count($skipped) ? ', skipped '.count($skipped).'.' : '.'))
+            ->with('import_skipped', array_slice($skipped, 0, 20));
+    }
+
+    // ===== Export (CSV · Excel · PDF) =====
+
+    /** Column headers + row values shared by every export format. */
+    private function exportData($clients): array
+    {
+        $headers = ['Client ID', 'Name', 'Company', 'Email', 'Mobile', 'Country', 'Category', 'Sub Category', 'Status', 'Created At'];
+        $rows = [];
+        foreach ($clients as $c) {
+            $rows[] = [
+                $c->client_code, $c->name, $c->company, $c->email, trim($c->dial_code.' '.$c->phone),
+                $c->country, $c->client_category, $c->client_sub_category,
+                User::STATUSES[$c->status] ?? $c->status, $c->created_at?->format('Y-m-d H:i'),
+            ];
+        }
+
+        return [$headers, $rows];
+    }
+
+    /** Dispatch to the requested export format (csv · excel · pdf). */
+    private function export($clients, string $format)
+    {
+        return match ($format) {
+            'excel' => $this->exportExcel($clients),
+            'pdf' => $this->exportPdf($clients),
+            default => $this->exportCsv($clients),
+        };
+    }
+
+    private function exportCsv($clients)
+    {
+        [$headers, $rows] = $this->exportData($clients);
+
+        return response()->streamDownload(function () use ($headers, $rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, $headers);
+            foreach ($rows as $r) {
+                fputcsv($out, $r);
+            }
+            fclose($out);
+        }, 'clients-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    private function exportExcel($clients)
+    {
+        [$headers, $rows] = $this->exportData($clients);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Clients');
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->fromArray($rows, null, 'A2');
+        $sheet->getStyle('A1:'.$sheet->getHighestColumn().'1')->getFont()->setBold(true);
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, 'clients-'.now()->format('Y-m-d').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function exportPdf($clients)
+    {
+        [$headers, $rows] = $this->exportData($clients);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.clients.export-pdf', [
+            'headers' => $headers,
+            'rows' => $rows,
+            'generatedAt' => now()->format('d M Y, g:i A'),
+        ])->setPaper('a4', 'landscape')->download('clients-'.now()->format('Y-m-d').'.pdf');
     }
 
     private function validated(Request $request, ?User $client = null): array
     {
         $data = $request->validate([
             // Only email is required to add a client — everything else is optional.
+            'salutation' => ['nullable', 'string', 'max:20'],
             'name' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($client)],
             'phone' => ['nullable', 'string', 'max:40'],
             'dial_code' => ['nullable', 'string', 'max:8'],
             'photo' => ['nullable', 'image', 'max:2048'], // ≤2MB
+            'gender' => ['nullable', Rule::in(['Male', 'Female', 'Other'])],
+            'language' => ['nullable', 'string', 'max:40'],
+            'client_category' => ['nullable', 'string', 'max:120'],
+            'client_sub_category' => ['nullable', 'string', 'max:120'],
+            // Company
             'company' => ['nullable', 'string', 'max:255'],
-            'address' => ['nullable', 'string', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'tax_name' => ['nullable', 'string', 'max:120'],
+            'gst_number' => ['nullable', 'string', 'max:60'],
+            'office_phone' => ['nullable', 'string', 'max:40'],
             'city' => ['nullable', 'string', 'max:120'],
             'state' => ['nullable', 'string', 'max:120'],
             'country' => ['nullable', 'string', 'max:120'],
             'zip' => ['nullable', 'string', 'max:20'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'shipping_address' => ['nullable', 'string', 'max:500'],
             'note' => ['nullable', 'string', 'max:65535'],
-            'status' => ['nullable', Rule::in(array_keys(User::STATUSES))],
             'account_manager_id' => ['nullable', 'exists:users,id'],
-            'password' => ['nullable', 'string', 'min:8'],
+            'password' => ['nullable', 'string', 'min:4'], // min 4 characters
         ]);
 
         // The file and password are handled explicitly in store()/update() — never mass-assign them
@@ -325,8 +528,9 @@ class ClientController extends Controller
         // Name column is NOT NULL — fall back to the email's local part when left blank.
         $data['name'] = trim((string) ($data['name'] ?? '')) ?: Str::of($data['email'])->before('@')->toString();
 
-        // Default new/blank clients to active.
-        $data['status'] = $data['status'] ?? User::STATUS_ACTIVE;
+        // Login Allowed (Yes/No) drives the account status; e-mail notifications is a toggle.
+        $data['status'] = $request->boolean('login_allowed', ! $client) ? User::STATUS_ACTIVE : User::STATUS_BLOCKED;
+        $data['receive_email_notifications'] = $request->boolean('receive_email_notifications');
 
         return $data;
     }

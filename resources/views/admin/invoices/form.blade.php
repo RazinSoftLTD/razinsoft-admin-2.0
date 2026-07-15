@@ -6,13 +6,21 @@
         'id' => $c->id, 'name' => $c->name, 'company' => $c->company, 'email' => $c->email, 'phone' => $c->phone,
         'address' => collect([$c->address, $c->city, $c->state, $c->country, $c->zip])->filter()->join(', '),
     ]);
-    $initialItems = count($items) ? $items : [['description' => '', 'sub_description' => '', 'qty' => 1, 'unit_price' => 0, 'discount_percent' => 0, 'tax_percent' => 0]];
+    $unitNames = collect($units)->pluck('name')->values();
+    $taxesJson = collect($taxes)->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'rate' => (float) $t->rate, 'label' => $t->label]);
+    $initialItems = count($items) ? $items : [[
+        'description' => '', 'sub_description' => '', 'qty' => 1, 'unit' => $defaultUnit,
+        'unit_price' => 0, 'discount_percent' => 0, 'taxIds' => [], 'attachment' => null,
+    ]];
 @endphp
 
 @section('content')
 <div x-data="invoiceForm({
         clients: {{ Illuminate\Support\Js::from($clientsJson) }},
         items: {{ Illuminate\Support\Js::from($initialItems) }},
+        units: {{ Illuminate\Support\Js::from($unitNames) }},
+        taxes: {{ Illuminate\Support\Js::from($taxesJson) }},
+        defaultUnit: {{ Illuminate\Support\Js::from($defaultUnit) }},
         clientId: '{{ old('client_id', $invoice->client_id) }}',
         currency: '{{ old('currency', $invoice->currency ?? 'USD') }}',
         invoiceNumber: '{{ $invoice->invoice_number }}',
@@ -22,42 +30,48 @@
         status: '{{ $invoice->status === 'draft' || ! $invoice->exists ? 'draft' : 'sent' }}',
     })">
 
-    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">{{ $invoice->exists ? 'Edit Invoice' : 'Create Invoice' }}</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">CRM &rsaquo; Invoices &rsaquo; {{ $invoice->exists ? 'Edit' : 'Create' }}</p>
-        </div>
-        <a href="{{ route('admin.invoices.index') }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Back to Invoices</a>
-    </div>
-
     <form method="POST" action="{{ $invoice->exists ? route('admin.invoices.update', $invoice) : route('admin.invoices.store') }}" enctype="multipart/form-data">
         @csrf
         @if ($invoice->exists) @method('PUT') @endif
         <input type="hidden" name="status" :value="status">
 
+        {{-- Top bar: title + all actions on one line --}}
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-bold text-[var(--color-heading)]">{{ $invoice->exists ? 'Edit Invoice' : 'Create Invoice' }}</h1>
+                <p class="mt-1 text-sm text-[var(--color-muted)]">CRM &rsaquo; Invoices &rsaquo; {{ $invoice->exists ? 'Edit' : 'Create' }}</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('admin.invoices.index') }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Back to Invoices</a>
+                <button type="submit" @click="status='draft'" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Save Draft</button>
+                <button type="submit" @click="status='sent'" class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Invoice</button>
+            </div>
+        </div>
+
         <div class="grid gap-6 lg:grid-cols-[1fr_400px]">
             {{-- ============ LEFT: form ============ --}}
             <div class="space-y-6">
-                {{-- 1. Invoice & Customer --}}
+                {{-- 1. Invoice & Client --}}
                 <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <h2 class="mb-5 text-sm font-bold text-[var(--color-heading)]">1. Invoice &amp; Customer Details</h2>
+                    <h2 class="mb-5 text-sm font-bold text-[var(--color-heading)]">1. Invoice &amp; Client Details</h2>
+                    {{-- First line: Invoice Number + Client --}}
                     <div class="grid gap-5 sm:grid-cols-2">
                         <div>
-                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Customer</label>
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Invoice Number</label>
+                            <input type="text" value="{{ $invoice->invoice_number }}" readonly class="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-[var(--color-muted)]">
+                            <p class="mt-1 text-xs text-[var(--color-muted)]">Auto generated</p>
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client <span class="text-red-500">*</span></label>
                             <div class="flex gap-2">
-                                <select name="client_id" x-model="clientId" x-ref="clientSelect" @change="pickClient()" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                    <option value="">Walk-in / no account</option>
+                                <select name="client_id" x-model="clientId" x-ref="clientSelect" @change="pickClient()" required class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                                    <option value="" disabled>Select a client…</option>
                                     @foreach ($clients as $c)
                                         <option value="{{ $c->id }}">{{ $c->name }}{{ $c->company ? ' — '.$c->company : '' }}</option>
                                     @endforeach
                                 </select>
                                 <button type="button" @click="qa.open = true" class="h-11 shrink-0 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">Add</button>
                             </div>
-                        </div>
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Invoice Number</label>
-                            <input type="text" value="{{ $invoice->invoice_number }}" readonly class="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-[var(--color-muted)]">
-                            <p class="mt-1 text-xs text-[var(--color-muted)]">Auto generated</p>
                         </div>
                     </div>
                     <div class="mt-5 grid gap-5 sm:grid-cols-3">
@@ -82,37 +96,97 @@
 
                 {{-- 2. Items --}}
                 <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <h2 class="mb-5 text-sm font-bold text-[var(--color-heading)]">2. Invoice Items</h2>
-                    {{-- Column headers (desktop) — mobile rows carry their own inline labels --}}
-                    <div class="mb-2 hidden grid-cols-12 gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400 sm:grid">
-                        <div class="sm:col-span-4">Description</div>
-                        <div class="sm:col-span-1">Qty</div>
-                        <div class="sm:col-span-2">Unit Price</div>
-                        <div class="sm:col-span-1">Disc %</div>
-                        <div class="sm:col-span-2">Tax %</div>
-                        <div class="sm:col-span-1">Amount</div>
-                        <div class="sm:col-span-1"></div>
+                    <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">2. Invoice Items</h2>
+
+                    {{-- Column headers (desktop) --}}
+                    <div class="mb-2 hidden grid-cols-12 gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400 md:grid">
+                        <div class="col-span-5">Description</div>
+                        <div class="col-span-2">Quantity</div>
+                        <div class="col-span-2 text-right">Unit Price</div>
+                        <div class="col-span-2">Tax</div>
+                        <div class="col-span-1 text-right">Amount</div>
                     </div>
+
                     <div class="space-y-3">
                         <template x-for="(item, idx) in items" :key="idx">
-                            <div class="grid grid-cols-12 gap-2 rounded-lg border border-gray-100 p-3">
-                                <div class="col-span-12 sm:col-span-4">
-                                    <input type="text" :name="`items[${idx}][description]`" x-model="item.description" placeholder="Item / Description" required class="mb-1 h-9 w-full rounded-lg border border-gray-200 px-2 text-sm">
-                                    <input type="text" :name="`items[${idx}][sub_description]`" x-model="item.sub_description" placeholder="Sub-description (optional)" class="h-8 w-full rounded-lg border border-gray-100 px-2 text-xs text-[var(--color-muted)]">
-                                </div>
-                                <div class="col-span-3 sm:col-span-1"><label class="text-[10px] text-gray-400 sm:hidden">Qty</label><input type="number" step="0.01" min="0" :name="`items[${idx}][qty]`" x-model.number="item.qty" class="h-9 w-full rounded-lg border border-gray-200 px-2 text-sm" placeholder="Qty"></div>
-                                <div class="col-span-4 sm:col-span-2"><label class="text-[10px] text-gray-400 sm:hidden">Unit Price</label><input type="number" step="0.01" min="0" :name="`items[${idx}][unit_price]`" x-model.number="item.unit_price" class="h-9 w-full rounded-lg border border-gray-200 px-2 text-sm" placeholder="Price"></div>
-                                <div class="col-span-2 sm:col-span-1"><label class="text-[10px] text-gray-400 sm:hidden">Disc%</label><input type="number" step="0.01" min="0" max="100" :name="`items[${idx}][discount_percent]`" x-model.number="item.discount_percent" class="h-9 w-full rounded-lg border border-gray-200 px-2 text-sm" placeholder="0"></div>
-                                <div class="col-span-3 sm:col-span-2"><label class="text-[10px] text-gray-400 sm:hidden">Tax%</label><input type="number" step="0.01" min="0" max="100" :name="`items[${idx}][tax_percent]`" x-model.number="item.tax_percent" class="h-9 w-full rounded-lg border border-gray-200 px-2 text-sm" placeholder="0"></div>
-                                <div class="col-span-9 flex items-center sm:col-span-1"><span class="text-sm font-semibold text-[var(--color-heading)]" x-text="money(lineAmount(item))"></span></div>
-                                <div class="col-span-3 flex items-center justify-end sm:col-span-1">
-                                    <button type="button" @click="removeItem(idx)" class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" x-show="items.length > 1">
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                            <div class="relative rounded-lg border border-gray-100 bg-gray-50/40 p-3 pr-9"
+                                 @dragover.prevent @drop="drop(idx)">
+                                {{-- delete (top) + drag handle (below), small, far right --}}
+                                <div class="absolute right-1.5 top-2 flex flex-col items-center gap-1.5">
+                                    <button type="button" @click="removeItem(idx)" class="text-gray-300 hover:text-red-600" x-show="items.length > 1" title="Remove">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9.17 9.17 12 12m0 0 2.83 2.83M12 12l2.83-2.83M12 12l-2.83 2.83M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
                                     </button>
+                                    <span draggable="true" @dragstart="dragFrom = idx" class="cursor-move text-gray-300 hover:text-gray-500" title="Drag to reorder">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>
+                                    </span>
+                                </div>
+
+                                <div class="grid grid-cols-12 items-start gap-2">
+                                    {{-- description (far left, wide) --}}
+                                    <div class="col-span-12 md:col-span-5">
+                                        <input type="text" :name="`items[${idx}][description]`" x-model="item.description" placeholder="Item Name" required class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                    </div>
+                                    {{-- quantity + unit --}}
+                                    <div class="col-span-3 md:col-span-2">
+                                        <input type="number" step="0.01" min="0" :name="`items[${idx}][qty]`" x-model.number="item.qty" class="h-10 w-full rounded-lg border border-gray-200 px-2 text-right text-sm focus:border-[var(--color-primary)] focus:outline-none" placeholder="1">
+                                        <select :name="`items[${idx}][unit]`" x-model="item.unit" class="mt-1 h-7 w-full rounded-lg border border-gray-100 bg-white px-1 text-xs text-[var(--color-muted)]">
+                                            <template x-for="u in units" :key="u"><option :value="u" x-text="u"></option></template>
+                                        </select>
+                                    </div>
+                                    {{-- unit price --}}
+                                    <div class="col-span-3 md:col-span-2">
+                                        <input type="number" step="0.01" min="0" :name="`items[${idx}][unit_price]`" x-model.number="item.unit_price" class="h-10 w-full rounded-lg border border-gray-200 px-2 text-right text-sm focus:border-[var(--color-primary)] focus:outline-none" placeholder="0">
+                                    </div>
+                                    {{-- tax multi-select --}}
+                                    <div class="col-span-4 md:col-span-2">
+                                        <div class="relative" x-data="{ openTax: false }" @click.outside="openTax = false">
+                                            <button type="button" @click="openTax = !openTax" class="flex h-10 w-full items-center justify-between gap-1 rounded-lg border border-gray-200 bg-white px-2 text-left text-sm text-[var(--color-heading)]">
+                                                <span class="truncate text-xs" :class="!item.taxIds.length && 'text-gray-400'" x-text="taxLabel(item)"></span>
+                                                <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                            </button>
+                                            <div x-show="openTax" x-cloak class="absolute z-30 mt-1 max-h-56 w-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                                                <template x-if="!taxes.length"><p class="px-3 py-2 text-xs text-gray-400">No taxes configured.</p></template>
+                                                <template x-for="t in taxes" :key="t.id">
+                                                    <label class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
+                                                        <input type="checkbox" :value="t.id" :checked="item.taxIds.includes(t.id)" @change="toggleTax(item, t.id)" class="accent-[var(--color-primary)]">
+                                                        <span x-text="t.label"></span>
+                                                    </label>
+                                                </template>
+                                            </div>
+                                            <template x-for="tid in item.taxIds" :key="tid">
+                                                <input type="hidden" :name="`items[${idx}][taxes][]`" :value="tid">
+                                            </template>
+                                        </div>
+                                    </div>
+                                    {{-- amount --}}
+                                    <div class="col-span-2 flex items-center pt-2.5 md:col-span-1 md:justify-end">
+                                        <span class="text-sm font-semibold text-[var(--color-heading)]" x-text="money(lineAmount(item))"></span>
+                                    </div>
+                                </div>
+
+                                {{-- sub-description (rich, resizable) --}}
+                                <div class="mt-2">
+                                    <div x-data="{}" class="rounded-lg border border-gray-100 bg-white">
+                                        <div class="flex items-center gap-1 border-b border-gray-100 px-2 py-1">
+                                            <button type="button" @mousedown.prevent="$refs.editor.focus(); document.execCommand('bold', false, null); $refs.editor.dispatchEvent(new Event('input'))" class="grid h-6 w-6 place-items-center rounded text-xs font-bold text-[var(--color-muted)] hover:bg-gray-100" title="Bold">B</button>
+                                            <button type="button" @mousedown.prevent="$refs.editor.focus(); document.execCommand('italic', false, null); $refs.editor.dispatchEvent(new Event('input'))" class="grid h-6 w-6 place-items-center rounded text-xs italic text-[var(--color-muted)] hover:bg-gray-100" title="Italic">I</button>
+                                            <button type="button" @mousedown.prevent="$refs.editor.focus(); document.execCommand('insertUnorderedList', false, null); $refs.editor.dispatchEvent(new Event('input'))" class="grid h-6 w-6 place-items-center rounded text-[var(--color-muted)] hover:bg-gray-100" title="Bullet list">
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                                            </button>
+                                            <span class="ml-auto text-[10px] text-gray-300">Sub-description</span>
+                                        </div>
+                                        <div x-ref="editor" contenteditable="true"
+                                             x-init="$el.innerHTML = item.sub_description || ''"
+                                             @input="item.sub_description = $refs.editor.innerHTML"
+                                             data-ph="Enter Description (optional)"
+                                             class="sub-editor min-h-[56px] resize-y overflow-auto px-3 py-2 text-sm text-[var(--color-heading)] focus:outline-none"></div>
+                                    </div>
+                                    <input type="hidden" :name="`items[${idx}][sub_description]`" :value="item.sub_description">
                                 </div>
                             </div>
                         </template>
                     </div>
+
                     <button type="button" @click="addItem()" class="mt-4 inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Item
                     </button>
@@ -140,11 +214,15 @@
             <aside class="lg:sticky lg:top-6 lg:self-start">
                 <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                     <div class="mb-4 flex items-center justify-between">
-                        <span class="text-lg font-extrabold text-[var(--color-primary)]">RazinSoft</span>
+                        @if ($branding->logo_url)
+                            <img src="{{ $branding->logo_url }}" alt="{{ $branding->brand_name }}" class="h-8 max-w-[140px] object-contain">
+                        @else
+                            <span class="text-lg font-extrabold text-[var(--color-primary)]">{{ $branding->brand_name ?? 'RazinSoft' }}</span>
+                        @endif
                         <span class="rounded bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--color-primary)]">INVOICE</span>
                     </div>
                     <div class="flex justify-between text-xs">
-                        <div class="text-[var(--color-muted)]">RazinSoft Ltd.<br>support@razinsoft.com</div>
+                        <div class="text-[var(--color-muted)]">{{ $branding->brand_name ?? 'RazinSoft' }}<br>support@razinsoft.com</div>
                         <div class="text-right">
                             <p class="font-bold text-[var(--color-heading)]" x-text="invoiceNumber"></p>
                             <p class="text-[var(--color-muted)]">Date: <span x-text="invoiceDate"></span></p>
@@ -166,7 +244,7 @@
                             <template x-for="(item, idx) in items" :key="idx">
                                 <tr class="border-b border-gray-50">
                                     <td class="py-1.5 text-[var(--color-heading)]" x-text="item.description || 'Item'"></td>
-                                    <td class="py-1.5 text-right text-[var(--color-muted)]" x-text="item.qty || 0"></td>
+                                    <td class="py-1.5 text-right text-[var(--color-muted)]"><span x-text="item.qty || 0"></span> <span class="text-gray-300" x-text="item.unit"></span></td>
                                     <td class="py-1.5 text-right text-[var(--color-heading)]" x-text="money(lineAmount(item))"></td>
                                 </tr>
                             </template>
@@ -174,16 +252,11 @@
                     </table>
                     <div class="mt-3 space-y-1 border-t border-gray-100 pt-3 text-xs">
                         <div class="flex justify-between"><span class="text-[var(--color-muted)]">Subtotal</span><span x-text="money(totals.subtotal)"></span></div>
-                        <div class="flex justify-between"><span class="text-[var(--color-muted)]">Discount</span><span x-text="'-' + money(totals.discount)"></span></div>
+                        <div class="flex justify-between" x-show="totals.discount > 0"><span class="text-[var(--color-muted)]">Discount</span><span x-text="'-' + money(totals.discount)"></span></div>
                         <div class="flex justify-between"><span class="text-[var(--color-muted)]">Tax</span><span x-text="money(totals.tax)"></span></div>
                         <div class="mt-1 flex justify-between border-t border-gray-100 pt-2 text-sm font-bold text-[var(--color-heading)]"><span>Total Due</span><span x-text="money(totals.due) + ' ' + currency"></span></div>
                         <div class="flex justify-between text-[var(--color-muted)]" x-show="amountPaid > 0"><span>Paid</span><span x-text="money(amountPaid)"></span></div>
                     </div>
-                </div>
-
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <button type="submit" @click="status='draft'" class="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Save Draft</button>
-                    <button type="submit" @click="status='sent'" class="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Invoice</button>
                 </div>
             </aside>
         </div>
@@ -195,12 +268,11 @@
         @endif
     </form>
 
-    {{-- Quick "Add new customer" modal (only the essentials) --}}
+    {{-- Quick "Add new client" modal --}}
     <div x-show="qa.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="qa.open = false">
         <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 class="text-base font-bold text-[var(--color-heading)]">Add new customer</h3>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Create a customer without leaving this invoice.</p>
-
+            <h3 class="text-base font-bold text-[var(--color-heading)]">Add new client</h3>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Create a client without leaving this invoice.</p>
             <div class="mt-4 space-y-4">
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client Name <span class="text-red-500">*</span></label>
@@ -214,21 +286,11 @@
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Company Name</label>
                     <input type="text" x-model="qa.company" placeholder="e.g. Acme Corporation" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                 </div>
-                <div>
-                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Login Allowed?</label>
-                    <div class="mt-1 flex items-center gap-5 text-sm">
-                        <label class="inline-flex items-center gap-2"><input type="radio" :checked="qa.login === true" @change="qa.login = true" class="accent-[var(--color-primary)]"> Yes</label>
-                        <label class="inline-flex items-center gap-2"><input type="radio" :checked="qa.login === false" @change="qa.login = false" class="accent-[var(--color-primary)]"> No</label>
-                    </div>
-                    <p class="mt-1 text-xs text-gray-400">Yes = customer can sign in on the website · No = cannot sign in.</p>
-                </div>
-
                 <p x-show="qa.error" x-cloak class="text-sm text-red-600" x-text="qa.error"></p>
-
                 <div class="flex justify-end gap-2 pt-1">
                     <button type="button" @click="qa.open = false" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
                     <button type="button" @click="quickAddSave()" :disabled="qa.saving" class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-60">
-                        <span x-text="qa.saving ? 'Saving…' : 'Add customer'"></span>
+                        <span x-text="qa.saving ? 'Saving…' : 'Add client'"></span>
                     </button>
                 </div>
             </div>
@@ -236,18 +298,54 @@
     </div>
 </div>
 
+<style>
+    [x-cloak]{display:none!important}
+    .sub-editor:empty:before{content:attr(data-ph);color:#9ca3af}
+    .sub-editor ul{list-style:disc;margin-left:1.25rem}
+</style>
+
 <script>
 function invoiceForm(cfg) {
     return {
-        clients: cfg.clients, items: cfg.items, clientId: cfg.clientId, currency: cfg.currency,
-        invoiceNumber: cfg.invoiceNumber, invoiceDate: cfg.invoiceDate, dueDate: cfg.dueDate, amountPaid: cfg.amountPaid,
+        clients: cfg.clients, items: cfg.items, units: cfg.units, taxes: cfg.taxes, defaultUnit: cfg.defaultUnit,
+        clientId: cfg.clientId, currency: cfg.currency,
+        invoiceNumber: cfg.invoiceNumber, invoiceDate: cfg.invoiceDate, dueDate: cfg.dueDate, amountPaid: cfg.amountPaid, status: cfg.status,
         bill: { name: '', company: '', email: '', phone: '', address: '' },
-        qa: { open: false, name: '', email: '', company: '', login: false, saving: false, error: '' },
+        dragFrom: null,
+        qa: { open: false, name: '', email: '', company: '', saving: false, error: '' },
         init() { this.pickClient(); },
         pickClient() {
             const c = this.clients[this.clientId];
             this.bill = c ? { name: c.name, company: c.company, email: c.email, phone: c.phone, address: c.address } : { name: '', company: '', email: '', phone: '', address: '' };
         },
+        // ---- items ----
+        addItem() { this.items.push({ description: '', sub_description: '', qty: 1, unit: this.defaultUnit, unit_price: 0, discount_percent: 0, taxIds: [], attachment: null }); },
+        removeItem(i) { this.items.splice(i, 1); },
+        drop(to) { if (this.dragFrom === null || this.dragFrom === to) return; const [m] = this.items.splice(this.dragFrom, 1); this.items.splice(to, 0, m); this.dragFrom = null; },
+        toggleTax(item, id) { const i = item.taxIds.indexOf(id); if (i === -1) item.taxIds.push(id); else item.taxIds.splice(i, 1); },
+        taxLabel(item) {
+            if (!item.taxIds.length) return 'Nothing selected';
+            const names = item.taxIds.map(id => (this.taxes.find(t => t.id === id) || {}).name).filter(Boolean);
+            return names.length > 1 ? names.length + ' selected' : names[0];
+        },
+        lineRate(item) { return item.taxIds.reduce((s, id) => s + ((this.taxes.find(t => t.id === id) || {}).rate || 0), 0); },
+        lineAmount(item) {
+            const gross = (parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0);
+            return gross - gross * ((parseFloat(item.discount_percent) || 0) / 100);
+        },
+        get totals() {
+            let subtotal = 0, discount = 0, tax = 0;
+            for (const it of this.items) {
+                const gross = (parseFloat(it.qty) || 0) * (parseFloat(it.unit_price) || 0);
+                const d = gross * ((parseFloat(it.discount_percent) || 0) / 100);
+                const net = gross - d;
+                subtotal += gross; discount += d; tax += net * (this.lineRate(it) / 100);
+            }
+            const total = subtotal - discount + tax;
+            return { subtotal, discount, tax, total, due: total - (this.amountPaid || 0) };
+        },
+        money(v) { return (parseFloat(v) || 0).toFixed(2); },
+        // ---- quick add ----
         async quickAddSave() {
             if (!this.qa.name.trim()) { this.qa.error = 'Client name is required.'; return; }
             if (!this.qa.email.trim()) { this.qa.error = 'Email is required.'; return; }
@@ -256,47 +354,22 @@ function invoiceForm(cfg) {
                 const res = await fetch('{{ route('admin.clients.quick') }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: JSON.stringify({ name: this.qa.name, email: this.qa.email, company: this.qa.company, login_allowed: this.qa.login ? 1 : 0 }),
+                    body: JSON.stringify({ name: this.qa.name, email: this.qa.email, company: this.qa.company, login_allowed: 1 }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
-                    this.qa.error = err.errors ? Object.values(err.errors).flat().join(' ') : (err.message || 'Could not add the customer.');
-                    this.qa.saving = false;
-                    return;
+                    this.qa.error = err.errors ? Object.values(err.errors).flat().join(' ') : (err.message || 'Could not add the client.');
+                    this.qa.saving = false; return;
                 }
                 const c = await res.json();
                 this.clients[c.id] = c;
                 const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.name + (c.company ? ' — ' + c.company : '');
+                opt.value = c.id; opt.textContent = c.name + (c.company ? ' — ' + c.company : '');
                 this.$refs.clientSelect.appendChild(opt);
-                this.clientId = String(c.id);
-                this.pickClient();
-                this.qa = { open: false, name: '', email: '', company: '', login: false, saving: false, error: '' };
-            } catch (e) {
-                this.qa.error = 'Something went wrong. Please try again.';
-                this.qa.saving = false;
-            }
+                this.clientId = String(c.id); this.pickClient();
+                this.qa = { open: false, name: '', email: '', company: '', saving: false, error: '' };
+            } catch (e) { this.qa.error = 'Something went wrong. Please try again.'; this.qa.saving = false; }
         },
-        addItem() { this.items.push({ description: '', sub_description: '', qty: 1, unit_price: 0, discount_percent: 0, tax_percent: 0 }); },
-        removeItem(i) { this.items.splice(i, 1); },
-        lineAmount(item) {
-            const gross = (parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0);
-            const net = gross - gross * ((parseFloat(item.discount_percent) || 0) / 100);
-            return net;
-        },
-        get totals() {
-            let subtotal = 0, discount = 0, tax = 0;
-            for (const it of this.items) {
-                const gross = (parseFloat(it.qty) || 0) * (parseFloat(it.unit_price) || 0);
-                const d = gross * ((parseFloat(it.discount_percent) || 0) / 100);
-                const net = gross - d;
-                subtotal += gross; discount += d; tax += net * ((parseFloat(it.tax_percent) || 0) / 100);
-            }
-            const total = subtotal - discount + tax;
-            return { subtotal, discount, tax, total, due: total - (this.amountPaid || 0) };
-        },
-        money(v) { return (parseFloat(v) || 0).toFixed(2); },
     };
 }
 </script>

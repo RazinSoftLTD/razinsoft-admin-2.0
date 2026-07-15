@@ -73,7 +73,7 @@
     <tbody>
       @foreach ($invoice->items as $item)
         <tr>
-          <td><strong>{{ $item->description }}</strong>@if ($item->sub_description)<br><span class="muted" style="font-size:11px">{{ $item->sub_description }}</span>@endif</td>
+          <td><strong>{{ $item->description }}</strong>@if ($item->sub_description)<br><span class="muted" style="font-size:11px">{!! $item->formattedSubDescription() !!}</span>@endif</td>
           <td class="right">{{ rtrim(rtrim(number_format($item->qty, 2), '0'), '.') }}</td>
           <td class="right">{{ $cur }}{{ number_format($item->unit_price, 2) }}</td>
           <td class="right">{{ rtrim(rtrim(number_format($item->tax_percent, 2), '0'), '.') }}%</td>
