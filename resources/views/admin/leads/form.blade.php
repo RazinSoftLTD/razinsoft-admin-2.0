@@ -196,7 +196,10 @@
                         </span>
                     </label>
                     <div x-show="createDeal" x-cloak class="space-y-5 bg-white p-6 pt-1">
-                        <x-admin.field label="Deal Name" name="deal_name" :value="old('deal_name')" required placeholder="e.g. Website project" />
+                        {{-- No HTML5 `required` here: this field is hidden until "Create a Deal"
+                             is ticked, and a hidden required field silently blocks form submit.
+                             The server validates deal_name as required only when create_deal is on. --}}
+                        <x-admin.field label="Deal Name" name="deal_name" :value="old('deal_name')" placeholder="e.g. Website project" />
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Pipeline</label>
                             <select name="pipeline" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm"><option value="sales">📊 Sales Pipeline</option></select>
