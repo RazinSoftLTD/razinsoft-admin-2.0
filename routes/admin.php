@@ -37,7 +37,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // ---- Panel: admin + staff. Every route is gated by a `permission:module.action` key.
     //      Model-bound wildcards use whereNumber() so string paths (create/import/…) never clash. ----
-    Route::middleware('staff')->group(function () {
+    Route::middleware(['staff', 'log.activity'])->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
         // My Profile — self-service for any panel user (no permission gate).
@@ -181,15 +181,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== Clients =====
         Route::middleware('permission:clients.view')->group(function () {
             Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
-            Route::get('clients/import/sample', [ClientController::class, 'importSample'])->name('clients.import.sample');
+            Route::get('client-activity', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'index'])->name('client-activity');
             Route::get('clients/{client}', [ClientController::class, 'show'])->whereNumber('client')->name('clients.show');
         });
         Route::middleware('permission:clients.create')->group(function () {
             Route::get('clients/create', [ClientController::class, 'create'])->name('clients.create');
             Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
             Route::post('clients/quick', [ClientController::class, 'quickStore'])->name('clients.quick');
+        });
+        // Import / Export — its own permission (export runs on the index route, gated in the controller).
+        Route::middleware('permission:clients.import_export')->group(function () {
+            Route::get('clients/import/sample', [ClientController::class, 'importSample'])->name('clients.import.sample');
             Route::get('clients/import', [ClientController::class, 'importForm'])->name('clients.import.form');
             Route::post('clients/import', [ClientController::class, 'import'])->name('clients.import');
+            Route::post('clients/import/undo', [ClientController::class, 'undoImport'])->name('clients.import.undo');
         });
         Route::middleware('permission:clients.edit')->group(function () {
             Route::get('clients/{client}/edit', [ClientController::class, 'edit'])->whereNumber('client')->name('clients.edit');
@@ -199,6 +204,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('clients/{client}/documents/{document}', [ClientController::class, 'destroyDocument'])->whereNumber('client')->whereNumber('document')->name('clients.documents.destroy');
         });
         Route::middleware('permission:clients.delete')->group(function () {
+            Route::delete('clients-bulk', [ClientController::class, 'bulkDestroy'])->name('clients.bulk-destroy');
             Route::delete('clients/{client}', [ClientController::class, 'destroy'])->whereNumber('client')->name('clients.destroy');
         });
 
@@ -225,6 +231,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('crm-settings/options', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeOption'])->name('crm-settings.options.store');
             Route::patch('crm-settings/options/{option}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateOption'])->whereNumber('option')->name('crm-settings.options.update');
             Route::delete('crm-settings/options/{option}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyOption'])->whereNumber('option')->name('crm-settings.options.destroy');
+            Route::post('crm-settings/client-labels', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeClientLabel'])->name('crm-settings.client-labels.store');
+            Route::patch('crm-settings/client-labels/{clientLabel}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.update');
+            Route::delete('crm-settings/client-labels/{clientLabel}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.destroy');
         });
 
         // Ticket settings (agents, types, reply templates) — separate, admin/manager-level gate.
@@ -426,6 +435,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('users', UserController::class)->except('show');
 
         // Email / SMTP settings + templates
+        // Settings → Activity Log (every employee's actions).
+        Route::middleware('permission:employees.view')->group(function () {
+            Route::get('activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-logs');
+        });
+
+        // Settings → Bin (recoverable clients + invoices; super admin only, enforced in the controller).
+        Route::get('bin', [\App\Http\Controllers\Admin\BinController::class, 'index'])->name('bin');
+        Route::post('bin/clients/{id}/restore', [\App\Http\Controllers\Admin\BinController::class, 'restoreClient'])->whereNumber('id')->name('bin.clients.restore');
+        Route::delete('bin/clients/{id}', [\App\Http\Controllers\Admin\BinController::class, 'forceDeleteClient'])->whereNumber('id')->name('bin.clients.force-delete');
+        Route::post('bin/clients/restore', [\App\Http\Controllers\Admin\BinController::class, 'bulkRestoreClients'])->name('bin.clients.bulk-restore');
+        Route::delete('bin/clients', [\App\Http\Controllers\Admin\BinController::class, 'bulkForceDeleteClients'])->name('bin.clients.bulk-delete');
+        Route::post('bin/invoices/restore', [\App\Http\Controllers\Admin\BinController::class, 'bulkRestoreInvoices'])->name('bin.invoices.bulk-restore');
+        Route::delete('bin/invoices', [\App\Http\Controllers\Admin\BinController::class, 'bulkForceDeleteInvoices'])->name('bin.invoices.bulk-delete');
+
         Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');
         Route::post('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'update'])->name('email-settings.update');
         Route::post('email-settings/test', [\App\Http\Controllers\Admin\EmailSettingController::class, 'sendTest'])->name('email-settings.test');

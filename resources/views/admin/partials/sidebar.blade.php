@@ -123,6 +123,11 @@
             ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
         ]],
 
+        ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [
+            ['label' => 'Employee', 'route' => 'admin.activity-logs', 'active' => 'admin.activity-logs*', 'perm' => 'employees.view', 'icon' => $ic['employees']],
+            ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => 'admin.client-activity*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
+        ]],
+
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
             ['label' => 'My Profile', 'route' => 'admin.my-profile.edit', 'active' => 'admin.my-profile.*', 'icon' => $ic['author']],
             ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'active' => 'admin.roles.*', 'admin' => true, 'icon' => $ic['roles']],
@@ -131,7 +136,7 @@
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
             ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
-            ['label' => 'Bin', 'route' => 'admin.invoices.bin', 'active' => 'admin.invoices.bin*', 'perm' => 'invoices.bin', 'icon' => $ic['settings']],
+            ['label' => 'Bin', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Email / SMTP', 'route' => 'admin.email-settings', 'active' => 'admin.email-settings*', 'admin' => true, 'icon' => $ic['messaging']],
         ]],
     ];

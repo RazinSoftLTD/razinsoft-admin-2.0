@@ -34,6 +34,9 @@ Route::post('/meetings/book', [\App\Http\Controllers\Api\MeetingController::clas
 // ---- Blog "Follow" subscription (public) ----
 Route::post('/subscribe', [\App\Http\Controllers\Api\SubscriberController::class, 'store']);
 
+// Client page-visit beacon — logs only when a valid client token is present (checked in the controller).
+Route::post('/track/visit', [\App\Http\Controllers\Api\TrackController::class, 'visit'])->middleware('throttle:120,1');
+
 // ---- Search analytics (public) ----
 Route::post('/search-log', [\App\Http\Controllers\Api\SearchController::class, 'store']);
 

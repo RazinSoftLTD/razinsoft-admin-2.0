@@ -30,20 +30,62 @@ class ClientController extends Controller
                 ->orWhere('company', 'like', "%{$search}%"));
         }
 
-        // Sorting — whitelist the sortable columns; default to newest first.
-        $sortable = ['id', 'name', 'email', 'phone', 'status', 'created_at'];
-        $sort = in_array($request->query('sort'), $sortable, true) ? $request->query('sort') : 'created_at';
-        $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
-        $q->orderBy($sort, $dir);
+        // ---- Filters ----
+        if ($status = $request->query('status')) {
+            $q->where('status', $status);
+        }
+        if ($category = $request->query('category')) {
+            $q->where('client_category', $category);
+        }
+        if ($subCategory = $request->query('sub_category')) {
+            $q->where('client_sub_category', $subCategory);
+        }
+        if ($country = $request->query('country')) {
+            $q->where('country', $country);
+        }
+        if ($label = $request->query('label')) {
+            $q->where('client_label', $label);
+        }
+        // Date added — preset range and/or a custom from–to range.
+        match ($request->query('date_range')) {
+            'today' => $q->whereDate('created_at', today()),
+            'week' => $q->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]),
+            'month' => $q->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]),
+            'year' => $q->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]),
+            default => null,
+        };
+        if ($from = $request->query('from')) {
+            $q->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->query('to')) {
+            $q->whereDate('created_at', '<=', $to);
+        }
 
-        // Export the current (filtered) result set in the requested format.
+        // Total paid (across this client's CRM invoices) — powers the "Top paying" sort.
+        $q->withSum('clientInvoices as total_paid', 'amount_paid');
+
+        // Sorting — whitelist the sortable columns; "top_paying" orders by total paid.
+        if ($request->query('sort') === 'top_paying') {
+            $sort = 'top_paying';
+            $dir = 'desc';
+            $q->orderByDesc('total_paid');
+        } else {
+            $sortable = ['id', 'name', 'email', 'phone', 'status', 'created_at'];
+            $sort = in_array($request->query('sort'), $sortable, true) ? $request->query('sort') : 'created_at';
+            $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
+            $q->orderBy($sort, $dir);
+        }
+
+        // Export the current (filtered) result set — needs the Import / Export permission.
         if ($format = $request->query('export')) {
+            abort_unless($request->user()->allows('clients', 'import_export'), 403);
+
             return $this->export((clone $q)->get(), $format);
         }
 
-        // Per-page — "Show N entries".
+        // Per-page — "Show N entries" (up to 1000).
         $perPage = (int) $request->query('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $perPage = in_array($perPage, [10, 25, 50, 100, 250, 500, 1000], true) ? $perPage : 10;
 
         // List or grid layout.
         $view = $request->query('view') === 'grid' ? 'grid' : 'list';
@@ -54,6 +96,15 @@ class ClientController extends Controller
             'dir' => $dir,
             'perPage' => $perPage,
             'view' => $view,
+            // Most recent import that can still be undone (shown only with import/export access).
+            'lastImport' => $request->user()->allows('clients', 'import_export') ? \App\Models\ClientImportBatch::undoable() : null,
+            // Filter option lists.
+            'statuses' => User::STATUSES,
+            'filterCategories' => User::clients()->whereNotNull('client_category')->where('client_category', '!=', '')->distinct()->orderBy('client_category')->pluck('client_category')->all(),
+            'filterSubCategories' => User::clients()->whereNotNull('client_sub_category')->where('client_sub_category', '!=', '')->distinct()->orderBy('client_sub_category')->pluck('client_sub_category')->all(),
+            'filterCountries' => User::clients()->whereNotNull('country')->where('country', '!=', '')->distinct()->orderBy('country')->pluck('country')->all(),
+            'clientLabels' => \App\Models\ClientLabel::ordered(),
+            'filters' => $request->only(['status', 'category', 'sub_category', 'country', 'label', 'date_range', 'from', 'to']),
         ]);
     }
 
@@ -177,6 +228,7 @@ class ClientController extends Controller
                 ->distinct()->orderBy('client_category')->pluck('client_category')->all(),
             'subCategories' => User::clients()->whereNotNull('client_sub_category')->where('client_sub_category', '!=', '')
                 ->distinct()->orderBy('client_sub_category')->pluck('client_sub_category')->all(),
+            'clientLabels' => \App\Models\ClientLabel::ordered(),
         ];
     }
 
@@ -355,6 +407,9 @@ class ClientController extends Controller
         // default-cost bcrypt per row is what blows past the execution-time limit.
         $cheapHash = fn () => \Illuminate\Support\Facades\Hash::make(Str::random(16), ['rounds' => 4]);
 
+        // Tag every client created in this run with one batch key so the whole import
+        // can be undone in a single click.
+        $batchKey = 'imp_'.Str::random(20);
         $created = 0;
         $skipped = [];
         foreach ($rows as $n => $rawRow) {
@@ -404,14 +459,87 @@ class ClientController extends Controller
                 'role' => User::ROLE_CUSTOMER,
                 'status' => User::STATUS_ACTIVE,
                 'created_by' => $request->user()->id,
+                'import_batch' => $batchKey,
                 'password' => $cheapHash(), // already-hashed → the 'hashed' cast keeps it as-is
             ]);
             $created++;
         }
 
+        // Record the batch so it can be undone from the clients list.
+        if ($created > 0) {
+            \App\Models\ClientImportBatch::create([
+                'batch_key' => $batchKey,
+                'imported_by' => $request->user()->id,
+                'count' => $created,
+                'created_at' => now(),
+            ]);
+        }
+
         return redirect()->route('admin.clients.index')
             ->with('status', "Imported {$created} client(s)".(count($skipped) ? ', skipped '.count($skipped).'.' : '.'))
             ->with('import_skipped', array_slice($skipped, 0, 20));
+    }
+
+    /** Delete many clients at once (from the filtered list's checkboxes). */
+    public function bulkDestroy(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $clients = User::clients()->whereIn('id', $data['ids'])->get();
+        $deleted = 0;
+        $blocked = 0;
+        foreach ($clients as $client) {
+            if (! $request->user()->canAct('clients', 'delete', $client)) {
+                $blocked++;
+
+                continue;
+            }
+            $client->delete(); // soft-delete → moves to the Bin
+            $deleted++;
+        }
+
+        $msg = "Deleted {$deleted} client(s).";
+        if ($blocked > 0) {
+            $msg .= " Skipped {$blocked} you don’t have permission to delete.";
+        }
+
+        return redirect()->route('admin.clients.index')->with('status', $msg);
+    }
+
+    /** Undo the most recent client import — deletes the clients it created. */
+    public function undoImport(Request $request)
+    {
+        $batch = \App\Models\ClientImportBatch::undoable();
+        if (! $batch) {
+            return back()->with('error', 'No recent import to undo.');
+        }
+
+        // Only remove clients still tagged with this batch that this import created,
+        // and skip any that have since gained related records (orders/invoices/tickets).
+        $clients = User::clients()->where('import_batch', $batch->batch_key)->get();
+        $deleted = 0;
+        $kept = 0;
+        foreach ($clients as $client) {
+            if ($client->orders()->exists() || ClientInvoice::where('client_id', $client->id)->exists() || $client->tickets()->exists()) {
+                $kept++;
+
+                continue; // has activity now — don't wipe it out silently
+            }
+            $client->delete(); // soft-delete → recoverable from the Bin
+            $deleted++;
+        }
+
+        $batch->update(['undone_at' => now()]);
+
+        $msg = "Undid the last import — removed {$deleted} client(s).";
+        if ($kept > 0) {
+            $msg .= " Kept {$kept} that already had orders/invoices/tickets.";
+        }
+
+        return redirect()->route('admin.clients.index')->with('status', $msg);
     }
 
     // ===== Export (CSV · Excel · PDF) =====
@@ -504,6 +632,7 @@ class ClientController extends Controller
             'language' => ['nullable', 'string', 'max:40'],
             'client_category' => ['nullable', 'string', 'max:120'],
             'client_sub_category' => ['nullable', 'string', 'max:120'],
+            'client_label' => ['nullable', 'string', 'max:40'],
             // Company
             'company' => ['nullable', 'string', 'max:255'],
             'website' => ['nullable', 'string', 'max:255'],

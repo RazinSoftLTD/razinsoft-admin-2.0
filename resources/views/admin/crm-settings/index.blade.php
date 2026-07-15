@@ -25,7 +25,7 @@
 
     <div x-data="{ tab: 'leads' }" class="rounded-xl border border-gray-100 bg-white shadow-sm">
         <div class="flex gap-1 border-b border-gray-100 px-4 pt-3">
-            @foreach (['leads' => 'Leads', 'deals' => 'Deals'] as $key => $label)
+            @foreach (['leads' => 'Leads', 'deals' => 'Deals', 'clients' => 'Clients'] as $key => $label)
                 <button type="button" @click="tab = '{{ $key }}'"
                         :class="tab === '{{ $key }}' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'"
                         class="border-b-2 px-4 py-2.5 text-sm font-semibold">{{ $label }}</button>
@@ -84,6 +84,66 @@
                     </form>
                 </div>
             @endforeach
+
+            {{-- Client loyalty / priority labels --}}
+            <div x-show="tab === 'clients'" x-cloak class="rounded-xl border border-gray-100 bg-gray-50/50 p-5 md:col-span-2">
+                <div class="mb-3">
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Client Labels</h2>
+                    <p class="text-xs text-[var(--color-muted)]">Loyalty / priority tiers selectable when adding a client (Regular, Gold, Platinum…). The short description explains what each tier means.</p>
+                </div>
+
+                <div class="space-y-2">
+                    @forelse ($clientLabels as $label)
+                        <div x-data="{ edit: false }" class="rounded-lg border border-gray-100 bg-white px-3 py-2.5">
+                            {{-- Display --}}
+                            <div x-show="!edit" class="flex items-start justify-between gap-2">
+                                <div>
+                                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold {{ $label->badgeClass() }}">{{ $label->name }}</span>
+                                    @if ($label->description)<p class="mt-1 text-xs text-[var(--color-muted)]">{{ $label->description }}</p>@endif
+                                </div>
+                                <div class="flex shrink-0 items-center gap-0.5">
+                                    <button type="button" @click="edit = true" title="Edit" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                    </button>
+                                    <form method="POST" action="{{ route('admin.crm-settings.client-labels.destroy', $label) }}" data-turbo="false" onsubmit="return confirm('Remove label “{{ $label->name }}”?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" title="Remove" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {{-- Inline edit --}}
+                            <form x-show="edit" x-cloak method="POST" action="{{ route('admin.crm-settings.client-labels.update', $label) }}" data-turbo="false" class="space-y-2">
+                                @csrf @method('PATCH')
+                                <div class="flex gap-2">
+                                    <input name="name" value="{{ $label->name }}" required maxlength="40" placeholder="Name" class="h-9 w-40 rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                    <select name="color" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                                        @foreach ($labelColors as $c)<option value="{{ $c }}" @selected($label->color === $c)>{{ ucfirst($c) }}</option>@endforeach
+                                    </select>
+                                </div>
+                                <input name="description" value="{{ $label->description }}" maxlength="255" placeholder="Short meaning…" class="h-9 w-full rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                <div class="flex gap-2">
+                                    <button type="submit" class="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save</button>
+                                    <button type="button" @click="edit = false" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    @empty
+                        <p class="rounded-lg border border-dashed border-gray-200 px-3 py-4 text-center text-sm text-gray-400">No labels yet.</p>
+                    @endforelse
+                </div>
+
+                <form method="POST" action="{{ route('admin.crm-settings.client-labels.store') }}" data-turbo="false" class="mt-4 grid gap-2 border-t border-gray-100 pt-4 sm:grid-cols-[10rem_9rem_1fr_auto]">
+                    @csrf
+                    <input name="name" required maxlength="40" placeholder="Label name" class="h-10 rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                    <select name="color" class="h-10 rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                        @foreach ($labelColors as $c)<option value="{{ $c }}">{{ ucfirst($c) }}</option>@endforeach
+                    </select>
+                    <input name="description" maxlength="255" placeholder="Short meaning (optional)" class="h-10 rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                    <button type="submit" class="h-10 shrink-0 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Add</button>
+                </form>
+            </div>
 
             {{-- Leads note --}}
             <div x-show="tab === 'leads'" x-cloak class="rounded-xl border border-dashed border-gray-200 p-5 md:col-span-2">

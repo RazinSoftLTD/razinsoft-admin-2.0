@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'staff' => App\Http\Middleware\EnsureStaff::class,
             'permission' => App\Http\Middleware\EnsurePermission::class,
             'client.active' => App\Http\Middleware\EnsureClientActive::class,
+            'log.activity' => App\Http\Middleware\LogActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

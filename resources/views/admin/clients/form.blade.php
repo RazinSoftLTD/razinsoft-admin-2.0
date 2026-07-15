@@ -176,6 +176,18 @@
                 {{-- Gender --}}
                 <x-admin.field label="Gender" name="gender" type="select" :value="$val('gender')" class="flex-1"
                     :options="['' => '--'] + collect($genders)->mapWithKeys(fn ($g) => [$g => $g])->all()" />
+
+                {{-- Client Label (loyalty / priority tier) --}}
+                <div class="flex-1">
+                    <label for="client_label" class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client Label</label>
+                    <select id="client_label" name="client_label" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                        <option value="">--</option>
+                        @foreach ($clientLabels as $lbl)
+                            <option value="{{ $lbl->name }}" @selected($val('client_label') === $lbl->name) @if ($lbl->description) title="{{ $lbl->description }}" @endif>{{ $lbl->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400">Loyalty / priority tier. <a href="{{ route('admin.crm-settings') }}" target="_blank" class="text-[var(--color-primary)] hover:underline">Manage labels</a></p>
+                </div>
             </div>
 
             {{-- Login allowed? / Receive email notifications? --}}

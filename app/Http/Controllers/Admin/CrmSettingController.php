@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClientLabel;
 use App\Models\Deal;
 use App\Models\LeadOption;
 use Illuminate\Http\Request;
@@ -19,7 +20,50 @@ class CrmSettingController extends Controller
             'departments' => LeadOption::ofType('department')->get(),
             'products' => LeadOption::ofType('product')->get(),
             'stages' => LeadOption::ofType('deal_stage')->get(),
+            'clientLabels' => ClientLabel::ordered(),
+            'labelColors' => array_keys(ClientLabel::COLORS),
         ]);
+    }
+
+    // ===== Client loyalty/priority labels =====
+    public function storeClientLabel(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:40', Rule::unique('client_labels', 'name')],
+            'description' => ['nullable', 'string', 'max:255'],
+            'color' => ['nullable', Rule::in(array_keys(ClientLabel::COLORS))],
+        ]);
+        ClientLabel::create([
+            'name' => trim($data['name']),
+            'description' => $data['description'] ?? null,
+            'color' => $data['color'] ?? 'gray',
+            'sort_order' => (int) ClientLabel::max('sort_order') + 1,
+        ]);
+
+        return back()->with('status', "Client label “{$data['name']}” added.");
+    }
+
+    public function updateClientLabel(Request $request, ClientLabel $clientLabel)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:40', Rule::unique('client_labels', 'name')->ignore($clientLabel)],
+            'description' => ['nullable', 'string', 'max:255'],
+            'color' => ['nullable', Rule::in(array_keys(ClientLabel::COLORS))],
+        ]);
+        // Keep clients tagged with the old name in sync when it's renamed.
+        if ($clientLabel->name !== $data['name']) {
+            \App\Models\User::where('client_label', $clientLabel->name)->update(['client_label' => $data['name']]);
+        }
+        $clientLabel->update(['name' => trim($data['name']), 'description' => $data['description'] ?? null, 'color' => $data['color'] ?? $clientLabel->color]);
+
+        return back()->with('status', 'Client label updated.');
+    }
+
+    public function destroyClientLabel(ClientLabel $clientLabel)
+    {
+        $clientLabel->delete();
+
+        return back()->with('status', 'Client label removed.');
     }
 
     public function storeOption(Request $request)
