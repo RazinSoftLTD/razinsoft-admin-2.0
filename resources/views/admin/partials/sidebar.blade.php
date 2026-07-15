@@ -153,8 +153,8 @@
     $isItemActive = fn ($i) => ! empty($i['route']) && request()->routeIs(...(array) ($i['active'] ?? $i['route']));
 @endphp
 
-<div class="flex h-16 items-center gap-2 px-6">
-    <span class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-primary)] font-bold text-white">R</span>
+<div class="flex h-16 items-center gap-2.5 px-6">
+    <img src="{{ asset('images/razinsoft-icon.svg') }}" alt="RazinSoft" class="h-9 w-9 rounded-lg shadow-sm">
     <span class="text-lg font-extrabold text-[var(--color-heading)]">RazinSoft</span>
 </div>
 

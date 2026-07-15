@@ -9,7 +9,7 @@
 <body class="grid min-h-full place-items-center bg-[var(--color-body)] p-4 text-[var(--color-heading)]">
     <div class="w-full max-w-sm">
         <div class="mb-6 flex items-center justify-center gap-2">
-            <span class="grid h-10 w-10 place-items-center rounded-lg bg-[var(--color-primary)] text-lg font-extrabold text-white">R</span>
+            <img src="{{ asset('images/razinsoft-icon.svg') }}" alt="RazinSoft" class="h-10 w-10 rounded-lg shadow-sm">
             <span class="text-xl font-extrabold">RazinSoft</span>
         </div>
 

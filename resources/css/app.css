@@ -10,15 +10,19 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 
-    /* Materio-inspired palette */
-    --color-primary: #696cff;
-    --color-primary-hover: #5f61e6;
-    --color-primary-soft: #e7e7ff;
+    /* Primary — matched to the RazinSoft logo gradient (blue → violet) */
+    --color-primary: #5b6cf7;
+    --color-primary-hover: #4a5be6;
+    --color-primary-soft: #eceeff;
     --color-body: #f4f5fa;
     --color-heading: #32475c;
     --color-muted: #6f7785;
 
+    /* Logo gradient endpoints (for gradient accents) */
+    --color-logo-from: #3aa6ff;
+    --color-logo-to: #7b4bff;
+
     /* TailAdmin-style dashboard accents */
-    --color-brand: #465fff;
-    --color-brand-soft: #ecf0ff;
+    --color-brand: #5b6cf7;
+    --color-brand-soft: #eceeff;
 }
