@@ -23,7 +23,8 @@ class TrackController extends Controller
         // anonymous ("unknown") visitor. Both are recorded, with the visit's country.
         $user = auth('sanctum')->user();
         $clientId = ($user && $user->role === User::ROLE_CUSTOMER) ? $user->id : null;
-        $ip = $request->ip();
+        // Cloudflare's authoritative client IP first, then the trusted-proxy resolved IP.
+        $ip = $request->header('CF-Connecting-IP') ?: $request->ip();
 
         ClientActivityLog::create([
             'client_id' => $clientId,
