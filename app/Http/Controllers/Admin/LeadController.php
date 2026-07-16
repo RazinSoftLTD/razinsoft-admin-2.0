@@ -144,15 +144,42 @@ class LeadController extends Controller
         ]);
     }
 
-    /** Downloadable CSV template with the expected headers. */
-    public function importSample()
+    /** Downloadable import template — CSV by default, Excel via ?format=excel. */
+    public function importSample(Request $request)
     {
-        $headers = ['Full Name', 'Email', 'Phone', 'Company', 'Job Title', 'Source', 'Product', 'Lead Quality', 'Priority', 'Department', 'Country'];
+        // Dial Code sits in its OWN column so imports/exports keep the country code
+        // separate from the number (and country lists can be derived from the data).
+        $headers = ['Full Name', 'Email', 'Dial Code', 'Phone', 'Company', 'Job Title', 'Source', 'Product', 'Lead Quality', 'Priority', 'Department', 'Country'];
+        $examples = [
+            ['John Doe', 'john@example.com', '+880', '1711234567', 'Acme Ltd', 'Manager', 'Website', 'CRM Suite', 'New', 'High', 'Sales', 'Bangladesh'],
+            ['Jane Smith', 'jane@example.com', '+1', '2125550175', 'Globex Inc', 'CTO', 'Facebook', 'Ready POS', 'Qualified', 'Medium', 'Sales', 'United States'],
+        ];
 
-        return response()->streamDownload(function () use ($headers) {
+        if ($request->query('format') === 'excel') {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Leads Template');
+            $sheet->fromArray($headers, null, 'A1');
+            $sheet->fromArray($examples, null, 'A2');
+            $sheet->getStyle('A1:'.$sheet->getHighestColumn().'1')->getFont()->setBold(true);
+            foreach (range('A', $sheet->getHighestColumn()) as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, 'leads-import-template.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
+        }
+
+        return response()->streamDownload(function () use ($headers, $examples) {
             $out = fopen('php://output', 'w');
             fputcsv($out, $headers);
-            fputcsv($out, ['John Doe', 'john@example.com', '+880 17XXXXXXXX', 'Acme Ltd', 'Manager', 'Website', 'CRM Suite', 'New', 'High', 'Sales', 'Bangladesh']);
+            foreach ($examples as $row) {
+                fputcsv($out, $row);
+            }
             fclose($out);
         }, 'leads-import-template.csv', ['Content-Type' => 'text/csv']);
     }
@@ -183,6 +210,8 @@ class LeadController extends Controller
 
         $created = 0;
         $skipped = [];
+        $seenEmails = [];   // within-file duplicate guards
+        $seenPhones = [];
         foreach ($rows as $n => $rawRow) {
             $row = array_values($rawRow);
             if (count(array_filter($row, fn ($c) => trim((string) $c) !== '')) === 0) {
@@ -191,14 +220,15 @@ class LeadController extends Controller
 
             $data = [];
             foreach ($map as $i => $field) {
-                $data[$field] = trim((string) ($row[$i] ?? ''));
+                // Trim AND collapse internal double-spacing ("John  Doe " → "John Doe").
+                $data[$field] = preg_replace('/\s{2,}/u', ' ', trim((string) ($row[$i] ?? '')));
             }
             $name = $data['full_name'] ?? '';
-            $email = $data['email'] ?? '';
-            $phone = $data['phone'] ?? '';
+            $email = strtolower($data['email'] ?? '');
+            $rawPhone = $data['phone'] ?? '';
 
             // At least an email OR a phone identifies the lead (same rule as the Add Lead form).
-            if ($email === '' && $phone === '') {
+            if ($email === '' && $rawPhone === '') {
                 $skipped[] = 'Row '.($n + 2).': no email or phone';
 
                 continue;
@@ -206,11 +236,40 @@ class LeadController extends Controller
             if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $email = '';   // ignore a malformed email rather than dropping the whole row
             }
-            if ($email !== '' && Lead::where('email', $email)->exists()) {
-                $skipped[] = 'Row '.($n + 2)." ({$email}): duplicate";
+
+            // Phone must carry a resolvable country code (from a +CC prefix, the row's
+            // Country, or a Dial Code column) and be a VALID number for that country.
+            $dial = null;
+            $phone = '';
+            if ($rawPhone !== '') {
+                $parsed = \App\Support\Phone::normalize($rawPhone, $data['country'] ?? null, $data['dial_code'] ?? null);
+                if (! $parsed) {
+                    $skipped[] = 'Row '.($n + 2)." ({$rawPhone}): invalid phone".(($data['country'] ?? '') !== '' ? ' for '.$data['country'] : ' — no country code');
+
+                    continue;
+                }
+                [$dial, $phone] = [$parsed['dial'], $parsed['number']];
+            }
+
+            // Duplicates: against the database AND within this same file.
+            if ($email !== '' && (isset($seenEmails[$email]) || Lead::whereRaw('LOWER(email) = ?', [$email])->exists())) {
+                $skipped[] = 'Row '.($n + 2)." ({$email}): duplicate email";
 
                 continue;
             }
+            $phoneKey = $dial.$phone;
+            if ($phone !== '' && (isset($seenPhones[$phoneKey]) || Lead::where('phone', $phone)->where(fn ($q) => $q->where('dial_code', $dial)->orWhereNull('dial_code'))->exists())) {
+                $skipped[] = 'Row '.($n + 2)." ({$dial} {$phone}): duplicate phone";
+
+                continue;
+            }
+            if ($email !== '') {
+                $seenEmails[$email] = true;
+            }
+            if ($phone !== '') {
+                $seenPhones[$phoneKey] = true;
+            }
+
             // Derive a name when the file didn't include one.
             if ($name === '') {
                 $name = $email !== '' ? \Illuminate\Support\Str::before($email, '@') : $phone;
@@ -219,8 +278,8 @@ class LeadController extends Controller
             Lead::create([
                 'full_name' => $name,
                 'email' => $email ?: null,
-                'phone' => $phone,
-                'dial_code' => ($data['dial_code'] ?? '') ?: null,
+                'phone' => $phone ?: null,
+                'dial_code' => $dial,
                 'company_name' => ($data['company_name'] ?? '') ?: null,
                 'job_title' => ($data['job_title'] ?? '') ?: null,
                 'website' => ($data['website'] ?? '') ?: null,
@@ -478,8 +537,16 @@ class LeadController extends Controller
 
         $data['is_whatsapp'] = $request->boolean('is_whatsapp');
 
+        // Normalise spacing everywhere: trim + collapse internal double spaces.
+        foreach ($data as $k => $v) {
+            if (is_string($v)) {
+                $data[$k] = preg_replace('/\s{2,}/u', ' ', trim($v));
+            }
+        }
+
         // full_name & phone are NOT NULL — normalise and derive a name when left blank.
-        $data['phone'] = trim((string) ($data['phone'] ?? ''));
+        // Phone keeps digits only (spaces/dashes/() stripped) so copies & lookups are clean.
+        $data['phone'] = preg_replace('/[\s\-().]+/', '', (string) ($data['phone'] ?? ''));
         $name = trim((string) ($data['full_name'] ?? ''));
         if ($name === '') {
             $name = ! empty($data['email'])
@@ -569,11 +636,13 @@ class LeadController extends Controller
     /** Column headers + row values shared by every export format. */
     private function exportData($leads): array
     {
-        $headers = ['Lead ID', 'Full Name', 'Company', 'Job Title', 'Email', 'Phone', 'Source', 'Lead Quality', 'Priority', 'Assigned To', 'Department', 'Country', 'Created At'];
+        // Dial Code exports as its OWN column (separate from the number) so country
+        // breakdowns can be derived straight from the sheet.
+        $headers = ['Lead ID', 'Full Name', 'Company', 'Job Title', 'Email', 'Dial Code', 'Phone', 'Source', 'Lead Quality', 'Priority', 'Assigned To', 'Department', 'Country', 'Created At'];
         $rows = [];
         foreach ($leads as $l) {
             $rows[] = [
-                $l->lead_code, $l->full_name, $l->company_name, $l->job_title, $l->email, $l->phone,
+                $l->lead_code, $l->full_name, $l->company_name, $l->job_title, $l->email, $l->dial_code, $l->phone,
                 $l->lead_source, Lead::STATUSES[$l->lead_status] ?? $l->lead_status,
                 Lead::PRIORITIES[$l->priority] ?? $l->priority, $l->assignee?->name, $l->team, $l->country,
                 $l->created_at->format('Y-m-d H:i'),

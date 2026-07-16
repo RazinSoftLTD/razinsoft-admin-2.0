@@ -40,16 +40,32 @@
                         </td>
                         <td class="px-4 py-3">
                             @php
-                                $phoneDisplay = trim(($lead->dial_code ?? '').' '.$lead->phone);
+                                $fullNumber = trim(($lead->dial_code ? $lead->dial_code : '').$lead->phone);
                                 $waNumber = preg_replace('/\D/', '', ($lead->dial_code ?? '').$lead->phone);
                             @endphp
-                            @if ($lead->is_whatsapp && $waNumber)
-                                <a href="https://wa.me/{{ $waNumber }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 font-medium text-emerald-600 hover:underline" title="Open in WhatsApp">
-                                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1a10 10 0 0 1-3-1.8 11 11 0 0 1-2.3-2.9c-.5-.8-.6-1.5-.6-1.8 0-.5.5-1.2.8-1.5.2-.2.4-.2.6-.2h.5c.2 0 .4 0 .5.4l.7 1.7c.1.2 0 .4-.1.5l-.4.5c-.1.2-.3.3-.1.6.3.5.8 1.2 1.4 1.7.7.6 1.3.8 1.6 1 .2 0 .4 0 .5-.1l.6-.7c.2-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.3.1.2.1.6-.1 1.1Z"/></svg>
-                                    {{ $phoneDisplay }}
-                                </a>
+                            @if ($lead->phone)
+                                <span class="inline-flex items-center gap-1.5" x-data="{ copied: false }">
+                                    @if ($lead->dial_code)
+                                        <span class="rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-[var(--color-heading)]">{{ $lead->dial_code }}</span>
+                                    @endif
+                                    @if ($lead->is_whatsapp && $waNumber)
+                                        <a href="https://wa.me/{{ $waNumber }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-medium text-emerald-600 hover:underline" title="Open in WhatsApp">
+                                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1a10 10 0 0 1-3-1.8 11 11 0 0 1-2.3-2.9c-.5-.8-.6-1.5-.6-1.8 0-.5.5-1.2.8-1.5.2-.2.4-.2.6-.2h.5c.2 0 .4 0 .5.4l.7 1.7c.1.2 0 .4-.1.5l-.4.5c-.1.2-.3.3-.1.6.3.5.8 1.2 1.4 1.7.7.6 1.3.8 1.6 1 .2 0 .4 0 .5-.1l.6-.7c.2-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.3.1.2.1.6-.1 1.1Z"/></svg>
+                                            {{ $lead->phone }}
+                                        </a>
+                                    @else
+                                        <span class="text-[var(--color-muted)]">{{ $lead->phone }}</span>
+                                    @endif
+                                    {{-- copy: dial code + number together --}}
+                                    <button type="button"
+                                            @click="navigator.clipboard.writeText(@js($fullNumber)); copied = true; setTimeout(() => copied = false, 1200)"
+                                            class="rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Copy {{ $fullNumber }}">
+                                        <svg x-show="!copied" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                        <svg x-show="copied" x-cloak class="h-3.5 w-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
+                                    </button>
+                                </span>
                             @else
-                                <span class="text-[var(--color-muted)]">{{ $phoneDisplay ?: '—' }}</span>
+                                <span class="text-[var(--color-muted)]">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3">

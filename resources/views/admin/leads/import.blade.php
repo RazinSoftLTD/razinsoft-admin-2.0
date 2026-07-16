@@ -15,10 +15,17 @@
             <p class="font-semibold text-[var(--color-heading)]">How columns are read</p>
             <p class="mt-1">Headers are matched automatically — <strong>Name</strong> / <strong>Full Name</strong>, <strong>Phone</strong> / <strong>Mobile</strong> / <strong>WhatsApp</strong>, <strong>Email</strong>, <strong>Company</strong>, <strong>Source</strong>, <strong>Product</strong>, <strong>Lead Quality</strong>, <strong>Priority</strong>, <strong>Department</strong>, <strong>Country</strong> and more all work, in any order. Extra columns are ignored.</p>
             <p class="mt-2">Each row needs at least an <strong>email or phone</strong>. Duplicate emails are skipped; a missing name is filled from the email/phone.</p>
-            <a href="{{ route('admin.leads.import.sample') }}" class="mt-3 inline-flex items-center gap-1.5 font-semibold text-[var(--color-primary)] hover:underline">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-                Download template
-            </a>
+            <div class="mt-3 flex flex-wrap items-center gap-4">
+                <a href="{{ route('admin.leads.import.sample') }}" class="inline-flex items-center gap-1.5 font-semibold text-[var(--color-primary)] hover:underline">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                    CSV template
+                </a>
+                <a href="{{ route('admin.leads.import.sample', ['format' => 'excel']) }}" class="inline-flex items-center gap-1.5 font-semibold text-emerald-600 hover:underline">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7zM14 3v5h5M9.5 12l5 5m0-5-5 5"/></svg>
+                    Excel template
+                </a>
+            </div>
+            <p class="mt-2 text-xs text-gray-400">Both templates keep <strong>Dial Code</strong> in its own column (e.g. +880) separate from the phone number.</p>
         </div>
 
         <div>
