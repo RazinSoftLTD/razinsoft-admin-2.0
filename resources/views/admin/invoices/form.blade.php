@@ -28,6 +28,10 @@
         dueDate: '{{ old('due_date', optional($invoice->due_date)->toDateString()) }}',
         amountPaid: {{ (float) ($invoice->amount_paid ?? 0) }},
         status: '{{ $invoice->status === 'draft' || ! $invoice->exists ? 'draft' : 'sent' }}',
+        discountType: '{{ old('discount_type', $invoice->discount_type ?? '') }}',
+        discountValue: {{ (float) old('discount_value', $invoice->discount_value ?? 0) }},
+        notes: {{ Illuminate\Support\Js::from(old('notes', $invoice->notes ?? '')) }},
+        terms: {{ Illuminate\Support\Js::from(old('terms', $invoice->terms ?? '')) }},
     })">
 
     <form method="POST" action="{{ $invoice->exists ? route('admin.invoices.update', $invoice) : route('admin.invoices.store') }}" enctype="multipart/form-data">
@@ -124,7 +128,7 @@
                                 <div class="grid grid-cols-12 items-start gap-2">
                                     {{-- description (far left, wide) --}}
                                     <div class="col-span-12 md:col-span-5">
-                                        <input type="text" :name="`items[${idx}][description]`" x-model="item.description" placeholder="Item Name" required class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                        <input type="text" :name="`items[${idx}][description]`" x-model="item.description" placeholder="Description" required class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                                     </div>
                                     {{-- quantity + unit --}}
                                     <div class="col-span-3 md:col-span-2">
@@ -196,8 +200,14 @@
                 <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                     <h2 class="mb-5 text-sm font-bold text-[var(--color-heading)]">3. Additional Information</h2>
                     <div class="grid gap-5 sm:grid-cols-2">
-                        <x-admin.field label="Notes" name="notes" type="textarea" rows="3" :value="$invoice->notes" placeholder="Thank you note to the client…" />
-                        <x-admin.field label="Terms &amp; Conditions" name="terms" type="textarea" rows="3" :value="$invoice->terms" placeholder="Payment terms…" />
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Notes</label>
+                            <textarea name="notes" rows="3" x-model="notes" placeholder="Thank you note to the client…" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Terms &amp; Conditions</label>
+                            <textarea name="terms" rows="3" x-model="terms" placeholder="Payment terms…" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
+                        </div>
                     </div>
                     <div class="mt-5 grid gap-5 sm:grid-cols-2">
                         <div>
@@ -205,7 +215,6 @@
                             <input type="file" name="attachment" accept=".pdf,.doc,.docx,.jpg,.png" class="text-sm text-[var(--color-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
                             <p class="mt-1 text-xs text-[var(--color-muted)]">PDF, DOC, JPG, PNG (max 5MB).</p>
                         </div>
-                        <x-admin.field label="Payment Method" name="payment_method" type="select" :value="$invoice->payment_method ?? 'Bank Transfer'" :options="array_combine(\App\Models\ClientInvoice::PAYMENT_METHODS, \App\Models\ClientInvoice::PAYMENT_METHODS)" />
                     </div>
                 </section>
             </div>
@@ -250,12 +259,35 @@
                             </template>
                         </tbody>
                     </table>
-                    <div class="mt-3 space-y-1 border-t border-gray-100 pt-3 text-xs">
+                    <div class="mt-3 space-y-1.5 border-t border-gray-100 pt-3 text-xs">
                         <div class="flex justify-between"><span class="text-[var(--color-muted)]">Subtotal</span><span x-text="money(totals.subtotal)"></span></div>
-                        <div class="flex justify-between" x-show="totals.discount > 0"><span class="text-[var(--color-muted)]">Discount</span><span x-text="'-' + money(totals.discount)"></span></div>
+                        {{-- Discount: right after Subtotal, with its own type + amount inputs --}}
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[var(--color-muted)]">Discount</span>
+                            <div class="flex items-center gap-1.5">
+                                <select name="discount_type" x-model="discountType" class="h-7 rounded-md border border-gray-200 bg-white px-1.5 text-[11px] text-[var(--color-heading)] focus:border-[var(--color-primary)] focus:outline-none">
+                                    <option value="">None</option>
+                                    <option value="flat">Flat</option>
+                                    <option value="percent">%</option>
+                                </select>
+                                <input type="number" name="discount_value" x-model="discountValue" x-show="discountType" x-cloak min="0" :max="discountType === 'percent' ? 100 : null" step="0.01" :placeholder="discountType === 'percent' ? '%' : currency" class="h-7 w-20 rounded-md border border-gray-200 px-1.5 text-right text-[11px] focus:border-[var(--color-primary)] focus:outline-none">
+                                <span class="font-semibold text-emerald-600" x-show="totals.discount > 0" x-cloak x-text="'-' + money(totals.discount)"></span>
+                            </div>
+                        </div>
                         <div class="flex justify-between"><span class="text-[var(--color-muted)]">Tax</span><span x-text="money(totals.tax)"></span></div>
                         <div class="mt-1 flex justify-between border-t border-gray-100 pt-2 text-sm font-bold text-[var(--color-heading)]"><span>Total Due</span><span x-text="money(totals.due) + ' ' + currency"></span></div>
                         <div class="flex justify-between text-[var(--color-muted)]" x-show="amountPaid > 0"><span>Paid</span><span x-text="money(amountPaid)"></span></div>
+                    </div>
+                    {{-- Notes & Terms live preview --}}
+                    <div class="mt-4 space-y-3 border-t border-gray-100 pt-3 text-xs" x-show="notes || terms" x-cloak>
+                        <div x-show="notes">
+                            <p class="mb-0.5 font-semibold text-gray-400">Notes</p>
+                            <p class="whitespace-pre-line text-[var(--color-muted)]" x-text="notes"></p>
+                        </div>
+                        <div x-show="terms">
+                            <p class="mb-0.5 font-semibold text-gray-400">Terms &amp; Conditions</p>
+                            <p class="whitespace-pre-line text-[var(--color-muted)]" x-text="terms"></p>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -310,6 +342,8 @@ function invoiceForm(cfg) {
         clients: cfg.clients, items: cfg.items, units: cfg.units, taxes: cfg.taxes, defaultUnit: cfg.defaultUnit,
         clientId: cfg.clientId, currency: cfg.currency,
         invoiceNumber: cfg.invoiceNumber, invoiceDate: cfg.invoiceDate, dueDate: cfg.dueDate, amountPaid: cfg.amountPaid, status: cfg.status,
+        discountType: cfg.discountType || '', discountValue: cfg.discountValue || 0,
+        notes: cfg.notes || '', terms: cfg.terms || '',
         bill: { name: '', company: '', email: '', phone: '', address: '' },
         dragFrom: null,
         qa: { open: false, name: '', email: '', company: '', saving: false, error: '' },
@@ -333,6 +367,20 @@ function invoiceForm(cfg) {
             const gross = (parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0);
             return gross - gross * ((parseFloat(item.discount_percent) || 0) / 100);
         },
+        // Invoice-level discount (flat or % of the item net), mirroring the server-side computation.
+        invoiceDiscount() {
+            let subtotal = 0, lineDiscount = 0;
+            for (const it of this.items) {
+                const gross = (parseFloat(it.qty) || 0) * (parseFloat(it.unit_price) || 0);
+                subtotal += gross;
+                lineDiscount += gross * ((parseFloat(it.discount_percent) || 0) / 100);
+            }
+            const net = subtotal - lineDiscount;
+            const v = Math.max(0, parseFloat(this.discountValue) || 0);
+            if (this.discountType === 'percent') return net * Math.min(100, v) / 100;
+            if (this.discountType === 'flat') return Math.min(v, net);
+            return 0;
+        },
         get totals() {
             let subtotal = 0, discount = 0, tax = 0;
             for (const it of this.items) {
@@ -341,6 +389,7 @@ function invoiceForm(cfg) {
                 const net = gross - d;
                 subtotal += gross; discount += d; tax += net * (this.lineRate(it) / 100);
             }
+            discount += this.invoiceDiscount();
             const total = subtotal - discount + tax;
             return { subtotal, discount, tax, total, due: total - (this.amountPaid || 0) };
         },

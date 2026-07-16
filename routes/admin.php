@@ -331,6 +331,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('invoices/{invoice}/edit', [ClientInvoiceController::class, 'edit'])->whereNumber('invoice')->name('invoices.edit');
             Route::put('invoices/{invoice}', [ClientInvoiceController::class, 'update'])->whereNumber('invoice')->name('invoices.update');
             Route::post('invoices/{invoice}/request-payment', [ClientInvoiceController::class, 'requestPayment'])->name('invoices.request-payment');
+            Route::post('invoices/{invoice}/pay-options', [ClientInvoiceController::class, 'payOptions'])->whereNumber('invoice')->name('invoices.pay-options');
             Route::post('invoices/{invoice}/shipping-address', [ClientInvoiceController::class, 'shippingAddress'])->whereNumber('invoice')->name('invoices.shipping-address');
             Route::get('recurring/{recurring}/edit', [RecurringInvoiceController::class, 'edit'])->whereNumber('recurring')->name('recurring.edit');
             Route::put('recurring/{recurring}', [RecurringInvoiceController::class, 'update'])->whereNumber('recurring')->name('recurring.update');

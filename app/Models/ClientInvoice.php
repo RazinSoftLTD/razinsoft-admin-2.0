@@ -21,7 +21,16 @@ class ClientInvoice extends Model
         'tax_total' => 'decimal:2',
         'total' => 'decimal:2',
         'amount_paid' => 'decimal:2',
+        'pay_methods' => 'array',
     ];
+
+    /** Gateways offered on the public pay link. Defaults to Stripe when nothing is set. */
+    public function payMethods(): array
+    {
+        $methods = array_values(array_intersect((array) $this->pay_methods, ['stripe', 'paypal']));
+
+        return $methods ?: ['stripe'];
+    }
 
     public const STATUSES = [
         'draft' => 'Draft',

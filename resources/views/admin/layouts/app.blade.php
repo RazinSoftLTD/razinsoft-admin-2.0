@@ -7,6 +7,7 @@
     {{-- Don't cache snapshots — pages re-render fresh so Quill/Alpine/real-time widgets re-init cleanly. --}}
     <meta name="turbo-cache-control" content="no-cache">
     <title>@yield('title', 'Admin') · RazinSoft</title>
+    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <style>[x-cloak]{display:none!important}</style>
     @vite(['resources/css/app.css'])
 

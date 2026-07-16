@@ -79,25 +79,33 @@
             {{-- Items --}}
             <div class="px-8">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <table class="w-full border border-gray-200 text-sm">
                         <thead>
-                            <tr class="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-400">
-                                <th class="rounded-l-lg px-3 py-2.5 text-left font-semibold">Item</th>
-                                <th class="px-3 py-2.5 text-right font-semibold">Qty</th>
-                                <th class="px-3 py-2.5 text-right font-semibold">Rate</th>
-                                <th class="px-3 py-2.5 text-right font-semibold">Tax</th>
-                                <th class="rounded-r-lg px-3 py-2.5 text-right font-semibold">Amount</th>
+                            <tr class="border-b border-gray-200 bg-gray-50 text-xs font-semibold text-[var(--color-heading)]">
+                                <th class="px-4 py-2.5 text-left font-semibold">Description</th>
+                                <th class="border-l border-gray-200 px-4 py-2.5 text-center font-semibold">Quantity</th>
+                                <th class="border-l border-gray-200 px-4 py-2.5 text-right font-semibold">Unit Price</th>
+                                <th class="border-l border-gray-200 px-4 py-2.5 text-right font-semibold">Tax</th>
+                                <th class="border-l border-gray-200 px-4 py-2.5 text-right font-semibold">Amount ({{ $invoice->currency }})</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody class="divide-y divide-gray-200">
                             @foreach ($invoice->items as $item)
                                 <tr>
-                                    <td class="px-3 py-3"><p class="font-medium text-[var(--color-heading)]">{{ $item->description }}</p>@if ($item->sub_description)<div class="mt-0.5 text-xs text-[var(--color-muted)]">{!! $item->formattedSubDescription() !!}</div>@endif</td>
-                                    <td class="px-3 py-3 text-right text-[var(--color-muted)]">{{ rtrim(rtrim(number_format($item->qty, 2), '0'), '.') }}</td>
-                                    <td class="px-3 py-3 text-right text-[var(--color-muted)]">{{ $cur }}{{ number_format($item->unit_price, 2) }}</td>
-                                    <td class="px-3 py-3 text-right text-[var(--color-muted)]">{{ rtrim(rtrim(number_format($item->tax_percent, 2), '0'), '.') }}%</td>
-                                    <td class="px-3 py-3 text-right font-medium text-[var(--color-heading)]">{{ $cur }}{{ number_format($item->amount, 2) }}</td>
+                                    <td class="px-4 py-3 font-medium text-[var(--color-heading)]">{{ $item->description }}</td>
+                                    <td class="border-l border-gray-200 px-4 py-3 text-center text-[var(--color-muted)]">{{ rtrim(rtrim(number_format($item->qty, 2), '0'), '.') }}<span class="block text-[11px] text-gray-400">{{ $item->unit ?: 'Items' }}</span></td>
+                                    <td class="border-l border-gray-200 px-4 py-3 text-right text-[var(--color-muted)]">{{ number_format($item->unit_price, 2) }}</td>
+                                    <td class="border-l border-gray-200 px-4 py-3 text-right text-[var(--color-muted)]">@if ($item->tax_percent > 0){{ rtrim(rtrim(number_format($item->tax_percent, 2), '0'), '.') }}%@endif</td>
+                                    <td class="border-l border-gray-200 px-4 py-3 text-right font-medium text-[var(--color-heading)]">{{ number_format($item->amount, 2) }}</td>
                                 </tr>
+                            @endforeach
+                            {{-- Sub-descriptions: full-width detail rows under the items, like the sample layout --}}
+                            @foreach ($invoice->items as $item)
+                                @if ($item->sub_description)
+                                    <tr>
+                                        <td colspan="5" class="invoice-subdesc px-4 py-3 text-xs leading-relaxed text-[var(--color-heading)]">{!! $item->formattedSubDescription() !!}</td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -107,12 +115,16 @@
             {{-- Totals --}}
             <div class="flex justify-end px-8 pt-5">
                 <div class="w-full max-w-xs space-y-2 text-sm">
-                    <div class="flex justify-between"><span class="text-[var(--color-muted)]">Subtotal</span><span class="text-[var(--color-heading)]">{{ $cur }}{{ number_format($invoice->subtotal, 2) }}</span></div>
-                    <div class="flex justify-between"><span class="text-[var(--color-muted)]">Discount</span><span class="text-[var(--color-heading)]">−{{ $cur }}{{ number_format($invoice->discount_total, 2) }}</span></div>
-                    <div class="flex justify-between"><span class="text-[var(--color-muted)]">Tax</span><span class="text-[var(--color-heading)]">{{ $cur }}{{ number_format($invoice->tax_total, 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-[var(--color-muted)]">Sub Total</span><span class="text-[var(--color-heading)]">{{ $cur }}{{ number_format($invoice->subtotal, 2) }}</span></div>
+                    @if ($invoice->discount_total > 0)
+                        <div class="flex justify-between"><span class="text-[var(--color-muted)]">Discount{{ $invoice->discount_type === 'percent' && $invoice->discount_value > 0 ? ': '.rtrim(rtrim(number_format($invoice->discount_value, 2), '0'), '.').'%' : '' }}</span><span class="text-[var(--color-heading)]">−{{ $cur }}{{ number_format($invoice->discount_total, 2) }}</span></div>
+                    @endif
+                    @if ($invoice->tax_total > 0)
+                        <div class="flex justify-between"><span class="text-[var(--color-muted)]">Tax</span><span class="text-[var(--color-heading)]">{{ $cur }}{{ number_format($invoice->tax_total, 2) }}</span></div>
+                    @endif
                     <div class="flex justify-between border-t border-gray-100 pt-2 font-semibold text-[var(--color-heading)]"><span>Total</span><span>{{ $cur }}{{ number_format($invoice->total, 2) }}</span></div>
                     @if ($invoice->amount_paid > 0)<div class="flex justify-between text-emerald-600"><span>Paid</span><span>−{{ $cur }}{{ number_format($invoice->amount_paid, 2) }}</span></div>@endif
-                    <div class="mt-1 flex justify-between rounded-lg bg-[var(--color-primary-soft)] px-4 py-3 text-base font-bold text-[var(--color-primary)]"><span>Amount Due</span><span>{{ $cur }}{{ number_format($invoice->amountDue(), 2) }}</span></div>
+                    <div class="mt-1 flex justify-between rounded-lg bg-[var(--color-primary-soft)] px-4 py-3 text-base font-bold text-[var(--color-primary)]"><span>Total Due</span><span>{{ $cur }}{{ number_format($invoice->amountDue(), 2) }} {{ $invoice->currency }}</span></div>
                 </div>
             </div>
 
@@ -148,10 +160,10 @@
                 @endif
             </div>
 
-            {{-- Client Pay Link — only while payment is NOT complete --}}
+            {{-- Payment Options — only while payment is NOT complete --}}
             @if ($invoice->amountDue() > 0 && ! in_array($invoice->status, ['paid', 'cancelled'], true))
                 <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Client Pay Link</h2>
+                    <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Payment Options</h2>
                     <div class="flex items-center gap-2" x-data="{ link: @js($invoice->payUrl()), copied: false, async copy() { try { await navigator.clipboard.writeText(this.link); } catch (e) { const i = this.$refs.input; i.select(); document.execCommand('copy'); } this.copied = true; setTimeout(() => this.copied = false, 1500); } }">
                         <input x-ref="input" type="text" readonly :value="link" @click="copy()" class="h-9 flex-1 cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-2 text-xs text-[var(--color-muted)]">
                         <button type="button" @click="copy()" class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-primary-soft)] px-3 text-xs font-semibold text-[var(--color-primary)]">
@@ -166,6 +178,39 @@
                         </button>
                     </div>
                     <p class="mt-2 text-xs text-[var(--color-muted)]">Share this link — the client pays online. Payment is recorded automatically.</p>
+
+                    {{-- Gateways + partial payment --}}
+                    @php $methods = $invoice->payMethods(); @endphp
+                    <form method="POST" action="{{ route('admin.invoices.pay-options', $invoice) }}" class="mt-4 space-y-3 border-t border-gray-100 pt-4"
+                          x-data="{ partial: {{ is_null($invoice->requested_amount) ? 'false' : 'true' }} }">
+                        @csrf
+                        <div>
+                            <p class="mb-1.5 text-xs font-semibold text-[var(--color-muted)]">Client can pay with</p>
+                            <div class="flex items-center gap-4">
+                                <label class="inline-flex items-center gap-2 text-sm text-[var(--color-heading)]">
+                                    <input type="checkbox" name="pay_methods[]" value="stripe" @checked(in_array('stripe', $methods)) class="rounded accent-[var(--color-primary)]">
+                                    Stripe <span class="text-[10px] text-gray-400">(card)</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm text-[var(--color-heading)]">
+                                    <input type="checkbox" name="pay_methods[]" value="paypal" @checked(in_array('paypal', $methods)) class="rounded accent-[var(--color-primary)]">
+                                    PayPal
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="inline-flex items-center gap-2 text-sm text-[var(--color-heading)]">
+                                <input type="checkbox" name="partial_enabled" value="1" x-model="partial" class="rounded accent-[var(--color-primary)]">
+                                Allow partial payment
+                            </label>
+                            <div class="mt-2" x-show="partial" x-cloak>
+                                <input type="number" name="partial_amount" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}"
+                                       value="{{ old('partial_amount', $invoice->requested_amount) }}" placeholder="Amount the client will pay now"
+                                       class="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                <p class="mt-1 text-[11px] text-[var(--color-muted)]">The pay link will charge exactly this amount (due: {{ $cur }}{{ number_format($invoice->amountDue(), 2) }}).</p>
+                            </div>
+                        </div>
+                        <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Payment Options</button>
+                    </form>
                 </div>
             @endif
 

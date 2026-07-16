@@ -155,6 +155,29 @@ class ClientInvoiceController extends Controller
             : 'Cleared — the pay link will charge the full due.');
     }
 
+    /** Payment Options: which gateways the pay link offers + optional partial-payment amount. */
+    public function payOptions(Request $request, ClientInvoice $invoice)
+    {
+        $data = $request->validate([
+            'pay_methods' => ['required', 'array', 'min:1'],
+            'pay_methods.*' => ['in:stripe,paypal'],
+            'partial_enabled' => ['nullable', 'boolean'],
+            'partial_amount' => ['nullable', 'required_if:partial_enabled,1', 'numeric', 'min:0.01', 'max:'.max(0.01, $invoice->amountDue())],
+        ], [
+            'pay_methods.required' => 'Select at least one payment method.',
+            'partial_amount.required_if' => 'Enter the partial payment amount.',
+            'partial_amount.max' => 'The partial amount cannot be more than the current due ('.number_format($invoice->amountDue(), 2).').',
+        ]);
+
+        $invoice->update([
+            'pay_methods' => array_values(array_unique($data['pay_methods'])),
+            // Partial payment reuses requested_amount — the pay link charges exactly this.
+            'requested_amount' => $request->boolean('partial_enabled') ? $data['partial_amount'] : null,
+        ]);
+
+        return back()->with('status', 'Payment options updated.');
+    }
+
     /** Mark sent and (best-effort) email the client the invoice + pay link. */
     public function send(ClientInvoice $invoice)
     {
@@ -305,8 +328,11 @@ class ClientInvoiceController extends Controller
             'currency' => $data['currency'],
             'notes' => $data['notes'] ?? null,
             'terms' => $data['terms'] ?? null,
-            'payment_method' => $data['payment_method'] ?? null,
+            // No longer on the form — keep whatever the invoice already has (payments record their own method).
+            'payment_method' => $data['payment_method'] ?? $invoice->payment_method,
             'status' => $data['status'] ?? 'draft',
+            'discount_type' => $data['discount_type'] ?? null,
+            'discount_value' => (float) ($data['discount_value'] ?? 0),
         ]);
 
         if ($request->hasFile('attachment')) {
@@ -354,6 +380,17 @@ class ClientInvoiceController extends Controller
             ];
         }
 
+        // ---- Invoice-level discount (flat amount or % of the item net) on top of any per-line discounts. ----
+        $netAfterLines = $subtotal - $discountTotal;
+        $invoiceDiscount = 0.0;
+        if (($data['discount_type'] ?? null) === 'percent') {
+            $invoiceDiscount = $netAfterLines * min(100, max(0, (float) ($data['discount_value'] ?? 0))) / 100;
+        } elseif (($data['discount_type'] ?? null) === 'flat') {
+            // A flat discount can never exceed what's left to discount.
+            $invoiceDiscount = min(max(0, (float) ($data['discount_value'] ?? 0)), $netAfterLines);
+        }
+        $discountTotal += $invoiceDiscount;
+
         $invoice->subtotal = round($subtotal, 2);
         $invoice->discount_total = round($discountTotal, 2);
         $invoice->tax_total = round($taxTotal, 2);
@@ -377,6 +414,8 @@ class ClientInvoiceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'terms' => ['nullable', 'string', 'max:2000'],
             'payment_method' => ['nullable', 'string', 'max:60'],
+            'discount_type' => ['nullable', 'in:flat,percent'],
+            'discount_value' => ['nullable', 'numeric', 'min:0', 'required_with:discount_type'],
             'attachment' => ['nullable', 'file', 'max:5120'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],

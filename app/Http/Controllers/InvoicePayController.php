@@ -56,6 +56,11 @@ class InvoicePayController extends Controller
             ])->values(),
             // Where the "Pay Now" button sends the client.
             'checkout_url' => route('pay.invoice.checkout', $invoice->public_token),
+            // Gateways the admin enabled for this invoice (+ the PayPal entry point).
+            'pay_methods' => $invoice->payMethods(),
+            'paypal_url' => route('pay.invoice.paypal', $invoice->public_token),
+            // True when the admin requested a specific (partial) amount.
+            'partial_requested' => ! is_null($invoice->requested_amount),
         ]);
     }
 
@@ -135,6 +140,112 @@ class InvoicePayController extends Controller
             $invoice->recomputePaid();
             $invoice->logActivity('payment_added',
                 'Client paid '.$invoice->currencySymbol().number_format($charged, 2).' online (Stripe).',
+                'client', $invoice->client);
+        }
+
+        return redirect()->away($invoice->payUrl().'?paid=1');
+    }
+
+    // ---------------------------------------------------------------- PayPal
+
+    /** PayPal REST base URL for the configured mode. */
+    private function paypalBase(): string
+    {
+        return config('services.paypal.mode') === 'live'
+            ? 'https://api-m.paypal.com'
+            : 'https://api-m.sandbox.paypal.com';
+    }
+
+    private function paypalToken(): ?string
+    {
+        $id = config('services.paypal.client_id');
+        $secret = config('services.paypal.secret');
+        if (! $id || ! $secret) {
+            return null;
+        }
+
+        $res = \Illuminate\Support\Facades\Http::asForm()
+            ->withBasicAuth($id, $secret)
+            ->post($this->paypalBase().'/v1/oauth2/token', ['grant_type' => 'client_credentials']);
+
+        return $res->successful() ? $res->json('access_token') : null;
+    }
+
+    /** Start a PayPal payment for the payable amount. */
+    public function paypal(string $token)
+    {
+        $invoice = ClientInvoice::where('public_token', $token)->firstOrFail();
+        $amount = $invoice->payableAmount();
+
+        if ($amount <= 0 || ! in_array('paypal', $invoice->payMethods(), true)) {
+            return redirect()->away($invoice->payUrl());
+        }
+
+        $access = $this->paypalToken();
+        if (! $access) {
+            // No PayPal credentials configured — send the client back with a clear flag.
+            return redirect()->away($invoice->payUrl().'?paypal=unavailable');
+        }
+
+        $res = \Illuminate\Support\Facades\Http::withToken($access)
+            ->post($this->paypalBase().'/v2/checkout/orders', [
+                'intent' => 'CAPTURE',
+                'purchase_units' => [[
+                    'reference_id' => $invoice->invoice_number,
+                    'custom_id' => (string) $invoice->id,
+                    'amount' => ['currency_code' => strtoupper($invoice->currency), 'value' => number_format($amount, 2, '.', '')],
+                    'description' => "Invoice {$invoice->invoice_number}",
+                ]],
+                'application_context' => [
+                    'brand_name' => 'RazinSoft',
+                    'user_action' => 'PAY_NOW',
+                    'return_url' => route('pay.invoice.paypal.return', $token),
+                    'cancel_url' => $invoice->payUrl(),
+                ],
+            ]);
+
+        $approve = collect($res->json('links') ?? [])->firstWhere('rel', 'approve')['href'] ?? null;
+
+        return $approve ? redirect()->away($approve) : redirect()->away($invoice->payUrl().'?paypal=error');
+    }
+
+    /** PayPal approved — capture the order and record the payment. */
+    public function paypalReturn(Request $request, string $token)
+    {
+        $invoice = ClientInvoice::where('public_token', $token)->firstOrFail();
+        $orderId = $request->query('token'); // PayPal returns its order id as ?token=
+
+        $access = $orderId ? $this->paypalToken() : null;
+        if (! $access) {
+            return redirect()->away($invoice->payUrl());
+        }
+
+        $res = \Illuminate\Support\Facades\Http::withToken($access)
+            ->withBody('', 'application/json')
+            ->post($this->paypalBase()."/v2/checkout/orders/{$orderId}/capture");
+
+        $capture = $res->json('purchase_units.0.payments.captures.0');
+        if (($res->json('status') !== 'COMPLETED') || ! $capture || ($capture['status'] ?? null) !== 'COMPLETED') {
+            return redirect()->away($invoice->payUrl());
+        }
+
+        $amount = round((float) ($capture['amount']['value'] ?? 0), 2);
+        $reference = 'paypal-'.($capture['id'] ?? $orderId);
+
+        if ($amount > 0 && ! InvoicePayment::where('client_invoice_id', $invoice->id)->where('reference', $reference)->exists()) {
+            $charged = min($amount, $invoice->amountDue());
+            $invoice->payments()->create([
+                'amount' => $charged,
+                'paid_at' => now()->toDateString(),
+                'method' => 'PayPal',
+                'currency' => $invoice->currency,
+                'reference' => $reference,
+                'note' => 'Paid online',
+            ]);
+            $invoice->update(['requested_amount' => null]);
+            $invoice->recomputePaid();
+            $invoice->logActivity('payment_added',
+                'Client paid '.$invoice->currencySymbol().number_format($charged, 2).' online (PayPal).',
                 'client', $invoice->client);
         }
 
