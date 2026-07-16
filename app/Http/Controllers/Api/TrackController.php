@@ -18,6 +18,7 @@ class TrackController extends Controller
             'title' => ['nullable', 'string', 'max:255'],
             'referrer' => ['nullable', 'string', 'max:1000'],
             'error' => ['nullable', 'integer', 'min:400', 'max:599'], // error-page views (404 …)
+            'tz' => ['nullable', 'string', 'max:64'],                 // browser timezone (Asia/Dhaka …)
         ]);
 
         // Attach the client if a valid client token is present; otherwise it's an
@@ -27,12 +28,21 @@ class TrackController extends Controller
         // Cloudflare's authoritative client IP first, then the trusted-proxy resolved IP.
         $ip = $request->header('CF-Connecting-IP') ?: $request->ip();
 
+        // Don't pollute the analytics with crawler traffic — Meta/Google render bots
+        // execute JS with real-browser user agents, so filter by IP range/hosting too.
+        if (\App\Support\Geo::isBot($ip, $request->userAgent())) {
+            return response()->noContent();
+        }
+
         // Strip the query string so /blog/x?utm=… groups with /blog/x in reports.
         $path = strtok($data['path'], '?') ?: $data['path'];
 
-        // Country: Cloudflare resolves it at the edge from the real connecting IP
-        // (CF-IPCountry) — far more accurate than IP-lookup APIs. Fall back to a lookup.
-        $country = \App\Support\Geo::countryFromCode($request->header('CF-IPCountry'))
+        // Country, most-trustworthy first:
+        //  1. the browser's timezone — where the device REALLY is (VPN/proxy-proof)
+        //  2. Cloudflare's edge-resolved CF-IPCountry
+        //  3. an IP lookup as the last resort
+        $country = \App\Support\Geo::countryFromTimezone($data['tz'] ?? null)
+            ?? \App\Support\Geo::countryFromCode($request->header('CF-IPCountry'))
             ?? \App\Support\Geo::country($ip);
 
         $log = ClientActivityLog::create([
