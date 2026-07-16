@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { margin: 20px 22px; }
+  @page { margin: 28px 42px; }
   * { font-family: DejaVu Sans, sans-serif; }
   body { color: #1f2937; font-size: 12px; margin: 0; }
   .wrap { padding: 0; }

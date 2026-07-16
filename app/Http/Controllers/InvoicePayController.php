@@ -42,6 +42,8 @@ class InvoicePayController extends Controller
             ])->values(),
             'subtotal' => (float) $invoice->subtotal,
             'discount_total' => (float) $invoice->discount_total,
+            'discount_type' => $invoice->discount_type,
+            'discount_value' => (float) $invoice->discount_value,
             'tax_total' => (float) $invoice->tax_total,
             'total' => (float) $invoice->total,
             'amount_paid' => (float) $invoice->amount_paid,
@@ -61,6 +63,8 @@ class InvoicePayController extends Controller
             'paypal_url' => route('pay.invoice.paypal', $invoice->public_token),
             // True when the admin requested a specific (partial) amount.
             'partial_requested' => ! is_null($invoice->requested_amount),
+            // Optional short description for the requested amount.
+            'partial_note' => $invoice->requested_note,
         ]);
     }
 
@@ -134,9 +138,9 @@ class InvoicePayController extends Controller
                 'method' => 'Stripe',
                 'currency' => $invoice->currency,
                 'reference' => $reference,
-                'note' => 'Paid online',
+                'note' => $invoice->requested_note ?: 'Paid online',
             ]);
-            $invoice->update(['requested_amount' => null]);
+            $invoice->update(['requested_amount' => null, 'requested_note' => null]);
             $invoice->recomputePaid();
             $invoice->logActivity('payment_added',
                 'Client paid '.$invoice->currencySymbol().number_format($charged, 2).' online (Stripe).',
@@ -240,9 +244,9 @@ class InvoicePayController extends Controller
                 'method' => 'PayPal',
                 'currency' => $invoice->currency,
                 'reference' => $reference,
-                'note' => 'Paid online',
+                'note' => $invoice->requested_note ?: 'Paid online',
             ]);
-            $invoice->update(['requested_amount' => null]);
+            $invoice->update(['requested_amount' => null, 'requested_note' => null]);
             $invoice->recomputePaid();
             $invoice->logActivity('payment_added',
                 'Client paid '.$invoice->currencySymbol().number_format($charged, 2).' online (PayPal).',

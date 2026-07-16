@@ -163,6 +163,7 @@ class ClientInvoiceController extends Controller
             'pay_methods.*' => ['in:stripe,paypal'],
             'partial_enabled' => ['nullable', 'boolean'],
             'partial_amount' => ['nullable', 'required_if:partial_enabled,1', 'numeric', 'min:0.01', 'max:'.max(0.01, $invoice->amountDue())],
+            'partial_note' => ['nullable', 'string', 'max:255'],
         ], [
             'pay_methods.required' => 'Select at least one payment method.',
             'partial_amount.required_if' => 'Enter the partial payment amount.',
@@ -173,6 +174,8 @@ class ClientInvoiceController extends Controller
             'pay_methods' => array_values(array_unique($data['pay_methods'])),
             // Partial payment reuses requested_amount — the pay link charges exactly this.
             'requested_amount' => $request->boolean('partial_enabled') ? $data['partial_amount'] : null,
+            // Optional remark: shown on the pay link, recorded on the payment once paid.
+            'requested_note' => $request->boolean('partial_enabled') ? ($data['partial_note'] ?? null) : null,
         ]);
 
         return back()->with('status', 'Payment options updated.');

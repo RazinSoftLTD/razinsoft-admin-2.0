@@ -100,7 +100,7 @@
 
             {{-- Row 2: Password · Country · Mobile · Gender --}}
             <div class="mt-5 flex flex-col gap-5 lg:flex-row">
-                <div class="flex-1">
+                <div class="flex-1 lg:flex-[1.5]">
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">{{ $client->exists ? 'Reset Password' : 'Password' }}</label>
                     <div class="flex gap-2">
                         {{-- Input with the show/hide eye button inside, on the right --}}
@@ -150,48 +150,51 @@
                             <li x-show="filteredCountries.length === 0" class="px-3 py-2 text-sm text-gray-400">No match</li>
                         </ul>
                     </div>
-                    {{-- Mobile: searchable dial + number --}}
+                    {{-- Mobile: flag + dial-code picker joined to the number input (same design as Add Lead) --}}
                     <div class="flex-1">
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Mobile</label>
-                        <div class="flex gap-2">
-                            <div class="relative w-28 shrink-0" @click.outside="openD = false">
+                        <div class="flex">
+                            <div class="relative">
+                                <button type="button" @click="openD = !openD"
+                                        class="flex h-11 items-center gap-1 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 px-2.5 text-sm text-[var(--color-heading)] hover:bg-gray-100 focus:outline-none">
+                                    <span x-text="currentDial ? currentDial.flag : '🌐'"></span>
+                                    <span x-text="currentDial ? currentDial.dial : 'Code'"></span>
+                                    <svg class="h-3.5 w-3.5 text-gray-400 transition" :class="openD && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                </button>
                                 <input type="hidden" name="dial_code" :value="dial">
-                                <input type="text" x-model="dialQuery" @focus="openD = true; $el.select()" @click="openD = true"
-                                       @keydown.escape="openD = false" autocomplete="off" placeholder="Code"
-                                       class="h-11 w-full rounded-lg border border-gray-200 px-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                                <ul x-show="openD" x-cloak class="absolute z-20 mt-1 max-h-60 w-72 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                                    <template x-for="c in filteredDials" :key="c.code">
-                                        <li @click="selectDial(c)" class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" :class="c.dial === dial ? 'bg-gray-50 font-semibold' : ''">
-                                            <span x-text="c.flag"></span><span x-text="c.dial"></span><span class="ml-auto text-xs text-gray-400" x-text="c.name"></span>
-                                        </li>
-                                    </template>
-                                    <li x-show="filteredDials.length === 0" class="px-3 py-2 text-sm text-gray-400">No match</li>
-                                </ul>
+                                <div x-show="openD" x-cloak @click.outside="openD = false"
+                                     class="absolute z-30 mt-1 w-64 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
+                                    <div class="p-2">
+                                        <input x-model="dialQuery" @click.stop type="text" placeholder="Search country or code…"
+                                               class="h-9 w-full rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                    </div>
+                                    <div class="max-h-60 overflow-y-auto pb-1">
+                                        <template x-for="c in filteredDials" :key="c.code">
+                                            <button type="button" @click="selectDial(c)"
+                                                    class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                                                    :class="c.dial === dial && 'bg-[var(--color-primary-soft)]'">
+                                                <span x-text="c.flag"></span>
+                                                <span class="flex-1 truncate text-[var(--color-heading)]" x-text="c.name"></span>
+                                                <span class="text-gray-400" x-text="c.dial"></span>
+                                            </button>
+                                        </template>
+                                        <p x-show="!filteredDials.length" class="px-3 py-2 text-sm text-gray-400">No country found.</p>
+                                    </div>
+                                </div>
                             </div>
-                            <input name="phone" value="{{ $val('phone') }}" placeholder="e.g. 1234567890" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                            <input name="phone" value="{{ $val('phone') }}" placeholder="1XXX-XXXXXX" class="h-11 w-full rounded-r-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                         </div>
                     </div>
                 </div>
 
                 {{-- Gender --}}
-                <x-admin.field label="Gender" name="gender" type="select" :value="$val('gender')" class="flex-1"
+                <x-admin.field label="Gender" name="gender" type="select" :value="$val('gender')" class="flex-1 lg:flex-[0.6]"
                     :options="['' => '--'] + collect($genders)->mapWithKeys(fn ($g) => [$g => $g])->all()" />
 
-                {{-- Client Label (loyalty / priority tier) --}}
-                <div class="flex-1">
-                    <label for="client_label" class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client Label</label>
-                    <select id="client_label" name="client_label" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                        <option value="">--</option>
-                        @foreach ($clientLabels as $lbl)
-                            <option value="{{ $lbl->name }}" @selected($val('client_label') === $lbl->name) @if ($lbl->description) title="{{ $lbl->description }}" @endif>{{ $lbl->name }}</option>
-                        @endforeach
-                    </select>
-                    <p class="mt-1 text-xs text-gray-400">Loyalty / priority tier. <a href="{{ route('admin.crm-settings') }}" target="_blank" class="text-[var(--color-primary)] hover:underline">Manage labels</a></p>
-                </div>
             </div>
 
-            {{-- Login allowed? / Receive email notifications? --}}
-            <div class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {{-- Login allowed? / Receive email notifications? / Client Label — one line --}}
+            <div class="mt-5 grid gap-5 sm:grid-cols-3">
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Login Allowed?</label>
                     <div class="flex items-center gap-5 pt-1 text-sm">
@@ -205,6 +208,16 @@
                         <label class="inline-flex items-center gap-2"><input type="radio" name="receive_email_notifications" value="1" @checked($notify === '1') class="accent-[var(--color-primary)]"> Yes</label>
                         <label class="inline-flex items-center gap-2"><input type="radio" name="receive_email_notifications" value="0" @checked($notify === '0') class="accent-[var(--color-primary)]"> No</label>
                     </div>
+                </div>
+                {{-- Client Label (loyalty / priority tier) --}}
+                <div>
+                    <label for="client_label" class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client Label</label>
+                    <select id="client_label" name="client_label" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                        <option value="">--</option>
+                        @foreach ($clientLabels as $lbl)
+                            <option value="{{ $lbl->name }}" @selected($val('client_label') === $lbl->name) @if ($lbl->description) title="{{ $lbl->description }}" @endif>{{ $lbl->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
         </div>
@@ -351,7 +364,6 @@
                 init() {
                     const c = this.countries.find((x) => x.name === this.country);
                     this.countryQuery = c ? c.name : (this.country || '');
-                    this.dialQuery = this.dial || '';
                 },
                 get filteredCountries() {
                     const q = this.countryQuery.trim().toLowerCase();
@@ -363,8 +375,10 @@
                     if (!q) return this.countries;
                     return this.countries.filter((c) => c.dial.includes(q) || c.name.toLowerCase().includes(q));
                 },
-                selectCountry(c) { this.country = c.name; this.countryQuery = c.name; this.dial = c.dial; this.dialQuery = c.dial; this.openC = false; },
-                selectDial(c) { this.dial = c.dial; this.dialQuery = c.dial; this.country = c.name; this.countryQuery = c.name; this.openD = false; },
+                get currentDial() { return this.countries.find((c) => c.dial === this.dial) || null; },
+                selectCountry(c) { this.country = c.name; this.countryQuery = c.name; this.dial = c.dial; this.openC = false; },
+                // Dial-code pick is one-way: it never overwrites the chosen Country.
+                selectDial(c) { this.dial = c.dial; this.openD = false; this.dialQuery = ''; },
             }));
         });
     </script>

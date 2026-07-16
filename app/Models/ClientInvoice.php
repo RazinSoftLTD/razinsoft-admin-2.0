@@ -24,6 +24,14 @@ class ClientInvoice extends Model
         'pay_methods' => 'array',
     ];
 
+    protected static function booted(): void
+    {
+        // Every invoice must have a pay-link token — never rely on the caller to set it.
+        static::creating(function (self $invoice) {
+            $invoice->public_token = $invoice->public_token ?: \Illuminate\Support\Str::random(40);
+        });
+    }
+
     /** Gateways offered on the public pay link. Defaults to Stripe when nothing is set. */
     public function payMethods(): array
     {

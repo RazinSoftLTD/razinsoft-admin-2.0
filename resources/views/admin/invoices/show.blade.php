@@ -202,11 +202,14 @@
                                 <input type="checkbox" name="partial_enabled" value="1" x-model="partial" class="rounded accent-[var(--color-primary)]">
                                 Allow partial payment
                             </label>
-                            <div class="mt-2" x-show="partial" x-cloak>
+                            <div class="mt-2 space-y-2" x-show="partial" x-cloak>
                                 <input type="number" name="partial_amount" step="0.01" min="0.01" max="{{ $invoice->amountDue() }}"
                                        value="{{ old('partial_amount', $invoice->requested_amount) }}" placeholder="Amount the client will pay now"
                                        class="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                                <p class="mt-1 text-[11px] text-[var(--color-muted)]">The pay link will charge exactly this amount (due: {{ $cur }}{{ number_format($invoice->amountDue(), 2) }}).</p>
+                                <input type="text" name="partial_note" maxlength="255"
+                                       value="{{ old('partial_note', $invoice->requested_note) }}" placeholder="Short description (optional) — e.g. 50% advance"
+                                       class="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                <p class="text-[11px] text-[var(--color-muted)]">The pay link will charge exactly this amount (due: {{ $cur }}{{ number_format($invoice->amountDue(), 2) }}). The description shows on the pay link and is saved as the payment's remark.</p>
                             </div>
                         </div>
                         <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Payment Options</button>
