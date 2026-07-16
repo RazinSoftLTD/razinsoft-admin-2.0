@@ -56,6 +56,8 @@ class Permissions
         // gate the matching detail-page tab and are individually scopable (owned/added/all).
         'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'import_export', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
         'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
+        // Activity logs — each page is its own toggle (Employee actions, Client visits, Blogs & Products reports).
+        'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products']],
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
         // invoices: base CRUD scoped via created_by (= added). The extra ops (payments/send/
         // cancel/duplicate) are individually scopable; configuration + bin are global none/all.
@@ -89,6 +91,8 @@ class Permissions
         // Invoice operations.
         'send' => 'Send', 'cancel' => 'Cancel', 'duplicate' => 'Duplicate', 'configure' => 'Configuration', 'bin' => 'Bin',
         'import_export' => 'Import / Export',
+        // Activity log pages.
+        'employee' => 'Employee', 'client' => 'Client', 'blogs' => 'Blogs', 'products' => 'Products',
         // Client detail-page sections (Profile rides on view — no separate action).
         'projects' => 'Projects', 'invoices' => 'Invoices',
         'payments' => 'Payments', 'documents' => 'Documents', 'notes' => 'Notes', 'tickets' => 'Tickets',

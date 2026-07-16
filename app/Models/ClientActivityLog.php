@@ -10,7 +10,7 @@ class ClientActivityLog extends Model
 {
     public const UPDATED_AT = null;
 
-    protected $fillable = ['client_id', 'country', 'path', 'title', 'referrer', 'ip', 'user_agent', 'created_at'];
+    protected $fillable = ['client_id', 'country', 'path', 'title', 'error_code', 'referrer', 'ip', 'user_agent', 'created_at'];
 
     protected $casts = ['created_at' => 'datetime'];
 

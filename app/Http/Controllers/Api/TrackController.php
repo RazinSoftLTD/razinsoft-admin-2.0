@@ -17,6 +17,7 @@ class TrackController extends Controller
             'path' => ['required', 'string', 'max:1000'],
             'title' => ['nullable', 'string', 'max:255'],
             'referrer' => ['nullable', 'string', 'max:1000'],
+            'error' => ['nullable', 'integer', 'min:400', 'max:599'], // error-page views (404 …)
         ]);
 
         // Attach the client if a valid client token is present; otherwise it's an
@@ -29,11 +30,17 @@ class TrackController extends Controller
         // Strip the query string so /blog/x?utm=… groups with /blog/x in reports.
         $path = strtok($data['path'], '?') ?: $data['path'];
 
+        // Country: Cloudflare resolves it at the edge from the real connecting IP
+        // (CF-IPCountry) — far more accurate than IP-lookup APIs. Fall back to a lookup.
+        $country = \App\Support\Geo::countryFromCode($request->header('CF-IPCountry'))
+            ?? \App\Support\Geo::country($ip);
+
         $log = ClientActivityLog::create([
             'client_id' => $clientId,
-            'country' => \App\Support\Geo::country($ip),
+            'country' => $country,
             'path' => Str::limit($path, 990, ''),
             'title' => $data['title'] ?? null,
+            'error_code' => $data['error'] ?? null,
             'referrer' => $data['referrer'] ?? null,
             'ip' => $ip,
             'user_agent' => Str::limit((string) $request->userAgent(), 490, ''),

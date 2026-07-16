@@ -9,6 +9,25 @@ use Illuminate\Support\Str;
 /** Best-effort country lookup from an IP address (cached per IP; never throws). */
 class Geo
 {
+    /**
+     * Country name from a 2-letter ISO code — used with Cloudflare's CF-IPCountry
+     * header, which is resolved at the edge from the REAL connecting IP and is far
+     * more accurate than free IP-lookup APIs (handles VPN/private-relay ranges too).
+     */
+    public static function countryFromCode(?string $code): ?string
+    {
+        $code = strtoupper(trim((string) $code));
+        // XX = unknown, T1 = Tor — not real countries.
+        if ($code === '' || strlen($code) !== 2 || in_array($code, ['XX', 'T1'], true)) {
+            return null;
+        }
+
+        static $map = null;
+        $map ??= collect(config('countries', []))->keyBy('code')->map(fn ($c) => $c['name']);
+
+        return $map[$code] ?? (class_exists(\Locale::class) ? (\Locale::getDisplayRegion('-'.$code, 'en') ?: null) : null);
+    }
+
     public static function country(?string $ip): ?string
     {
         if (! $ip || $ip === '127.0.0.1' || $ip === '::1'

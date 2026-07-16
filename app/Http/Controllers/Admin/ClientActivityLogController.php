@@ -19,8 +19,13 @@ class ClientActivityLogController extends Controller
 
     public function index(Request $request)
     {
-        $base = ClientActivityLog::query();
+        $base = ClientActivityLog::query()->whereNull('error_code'); // errors have their own report
         $this->applyDates($base, $request);
+
+        // Error-page views in the same date window (the stat card links to the report).
+        $errBase = ClientActivityLog::query()->whereNotNull('error_code');
+        $this->applyDates($errBase, $request);
+        $totalErrors = $errBase->count();
 
         // ---- Headline stats ----
         $totalVisits = (clone $base)->count();
@@ -48,6 +53,7 @@ class ClientActivityLogController extends Controller
             ->whereIn('id', $visitors->pluck('last_id'))->get()->keyBy('id');
 
         return view('admin.client-activity.index', [
+            'totalErrors' => $totalErrors,
             'totalVisits' => $totalVisits,
             'uniqueVisitors' => $uniqueVisitors,
             'knownClients' => $knownClients,
@@ -69,9 +75,10 @@ class ClientActivityLogController extends Controller
     public function content(Request $request, string $type)
     {
         abort_unless(isset(self::CONTENT[$type]), 404);
+        abort_unless($request->user()->allows('activity', $type), 403); // activity.blogs / activity.products
         $cfg = self::CONTENT[$type];
 
-        $base = ClientActivityLog::query()->where('path', 'like', $cfg['prefix'].'%');
+        $base = ClientActivityLog::query()->whereNull('error_code')->where('path', 'like', $cfg['prefix'].'%');
         $this->applyDates($base, $request);
 
         // Headline stats for the section.
@@ -121,6 +128,39 @@ class ClientActivityLogController extends Controller
             'clientsPerItem' => $clientsPerItem,
             'clientMap' => $clientMap,
             'topCountries' => $topCountries,
+        ]);
+    }
+
+    /** Error-page views report (404 & friends): which URLs fail, how often, for whom. */
+    public function errors(Request $request)
+    {
+        $base = ClientActivityLog::query()->whereNotNull('error_code');
+        $this->applyDates($base, $request);
+
+        $totalErrors = (clone $base)->count();
+        $affectedVisitors = (int) (clone $base)->selectRaw('COUNT(DISTINCT '.self::VISITOR_KEY.') as c')->value('c');
+
+        // Breakdown by status code (404 vs 500 …).
+        $byCode = (clone $base)->selectRaw('error_code, COUNT(*) as hits')
+            ->groupBy('error_code')->orderByDesc('hits')->get();
+
+        // Which URLs error the most.
+        $pages = (clone $base)
+            ->selectRaw('error_code, path, COUNT(*) as hits, COUNT(DISTINCT '.self::VISITOR_KEY.') as visitors, MAX(created_at) as last_seen, MAX(referrer) as sample_referrer')
+            ->groupBy('error_code', 'path')->orderByDesc('hits')
+            ->paginate(20)->withQueryString();
+
+        // Recent individual error hits (who hit what).
+        $recent = ClientActivityLog::query()->whereNotNull('error_code')->with('client:id,name,email,photo');
+        $this->applyDates($recent, $request);
+        $recent = $recent->latest('id')->limit(20)->get();
+
+        return view('admin.client-activity.errors', [
+            'totalErrors' => $totalErrors,
+            'affectedVisitors' => $affectedVisitors,
+            'byCode' => $byCode,
+            'pages' => $pages,
+            'recent' => $recent,
         ]);
     }
 

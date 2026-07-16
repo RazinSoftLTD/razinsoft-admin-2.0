@@ -31,7 +31,7 @@
 
     <div id="live-region">
     {{-- ===== Headline stats ===== --}}
-    <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         @php
             $stats = [
                 ['label' => 'Total Visits', 'value' => number_format($totalVisits), 'icon' => 'M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z', 'tint' => 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]'],
@@ -52,6 +52,19 @@
                 </div>
             </div>
         @endforeach
+
+        {{-- Total Errors — click through to the error report --}}
+        <a href="{{ route('admin.client-activity.errors', request()->only(['date_range', 'from', 'to'])) }}"
+           class="flex items-center gap-4 rounded-xl border p-5 shadow-sm transition hover:shadow {{ $totalErrors > 0 ? 'border-red-200 bg-red-50/60' : 'border-gray-100 bg-white' }}">
+            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg {{ $totalErrors > 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            </span>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide {{ $totalErrors > 0 ? 'text-red-400' : 'text-gray-400' }}">Total Errors</p>
+                <p class="text-lg font-bold {{ $totalErrors > 0 ? 'text-red-600' : 'text-[var(--color-heading)]' }}">{{ number_format($totalErrors) }}</p>
+                <p class="text-xs {{ $totalErrors > 0 ? 'text-red-400' : 'text-[var(--color-muted)]' }}">View error report →</p>
+            </div>
+        </a>
     </div>
 
     {{-- ===== Reports: top pages + top countries ===== --}}

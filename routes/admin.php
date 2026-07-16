@@ -181,9 +181,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== Clients =====
         Route::middleware('permission:clients.view')->group(function () {
             Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
+        });
+        // Activity logs — each page has its own permission (see Roles → Activity Logs).
+        Route::middleware('permission:activity.client')->group(function () {
             Route::get('client-activity', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'index'])->name('client-activity');
             Route::get('client-activity/details', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'details'])->name('client-activity.details');
-            Route::get('client-activity/{type}', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'content'])->whereIn('type', ['blogs', 'products'])->name('client-activity.content');
+            Route::get('client-activity/errors', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'errors'])->name('client-activity.errors');
+        });
+        // Blogs / Products share one route; the exact permission (activity.blogs / activity.products)
+        // is checked in the controller since it depends on {type}.
+        Route::get('client-activity/{type}', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'content'])->whereIn('type', ['blogs', 'products'])->name('client-activity.content');
+        Route::middleware('permission:clients.view')->group(function () {
             Route::get('clients/{client}', [ClientController::class, 'show'])->whereNumber('client')->name('clients.show');
         });
         Route::middleware('permission:clients.create')->group(function () {
@@ -437,8 +445,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('users', UserController::class)->except('show');
 
         // Email / SMTP settings + templates
-        // Settings → Activity Log (every employee's actions).
-        Route::middleware('permission:employees.view')->group(function () {
+        // Activity → Employee (every employee's actions).
+        Route::middleware('permission:activity.employee')->group(function () {
             Route::get('activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-logs');
         });
 

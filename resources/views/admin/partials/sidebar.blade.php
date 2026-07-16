@@ -124,10 +124,10 @@
         ]],
 
         ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [
-            ['label' => 'Employee', 'route' => 'admin.activity-logs', 'active' => 'admin.activity-logs*', 'perm' => 'employees.view', 'icon' => $ic['employees']],
-            ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => ['admin.client-activity', 'admin.client-activity.details'], 'perm' => 'clients.view', 'icon' => $ic['clients']],
-            ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'clients.view', 'icon' => $ic['blog']],
-            ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'clients.view', 'icon' => $ic['products']],
+            ['label' => 'Employee', 'route' => 'admin.activity-logs', 'active' => 'admin.activity-logs*', 'perm' => 'activity.employee', 'icon' => $ic['employees']],
+            ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => ['admin.client-activity', 'admin.client-activity.details', 'admin.client-activity.errors'], 'perm' => 'activity.client', 'icon' => $ic['clients']],
+            ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.blogs', 'icon' => $ic['blog']],
+            ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.products', 'icon' => $ic['products']],
         ]],
 
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
