@@ -59,6 +59,59 @@ class ClientActivityLogController extends Controller
         ]);
     }
 
+    /** Content sections reported on their own pages (Blogs / Products). */
+    private const CONTENT = [
+        'blogs' => ['label' => 'Blogs', 'prefix' => '/blog/', 'noun' => 'blog post', 'hint' => 'Which blog posts are most popular, who reads them, and from where.'],
+        'products' => ['label' => 'Products', 'prefix' => '/products/', 'noun' => 'product', 'hint' => 'Which products get the most attention, who views them, and from where.'],
+    ];
+
+    /** Blogs / Products popularity report (views, unique visitors, clients, countries). */
+    public function content(Request $request, string $type)
+    {
+        abort_unless(isset(self::CONTENT[$type]), 404);
+        $cfg = self::CONTENT[$type];
+
+        $base = ClientActivityLog::query()->where('path', 'like', $cfg['prefix'].'%');
+        $this->applyDates($base, $request);
+
+        // Headline stats for the section.
+        $totalViews = (clone $base)->count();
+        $uniqueVisitors = (int) (clone $base)->selectRaw('COUNT(DISTINCT '.self::VISITOR_KEY.') as c')->value('c');
+        $knownClients = (clone $base)->whereNotNull('client_id')->distinct()->count('client_id');
+        $topCountry = (clone $base)->whereNotNull('country')
+            ->selectRaw('country, COUNT(*) as views')->groupBy('country')->orderByDesc('views')->first();
+
+        // Per-item popularity (views · unique visitors · logged-in clients).
+        $items = (clone $base)
+            ->selectRaw('path, MAX(title) as title, COUNT(*) as views, COUNT(DISTINCT '.self::VISITOR_KEY.') as visitors, COUNT(DISTINCT client_id) as clients')
+            ->groupBy('path')->orderByDesc('views')
+            ->paginate(15)->withQueryString();
+
+        // Top country per listed item.
+        $countryPerItem = (clone $base)->whereNotNull('country')
+            ->whereIn('path', collect($items->items())->pluck('path'))
+            ->selectRaw('path, country, COUNT(*) as views')
+            ->groupBy('path', 'country')->orderByDesc('views')->get()
+            ->groupBy('path')->map(fn ($rows) => $rows->first());
+
+        // Country breakdown for the whole section.
+        $topCountries = (clone $base)->whereNotNull('country')
+            ->selectRaw('country, COUNT(*) as views, COUNT(DISTINCT '.self::VISITOR_KEY.') as visitors')
+            ->groupBy('country')->orderByDesc('visitors')->limit(10)->get();
+
+        return view('admin.client-activity.content', [
+            'type' => $type,
+            'cfg' => $cfg,
+            'totalViews' => $totalViews,
+            'uniqueVisitors' => $uniqueVisitors,
+            'knownClients' => $knownClients,
+            'topCountry' => $topCountry,
+            'items' => $items,
+            'countryPerItem' => $countryPerItem,
+            'topCountries' => $topCountries,
+        ]);
+    }
+
     /** Full history for one visitor — a client (by id) or an unknown visitor (by ip). */
     public function details(Request $request)
     {

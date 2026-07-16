@@ -26,10 +26,13 @@ class TrackController extends Controller
         // Cloudflare's authoritative client IP first, then the trusted-proxy resolved IP.
         $ip = $request->header('CF-Connecting-IP') ?: $request->ip();
 
+        // Strip the query string so /blog/x?utm=… groups with /blog/x in reports.
+        $path = strtok($data['path'], '?') ?: $data['path'];
+
         ClientActivityLog::create([
             'client_id' => $clientId,
             'country' => \App\Support\Geo::country($ip),
-            'path' => Str::limit($data['path'], 990, ''),
+            'path' => Str::limit($path, 990, ''),
             'title' => $data['title'] ?? null,
             'referrer' => $data['referrer'] ?? null,
             'ip' => $ip,

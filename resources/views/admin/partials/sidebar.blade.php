@@ -125,7 +125,9 @@
 
         ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [
             ['label' => 'Employee', 'route' => 'admin.activity-logs', 'active' => 'admin.activity-logs*', 'perm' => 'employees.view', 'icon' => $ic['employees']],
-            ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => 'admin.client-activity*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
+            ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => ['admin.client-activity', 'admin.client-activity.details'], 'perm' => 'clients.view', 'icon' => $ic['clients']],
+            ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'clients.view', 'icon' => $ic['blog']],
+            ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'clients.view', 'icon' => $ic['products']],
         ]],
 
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
@@ -150,7 +152,19 @@
         return $canSee($entry) ? $entry : null;
     }, $nav)));
 
-    $isItemActive = fn ($i) => ! empty($i['route']) && request()->routeIs(...(array) ($i['active'] ?? $i['route']));
+    $isItemActive = function ($i) {
+        if (empty($i['route']) || ! request()->routeIs(...(array) ($i['active'] ?? $i['route']))) {
+            return false;
+        }
+        // When the entry pins route params (e.g. type=blogs), they must match too.
+        foreach (($i['params'] ?? []) as $k => $v) {
+            if (request()->route($k) !== $v) {
+                return false;
+            }
+        }
+
+        return true;
+    };
 @endphp
 
 <div class="flex h-16 items-center gap-2.5 px-6">
@@ -172,7 +186,7 @@
     @foreach ($nav as $entry)
         @if (($entry['type'] ?? 'link') === 'link')
             @php $active = $isItemActive($entry); $soon = ! empty($entry['soon']); @endphp
-            <a href="{{ $soon ? '#' : route($entry['route']) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
+            <a href="{{ $soon ? '#' : route($entry['route'], $entry['params'] ?? []) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $active ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }} {{ $soon ? 'cursor-default opacity-60' : '' }}">
                 <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ $entry['icon'] }}"/>
@@ -198,7 +212,7 @@
                         <div class="ml-4 mt-1 space-y-1 border-l border-gray-100 pl-3">
                             @foreach ($entry['items'] as $item)
                                 @php $active = $isItemActive($item); $soon = ! empty($item['soon']); @endphp
-                                <a href="{{ $soon ? '#' : route($item['route']) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
+                                <a href="{{ $soon ? '#' : route($item['route'], $item['params'] ?? []) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
                                    class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition {{ $active ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }} {{ $soon ? 'cursor-default opacity-60' : '' }}">
                                     <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['icon'] }}"/>
