@@ -23,6 +23,7 @@
         </form>
     </div>
 
+    <div id="live-region">
     {{-- ===== Headline stats ===== --}}
     <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @php
@@ -66,8 +67,8 @@
                             <th class="px-5 py-3 font-semibold">Top country</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @forelse ($items as $i => $item)
+                    @forelse ($items as $i => $item)
+                        <tbody x-data="{ sc: false }" class="border-b border-gray-100">
                             <tr class="hover:bg-gray-50">
                                 <td class="max-w-md px-5 py-3">
                                     <div class="flex items-center gap-3">
@@ -81,16 +82,51 @@
                                 </td>
                                 <td class="px-5 py-3 text-right font-bold text-[var(--color-heading)]">{{ number_format($item->views) }}</td>
                                 <td class="px-5 py-3 text-right text-[var(--color-muted)]">{{ number_format($item->visitors) }}</td>
-                                <td class="px-5 py-3 text-right text-[var(--color-muted)]">{{ number_format($item->clients) }}</td>
+                                <td class="px-5 py-3 text-right">
+                                    @php $viewedBy = $clientsPerItem[$item->path] ?? collect(); @endphp
+                                    @if ($viewedBy->count())
+                                        <button type="button" @click="sc = !sc"
+                                                class="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-xs font-bold text-[var(--color-primary)] hover:opacity-80" title="See which clients viewed this">
+                                            {{ number_format($item->clients) }}
+                                            <svg class="h-3 w-3 transition-transform" :class="sc && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                        </button>
+                                    @else
+                                        <span class="text-[var(--color-muted)]">0</span>
+                                    @endif
+                                </td>
                                 <td class="px-5 py-3 text-[var(--color-muted)]">
                                     @php $cc = $countryPerItem[$item->path] ?? null; @endphp
                                     {{ $cc?->country ?? '—' }}@if ($cc) <span class="text-xs text-gray-400">({{ number_format($cc->views) }})</span>@endif
                                 </td>
                             </tr>
-                        @empty
-                            <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No {{ strtolower($cfg['label']) }} views recorded yet.</td></tr>
-                        @endforelse
-                    </tbody>
+                            @if (($clientsPerItem[$item->path] ?? collect())->count())
+                                <tr x-show="sc" x-cloak class="bg-gray-50/70">
+                                    <td colspan="5" class="px-5 py-3">
+                                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Clients who viewed this {{ $cfg['noun'] }}</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach ($clientsPerItem[$item->path] as $row)
+                                                @php $c = $clientMap[$row->client_id] ?? null; @endphp
+                                                @if ($c)
+                                                    <a href="{{ route('admin.client-activity.details', ['client' => $c->id]) }}"
+                                                       class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white py-1 pl-1 pr-3 text-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
+                                                        @if ($c->photo)
+                                                            <img src="{{ asset('storage/'.$c->photo) }}" alt="" class="h-6 w-6 rounded-full border border-gray-200 object-cover">
+                                                        @else
+                                                            <span class="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[10px] font-bold text-[var(--color-primary)]">{{ strtoupper(substr($c->name, 0, 1)) }}</span>
+                                                        @endif
+                                                        <span class="font-medium">{{ $c->name }}</span>
+                                                        <span class="text-xs text-gray-400">{{ number_format($row->views) }} view(s)</span>
+                                                    </a>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    @empty
+                        <tbody><tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No {{ strtolower($cfg['label']) }} views recorded yet.</td></tr></tbody>
+                    @endforelse
                 </table>
             </div>
             <div class="p-4">{{ $items->links() }}</div>
@@ -121,4 +157,7 @@
             </div>
         </div>
     </div>
+    </div>{{-- /#live-region --}}
+
+    @include('admin.client-activity._live')
 @endsection

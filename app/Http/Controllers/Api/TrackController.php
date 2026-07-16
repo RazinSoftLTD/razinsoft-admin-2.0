@@ -29,7 +29,7 @@ class TrackController extends Controller
         // Strip the query string so /blog/x?utm=… groups with /blog/x in reports.
         $path = strtok($data['path'], '?') ?: $data['path'];
 
-        ClientActivityLog::create([
+        $log = ClientActivityLog::create([
             'client_id' => $clientId,
             'country' => \App\Support\Geo::country($ip),
             'path' => Str::limit($path, 990, ''),
@@ -39,6 +39,13 @@ class TrackController extends Controller
             'user_agent' => Str::limit((string) $request->userAgent(), 490, ''),
             'created_at' => now(),
         ]);
+
+        // Nudge any open Client Activity screens to refresh — never break the beacon.
+        try {
+            event(new \App\Events\ClientVisitLogged($log->id));
+        } catch (\Throwable $e) {
+            // broadcasting is best-effort
+        }
 
         return response()->noContent();
     }

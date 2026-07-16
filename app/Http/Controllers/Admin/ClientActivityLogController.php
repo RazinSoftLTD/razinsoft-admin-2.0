@@ -94,6 +94,16 @@ class ClientActivityLogController extends Controller
             ->groupBy('path', 'country')->orderByDesc('views')->get()
             ->groupBy('path')->map(fn ($rows) => $rows->first());
 
+        // WHICH clients viewed each listed item (so the Clients count can expand to a list).
+        $clientsPerItem = (clone $base)->whereNotNull('client_id')
+            ->whereIn('path', collect($items->items())->pluck('path'))
+            ->selectRaw('path, client_id, COUNT(*) as views, MAX(created_at) as last_visit')
+            ->groupBy('path', 'client_id')->orderByDesc('views')->get()
+            ->groupBy('path');
+        $clientMap = \App\Models\User::withTrashed()
+            ->whereIn('id', $clientsPerItem->flatten(1)->pluck('client_id')->unique())
+            ->get(['id', 'name', 'email', 'photo'])->keyBy('id');
+
         // Country breakdown for the whole section.
         $topCountries = (clone $base)->whereNotNull('country')
             ->selectRaw('country, COUNT(*) as views, COUNT(DISTINCT '.self::VISITOR_KEY.') as visitors')
@@ -108,6 +118,8 @@ class ClientActivityLogController extends Controller
             'topCountry' => $topCountry,
             'items' => $items,
             'countryPerItem' => $countryPerItem,
+            'clientsPerItem' => $clientsPerItem,
+            'clientMap' => $clientMap,
             'topCountries' => $topCountries,
         ]);
     }

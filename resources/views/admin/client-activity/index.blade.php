@@ -4,8 +4,14 @@
 @section('content')
     <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">Client Activity</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Who visits the website, which pages they browse, and from which country — one row per visitor.</p>
+            <h1 class="flex items-center gap-3 text-xl font-bold text-[var(--color-heading)]">
+                Client Activity
+                <span id="live-badge" class="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
+                    <span class="relative flex h-2 w-2"><span id="live-ping" class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span></span>
+                    Live
+                </span>
+            </h1>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Who visits the website, which pages they browse, and from which country — one row per visitor. Updates live as visits happen.</p>
         </div>
 
         {{-- Date filter --}}
@@ -23,6 +29,7 @@
         </form>
     </div>
 
+    <div id="live-region">
     {{-- ===== Headline stats ===== --}}
     <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @php
@@ -176,4 +183,7 @@
     </div>
 
     <div class="mt-4">{{ $visitors->links() }}</div>
+    </div>{{-- /#live-region --}}
+
+    @include('admin.client-activity._live')
 @endsection
