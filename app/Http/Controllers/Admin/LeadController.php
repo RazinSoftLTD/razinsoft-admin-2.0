@@ -483,7 +483,7 @@ class LeadController extends Controller
     public function update(Request $request, Lead $lead)
     {
         $this->authorizeLead($request, $lead);
-        $lead->update($this->validated($request));
+        $lead->update($this->validated($request, $lead));
 
         return redirect()->route('admin.leads.index')->with('status', 'Lead updated.');
     }
@@ -502,7 +502,7 @@ class LeadController extends Controller
         abort_unless($request->user()->canAct('leads', 'view', $lead), 403);
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Lead $ignore = null): array
     {
         $data = $request->validate([
             'salutation' => ['nullable', Rule::in(Lead::SALUTATIONS)],
@@ -554,6 +554,43 @@ class LeadController extends Controller
                 : ($data['phone'] !== '' ? trim(($data['dial_code'] ?? '').' '.$data['phone']) : 'Lead');
         }
         $data['full_name'] = $name;
+
+        // ---- Uniqueness: no two leads may ever share an email or a phone number. ----
+        // Runs AFTER normalisation so "user@x.com " vs "USER@x.com" and "017-11..." vs "01711..."
+        // are caught as the same value. $ignore excludes the lead being edited.
+        if (! empty($data['email'])) {
+            $emailTaken = Lead::whereRaw('LOWER(email) = ?', [mb_strtolower($data['email'])])
+                ->when($ignore, fn ($q) => $q->whereKeyNot($ignore->id))
+                ->exists();
+            if ($emailTaken) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'email' => 'A lead with this email address already exists.',
+                ]);
+            }
+        }
+        if ($data['phone'] !== '') {
+            // Canonicalise like the importer (libphonenumber): strips the national leading
+            // zero and fills the dial code, so manual adds store the exact same format.
+            $norm = \App\Support\Phone::normalize($data['phone'], $data['country'] ?? null, $data['dial_code'] ?? null);
+            if ($norm) {
+                $data['dial_code'] = $norm['dial'];
+                $data['phone'] = $norm['number'];
+            }
+
+            $dial = $data['dial_code'] ?? null;
+            // Legacy rows may still carry the leading zero — match both spellings.
+            $phoneTaken = Lead::whereIn('phone', [$data['phone'], '0'.$data['phone'], ltrim($data['phone'], '0')])
+                // Same national number counts as a duplicate when the dial code matches
+                // or the existing row has no dial code recorded.
+                ->when($dial, fn ($q) => $q->where(fn ($qq) => $qq->where('dial_code', $dial)->orWhereNull('dial_code')))
+                ->when($ignore, fn ($q) => $q->whereKeyNot($ignore->id))
+                ->exists();
+            if ($phoneTaken) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'phone' => 'A lead with this phone number already exists.',
+                ]);
+            }
+        }
 
         return $data;
     }
