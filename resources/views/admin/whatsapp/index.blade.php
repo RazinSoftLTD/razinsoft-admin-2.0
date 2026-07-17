@@ -117,7 +117,7 @@
                     </div>
 
                     {{-- Messages — WhatsApp Web look (beige doodle bg, green/white bubbles) --}}
-                    <div class="wa-thread flex-1 space-y-1.5 overflow-y-auto px-6 py-5 sm:px-12" x-ref="thread">
+                    <div class="wa-thread flex-1 space-y-3 overflow-y-auto px-6 py-6 sm:px-16" x-ref="thread">
                         <template x-for="(m, i) in messages" :key="m.id">
                             <div>
                                 {{-- Date separator pill --}}
@@ -127,7 +127,7 @@
                                     </div>
                                 </template>
                                 <div class="flex flex-col" :class="m.direction === 'out' ? 'items-end' : 'items-start'">
-                                    <div class="relative max-w-[65%] rounded-lg px-2.5 pb-1.5 pt-1.5 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]"
+                                    <div class="relative rounded-lg px-3.5 pb-2 pt-2 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]" style="max-width:72%;"
                                          :class="m.direction === 'out' ? 'wa-out text-gray-800' : 'wa-in text-gray-800'">
                                         {{-- group sender name --}}
                                         <template x-if="m.sender_name && m.direction === 'in'">
@@ -182,7 +182,7 @@
                                 <button type="button" @click="showQuick = !showQuick" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" title="Quick replies">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
                                 </button>
-                                <textarea x-ref="composer" x-model="draft" @keydown.enter.exact.prevent="send()" @input="autoGrow()" rows="1" placeholder="Type a message…"
+                                <textarea x-ref="composer" x-model="draft" @keydown.enter="if (!$event.shiftKey && !$event.isComposing) { $event.preventDefault(); send(); }" @input="autoGrow()" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
                                           class="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-sm leading-5 text-gray-800 shadow-sm outline-none ring-1 ring-gray-200 transition focus:ring-2 focus:ring-emerald-400"></textarea>
                                 <button type="submit" :disabled="!draft.trim() || sending" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
@@ -195,11 +195,11 @@
         </section>
 
         {{-- ============ RIGHT: contact details (toggle on any screen) ============ --}}
-        <aside class="w-80 shrink-0 flex-col overflow-y-auto border-l border-gray-100 bg-gray-50/60" x-show="active && showInfo" x-cloak>
+        <aside class="flex w-80 shrink-0 flex-col overflow-hidden border-l border-gray-100 bg-gray-50/60" x-show="active && showInfo" x-cloak>
             <template x-if="active">
-                <div>
-                    {{-- Profile header --}}
-                    <div class="relative bg-gradient-to-b from-emerald-50 to-gray-50/60 px-5 pb-5 pt-3">
+                <div class="flex min-h-0 flex-1 flex-col">
+                    {{-- Profile header (pinned) --}}
+                    <div class="relative shrink-0 bg-gradient-to-b from-emerald-50 to-gray-50/60 px-5 pb-5 pt-3">
                         <button type="button" @click="showInfo = false" class="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-gray-400 transition hover:bg-white hover:text-[var(--color-heading)]" title="Close">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
                         </button>
@@ -221,7 +221,7 @@
                         </div>
                     </div>
 
-                    <div class="space-y-4 p-4">
+                    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
                         {{-- Contact details --}}
                         <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                             <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Contact</p>
