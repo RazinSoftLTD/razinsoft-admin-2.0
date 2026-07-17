@@ -34,7 +34,8 @@
                 <div class="mt-3 flex flex-wrap gap-1.5">
                     <template x-for="f in filters" :key="f.key">
                         <button type="button" @click="setFilter(f.key)" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
-                                :class="filter === f.key ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'" x-text="f.label"></button>
+                                :class="filter === f.key ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                x-text="f.key === 'unread' && unreadCount ? f.label + ' (' + unreadCount + ')' : f.label"></button>
                     </template>
                 </div>
             </div>
@@ -400,10 +401,10 @@
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, _chatReq: 0,
+                unreadCount: {{ $stats['unread'] }},
                 filters: [
-                    { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'single', label: 'Single' },
-                    { key: 'group', label: 'Group' }, { key: 'open', label: 'Open' },
-                    { key: 'pending', label: 'Pending' }, { key: 'mine', label: 'Mine' }, { key: 'resolved', label: 'Resolved' },
+                    { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' },
+                    { key: 'single', label: 'Single' }, { key: 'group', label: 'Group' },
                 ],
                 csrf: document.querySelector('meta[name=csrf-token]').content,
                 showDate(i) { return i === 0 || this.messages[i - 1].date_key !== this.messages[i].date_key; },
@@ -459,6 +460,7 @@
                     const data = await r.json();
                     if (token !== this._chatReq) return; // a newer search superseded this response
                     this.chats = data.chats;
+                    if (typeof data.unread === 'number') this.unreadCount = data.unread;
                 },
                 async openChat(id, silent = false) {
                     const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id);

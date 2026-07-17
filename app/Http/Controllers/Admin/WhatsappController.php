@@ -38,7 +38,10 @@ class WhatsappController extends Controller
     /** JSON chat list (used by the live filter/search sidebar). */
     public function chats(Request $request)
     {
-        return response()->json(['chats' => $this->chatList($request)->map(fn ($c) => $this->chatSummary($c))->values()]);
+        return response()->json([
+            'chats' => $this->chatList($request)->map(fn ($c) => $this->chatSummary($c))->values(),
+            'unread' => WhatsappChat::where('unread_count', '>', 0)->count(),
+        ]);
     }
 
     /** JSON thread for one chat + mark read. */
