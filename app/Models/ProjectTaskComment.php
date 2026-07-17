@@ -5,13 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ProjectMember extends Model
+class ProjectTaskComment extends Model
 {
     protected $guarded = [];
 
-    public function project(): BelongsTo
+    public function task(): BelongsTo
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(ProjectTask::class, 'task_id');
     }
 
     public function user(): BelongsTo

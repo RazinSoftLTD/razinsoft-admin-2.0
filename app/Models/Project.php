@@ -14,66 +14,57 @@ class Project extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'budget' => 'decimal:2',
         'start_date' => 'date',
-        'expected_delivery' => 'date',
-        'actual_delivery' => 'date',
+        'deadline' => 'date',
+        'budget' => 'decimal:2',
+        'auto_progress' => 'boolean',
         'progress' => 'integer',
+        'hours_allocated' => 'integer',
     ];
 
-    /** Project types drive the default checklist templates & deliverables. */
-    public const TYPES = [
-        'New Software Development', 'Existing Software Enhancement', 'Installation Service',
-        'App Publish Service', 'Website Development', 'Mobile App Development',
-        'Full Web + Mobile Solution', 'UI/UX Design', 'Maintenance', 'Bug Fixing',
-        'API Integration', 'Server Migration', 'Consultation',
-    ];
-
-    /** Full delivery lifecycle. */
+    /** Desk-style lifecycle. "Overdue" is derived from the deadline, not stored. */
     public const STATUSES = [
-        'draft' => 'Draft',
-        'requirement_collection' => 'Requirement Collection',
-        'requirements_pending' => 'Requirements Pending',
-        'planning' => 'Planning',
-        'development' => 'Development',
-        'internal_testing' => 'Internal Testing',
-        'client_review' => 'Client Review',
-        'bug_fixing' => 'Bug Fixing',
-        'deployment' => 'Deployment',
-        'delivered' => 'Delivered',
-        'maintenance' => 'Maintenance',
-        'completed' => 'Completed',
+        'todo' => 'Todo',
+        'in_progress' => 'In Progress',
         'on_hold' => 'On Hold',
+        'completed' => 'Completed',
         'cancelled' => 'Cancelled',
     ];
 
-    public const PRIORITIES = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'critical' => 'Critical'];
+    public const PRIORITIES = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
 
-    /** Statuses that count as finished (for stats). */
-    public const CLOSED_STATUSES = ['completed', 'cancelled'];
-
-    public const DOCUMENT_TYPES = [
-        'Requirement', 'Proposal', 'Quotation', 'Invoice', 'Agreement', 'NDA', 'Design',
-        'APK', 'IPA', 'Source Code', 'Meeting Notes', 'Credentials', 'Others',
+    public const CATEGORIES = [
+        'Website Development', 'Mobile App Development', 'Full Web + Mobile Solution',
+        'UI/UX Design', 'Installation & Setup', 'App Publishing', 'Customization',
+        'Maintenance & Support', 'API Integration', 'Server / DevOps', 'Marketing', 'Other',
     ];
+
+    public const CLOSED_STATUSES = ['completed', 'cancelled'];
 
     protected static function booted(): void
     {
         static::creating(function (Project $project) {
             if (empty($project->code)) {
-                $project->code = 'PRJ-'.now()->format('y').str_pad((string) (self::withTrashed()->max('id') + 1), 4, '0', STR_PAD_LEFT);
+                $project->code = 'PRJ-'.str_pad((string) ((self::withTrashed()->max('id') ?? 0) + 1), 4, '0', STR_PAD_LEFT);
+            }
+        });
+
+        // Copy the global default board columns onto every new project.
+        static::created(function (Project $project) {
+            foreach (ProjectColumn::defaults() as $i => $col) {
+                $project->columns()->create([
+                    'key' => $col->key, 'name' => $col->name, 'color' => $col->color,
+                    'position' => $col->position ?? $i, 'is_done' => $col->is_done, 'is_excluded' => $col->is_excluded,
+                ]);
             }
         });
     }
 
+    // ---------------------------------------------------------------- relations
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');
-    }
-
-    public function salesPerson(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'sales_person_id');
     }
 
     public function projectManager(): BelongsTo
@@ -81,17 +72,32 @@ class Project extends Model
         return $this->belongsTo(User::class, 'project_manager_id');
     }
 
-    public function accountManager(): BelongsTo
+    public function parent(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'account_manager_id');
+        return $this->belongsTo(self::class, 'parent_id');
     }
 
-    public function workstreams(): HasMany
+    public function children(): HasMany
     {
-        return $this->hasMany(ProjectWorkstream::class)->orderBy('sort_order')->orderBy('id');
+        return $this->hasMany(self::class, 'parent_id');
     }
 
-    /** Only top-level tasks (subtasks hang off their parent). */
+    public function members(): HasMany
+    {
+        return $this->hasMany(ProjectMember::class);
+    }
+
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(ProjectMilestone::class)->orderBy('end_date')->orderBy('id');
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(ProjectFile::class)->latest();
+    }
+
+    /** Top-level tasks only (subtasks hang off their parent). */
     public function tasks(): HasMany
     {
         return $this->hasMany(ProjectTask::class)->whereNull('parent_id')->orderBy('sort_order')->orderBy('id');
@@ -102,54 +108,96 @@ class Project extends Model
         return $this->hasMany(ProjectTask::class);
     }
 
-    public function checklistItems(): HasMany
+    public function activities(): HasMany
     {
-        return $this->hasMany(ProjectChecklistItem::class)->orderBy('sort_order')->orderBy('id');
+        return $this->hasMany(ProjectActivityLog::class)->latest();
     }
 
-    public function documents(): HasMany
+    public function columns(): HasMany
     {
-        return $this->hasMany(ProjectDocument::class)->latest('id');
+        return $this->hasMany(ProjectColumn::class)->orderBy('position')->orderBy('id');
     }
 
-    public function members(): HasMany
+    /** [key => name] map of this project's board columns (falls back to defaults). */
+    public function statusOptions(): array
     {
-        return $this->hasMany(ProjectMember::class);
-    }
-
-    public function changeRequests(): HasMany
-    {
-        return $this->hasMany(ProjectChangeRequest::class)->latest('id');
-    }
-
-    public function activityLogs(): HasMany
-    {
-        return $this->hasMany(ProjectActivityLog::class)->latest('id');
-    }
-
-    public function isClosed(): bool
-    {
-        return in_array($this->status, self::CLOSED_STATUSES, true);
-    }
-
-    /** Progress computed from completed tasks; falls back to the manual field when there are no tasks. */
-    public function getComputedProgressAttribute(): int
-    {
-        $total = $this->allTasks()->count();
-        if ($total === 0) {
-            return (int) $this->progress;
+        $cols = $this->relationLoaded('columns') ? $this->columns : $this->columns()->get();
+        if ($cols->isEmpty()) {
+            $cols = ProjectColumn::defaults();
         }
-        $done = $this->allTasks()->where('status', 'completed')->count();
+
+        return $cols->pluck('name', 'key')->all();
+    }
+
+    /** Column keys that count as "done". */
+    public function doneKeys(): array
+    {
+        $cols = $this->relationLoaded('columns') ? $this->columns : $this->columns()->get();
+
+        return $cols->where('is_done', true)->pluck('key')->all() ?: ['completed'];
+    }
+
+    /** Column keys excluded from progress (e.g. Cancelled). */
+    public function excludedKeys(): array
+    {
+        $cols = $this->relationLoaded('columns') ? $this->columns : $this->columns()->get();
+
+        return $cols->where('is_excluded', true)->pluck('key')->all() ?: ['cancelled'];
+    }
+
+    // ---------------------------------------------------------------- scopes
+
+    /** Permission scope: all, or only the projects I manage / created / belong to. */
+    public function scopeVisibleTo($q, User $user)
+    {
+        $scope = $user->permissionScope('projects', 'view');
+        if ($scope === 'none') {
+            return $q->whereRaw('1 = 0');
+        }
+        if ($scope !== 'all') {
+            $q->where(function ($w) use ($user, $scope) {
+                if (in_array($scope, ['owned', 'both'], true)) {
+                    $w->orWhere('project_manager_id', $user->id);
+                }
+                if (in_array($scope, ['added', 'both'], true)) {
+                    $w->orWhere('created_by', $user->id);
+                }
+                $w->orWhereHas('members', fn ($m) => $m->where('user_id', $user->id));
+            });
+        }
+
+        return $q;
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    /** % complete — from tasks when auto, else the manual slider value. */
+    public function progressPercent(): int
+    {
+        if (! $this->auto_progress) {
+            return min(100, max(0, (int) $this->progress));
+        }
+        $excluded = $this->excludedKeys();
+        $total = $this->allTasks()->whereNull('parent_id')->whereNotIn('status', $excluded)->count();
+        if ($total === 0) {
+            return 0;
+        }
+        $done = $this->allTasks()->whereNull('parent_id')->whereIn('status', $this->doneKeys())->count();
 
         return (int) round($done / $total * 100);
     }
 
+    public function isOverdue(): bool
+    {
+        return $this->deadline && $this->deadline->isPast() && ! in_array($this->status, self::CLOSED_STATUSES, true);
+    }
+
     public function log(string $action, string $description, ?int $userId = null): void
     {
-        $this->activityLogs()->create([
+        $this->activities()->create([
             'user_id' => $userId ?? auth()->id(),
             'action' => $action,
-            'description' => $description,
+            'description' => mb_substr($description, 0, 500),
         ]);
     }
 }

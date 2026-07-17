@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductRelationController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\RecurringInvoiceController;
 use App\Http\Controllers\Admin\ReviewController;
@@ -137,10 +138,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('deals/{deal}', [DealController::class, 'destroy'])->whereNumber('deal')->name('deals.destroy');
         });
 
-        // ===== Workspace : Projects =====
+        // ===== Workspace : Projects & Tasks (desk-style, rebuilt) =====
         Route::middleware('permission:projects.view')->group(function () {
             Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
             Route::get('projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
+            Route::get('tasks', [TaskController::class, 'index'])->name('tasks.index');
+            Route::get('tasks/{task}', [TaskController::class, 'show'])->whereNumber('task')->name('tasks.show');
+            Route::get('projects/{project}/files/{file}/download', [ProjectController::class, 'fileDownload'])->whereNumber(['project', 'file'])->name('projects.files.download');
         });
         Route::middleware('permission:projects.create')->group(function () {
             Route::get('projects/create', [ProjectController::class, 'create'])->name('projects.create');
@@ -149,33 +153,42 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:projects.edit')->group(function () {
             Route::get('projects/{project}/edit', [ProjectController::class, 'edit'])->whereNumber('project')->name('projects.edit');
             Route::put('projects/{project}', [ProjectController::class, 'update'])->whereNumber('project')->name('projects.update');
-            Route::post('projects/{project}/status', [ProjectController::class, 'status'])->name('projects.status');
+            Route::post('projects/{project}/status', [ProjectController::class, 'status'])->whereNumber('project')->name('projects.status');
 
-            Route::post('projects/{project}/workstreams', [ProjectController::class, 'workstreamStore'])->name('projects.workstreams.store');
-            Route::put('projects/{project}/workstreams/{workstream}', [ProjectController::class, 'workstreamUpdate'])->name('projects.workstreams.update');
-            Route::delete('projects/{project}/workstreams/{workstream}', [ProjectController::class, 'workstreamDestroy'])->name('projects.workstreams.destroy');
+            Route::post('projects/{project}/members', [ProjectController::class, 'memberStore'])->whereNumber('project')->name('projects.members.store');
+            Route::delete('projects/{project}/members/{member}', [ProjectController::class, 'memberDestroy'])->whereNumber(['project', 'member'])->name('projects.members.destroy');
 
-            Route::post('projects/{project}/tasks', [ProjectController::class, 'taskStore'])->name('projects.tasks.store');
-            Route::put('projects/{project}/tasks/{task}', [ProjectController::class, 'taskUpdate'])->name('projects.tasks.update');
-            Route::delete('projects/{project}/tasks/{task}', [ProjectController::class, 'taskDestroy'])->name('projects.tasks.destroy');
+            Route::post('projects/{project}/milestones', [ProjectController::class, 'milestoneStore'])->whereNumber('project')->name('projects.milestones.store');
+            Route::put('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneUpdate'])->whereNumber(['project', 'milestone'])->name('projects.milestones.update');
+            Route::delete('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneDestroy'])->whereNumber(['project', 'milestone'])->name('projects.milestones.destroy');
 
-            Route::post('projects/{project}/checklist/generate', [ProjectController::class, 'checklistGenerate'])->name('projects.checklist.generate');
-            Route::post('projects/{project}/checklist', [ProjectController::class, 'checklistStore'])->name('projects.checklist.store');
-            Route::put('projects/{project}/checklist/{item}', [ProjectController::class, 'checklistUpdate'])->name('projects.checklist.update');
-            Route::delete('projects/{project}/checklist/{item}', [ProjectController::class, 'checklistDestroy'])->name('projects.checklist.destroy');
+            Route::post('projects/{project}/files', [ProjectController::class, 'fileStore'])->whereNumber('project')->name('projects.files.store');
+            Route::delete('projects/{project}/files/{file}', [ProjectController::class, 'fileDestroy'])->whereNumber(['project', 'file'])->name('projects.files.destroy');
 
-            Route::post('projects/{project}/documents', [ProjectController::class, 'documentStore'])->name('projects.documents.store');
-            Route::delete('projects/{project}/documents/{document}', [ProjectController::class, 'documentDestroy'])->name('projects.documents.destroy');
+            Route::post('projects/{project}/columns', [ProjectController::class, 'columnStore'])->whereNumber('project')->name('projects.columns.store');
+            Route::put('projects/{project}/columns/{column}', [ProjectController::class, 'columnUpdate'])->whereNumber(['project', 'column'])->name('projects.columns.update');
+            Route::delete('projects/{project}/columns/{column}', [ProjectController::class, 'columnDestroy'])->whereNumber(['project', 'column'])->name('projects.columns.destroy');
 
-            Route::post('projects/{project}/members', [ProjectController::class, 'memberStore'])->name('projects.members.store');
-            Route::delete('projects/{project}/members/{member}', [ProjectController::class, 'memberDestroy'])->name('projects.members.destroy');
-
-            Route::post('projects/{project}/change-requests', [ProjectController::class, 'changeRequestStore'])->name('projects.change-requests.store');
-            Route::put('projects/{project}/change-requests/{changeRequest}', [ProjectController::class, 'changeRequestUpdate'])->name('projects.change-requests.update');
-            Route::delete('projects/{project}/change-requests/{changeRequest}', [ProjectController::class, 'changeRequestDestroy'])->name('projects.change-requests.destroy');
+            Route::post('tasks', [TaskController::class, 'store'])->name('tasks.store');
+            Route::put('tasks/{task}', [TaskController::class, 'update'])->whereNumber('task')->name('tasks.update');
+            Route::post('tasks/{task}/status', [TaskController::class, 'status'])->whereNumber('task')->name('tasks.status');
+            Route::post('tasks/{task}/comments', [TaskController::class, 'commentStore'])->whereNumber('task')->name('tasks.comments.store');
+            Route::delete('tasks/{task}/comments/{comment}', [TaskController::class, 'commentDestroy'])->whereNumber(['task', 'comment'])->name('tasks.comments.destroy');
         });
         Route::middleware('permission:projects.delete')->group(function () {
             Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->whereNumber('project')->name('projects.destroy');
+            Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->whereNumber('task')->name('tasks.destroy');
+        });
+
+        // ===== Settings : Project Config (categories + default board columns) =====
+        Route::middleware('permission:projects.edit')->group(function () {
+            Route::get('project-config', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'index'])->name('project-config');
+            Route::post('project-config/categories', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryStore'])->name('project-config.categories.store');
+            Route::put('project-config/categories/{category}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryUpdate'])->whereNumber('category')->name('project-config.categories.update');
+            Route::delete('project-config/categories/{category}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryDestroy'])->whereNumber('category')->name('project-config.categories.destroy');
+            Route::post('project-config/columns', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnStore'])->name('project-config.columns.store');
+            Route::put('project-config/columns/{column}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnUpdate'])->whereNumber('column')->name('project-config.columns.update');
+            Route::delete('project-config/columns/{column}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnDestroy'])->whereNumber('column')->name('project-config.columns.destroy');
         });
 
         // ===== Clients =====
