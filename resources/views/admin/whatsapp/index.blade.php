@@ -82,7 +82,7 @@
                     <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
                         <div class="min-w-0">
                             <p class="truncate text-sm font-bold text-[var(--color-heading)]" x-text="active.name"></p>
-                            <p class="text-xs text-gray-400" x-text="'+' + active.wa_id"></p>
+                            <p class="text-xs text-gray-400" x-text="active.wa_id"></p>
                         </div>
                         <div class="flex items-center gap-2">
                             @if ($canAssign)
@@ -168,7 +168,7 @@
                     <div class="text-center">
                         <span class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700" x-text="active.initials"></span>
                         <p class="mt-2 font-bold text-[var(--color-heading)]" x-text="active.name"></p>
-                        <p class="text-xs text-gray-400" x-text="'+' + active.wa_id"></p>
+                        <p class="text-xs text-gray-400" x-text="active.wa_id"></p>
                     </div>
 
                     {{-- Client match --}}

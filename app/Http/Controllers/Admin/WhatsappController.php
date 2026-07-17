@@ -141,7 +141,7 @@ class WhatsappController extends Controller
     private function chatSummary(WhatsappChat $c): array
     {
         return [
-            'id' => $c->id, 'name' => $c->displayName(), 'wa_id' => $c->wa_id,
+            'id' => $c->id, 'name' => $c->displayName(), 'wa_id' => $c->phoneLabel(),
             'preview' => $c->last_message_preview, 'at' => $c->last_message_at?->diffForHumans(),
             'unread' => $c->unread_count, 'status' => $c->status,
             'assignee' => $c->assignee?->name,

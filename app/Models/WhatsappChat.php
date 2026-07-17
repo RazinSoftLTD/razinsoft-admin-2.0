@@ -42,6 +42,14 @@ class WhatsappChat extends Model
 
     public function displayName(): string
     {
-        return $this->name ?: $this->profile_name ?: $this->wa_id;
+        return $this->name ?: $this->profile_name ?: $this->phoneLabel();
+    }
+
+    /** Human label for the contact's address — strips the WhatsApp domain (@lid / @s.whatsapp.net). */
+    public function phoneLabel(): string
+    {
+        $id = preg_replace('/@.*/', '', (string) $this->wa_id);
+        // A real MSISDN gets a leading +; a WhatsApp LID (privacy id) is shown as a plain id.
+        return str_contains((string) $this->wa_id, '@lid') ? 'ID '.$id : '+'.$id;
     }
 }
