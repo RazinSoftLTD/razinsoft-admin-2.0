@@ -47,6 +47,12 @@ class WhatsappChat extends Model
         return $this->chat_type === 'group' || str_contains((string) $this->wa_id, '@g.us');
     }
 
+    /** Public URL of the uploaded avatar, or null. */
+    public function avatarUrl(): ?string
+    {
+        return $this->avatar_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path) : null;
+    }
+
     public function displayName(): string
     {
         return $this->name ?: $this->profile_name ?: ($this->isGroup() ? 'Group chat' : $this->phoneLabel());

@@ -43,7 +43,8 @@
                     <button type="button" @click="openChat(c.id)"
                             class="flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left transition hover:bg-gray-50"
                             :class="active && active.id === c.id ? 'bg-[var(--color-primary-soft)]' : ''">
-                        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold" :class="c.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                        <template x-if="c.avatar"><img :src="c.avatar" class="h-10 w-10 shrink-0 rounded-full object-cover"></template>
+                        <span x-show="!c.avatar" class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold" :class="c.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
                             <template x-if="c.is_group"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
                             <span x-show="!c.is_group" x-text="c.initials"></span>
                         </span>
@@ -88,7 +89,8 @@
                     {{-- Thread header --}}
                     <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
                         <button type="button" @click="showInfo = !showInfo" class="flex min-w-0 items-center gap-3 text-left">
-                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                            <template x-if="active.avatar"><img :src="active.avatar" class="h-9 w-9 shrink-0 rounded-full object-cover"></template>
+                            <span x-show="!active.avatar" class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
                                 <template x-if="active.is_group"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
                                 <span x-show="!active.is_group" x-text="active.initials"></span>
                             </span>
@@ -204,10 +206,25 @@
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
                         </button>
                         <div class="text-center">
-                            <span class="mx-auto grid h-20 w-20 place-items-center rounded-full text-2xl font-bold shadow-sm ring-4 ring-white" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
-                                <template x-if="active.is_group"><svg class="h-9 w-9" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
-                                <span x-show="!active.is_group" x-text="active.initials"></span>
-                            </span>
+                            <div class="relative mx-auto h-20 w-20">
+                                {{-- avatar: uploaded image, else initials / group icon --}}
+                                <template x-if="active.avatar">
+                                    <img :src="active.avatar" class="h-20 w-20 rounded-full object-cover shadow-sm ring-4 ring-white">
+                                </template>
+                                <template x-if="!active.avatar">
+                                    <span class="grid h-20 w-20 place-items-center rounded-full text-2xl font-bold shadow-sm ring-4 ring-white" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                                        <template x-if="active.is_group"><svg class="h-9 w-9" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
+                                        <span x-show="!active.is_group" x-text="active.initials"></span>
+                                    </span>
+                                </template>
+                                {{-- upload / change photo --}}
+                                <button type="button" @click="$refs.avatarInput.click()" :disabled="uploadingAvatar"
+                                        class="absolute -bottom-0.5 -right-0.5 grid h-7 w-7 place-items-center rounded-full bg-emerald-500 text-white shadow ring-2 ring-white transition hover:bg-emerald-600 disabled:opacity-60" :title="active.avatar ? 'Change photo' : 'Upload photo'">
+                                    <svg x-show="!uploadingAvatar" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 8h.01M4 16l4-4 3 3 5-5 4 4M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+                                    <svg x-show="uploadingAvatar" x-cloak class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"/></svg>
+                                </button>
+                                <input type="file" x-ref="avatarInput" accept="image/*" class="hidden" @change="uploadAvatar($event)">
+                            </div>
                             <p class="mt-3 text-base font-bold text-[var(--color-heading)]" x-text="active.name"></p>
                             <p class="text-xs text-gray-400" x-text="active.phone || active.wa_id"></p>
                             {{-- lead quality pill --}}
@@ -254,6 +271,12 @@
                         <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                             <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Lead info</p>
                             <div class="space-y-3">
+                                {{-- Client name --}}
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">Name</label>
+                                    <input type="text" x-model="form.name" @keydown.enter.prevent="saveDetails()" placeholder="Contact name"
+                                           class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
+                                </div>
                                 {{-- Manual phone number --}}
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-500">Phone number <span class="text-gray-300">(add manually)</span></label>
@@ -367,7 +390,7 @@
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
-                form: { phone: '', lead_quality: '', interested_product: '' }, savingDetails: false,
+                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false,
                 filters: [
                     { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'single', label: 'Single' },
                     { key: 'group', label: 'Group' }, { key: 'open', label: 'Open' },
@@ -432,6 +455,7 @@
                     this.active = d.chat; this.messages = d.messages;
                     // Seed the editable lead form (strip the leading + so the input holds plain digits).
                     this.form = {
+                        name: d.chat.raw_name || '',
                         phone: (d.chat.phone || '').replace(/^\+/, ''),
                         lead_quality: d.chat.lead_quality || '',
                         interested_product: d.chat.interested_product || '',
@@ -471,14 +495,31 @@
                     this.savingDetails = true;
                     try {
                         const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/details', {
-                            phone: this.form.phone, lead_quality: this.form.lead_quality, interested_product: this.form.interested_product,
+                            name: this.form.name, phone: this.form.phone, lead_quality: this.form.lead_quality, interested_product: this.form.interested_product,
                         });
                         if (r.ok) {
                             const d = await r.json();
+                            this.active.name = d.name; this.active.initials = d.initials;
                             this.active.phone = d.phone; this.active.country = d.country;
                             this.active.lead_quality = d.lead_quality; this.active.interested_product = d.interested_product;
+                            this.loadChats();
                         } else { alert((await r.json()).message || 'Could not save.'); }
                     } catch { alert('Could not save.'); } finally { this.savingDetails = false; }
+                },
+                async uploadAvatar(e) {
+                    const file = e.target.files[0];
+                    if (!file || !this.active) return;
+                    this.uploadingAvatar = true;
+                    const fd = new FormData();
+                    fd.append('avatar', file);
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/avatar', {
+                            method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' }, body: fd,
+                        });
+                        if (r.ok) { this.active.avatar = (await r.json()).avatar; this.loadChats(); }
+                        else { alert((await r.json()).message || 'Could not upload the photo.'); }
+                    } catch { alert('Could not upload the photo.'); }
+                    finally { this.uploadingAvatar = false; e.target.value = ''; }
                 },
                 async addNote() {
                     if (!this.noteDraft.trim()) return;

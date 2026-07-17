@@ -128,6 +128,7 @@ class WhatsappController extends Controller
     public function updateDetails(Request $request, WhatsappChat $chat)
     {
         $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:191'],
             'phone' => ['nullable', 'string', 'max:32'],
             'lead_quality' => ['nullable', Rule::in(array_keys(WhatsappChat::LEAD_QUALITIES))],
             'interested_product' => ['nullable', 'string', 'max:191'],
@@ -137,17 +138,36 @@ class WhatsappController extends Controller
         $phone = isset($data['phone']) ? preg_replace('/[^\d]/', '', $data['phone']) : null;
 
         $chat->update([
+            'name' => filled($data['name'] ?? null) ? $data['name'] : null,
             'phone' => $phone ?: ($chat->isGroup() ? null : $chat->phone),
             'lead_quality' => $data['lead_quality'] ?? null,
             'interested_product' => $data['interested_product'] ?? null,
         ]);
 
         return response()->json([
+            'name' => $chat->displayName(),
+            'raw_name' => $chat->name,
+            'initials' => collect(explode(' ', $chat->displayName()))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->join(''),
             'phone' => $chat->realNumber() ? '+'.$chat->realNumber() : null,
             'country' => $chat->country(),
             'lead_quality' => $chat->lead_quality,
             'interested_product' => $chat->interested_product,
         ]);
+    }
+
+    /** Upload / replace the contact avatar. */
+    public function updateAvatar(Request $request, WhatsappChat $chat)
+    {
+        $request->validate(['avatar' => ['required', 'image', 'max:4096']]);
+
+        // Remove the previous file so we don't leave orphans.
+        if ($chat->avatar_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($chat->avatar_path);
+        }
+        $path = $request->file('avatar')->store('whatsapp/avatars', 'public');
+        $chat->update(['avatar_path' => $path]);
+
+        return response()->json(['avatar' => $chat->avatarUrl()]);
     }
 
     /** Product names (live) plus any custom options an admin added in WhatsApp settings. */
@@ -191,6 +211,7 @@ class WhatsappController extends Controller
             'preview' => $c->last_message_preview, 'at' => $c->last_message_at?->diffForHumans(),
             'unread' => $c->unread_count, 'status' => $c->status,
             'is_group' => $c->isGroup(),
+            'avatar' => $c->avatarUrl(),
             'assignee' => $c->assignee?->name,
             'labels' => $c->labels->map(fn ($l) => ['name' => $l->name, 'color' => $l->color]),
             'initials' => collect(explode(' ', $c->displayName()))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->join(''),
@@ -207,6 +228,7 @@ class WhatsappController extends Controller
             'last_seen' => $c->last_message_at?->diffForHumans(),
             'lead_quality' => $c->lead_quality,
             'interested_product' => $c->interested_product,
+            'raw_name' => $c->name,
             'client' => $c->client ? ['name' => $c->client->name, 'email' => $c->client->email, 'phone' => $c->client->phone, 'company' => $c->client->company] : null,
             'notes' => $c->notes->map(fn ($n) => ['id' => $n->id, 'body' => $n->body, 'user' => $n->user?->name, 'at' => $n->created_at->diffForHumans()]),
         ]);
