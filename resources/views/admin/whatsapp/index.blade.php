@@ -80,11 +80,17 @@
                 <div class="flex min-h-0 flex-1 flex-col">
                     {{-- Thread header --}}
                     <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
-                        <div class="min-w-0">
-                            <p class="truncate text-sm font-bold text-[var(--color-heading)]" x-text="active.name"></p>
-                            <p class="text-xs text-gray-400" x-text="active.wa_id"></p>
-                        </div>
+                        <button type="button" @click="showInfo = !showInfo" class="flex min-w-0 items-center gap-3 text-left">
+                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700" x-text="active.initials"></span>
+                            <span class="min-w-0">
+                                <span class="block truncate text-sm font-bold text-[var(--color-heading)]" x-text="active.name"></span>
+                                <span class="block truncate text-xs text-gray-400" x-text="active.wa_id"></span>
+                            </span>
+                        </button>
                         <div class="flex items-center gap-2">
+                            <button type="button" @click="showInfo = !showInfo" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Contact info">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5M12 8h.01"/></svg>
+                            </button>
                             @if ($canAssign)
                                 <select @change="assign($event.target.value)" class="h-9 rounded-lg border-gray-200 text-xs">
                                     <option value="">Unassigned</option>
@@ -109,7 +115,7 @@
                                 </template>
                                 <div class="flex" :class="m.direction === 'out' ? 'justify-end' : 'justify-start'">
                                     <div class="relative max-w-[65%] rounded-lg px-2.5 pb-1.5 pt-1.5 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]"
-                                         :class="m.direction === 'out' ? 'wa-out bg-[#d9fdd3] text-gray-800' : 'wa-in bg-white text-gray-800'">
+                                         :class="m.direction === 'out' ? 'wa-out bg-[#e7ffdb] text-gray-800' : 'wa-in bg-white text-gray-800'">
                                         {{-- media --}}
                                         <template x-if="m.media && m.type === 'image'"><img :src="m.media" class="mb-1 max-h-64 rounded-md"></template>
                                         <template x-if="m.media && m.type === 'video'"><video :src="m.media" controls class="mb-1 max-h-64 rounded-md"></video></template>
@@ -161,21 +167,39 @@
             </template>
         </section>
 
-        {{-- ============ RIGHT: details ============ --}}
-        <aside class="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-gray-100 xl:flex" x-show="active" x-cloak>
+        {{-- ============ RIGHT: contact details (toggle on any screen) ============ --}}
+        <aside class="w-72 shrink-0 flex-col overflow-y-auto border-l border-gray-100" x-show="active && showInfo" x-cloak>
             <template x-if="active">
                 <div class="p-5">
                     <div class="text-center">
                         <span class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700" x-text="active.initials"></span>
                         <p class="mt-2 font-bold text-[var(--color-heading)]" x-text="active.name"></p>
-                        <p class="text-xs text-gray-400" x-text="active.wa_id"></p>
+                    </div>
+
+                    {{-- Contact details --}}
+                    <div class="mt-4 space-y-2.5 rounded-xl border border-gray-100 p-3.5 text-sm">
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Contact details</p>
+                        <div class="flex items-start gap-2">
+                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M4.5 19.5a7.5 7.5 0 0 1 15 0"/></svg>
+                            <span><span class="block text-[10px] text-gray-400">Name</span><span class="font-medium text-[var(--color-heading)]" x-text="active.name"></span></span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11 11 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11 11 0 0 0 .57 3.6 1 1 0 0 1-.25 1L6.6 10.8Z"/></svg>
+                            <span class="min-w-0"><span class="block text-[10px] text-gray-400">Phone / WhatsApp ID</span><span class="block break-all font-medium text-[var(--color-heading)]" x-text="active.wa_id"></span></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v4l3 2"/></svg>
+                            <span><span class="block text-[10px] text-gray-400">Last message</span><span class="font-medium text-[var(--color-heading)]" x-text="active.at || '—'"></span></span>
+                        </div>
                     </div>
 
                     {{-- Client match --}}
                     <template x-if="active.client">
-                        <div class="mt-4 rounded-lg bg-gray-50 p-3 text-xs">
-                            <p class="font-semibold text-[var(--color-heading)]">Matched client</p>
-                            <p class="mt-1 text-gray-500" x-text="active.client.email"></p>
+                        <div class="mt-3 space-y-1 rounded-xl bg-emerald-50/70 p-3.5 text-xs">
+                            <p class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Matched client</p>
+                            <p class="font-semibold text-[var(--color-heading)]" x-text="active.client.name"></p>
+                            <p class="text-gray-500" x-text="active.client.email"></p>
+                            <p class="text-gray-500" x-show="active.client.phone" x-text="active.client.phone"></p>
                             <p class="text-gray-500" x-show="active.client.company" x-text="active.client.company"></p>
                         </div>
                     </template>
@@ -238,7 +262,7 @@
         }
         .wa-thread .wa-out::before {
             right: -8px;
-            background: radial-gradient(circle at bottom right, transparent 12px, #d9fdd3 0);
+            background: radial-gradient(circle at bottom right, transparent 12px, #e7ffdb 0);
         }
     </style>
 
@@ -246,7 +270,7 @@
         function waInbox() {
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false,
-                search: '', filter: 'all',
+                showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
                 filters: [
                     { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'open', label: 'Open' },
                     { key: 'pending', label: 'Pending' }, { key: 'mine', label: 'Mine' }, { key: 'resolved', label: 'Resolved' },
