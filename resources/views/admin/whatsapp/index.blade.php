@@ -51,7 +51,7 @@
                             <span class="flex items-center justify-between gap-2">
                                 <span class="flex min-w-0 items-center gap-1.5">
                                     <span class="truncate text-sm font-bold text-[var(--color-heading)]" x-text="c.name"></span>
-                                    <span x-show="c.is_group" class="shrink-0 rounded bg-indigo-50 px-1 py-0.5 text-[8px] font-bold uppercase text-indigo-600">Group</span>
+                                    <svg x-show="c.is_group" class="h-3 w-3 shrink-0 text-indigo-400" fill="currentColor" viewBox="0 0 24 24" title="Group"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3Zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3Zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5Zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5Z"/></svg>
                                 </span>
                                 <span class="shrink-0 text-[10px] text-gray-400" x-text="c.at"></span>
                             </span>
@@ -95,7 +95,7 @@
                             <span class="min-w-0">
                                 <span class="flex items-center gap-1.5">
                                     <span class="block truncate text-sm font-bold text-[var(--color-heading)]" x-text="active.name"></span>
-                                    <span x-show="active.is_group" class="shrink-0 rounded bg-indigo-50 px-1 py-0.5 text-[8px] font-bold uppercase text-indigo-600">Group</span>
+                                    <span x-show="active.is_group" class="shrink-0 text-[10px] font-medium text-indigo-400">Group</span>
                                 </span>
                                 <span class="block truncate text-xs text-gray-400" x-text="active.last_seen ? 'last seen ' + active.last_seen : active.wa_id"></span>
                             </span>
@@ -155,11 +155,15 @@
                                             </template>
                                         </span>
                                     </div>
-                                    {{-- Seen / Delivered caption under the last outgoing message --}}
-                                    <template x-if="m.direction === 'out' && isLastOut(i)">
-                                        <span class="mr-1 mt-0.5 text-[10px] font-medium"
-                                              :class="m.status === 'read' ? 'text-[#53bdeb]' : 'text-gray-400'"
-                                              x-text="m.status === 'read' ? 'Seen' : (m.status === 'delivered' ? 'Delivered' : (m.status === 'failed' ? 'Failed' : 'Sent'))"></span>
+                                    {{-- Under outgoing messages: who replied + (on the last one) Seen/Delivered status --}}
+                                    <template x-if="m.direction === 'out' && (m.agent || isLastOut(i))">
+                                        <span class="mr-1 mt-0.5 text-[10px] font-medium text-gray-400">
+                                            <span x-show="m.agent" x-text="m.agent"></span>
+                                            <template x-if="isLastOut(i)">
+                                                <span :class="m.status === 'read' ? 'text-[#53bdeb]' : 'text-gray-400'"
+                                                      x-text="(m.agent ? ' · ' : '') + (m.status === 'read' ? 'Seen' : (m.status === 'delivered' ? 'Delivered' : (m.status === 'failed' ? 'Failed' : 'Sent')))"></span>
+                                            </template>
+                                        </span>
                                     </template>
                                 </div>
                             </div>
@@ -331,10 +335,12 @@
                     el.style.height = Math.min(el.scrollHeight, 160) + 'px';
                 },
                 scrollBottom(smooth = false) {
-                    this.$nextTick(() => {
+                    const jump = () => {
                         const t = this.$refs.thread;
                         if (t) t.scrollTo({ top: t.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
-                    });
+                    };
+                    // Land at the newest message; retry as late media/images grow the thread height.
+                    this.$nextTick(() => { jump(); setTimeout(jump, 60); setTimeout(jump, 250); });
                 },
                 init() {
                     this.loadChats();
