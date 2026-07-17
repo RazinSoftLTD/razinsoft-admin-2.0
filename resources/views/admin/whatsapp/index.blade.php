@@ -119,7 +119,9 @@
                     </div>
 
                     {{-- Messages — WhatsApp Web look (beige doodle bg, green/white bubbles) --}}
-                    <div class="wa-thread flex-1 space-y-3 overflow-y-auto px-6 py-6 sm:px-16" x-ref="thread">
+                    {{-- flex-col + mt-auto anchors messages to the bottom (empty space stays on top, like WhatsApp). --}}
+                    <div class="wa-thread flex flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-16" x-ref="thread">
+                        <div class="mt-auto space-y-3">
                         <template x-for="(m, i) in messages" :key="m.id">
                             <div>
                                 {{-- Date separator pill --}}
@@ -170,6 +172,7 @@
                                 </div>
                             </div>
                         </template>
+                        </div>
                     </div>
 
                     {{-- Composer — WhatsApp-style pill, smooth auto-grow --}}
