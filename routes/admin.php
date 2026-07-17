@@ -45,6 +45,33 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'edit'])->name('my-profile.edit');
         Route::post('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'update'])->name('my-profile.update');
 
+        // ===== Messenger › WhatsApp inbox =====
+        Route::middleware('permission:whatsapp.view')->group(function () {
+            $wa = \App\Http\Controllers\Admin\WhatsappController::class;
+            Route::get('whatsapp', [$wa, 'index'])->name('whatsapp.index');
+            Route::get('whatsapp/chats', [$wa, 'chats'])->name('whatsapp.chats');
+            Route::get('whatsapp/chats/{chat}', [$wa, 'show'])->whereNumber('chat')->name('whatsapp.show');
+            Route::post('whatsapp/chats/{chat}/send', [$wa, 'send'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.send');
+            Route::post('whatsapp/chats/{chat}/assign', [$wa, 'assign'])->whereNumber('chat')->middleware('permission:whatsapp.assign')->name('whatsapp.assign');
+            Route::post('whatsapp/chats/{chat}/status', [$wa, 'status'])->whereNumber('chat')->name('whatsapp.status');
+            Route::post('whatsapp/chats/{chat}/label', [$wa, 'toggleLabel'])->whereNumber('chat')->name('whatsapp.label');
+            Route::post('whatsapp/chats/{chat}/note', [$wa, 'addNote'])->whereNumber('chat')->name('whatsapp.note');
+        });
+        Route::middleware('permission:whatsapp.settings')->group(function () {
+            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
+            Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');
+            Route::post('whatsapp-settings', [$ws, 'update'])->name('whatsapp-settings.update');
+            Route::post('whatsapp-settings/test', [$ws, 'test'])->name('whatsapp-settings.test');
+            Route::get('whatsapp-connection', [$ws, 'connection'])->name('whatsapp-connection');
+            Route::get('whatsapp-connection/status', [$ws, 'connectionStatus'])->name('whatsapp-connection.status');
+            Route::post('whatsapp-connection/connect', [$ws, 'connect'])->name('whatsapp-connection.connect');
+            Route::post('whatsapp-connection/logout', [$ws, 'logout'])->name('whatsapp-connection.logout');
+            Route::post('whatsapp-settings/labels', [$ws, 'labelStore'])->name('whatsapp-settings.labels.store');
+            Route::delete('whatsapp-settings/labels/{label}', [$ws, 'labelDestroy'])->whereNumber('label')->name('whatsapp-settings.labels.destroy');
+            Route::post('whatsapp-settings/quick-replies', [$ws, 'quickStore'])->name('whatsapp-settings.quick.store');
+            Route::delete('whatsapp-settings/quick-replies/{quickReply}', [$ws, 'quickDestroy'])->whereNumber('quickReply')->name('whatsapp-settings.quick.destroy');
+        });
+
         // ===== Team Chat — open to every panel user; group creation is gated =====
         Route::get('chat', [\App\Http\Controllers\Admin\ChatController::class, 'index'])->name('chat.index');
         Route::get('chat/new-group', [\App\Http\Controllers\Admin\ChatController::class, 'createGroup'])

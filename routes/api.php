@@ -44,6 +44,12 @@ Route::post('/search-log', [\App\Http\Controllers\Api\SearchController::class, '
 // ---- Public invoice pay page data (token-guarded, no auth) — consumed by the frontend pay page ----
 Route::get('/invoice/pay/{token}', [\App\Http\Controllers\InvoicePayController::class, 'apiShow']);
 
+// ---- WhatsApp Business Cloud API webhook (public — Meta verifies via token/signature) ----
+Route::get('/whatsapp/webhook', [\App\Http\Controllers\Api\WhatsappWebhookController::class, 'verify']);
+Route::post('/whatsapp/webhook', [\App\Http\Controllers\Api\WhatsappWebhookController::class, 'receive']);
+// ---- Baileys gateway → Laravel (QR/WhatsApp Web driver; auth via shared secret header) ----
+Route::post('/whatsapp/gateway', [\App\Http\Controllers\Api\WhatsappGatewayController::class, 'handle']);
+
 // ---- Payment webhooks (public, no auth) ----
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhooks/paypal', [WebhookController::class, 'paypal']);
