@@ -155,6 +155,8 @@ class WhatsappController extends Controller
         return array_merge($this->chatSummary($c), [
             'assigned_to' => $c->assigned_to,
             'label_ids' => $c->labels->pluck('id'),
+            'phone' => $c->realNumber() ? '+'.$c->realNumber() : null,
+            'country' => $c->country(),
             'client' => $c->client ? ['name' => $c->client->name, 'email' => $c->client->email, 'phone' => $c->client->phone, 'company' => $c->client->company] : null,
             'notes' => $c->notes->map(fn ($n) => ['id' => $n->id, 'body' => $n->body, 'user' => $n->user?->name, 'at' => $n->created_at->diffForHumans()]),
         ]);

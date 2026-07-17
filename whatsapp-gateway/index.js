@@ -96,10 +96,14 @@ async function start() {
       const jid = m.key.remoteJid || ''
       if (jid.endsWith('@g.us') || jid === 'status@broadcast') continue // skip groups & status
       const from = jid.replace('@s.whatsapp.net', '')
+      // Resolve the real phone number. For a plain @s.whatsapp.net JID it's the JID itself; for a
+      // privacy LID (@lid) WhatsApp exposes the underlying number via remoteJidAlt / senderPn.
+      const phone = resolvePhone(jid, m.key)
       const payload = {
         event: 'message',
         id: m.key.id,
         from,
+        phone,
         from_me: !!m.key.fromMe,
         name: m.pushName || null,
         timestamp: m.messageTimestamp ? Number(m.messageTimestamp) : Math.floor(Date.now() / 1000),
@@ -126,6 +130,20 @@ async function start() {
       push({ event: 'status', id: u.key.id, status: map[s] || 'sent' })
     }
   })
+}
+
+// Resolve the underlying phone number for a chat address (digits only, no @domain).
+// A LID (@lid) hides the number; Baileys surfaces the real one on the message key as
+// remoteJidAlt or senderPn — fall back to null when neither is present.
+function resolvePhone(jid, key) {
+  if (jid.endsWith('@s.whatsapp.net')) return jid.replace('@s.whatsapp.net', '')
+  const alt = key?.remoteJidAlt || key?.senderPn || key?.participantAlt || key?.participantPn || ''
+  if (alt && alt.includes('@s.whatsapp.net')) return alt.replace('@s.whatsapp.net', '')
+  if (alt && /^\d+$/.test(alt.replace('@lid', ''))) {
+    const digits = alt.replace('@lid', '').replace('@s.whatsapp.net', '')
+    return alt.includes('@lid') ? null : digits
+  }
+  return null
 }
 
 // Normalise a Baileys message into our flat shape.

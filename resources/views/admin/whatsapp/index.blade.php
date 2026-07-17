@@ -115,7 +115,7 @@
                                 </template>
                                 <div class="flex" :class="m.direction === 'out' ? 'justify-end' : 'justify-start'">
                                     <div class="relative max-w-[65%] rounded-lg px-2.5 pb-1.5 pt-1.5 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]"
-                                         :class="m.direction === 'out' ? 'wa-out bg-[#e7ffdb] text-gray-800' : 'wa-in bg-white text-gray-800'">
+                                         :class="m.direction === 'out' ? 'wa-out text-gray-800' : 'wa-in text-gray-800'">
                                         {{-- media --}}
                                         <template x-if="m.media && m.type === 'image'"><img :src="m.media" class="mb-1 max-h-64 rounded-md"></template>
                                         <template x-if="m.media && m.type === 'video'"><video :src="m.media" controls class="mb-1 max-h-64 rounded-md"></video></template>
@@ -145,7 +145,7 @@
 
                     {{-- Composer — WhatsApp-style pill, smooth auto-grow --}}
                     @if ($canReply)
-                        <div class="shrink-0 border-t border-gray-100 bg-[#f0f2f5] px-4 py-3">
+                        <div class="shrink-0 border-t border-gray-100 px-4 py-3" style="background:#f0f2f5;">
                             <div class="mb-2 flex flex-wrap gap-1.5" x-show="showQuick" x-cloak>
                                 @foreach ($quickReplies as $qr)
                                     <button type="button" @click="draft = @js($qr->body); showQuick = false; $nextTick(() => autoGrow())" class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 shadow-sm hover:bg-gray-50">{{ $qr->shortcut ?: \Illuminate\Support\Str::limit($qr->body, 20) }}</button>
@@ -171,6 +171,11 @@
         <aside class="w-72 shrink-0 flex-col overflow-y-auto border-l border-gray-100" x-show="active && showInfo" x-cloak>
             <template x-if="active">
                 <div class="p-5">
+                    <div class="mb-1 flex justify-end">
+                        <button type="button" @click="showInfo = false" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Close">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                        </button>
+                    </div>
                     <div class="text-center">
                         <span class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700" x-text="active.initials"></span>
                         <p class="mt-2 font-bold text-[var(--color-heading)]" x-text="active.name"></p>
@@ -185,7 +190,16 @@
                         </div>
                         <div class="flex items-start gap-2">
                             <svg class="mt-0.5 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11 11 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11 11 0 0 0 .57 3.6 1 1 0 0 1-.25 1L6.6 10.8Z"/></svg>
-                            <span class="min-w-0"><span class="block text-[10px] text-gray-400">Phone / WhatsApp ID</span><span class="block break-all font-medium text-[var(--color-heading)]" x-text="active.wa_id"></span></span>
+                            <span class="min-w-0">
+                                <span class="block text-[10px] text-gray-400" x-text="active.phone ? 'Phone number' : 'WhatsApp ID'"></span>
+                                <span class="block break-all font-medium text-[var(--color-heading)]" x-text="active.phone || active.wa_id"></span>
+                                <span x-show="active.phone && active.phone !== active.wa_id" class="block text-[10px] text-gray-400">Chat ID: <span x-text="active.wa_id"></span></span>
+                            </span>
+                        </div>
+                        {{-- Country (resolved from the phone number) --}}
+                        <div class="flex items-center gap-2" x-show="active.country">
+                            <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+                            <span><span class="block text-[10px] text-gray-400">Country</span><span class="font-medium text-[var(--color-heading)]"><span x-text="active.country?.flag"></span> <span x-text="active.country?.name"></span></span></span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v4l3 2"/></svg>
@@ -248,10 +262,10 @@
             background-size: 26px 26px, 26px 26px;
             background-position: 0 0, 13px 13px;
         }
-        /* Bubble tails, WhatsApp-style. */
+        /* Bubble colours + tails, WhatsApp-style (inline so it never depends on a Tailwind rebuild). */
         .wa-thread .wa-in, .wa-thread .wa-out { border-radius: 8px; }
-        .wa-thread .wa-in { border-top-left-radius: 0; }
-        .wa-thread .wa-out { border-top-right-radius: 0; }
+        .wa-thread .wa-in { background: #ffffff; border-top-left-radius: 0; }
+        .wa-thread .wa-out { background: #e7ffdb; border-top-right-radius: 0; }
         .wa-thread .wa-in::before,
         .wa-thread .wa-out::before {
             content: ''; position: absolute; top: 0; width: 8px; height: 12px;

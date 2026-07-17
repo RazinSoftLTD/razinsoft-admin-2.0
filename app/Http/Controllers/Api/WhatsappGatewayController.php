@@ -59,12 +59,24 @@ class WhatsappGatewayController extends Controller
             return response()->json(['ok' => true]);
         }
 
+        $phone = $request->input('phone');
+        $matchKey = $phone ?: (str_contains($waId, '@lid') ? null : $waId);
+
         $chat = WhatsappChat::firstOrCreate(['wa_id' => $waId], [
+            'phone' => $phone,
             'profile_name' => $request->input('name'),
-            'client_id' => User::clients()->where('phone', 'like', '%'.substr($waId, -9))->value('id'),
+            'client_id' => $matchKey ? User::clients()->where('phone', 'like', '%'.substr($matchKey, -9))->value('id') : null,
             'status' => 'open',
             'unread_count' => 0,
         ]);
+
+        // Backfill the phone if a later message resolves it (LID numbers can arrive after the first msg).
+        if ($phone && ! $chat->phone) {
+            $chat->phone = $phone;
+            if (! $chat->client_id) {
+                $chat->client_id = User::clients()->where('phone', 'like', '%'.substr($phone, -9))->value('id');
+            }
+        }
 
         $waMsgId = $request->input('id');
         if ($waMsgId && WhatsappMessage::where('wa_message_id', $waMsgId)->exists()) {
