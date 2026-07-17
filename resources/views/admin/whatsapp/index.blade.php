@@ -43,10 +43,16 @@
                     <button type="button" @click="openChat(c.id)"
                             class="flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left transition hover:bg-gray-50"
                             :class="active && active.id === c.id ? 'bg-[var(--color-primary-soft)]' : ''">
-                        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700" x-text="c.initials"></span>
+                        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold" :class="c.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                            <template x-if="c.is_group"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
+                            <span x-show="!c.is_group" x-text="c.initials"></span>
+                        </span>
                         <span class="min-w-0 flex-1">
                             <span class="flex items-center justify-between gap-2">
-                                <span class="truncate text-sm font-bold text-[var(--color-heading)]" x-text="c.name"></span>
+                                <span class="flex min-w-0 items-center gap-1.5">
+                                    <span class="truncate text-sm font-bold text-[var(--color-heading)]" x-text="c.name"></span>
+                                    <span x-show="c.is_group" class="shrink-0 rounded bg-indigo-50 px-1 py-0.5 text-[8px] font-bold uppercase text-indigo-600">Group</span>
+                                </span>
                                 <span class="shrink-0 text-[10px] text-gray-400" x-text="c.at"></span>
                             </span>
                             <span class="mt-0.5 flex items-center gap-1.5">
@@ -82,10 +88,16 @@
                     {{-- Thread header --}}
                     <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
                         <button type="button" @click="showInfo = !showInfo" class="flex min-w-0 items-center gap-3 text-left">
-                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700" x-text="active.initials"></span>
+                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                                <template x-if="active.is_group"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
+                                <span x-show="!active.is_group" x-text="active.initials"></span>
+                            </span>
                             <span class="min-w-0">
-                                <span class="block truncate text-sm font-bold text-[var(--color-heading)]" x-text="active.name"></span>
-                                <span class="block truncate text-xs text-gray-400" x-text="active.wa_id"></span>
+                                <span class="flex items-center gap-1.5">
+                                    <span class="block truncate text-sm font-bold text-[var(--color-heading)]" x-text="active.name"></span>
+                                    <span x-show="active.is_group" class="shrink-0 rounded bg-indigo-50 px-1 py-0.5 text-[8px] font-bold uppercase text-indigo-600">Group</span>
+                                </span>
+                                <span class="block truncate text-xs text-gray-400" x-text="active.last_seen ? 'last seen ' + active.last_seen : active.wa_id"></span>
                             </span>
                         </button>
                         <div class="flex items-center gap-2">
@@ -114,9 +126,13 @@
                                         <span class="rounded-lg bg-white/90 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-500 shadow-sm" x-text="dayLabel(m)"></span>
                                     </div>
                                 </template>
-                                <div class="flex" :class="m.direction === 'out' ? 'justify-end' : 'justify-start'">
+                                <div class="flex flex-col" :class="m.direction === 'out' ? 'items-end' : 'items-start'">
                                     <div class="relative max-w-[65%] rounded-lg px-2.5 pb-1.5 pt-1.5 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]"
                                          :class="m.direction === 'out' ? 'wa-out text-gray-800' : 'wa-in text-gray-800'">
+                                        {{-- group sender name --}}
+                                        <template x-if="m.sender_name && m.direction === 'in'">
+                                            <span class="mb-0.5 block text-xs font-bold text-indigo-600" x-text="m.sender_name"></span>
+                                        </template>
                                         {{-- media --}}
                                         <template x-if="m.media && m.type === 'image'"><img :src="m.media" class="mb-1 max-h-64 rounded-md"></template>
                                         <template x-if="m.media && m.type === 'video'"><video :src="m.media" controls class="mb-1 max-h-64 rounded-md"></video></template>
@@ -139,6 +155,12 @@
                                             </template>
                                         </span>
                                     </div>
+                                    {{-- Seen / Delivered caption under the last outgoing message --}}
+                                    <template x-if="m.direction === 'out' && isLastOut(i)">
+                                        <span class="mr-1 mt-0.5 text-[10px] font-medium"
+                                              :class="m.status === 'read' ? 'text-[#53bdeb]' : 'text-gray-400'"
+                                              x-text="m.status === 'read' ? 'Seen' : (m.status === 'delivered' ? 'Delivered' : (m.status === 'failed' ? 'Failed' : 'Sent'))"></span>
+                                    </template>
                                 </div>
                             </div>
                         </template>
@@ -287,11 +309,19 @@
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
                 filters: [
-                    { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'open', label: 'Open' },
+                    { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'single', label: 'Single' },
+                    { key: 'group', label: 'Group' }, { key: 'open', label: 'Open' },
                     { key: 'pending', label: 'Pending' }, { key: 'mine', label: 'Mine' }, { key: 'resolved', label: 'Resolved' },
                 ],
                 csrf: document.querySelector('meta[name=csrf-token]').content,
                 showDate(i) { return i === 0 || this.messages[i - 1].date_key !== this.messages[i].date_key; },
+                // True only for the newest outgoing message — where WhatsApp shows the Seen/Delivered caption.
+                isLastOut(i) {
+                    for (let j = this.messages.length - 1; j >= 0; j--) {
+                        if (this.messages[j].direction === 'out') return j === i;
+                    }
+                    return false;
+                },
                 dayLabel(m) { return m.day; },
                 // Smooth grow of the composer + reset to one row after send.
                 autoGrow() {
@@ -324,6 +354,7 @@
                     const p = new URLSearchParams();
                     if (this.search) p.set('search', this.search);
                     if (this.filter === 'mine') p.set('mine', '1');
+                    else if (this.filter === 'single' || this.filter === 'group') p.set('type', this.filter);
                     else if (this.filter !== 'all') p.set('status', this.filter);
                     return p.toString();
                 },

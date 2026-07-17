@@ -85,6 +85,14 @@ class BaileysProvider implements WhatsappProvider
         return ['id' => $res->json('id', '')];
     }
 
+    public function markRead(string $to): void
+    {
+        try {
+            $this->client()->post('/read', ['to' => $to]);
+        } catch (\Throwable) {
+        }
+    }
+
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array
     {
         $res = $this->client()->post('/send', array_filter([

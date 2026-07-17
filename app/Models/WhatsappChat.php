@@ -40,14 +40,22 @@ class WhatsappChat extends Model
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    public function isGroup(): bool
+    {
+        return $this->chat_type === 'group' || str_contains((string) $this->wa_id, '@g.us');
+    }
+
     public function displayName(): string
     {
-        return $this->name ?: $this->profile_name ?: $this->phoneLabel();
+        return $this->name ?: $this->profile_name ?: ($this->isGroup() ? 'Group chat' : $this->phoneLabel());
     }
 
     /** Human label for the contact's address — strips the WhatsApp domain (@lid / @s.whatsapp.net). */
     public function phoneLabel(): string
     {
+        if ($this->isGroup()) {
+            return 'Group';
+        }
         // Prefer the resolved real phone number when we have one (LID contacts hide it in wa_id).
         if ($this->phone) {
             return '+'.ltrim($this->phone, '+');
@@ -60,6 +68,9 @@ class WhatsappChat extends Model
     /** Best-effort E.164 number (digits only) — the resolved phone, or the wa_id if it's a real number. */
     public function realNumber(): ?string
     {
+        if ($this->isGroup()) {
+            return null;
+        }
         if ($this->phone) {
             return ltrim($this->phone, '+');
         }

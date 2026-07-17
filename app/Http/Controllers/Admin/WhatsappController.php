@@ -45,6 +45,12 @@ class WhatsappController extends Controller
         $chat->update(['unread_count' => 0]);
         $chat->load(['labels:id,name,color', 'assignee:id,name', 'client:id,name,email,phone,company', 'notes.user:id,name']);
 
+        // Tell WhatsApp we've seen the incoming messages (blue ticks on the sender's side).
+        try {
+            app(WhatsappService::class)->markRead($chat->wa_id);
+        } catch (\Throwable) {
+        }
+
         return response()->json([
             'chat' => $this->chatDetail($chat),
             'messages' => $chat->messages()->with('agent:id,name')->get()->map(fn ($m) => $this->messagePayload($m)),
@@ -128,6 +134,9 @@ class WhatsappController extends Controller
         if ($request->query('mine')) {
             $q->where('assigned_to', $request->user()->id);
         }
+        if (($type = $request->query('type')) && in_array($type, ['single', 'group'], true)) {
+            $type === 'group' ? $q->where('chat_type', 'group') : $q->where('chat_type', '!=', 'group');
+        }
         if ($label = $request->query('label')) {
             $q->whereHas('labels', fn ($l) => $l->where('whatsapp_labels.id', $label));
         }
@@ -144,6 +153,7 @@ class WhatsappController extends Controller
             'id' => $c->id, 'name' => $c->displayName(), 'wa_id' => $c->phoneLabel(),
             'preview' => $c->last_message_preview, 'at' => $c->last_message_at?->diffForHumans(),
             'unread' => $c->unread_count, 'status' => $c->status,
+            'is_group' => $c->isGroup(),
             'assignee' => $c->assignee?->name,
             'labels' => $c->labels->map(fn ($l) => ['name' => $l->name, 'color' => $l->color]),
             'initials' => collect(explode(' ', $c->displayName()))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->join(''),
@@ -157,6 +167,7 @@ class WhatsappController extends Controller
             'label_ids' => $c->labels->pluck('id'),
             'phone' => $c->realNumber() ? '+'.$c->realNumber() : null,
             'country' => $c->country(),
+            'last_seen' => $c->last_message_at?->diffForHumans(),
             'client' => $c->client ? ['name' => $c->client->name, 'email' => $c->client->email, 'phone' => $c->client->phone, 'company' => $c->client->company] : null,
             'notes' => $c->notes->map(fn ($n) => ['id' => $n->id, 'body' => $n->body, 'user' => $n->user?->name, 'at' => $n->created_at->diffForHumans()]),
         ]);
@@ -168,6 +179,7 @@ class WhatsappController extends Controller
 
         return [
             'id' => $m->id, 'direction' => $m->direction, 'type' => $m->type,
+            'sender_name' => $m->sender_name,
             'body' => $m->body, 'media' => $m->mediaUrl(), 'media_mime' => $m->media_mime, 'media_name' => $m->media_name,
             'status' => $m->status, 'agent' => $m->agent?->name,
             'at' => $at->format('h:i A'),

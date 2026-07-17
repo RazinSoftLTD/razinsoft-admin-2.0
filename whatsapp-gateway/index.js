@@ -28,6 +28,21 @@ let sock = null
 let state = 'disconnected'   // disconnected | qr | connecting | connected
 let qrDataUrl = null
 let number = null
+const lastKeys = new Map()       // jid -> newest message key (for read receipts)
+const groupNames = new Map()     // jid -> cached group subject
+
+// Resolve (and cache) a group's subject/title.
+async function groupSubject(jid) {
+  if (groupNames.has(jid)) return groupNames.get(jid)
+  try {
+    const meta = await sock.groupMetadata(jid)
+    const subject = meta?.subject || null
+    groupNames.set(jid, subject)
+    return subject
+  } catch {
+    return null
+  }
+}
 
 // ---- push an event to Laravel ----
 async function push(payload) {
@@ -94,18 +109,26 @@ async function start() {
     for (const m of messages) {
       if (!m.message) continue
       const jid = m.key.remoteJid || ''
-      if (jid.endsWith('@g.us') || jid === 'status@broadcast') continue // skip groups & status
-      const from = jid.replace('@s.whatsapp.net', '')
+      if (jid === 'status@broadcast') continue // skip status/story broadcasts
+      const isGroup = jid.endsWith('@g.us')
+      // The thread address: the group jid for groups, else the contact's number.
+      const from = isGroup ? jid : jid.replace('@s.whatsapp.net', '')
+      // Remember the newest inbound key so we can send a read receipt when an agent opens the chat.
+      if (!m.key.fromMe) lastKeys.set(jid, m.key)
       // Resolve the real phone number. For a plain @s.whatsapp.net JID it's the JID itself; for a
       // privacy LID (@lid) WhatsApp exposes the underlying number via remoteJidAlt / senderPn.
-      const phone = resolvePhone(jid, m.key)
+      // In a group the number belongs to the participant who sent the message.
+      const phone = isGroup ? resolvePhone(m.key.participant || '', m.key) : resolvePhone(jid, m.key)
       const payload = {
         event: 'message',
         id: m.key.id,
         from,
         phone,
+        chat_type: isGroup ? 'group' : 'single',
+        group_subject: isGroup ? await groupSubject(jid) : null,
+        sender_name: isGroup ? (m.pushName || null) : null,
         from_me: !!m.key.fromMe,
-        name: m.pushName || null,
+        name: isGroup ? await groupSubject(jid) : (m.pushName || null),
         timestamp: m.messageTimestamp ? Number(m.messageTimestamp) : Math.floor(Date.now() / 1000),
         ...parseMessage(m.message),
       }
@@ -172,6 +195,21 @@ app.post('/connect', async (req, res) => {
   if (state === 'connected') return res.json({ ok: true, state })
   try { await start() } catch (e) { return res.status(500).json({ error: e.message }) }
   res.json({ ok: true, state })
+})
+
+// Mark a chat's incoming messages as read on WhatsApp (blue ticks for the other side).
+app.post('/read', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { to } = req.body
+  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
+  const key = lastKeys.get(jid)
+  if (!key) return res.json({ ok: true, skipped: 'no-key' })
+  try {
+    await sock.readMessages([key])
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 app.post('/logout', async (req, res) => {

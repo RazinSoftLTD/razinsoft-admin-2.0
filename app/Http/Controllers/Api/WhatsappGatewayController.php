@@ -58,11 +58,14 @@ class WhatsappGatewayController extends Controller
         // same thread as an outgoing bubble — 'from' is already the recipient's address here.
         $fromMe = $request->boolean('from_me');
 
+        $isGroup = $request->input('chat_type') === 'group' || str_contains($waId, '@g.us');
         $phone = $request->input('phone');
-        $matchKey = $phone ?: (str_contains($waId, '@lid') ? null : $waId);
+        // Groups have many senders, so don't auto-match them to a single client.
+        $matchKey = $isGroup ? null : ($phone ?: (str_contains($waId, '@lid') ? null : $waId));
 
         $chat = WhatsappChat::firstOrCreate(['wa_id' => $waId], [
-            'phone' => $phone,
+            'phone' => $isGroup ? null : $phone,
+            'chat_type' => $isGroup ? 'group' : 'single',
             'profile_name' => $request->input('name'),
             'client_id' => $matchKey ? User::clients()->where('phone', 'like', '%'.substr($matchKey, -9))->value('id') : null,
             'status' => 'open',
@@ -70,7 +73,7 @@ class WhatsappGatewayController extends Controller
         ]);
 
         // Backfill the phone if a later message resolves it (LID numbers can arrive after the first msg).
-        if ($phone && ! $chat->phone) {
+        if (! $isGroup && $phone && ! $chat->phone) {
             $chat->phone = $phone;
             if (! $chat->client_id) {
                 $chat->client_id = User::clients()->where('phone', 'like', '%'.substr($phone, -9))->value('id');
@@ -88,6 +91,7 @@ class WhatsappGatewayController extends Controller
         $message = $chat->messages()->create([
             'wa_message_id' => $waMsgId,
             'direction' => $fromMe ? 'out' : 'in',
+            'sender_name' => $isGroup && ! $fromMe ? $request->input('sender_name') : null,
             'type' => $type,
             'body' => $request->input('text'),
             'media_path' => $mediaPath,

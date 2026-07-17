@@ -26,6 +26,9 @@ interface WhatsappProvider
     /** Send a plain text message. Returns ['id' => provider message id]. */
     public function sendText(string $to, string $body): array;
 
+    /** Mark a chat's incoming messages as read on WhatsApp. Best-effort; may be a no-op. */
+    public function markRead(string $to): void;
+
     /**
      * Send a media message. $source is a publicly reachable URL (Cloud API) or a local/relative
      * path the gateway can read (Baileys). Returns ['id' => provider message id].

@@ -64,6 +64,12 @@ class WhatsappService
         return $this->provider()->sendText($to, $body)['id'] ?? '';
     }
 
+    /** Mark a chat's incoming messages as read on WhatsApp (best-effort; no-op if unsupported). */
+    public function markRead(string $to): void
+    {
+        $this->provider()->markRead($to);
+    }
+
     /** Send a media message via the active driver. Returns the message id, or throws. */
     public function sendMedia(string $to, string $type, string $link, ?string $caption = null, ?string $filename = null): string
     {
