@@ -96,22 +96,41 @@
                         </div>
                     </div>
 
-                    {{-- Messages --}}
-                    <div class="flex-1 space-y-2 overflow-y-auto bg-gray-50/60 p-5" x-ref="thread">
-                        <template x-for="m in messages" :key="m.id">
-                            <div class="flex" :class="m.direction === 'out' ? 'justify-end' : 'justify-start'">
-                                <div class="max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-sm"
-                                     :class="m.direction === 'out' ? 'bg-emerald-500 text-white' : 'bg-white text-[var(--color-heading)]'">
-                                    {{-- media --}}
-                                    <template x-if="m.media && m.type === 'image'"><img :src="m.media" class="mb-1 max-h-52 rounded-lg"></template>
-                                    <template x-if="m.media && m.type === 'video'"><video :src="m.media" controls class="mb-1 max-h-52 rounded-lg"></video></template>
-                                    <template x-if="m.media && m.type === 'audio'"><audio :src="m.media" controls class="mb-1 w-52"></audio></template>
-                                    <template x-if="m.media && m.type === 'document'"><a :href="m.media" target="_blank" class="mb-1 flex items-center gap-1.5 underline" :class="m.direction === 'out' ? 'text-white' : 'text-[var(--color-primary)]'"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M7 3h7l5 5v13H7z"/></svg><span x-text="m.media_name || 'Document'"></span></a></template>
-                                    <p x-show="m.body" x-text="m.body" class="whitespace-pre-line"></p>
-                                    <p class="mt-1 flex items-center justify-end gap-1 text-[10px]" :class="m.direction === 'out' ? 'text-white/70' : 'text-gray-400'">
-                                        <span x-text="m.at"></span>
-                                        <template x-if="m.direction === 'out'"><span x-text="m.status === 'read' ? '✓✓' : (m.status === 'delivered' ? '✓✓' : (m.status === 'failed' ? '⚠' : '✓'))"></span></template>
-                                    </p>
+                    {{-- Messages — WhatsApp Web look (beige doodle bg, green/white bubbles) --}}
+                    <div class="wa-thread flex-1 space-y-1.5 overflow-y-auto px-6 py-5 sm:px-12" x-ref="thread">
+                        <template x-for="(m, i) in messages" :key="m.id">
+                            <div>
+                                {{-- Date separator pill --}}
+                                <template x-if="showDate(i)">
+                                    <div class="my-3 flex justify-center">
+                                        <span class="rounded-lg bg-white/90 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-500 shadow-sm" x-text="dayLabel(m)"></span>
+                                    </div>
+                                </template>
+                                <div class="flex" :class="m.direction === 'out' ? 'justify-end' : 'justify-start'">
+                                    <div class="relative max-w-[65%] rounded-lg px-2.5 pb-1.5 pt-1.5 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]"
+                                         :class="m.direction === 'out' ? 'wa-out bg-[#d9fdd3] text-gray-800' : 'wa-in bg-white text-gray-800'">
+                                        {{-- media --}}
+                                        <template x-if="m.media && m.type === 'image'"><img :src="m.media" class="mb-1 max-h-64 rounded-md"></template>
+                                        <template x-if="m.media && m.type === 'video'"><video :src="m.media" controls class="mb-1 max-h-64 rounded-md"></video></template>
+                                        <template x-if="m.media && m.type === 'audio'"><audio :src="m.media" controls class="mb-1 w-56"></audio></template>
+                                        <template x-if="m.media && m.type === 'document'"><a :href="m.media" target="_blank" class="mb-1 flex items-center gap-2 rounded-md bg-black/5 px-2.5 py-2 text-gray-700 hover:bg-black/10"><svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg><span class="truncate" x-text="m.media_name || 'Document'"></span></a></template>
+                                        <span x-show="m.body" x-text="m.body" class="whitespace-pre-line break-words align-bottom"></span>
+                                        {{-- inline meta (time + ticks) --}}
+                                        <span class="float-right ml-2 mt-1 inline-flex translate-y-0.5 items-center gap-0.5 text-[10px] leading-none text-gray-500/80">
+                                            <span x-text="m.at"></span>
+                                            <template x-if="m.direction === 'out'">
+                                                <svg class="h-3.5 w-3.5" :class="m.status === 'read' ? 'text-[#53bdeb]' : 'text-gray-400'" viewBox="0 0 18 12" fill="none">
+                                                    <template x-if="m.status === 'failed'"><path d="M9 1a5 5 0 1 0 0 10A5 5 0 0 0 9 1Zm.6 7.5H8.4v-1.2h1.2v1.2Zm0-2.1H8.4V3.5h1.2v2.9Z" fill="currentColor"/></template>
+                                                    <template x-if="m.status !== 'failed' && (m.status === 'delivered' || m.status === 'read')">
+                                                        <path d="M2 6.3 4.4 8.7 9.2 2.9M6.4 8.7 11.2 2.9M11 6.3 13.4 8.7 18 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </template>
+                                                    <template x-if="m.status !== 'failed' && m.status !== 'delivered' && m.status !== 'read'">
+                                                        <path d="M4 6.3 6.4 8.7 12 2.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </template>
+                                                </svg>
+                                            </template>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -193,6 +212,34 @@
         </aside>
     </div>
 
+    <style>
+        /* WhatsApp Web thread: warm beige base + a faint doodle texture. */
+        .wa-thread {
+            background-color: #efeae2;
+            background-image:
+                radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px),
+                radial-gradient(rgba(0,0,0,0.025) 1px, transparent 1px);
+            background-size: 26px 26px, 26px 26px;
+            background-position: 0 0, 13px 13px;
+        }
+        /* Bubble tails, WhatsApp-style. */
+        .wa-thread .wa-in, .wa-thread .wa-out { border-radius: 8px; }
+        .wa-thread .wa-in { border-top-left-radius: 0; }
+        .wa-thread .wa-out { border-top-right-radius: 0; }
+        .wa-thread .wa-in::before,
+        .wa-thread .wa-out::before {
+            content: ''; position: absolute; top: 0; width: 8px; height: 12px;
+        }
+        .wa-thread .wa-in::before {
+            left: -8px;
+            background: radial-gradient(circle at bottom left, transparent 12px, #fff 0);
+        }
+        .wa-thread .wa-out::before {
+            right: -8px;
+            background: radial-gradient(circle at bottom right, transparent 12px, #d9fdd3 0);
+        }
+    </style>
+
     <script>
         function waInbox() {
             return {
@@ -203,6 +250,8 @@
                     { key: 'pending', label: 'Pending' }, { key: 'mine', label: 'Mine' }, { key: 'resolved', label: 'Resolved' },
                 ],
                 csrf: document.querySelector('meta[name=csrf-token]').content,
+                showDate(i) { return i === 0 || this.messages[i - 1].date_key !== this.messages[i].date_key; },
+                dayLabel(m) { return m.day; },
                 init() {
                     this.loadChats();
                     // Live updates via Reverb.

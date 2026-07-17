@@ -162,11 +162,15 @@ class WhatsappController extends Controller
 
     private function messagePayload(WhatsappMessage $m): array
     {
+        $at = $m->sent_at ?? $m->created_at;
+
         return [
             'id' => $m->id, 'direction' => $m->direction, 'type' => $m->type,
             'body' => $m->body, 'media' => $m->mediaUrl(), 'media_mime' => $m->media_mime, 'media_name' => $m->media_name,
             'status' => $m->status, 'agent' => $m->agent?->name,
-            'at' => ($m->sent_at ?? $m->created_at)->format('d M, h:i A'),
+            'at' => $at->format('h:i A'),
+            'date_key' => $at->toDateString(),
+            'day' => $at->isToday() ? 'Today' : ($at->isYesterday() ? 'Yesterday' : $at->format('d F Y')),
         ];
     }
 }
