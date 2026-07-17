@@ -14,7 +14,8 @@
         </div>
     @endif
 
-    <div x-data="waInbox()" x-init="init()" class="flex h-[calc(100vh-9rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+    {{-- Full-screen inbox: break out of the layout padding and fill the viewport below the topbar --}}
+    <div x-data="waInbox()" x-init="init()" class="-m-4 flex h-[calc(100vh-4rem)] overflow-hidden border-t border-gray-100 bg-white sm:-m-6">
         {{-- ============ LEFT: chat list ============ --}}
         <aside class="flex w-80 shrink-0 flex-col border-r border-gray-100">
             <div class="border-b border-gray-100 p-4">
@@ -136,20 +137,21 @@
                         </template>
                     </div>
 
-                    {{-- Composer --}}
+                    {{-- Composer — WhatsApp-style pill, smooth auto-grow --}}
                     @if ($canReply)
-                        <div class="border-t border-gray-100 p-3">
-                            <div class="mb-2 flex flex-wrap gap-1.5" x-show="showQuick">
+                        <div class="shrink-0 border-t border-gray-100 bg-[#f0f2f5] px-4 py-3">
+                            <div class="mb-2 flex flex-wrap gap-1.5" x-show="showQuick" x-cloak>
                                 @foreach ($quickReplies as $qr)
-                                    <button type="button" @click="draft = @js($qr->body); showQuick = false" class="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-200">{{ $qr->shortcut ?: \Illuminate\Support\Str::limit($qr->body, 20) }}</button>
+                                    <button type="button" @click="draft = @js($qr->body); showQuick = false; $nextTick(() => autoGrow())" class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 shadow-sm hover:bg-gray-50">{{ $qr->shortcut ?: \Illuminate\Support\Str::limit($qr->body, 20) }}</button>
                                 @endforeach
                             </div>
                             <form @submit.prevent="send()" class="flex items-end gap-2">
-                                <button type="button" @click="showQuick = !showQuick" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-gray-400 hover:bg-gray-100" title="Quick replies">
+                                <button type="button" @click="showQuick = !showQuick" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" title="Quick replies">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
                                 </button>
-                                <textarea x-model="draft" @keydown.enter.exact.prevent="send()" rows="1" placeholder="Type a message…" class="max-h-32 flex-1 resize-none rounded-xl border-gray-200 text-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"></textarea>
-                                <button type="submit" :disabled="!draft.trim() || sending" class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50">
+                                <textarea x-ref="composer" x-model="draft" @keydown.enter.exact.prevent="send()" @input="autoGrow()" rows="1" placeholder="Type a message…"
+                                          class="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-sm leading-5 text-gray-800 shadow-sm outline-none ring-1 ring-gray-200 transition focus:ring-2 focus:ring-emerald-400"></textarea>
+                                <button type="submit" :disabled="!draft.trim() || sending" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
                                 </button>
                             </form>
@@ -252,6 +254,19 @@
                 csrf: document.querySelector('meta[name=csrf-token]').content,
                 showDate(i) { return i === 0 || this.messages[i - 1].date_key !== this.messages[i].date_key; },
                 dayLabel(m) { return m.day; },
+                // Smooth grow of the composer + reset to one row after send.
+                autoGrow() {
+                    const el = this.$refs.composer;
+                    if (!el) return;
+                    el.style.height = 'auto';
+                    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                },
+                scrollBottom(smooth = false) {
+                    this.$nextTick(() => {
+                        const t = this.$refs.thread;
+                        if (t) t.scrollTo({ top: t.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+                    });
+                },
                 init() {
                     this.loadChats();
                     // Live updates via Reverb.
@@ -281,9 +296,15 @@
                 async openChat(id, silent = false) {
                     const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id);
                     const d = await r.json();
+                    const atBottom = silent ? this.isAtBottom() : true;
                     this.active = d.chat; this.messages = d.messages;
                     if (!silent) { const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
-                    this.$nextTick(() => { const t = this.$refs.thread; if (t) t.scrollTop = t.scrollHeight; });
+                    // Always land at the newest message when opening; on live refresh only if already at bottom.
+                    if (atBottom) this.scrollBottom();
+                },
+                isAtBottom() {
+                    const t = this.$refs.thread;
+                    return !t || (t.scrollHeight - t.scrollTop - t.clientHeight < 80);
                 },
                 async send() {
                     if (!this.draft.trim() || this.sending) return;
@@ -294,7 +315,7 @@
                             method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
                             body: JSON.stringify({ body }),
                         });
-                        if (r.ok) { this.messages.push((await r.json()).message); this.$nextTick(() => { const t = this.$refs.thread; if (t) t.scrollTop = t.scrollHeight; }); this.loadChats(); }
+                        if (r.ok) { this.messages.push((await r.json()).message); this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
                         else { alert((await r.json()).error || 'Could not send.'); this.draft = body; }
                     } catch { this.draft = body; } finally { this.sending = false; }
                 },
