@@ -44,7 +44,7 @@
                             class="flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left transition hover:bg-gray-50"
                             :class="active && active.id === c.id ? 'bg-[var(--color-primary-soft)]' : ''">
                         <template x-if="c.avatar"><img :src="c.avatar" class="h-10 w-10 shrink-0 rounded-full object-cover"></template>
-                        <span x-show="!c.avatar" class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold" :class="c.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                        <span x-show="!c.avatar" class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold" :class="c.is_group ? 'text-white' : 'bg-emerald-100 text-emerald-700'" :style="c.is_group ? ('background:' + c.color) : ''">
                             <template x-if="c.is_group"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
                             <span x-show="!c.is_group" x-text="c.initials"></span>
                         </span>
@@ -90,7 +90,7 @@
                     <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
                         <button type="button" @click="showInfo = !showInfo" class="flex min-w-0 items-center gap-3 text-left">
                             <template x-if="active.avatar"><img :src="active.avatar" class="h-9 w-9 shrink-0 rounded-full object-cover"></template>
-                            <span x-show="!active.avatar" class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                            <span x-show="!active.avatar" class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold" :class="active.is_group ? 'text-white' : 'bg-emerald-100 text-emerald-700'" :style="active.is_group ? ('background:' + active.color) : ''">
                                 <template x-if="active.is_group"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
                                 <span x-show="!active.is_group" x-text="active.initials"></span>
                             </span>
@@ -103,6 +103,9 @@
                             </span>
                         </button>
                         <div class="flex items-center gap-2">
+                            <button type="button" @click="markUnread()" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Mark as unread">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
+                            </button>
                             <button type="button" @click="showInfo = !showInfo" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Contact info">
                                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5M12 8h.01"/></svg>
                             </button>
@@ -126,7 +129,7 @@
                             <div>
                                 {{-- Date separator pill --}}
                                 <template x-if="showDate(i)">
-                                    <div class="my-3 flex justify-center">
+                                    <div class="mb-4 mt-2 flex justify-center">
                                         <span class="rounded-lg bg-white/90 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-500 shadow-sm" x-text="dayLabel(m)"></span>
                                     </div>
                                 </template>
@@ -215,7 +218,7 @@
                                     <img :src="active.avatar" class="h-20 w-20 rounded-full object-cover shadow-sm ring-4 ring-white">
                                 </template>
                                 <template x-if="!active.avatar">
-                                    <span class="grid h-20 w-20 place-items-center rounded-full text-2xl font-bold shadow-sm ring-4 ring-white" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                                    <span class="grid h-20 w-20 place-items-center rounded-full text-2xl font-bold shadow-sm ring-4 ring-white" :class="active.is_group ? 'text-white' : 'bg-emerald-100 text-emerald-700'" :style="active.is_group ? ('background:' + active.color) : ''">
                                         <template x-if="active.is_group"><svg class="h-9 w-9" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
                                         <span x-show="!active.is_group" x-text="active.initials"></span>
                                     </span>
@@ -489,6 +492,13 @@
                 },
                 assign(id) { this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/assign', { assigned_to: id || null }); this.active.assigned_to = id; },
                 setStatus(s) { this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/status', { status: s }); this.active.status = s; this.loadChats(); },
+                async markUnread() {
+                    if (!this.active) return;
+                    const id = this.active.id;
+                    await this.post(@js(url('admin/whatsapp/chats')) + '/' + id + '/unread', {});
+                    this.active = null;        // close the thread so its unread state is visible in the list
+                    this.loadChats();
+                },
                 async toggleLabel(id) {
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/label', { label_id: id });
                     if (r.ok) { this.active.label_ids = (await r.json()).labels.map(l => l.id); this.loadChats(); }

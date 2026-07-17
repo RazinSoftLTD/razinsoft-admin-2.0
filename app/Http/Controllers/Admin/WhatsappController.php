@@ -108,6 +108,14 @@ class WhatsappController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /** Flag a chat as unread again (so it stays highlighted until reopened). */
+    public function markUnread(Request $request, WhatsappChat $chat)
+    {
+        $chat->update(['unread_count' => max(1, $chat->unread_count)]);
+
+        return response()->json(['ok' => true, 'unread' => $chat->unread_count]);
+    }
+
     public function toggleLabel(Request $request, WhatsappChat $chat)
     {
         $data = $request->validate(['label_id' => ['required', 'exists:whatsapp_labels,id']]);
@@ -170,6 +178,14 @@ class WhatsappController extends Controller
         return response()->json(['avatar' => $chat->avatarUrl()]);
     }
 
+    /** A stable, distinct colour per group so different groups look different. */
+    private function groupColor(int $id): string
+    {
+        $palette = ['#6366f1', '#ec4899', '#f59e0b', '#0ea5e9', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#3b82f6', '#d946ef'];
+
+        return $palette[$id % count($palette)];
+    }
+
     /** Product names (live) plus any custom options an admin added in WhatsApp settings. */
     private function interestOptions(): array
     {
@@ -197,8 +213,20 @@ class WhatsappController extends Controller
         if ($label = $request->query('label')) {
             $q->whereHas('labels', fn ($l) => $l->where('whatsapp_labels.id', $label));
         }
-        if ($search = $request->query('search')) {
-            $q->where(fn ($x) => $x->where('name', 'like', "%{$search}%")->orWhere('profile_name', 'like', "%{$search}%")->orWhere('wa_id', 'like', "%{$search}%"));
+        if ($search = trim((string) $request->query('search'))) {
+            $digits = preg_replace('/\D/', '', $search); // for phone-number matching
+            $q->where(function ($x) use ($search, $digits) {
+                $x->where('name', 'like', "%{$search}%")
+                    ->orWhere('profile_name', 'like', "%{$search}%")
+                    ->orWhere('wa_id', 'like', "%{$search}%")
+                    ->orWhere('last_message_preview', 'like', "%{$search}%")
+                    ->orWhere('interested_product', 'like', "%{$search}%")
+                    // Match anything the client actually wrote in the conversation.
+                    ->orWhereHas('messages', fn ($m) => $m->where('body', 'like', "%{$search}%"));
+                if ($digits !== '') {
+                    $x->orWhere('phone', 'like', "%{$digits}%");
+                }
+            });
         }
 
         return $q->orderByDesc('last_message_at')->orderByDesc('id')->limit(200)->get();
@@ -211,6 +239,7 @@ class WhatsappController extends Controller
             'preview' => $c->last_message_preview, 'at' => $c->last_message_at?->diffForHumans(),
             'unread' => $c->unread_count, 'status' => $c->status,
             'is_group' => $c->isGroup(),
+            'color' => $c->isGroup() ? $this->groupColor($c->id) : null,
             'avatar' => $c->avatarUrl(),
             'assignee' => $c->assignee?->name,
             'labels' => $c->labels->map(fn ($l) => ['name' => $l->name, 'color' => $l->color]),
