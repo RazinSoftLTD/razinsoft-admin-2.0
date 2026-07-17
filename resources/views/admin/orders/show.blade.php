@@ -20,7 +20,9 @@
                     <tbody class="divide-y divide-gray-100">
                         @foreach ($order->items as $it)
                             <tr>
-                                <td class="py-3 font-semibold text-[var(--color-heading)]">{{ $it->product_name }}</td>
+                                <td class="py-3 font-semibold text-[var(--color-heading)]">{{ $it->product_name }}
+                                    @if ($it->installation_plan_id)<span class="ml-1.5 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600">INSTALLATION</span>@endif
+                                </td>
                                 <td class="py-3 text-[var(--color-muted)]">
                                     {{ $it->plan_name ?? 'License' }}
                                     @if ($it->license)

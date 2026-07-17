@@ -29,6 +29,10 @@ class FulfillmentService
         $this->generateInvoice($order);
 
         foreach ($order->items as $item) {
+            // Installation plans are a service — no product license / download to issue.
+            if ($item->installation_plan_id) {
+                continue;
+            }
             $this->generateLicense($order, $item);
         }
 

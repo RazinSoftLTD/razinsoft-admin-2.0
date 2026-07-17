@@ -107,6 +107,7 @@
 
         ['type' => 'group', 'label' => 'Products', 'icon' => $ic['products'], 'items' => [
             ['label' => 'All Products', 'route' => 'admin.products.index', 'active' => 'admin.products.*', 'perm' => 'products.view', 'icon' => $ic['products']],
+            ['label' => 'Installation Plans', 'route' => 'admin.installation-plans', 'active' => 'admin.installation-plans*', 'perm' => 'products.view', 'icon' => $ic['tasks'] ?? $ic['products']],
             ['label' => 'Coupons', 'route' => 'admin.coupons.index', 'active' => 'admin.coupons.*', 'perm' => 'coupons.view', 'icon' => $ic['coupons']],
             ['label' => 'Reviews', 'route' => 'admin.reviews.index', 'active' => 'admin.reviews.*', 'perm' => 'reviews.view', 'icon' => $ic['reviews']],
             ['label' => 'Questions', 'route' => 'admin.questions.index', 'active' => 'admin.questions.*', 'perm' => 'questions.view', 'icon' => $ic['questions'], 'badge' => \App\Models\ProductQuestion::whereDoesntHave('answers', fn ($a) => $a->where('is_admin', true))->count()],

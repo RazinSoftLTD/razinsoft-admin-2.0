@@ -276,8 +276,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== Products =====
         Route::middleware('permission:products.view')->group(function () {
             Route::get('products', [ProductController::class, 'index'])->name('products.index');
+            Route::get('installation-plans', [\App\Http\Controllers\Admin\InstallationPlanController::class, 'index'])->name('installation-plans');
             Route::get('products/{product}', [ProductController::class, 'show'])->whereNumber('product')->name('products.show');
             Route::get('products/{product}/manage/{relation}', [ProductRelationController::class, 'edit'])->whereNumber('product')->name('products.relation.edit');
+        });
+        Route::middleware('permission:products.edit')->prefix('installation-plans')->name('installation-plans.')->group(function () {
+            $ip = \App\Http\Controllers\Admin\InstallationPlanController::class;
+            Route::post('{product}/features', [$ip, 'featureStore'])->whereNumber('product')->name('features.store');
+            Route::put('{product}/features/{feature}', [$ip, 'featureUpdate'])->whereNumber(['product', 'feature'])->name('features.update');
+            Route::delete('{product}/features/{feature}', [$ip, 'featureDestroy'])->whereNumber(['product', 'feature'])->name('features.destroy');
+            Route::post('{product}/plans', [$ip, 'planStore'])->whereNumber('product')->name('plans.store');
+            Route::put('{product}/plans/{plan}', [$ip, 'planUpdate'])->whereNumber(['product', 'plan'])->name('plans.update');
+            Route::delete('{product}/plans/{plan}', [$ip, 'planDestroy'])->whereNumber(['product', 'plan'])->name('plans.destroy');
+            Route::post('{product}/plans/{plan}/toggle', [$ip, 'toggle'])->whereNumber(['product', 'plan'])->name('toggle');
+            Route::post('{product}/copy-from', [$ip, 'copyFrom'])->whereNumber('product')->name('copy-from');
         });
         Route::middleware('permission:products.create')->group(function () {
             Route::get('products/create', [ProductController::class, 'create'])->name('products.create');

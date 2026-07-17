@@ -18,6 +18,31 @@ class OrderService
         $subtotal = 0;
 
         foreach ($data['items'] as $row) {
+            // ---- Installation-plan line (a service, priced from the installation plan) ----
+            if (! empty($row['installation_plan_id'])) {
+                $ip = \App\Models\InstallationPlan::with('product')->find($row['installation_plan_id']);
+                if (! $ip || ! $ip->product) {
+                    throw ValidationException::withMessages(['items' => ['An installation plan in your cart is no longer available.']]);
+                }
+                $unit = (float) ($ip->sale_price ?? $ip->price);
+                $qty = max(1, (int) ($row['qty'] ?? 1));
+                $lineTotal = round($unit * $qty, 2);
+                $subtotal += $lineTotal;
+                $lines[] = [
+                    'product_id' => $ip->product_id,
+                    'plan_id' => null,
+                    'installation_plan_id' => $ip->id,
+                    'product_name' => $ip->product->name.' — Installation',
+                    'plan_name' => 'Installation: '.$ip->name,
+                    'license_type' => null,
+                    'unit_price' => $unit,
+                    'quantity' => $qty,
+                    'line_total' => $lineTotal,
+                ];
+
+                continue;
+            }
+
             $product = Product::published()
                 ->when(isset($row['slug']), fn ($q) => $q->where('slug', $row['slug']))
                 ->when(isset($row['product_id']), fn ($q) => $q->whereKey($row['product_id']))

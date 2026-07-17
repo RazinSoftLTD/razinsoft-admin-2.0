@@ -16,6 +16,7 @@ class CheckoutController extends Controller
             'items.*.slug' => ['required_without:items.*.product_id', 'string'],
             'items.*.product_id' => ['sometimes', 'integer'],
             'items.*.plan_id' => ['nullable', 'integer'],
+            'items.*.installation_plan_id' => ['nullable', 'integer'],
             'items.*.qty' => ['nullable', 'integer', 'min:1'],
             'items.*.license_type' => ['nullable', 'in:regular,extended'],
             'coupon' => ['nullable', 'string', 'max:50'],

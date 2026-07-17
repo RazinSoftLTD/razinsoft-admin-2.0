@@ -15,6 +15,7 @@ Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // ---- Products (public) ----
+Route::get('/installation-plans', [\App\Http\Controllers\Api\InstallationPlanController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/categories', [ProductController::class, 'categories']);
 Route::get('/products/{slug}', [ProductController::class, 'show']);

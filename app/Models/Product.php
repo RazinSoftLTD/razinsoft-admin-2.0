@@ -80,6 +80,16 @@ class Product extends Model
         return $this->hasMany(Plan::class)->orderBy('sort_order');
     }
 
+    public function installationPlans(): HasMany
+    {
+        return $this->hasMany(InstallationPlan::class)->orderBy('position')->orderBy('id');
+    }
+
+    public function installationFeatures(): HasMany
+    {
+        return $this->hasMany(InstallationFeature::class)->orderBy('position')->orderBy('id');
+    }
+
     /** The first plan (by sort order) — used for the "from" price on product cards. */
     public function firstPlan(): HasOne
     {
