@@ -14,6 +14,8 @@ import {
   useMultiFileAuthState,
   DisconnectReason,
   downloadMediaMessage,
+  fetchLatestBaileysVersion,
+  Browsers,
 } from '@whiskeysockets/baileys'
 
 const PORT = process.env.PORT || 8090
@@ -47,7 +49,14 @@ async function start() {
   const { state: authState, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
   state = 'connecting'
 
-  sock = makeWASocket({ auth: authState, logger: pino({ level: 'silent' }), printQRInTerminal: false })
+  // Pin to the latest WhatsApp Web protocol version — a stale version triggers 405 rejections.
+  const { version } = await fetchLatestBaileysVersion()
+  sock = makeWASocket({
+    version,
+    auth: authState,
+    logger: pino({ level: 'silent' }),
+    browser: Browsers.ubuntu('Chrome'),
+  })
 
   sock.ev.on('creds.update', saveCreds)
 
