@@ -195,84 +195,139 @@
         </section>
 
         {{-- ============ RIGHT: contact details (toggle on any screen) ============ --}}
-        <aside class="w-72 shrink-0 flex-col overflow-y-auto border-l border-gray-100" x-show="active && showInfo" x-cloak>
+        <aside class="w-80 shrink-0 flex-col overflow-y-auto border-l border-gray-100 bg-gray-50/60" x-show="active && showInfo" x-cloak>
             <template x-if="active">
-                <div class="p-5">
-                    <div class="mb-1 flex justify-end">
-                        <button type="button" @click="showInfo = false" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Close">
+                <div>
+                    {{-- Profile header --}}
+                    <div class="relative bg-gradient-to-b from-emerald-50 to-gray-50/60 px-5 pb-5 pt-3">
+                        <button type="button" @click="showInfo = false" class="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-gray-400 transition hover:bg-white hover:text-[var(--color-heading)]" title="Close">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
                         </button>
-                    </div>
-                    <div class="text-center">
-                        <span class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700" x-text="active.initials"></span>
-                        <p class="mt-2 font-bold text-[var(--color-heading)]" x-text="active.name"></p>
-                    </div>
-
-                    {{-- Contact details --}}
-                    <div class="mt-4 space-y-2.5 rounded-xl border border-gray-100 p-3.5 text-sm">
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Contact details</p>
-                        <div class="flex items-start gap-2">
-                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M4.5 19.5a7.5 7.5 0 0 1 15 0"/></svg>
-                            <span><span class="block text-[10px] text-gray-400">Name</span><span class="font-medium text-[var(--color-heading)]" x-text="active.name"></span></span>
-                        </div>
-                        <div class="flex items-start gap-2">
-                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11 11 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11 11 0 0 0 .57 3.6 1 1 0 0 1-.25 1L6.6 10.8Z"/></svg>
-                            <span class="min-w-0">
-                                <span class="block text-[10px] text-gray-400" x-text="active.phone ? 'Phone number' : 'WhatsApp ID'"></span>
-                                <span class="block break-all font-medium text-[var(--color-heading)]" x-text="active.phone || active.wa_id"></span>
-                                <span x-show="active.phone && active.phone !== active.wa_id" class="block text-[10px] text-gray-400">Chat ID: <span x-text="active.wa_id"></span></span>
+                        <div class="text-center">
+                            <span class="mx-auto grid h-20 w-20 place-items-center rounded-full text-2xl font-bold shadow-sm ring-4 ring-white" :class="active.is_group ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'">
+                                <template x-if="active.is_group"><svg class="h-9 w-9" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
+                                <span x-show="!active.is_group" x-text="active.initials"></span>
                             </span>
-                        </div>
-                        {{-- Country (resolved from the phone number) --}}
-                        <div class="flex items-center gap-2" x-show="active.country">
-                            <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
-                            <span><span class="block text-[10px] text-gray-400">Country</span><span class="font-medium text-[var(--color-heading)]"><span x-text="active.country?.flag"></span> <span x-text="active.country?.name"></span></span></span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v4l3 2"/></svg>
-                            <span><span class="block text-[10px] text-gray-400">Last message</span><span class="font-medium text-[var(--color-heading)]" x-text="active.at || '—'"></span></span>
-                        </div>
-                    </div>
-
-                    {{-- Client match --}}
-                    <template x-if="active.client">
-                        <div class="mt-3 space-y-1 rounded-xl bg-emerald-50/70 p-3.5 text-xs">
-                            <p class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Matched client</p>
-                            <p class="font-semibold text-[var(--color-heading)]" x-text="active.client.name"></p>
-                            <p class="text-gray-500" x-text="active.client.email"></p>
-                            <p class="text-gray-500" x-show="active.client.phone" x-text="active.client.phone"></p>
-                            <p class="text-gray-500" x-show="active.client.company" x-text="active.client.company"></p>
-                        </div>
-                    </template>
-
-                    {{-- Labels --}}
-                    <div class="mt-5">
-                        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Labels</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            @foreach ($labels as $lbl)
-                                <button type="button" @click="toggleLabel({{ $lbl->id }})"
-                                        class="rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
-                                        :class="active.label_ids.includes({{ $lbl->id }}) ? '' : 'opacity-40'"
-                                        :style="`border-color:{{ $lbl->color }};background:{{ $lbl->color }}1a;color:{{ $lbl->color }}`">{{ $lbl->name }}</button>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    {{-- Notes --}}
-                    <div class="mt-5">
-                        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Internal Notes</p>
-                        <form @submit.prevent="addNote()" class="mb-3">
-                            <textarea x-model="noteDraft" rows="2" placeholder="Add a private note…" class="w-full rounded-lg border-gray-200 text-xs focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"></textarea>
-                            <button class="mt-1.5 rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-amber-500">Add note</button>
-                        </form>
-                        <ul class="space-y-2">
-                            <template x-for="n in active.notes" :key="n.id">
-                                <li class="rounded-lg bg-amber-50 p-2.5 text-xs">
-                                    <p class="whitespace-pre-line text-[var(--color-heading)]" x-text="n.body"></p>
-                                    <p class="mt-1 text-[10px] text-gray-400"><span x-text="n.user"></span> · <span x-text="n.at"></span></p>
-                                </li>
+                            <p class="mt-3 text-base font-bold text-[var(--color-heading)]" x-text="active.name"></p>
+                            <p class="text-xs text-gray-400" x-text="active.phone || active.wa_id"></p>
+                            {{-- lead quality pill --}}
+                            <template x-if="active.lead_quality">
+                                <span class="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                                      :class="active.lead_quality === 'qualified' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'">
+                                    <span class="h-1.5 w-1.5 rounded-full" :class="active.lead_quality === 'qualified' ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                                    <span x-text="active.lead_quality === 'qualified' ? 'Qualified' : 'Unqualified'"></span>
+                                </span>
                             </template>
-                        </ul>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 p-4">
+                        {{-- Contact details --}}
+                        <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                            <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Contact</p>
+                            <dl class="space-y-3 text-sm">
+                                <div class="flex items-start gap-2.5">
+                                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11 11 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11 11 0 0 0 .57 3.6 1 1 0 0 1-.25 1L6.6 10.8Z"/></svg>
+                                    <div class="min-w-0">
+                                        <dt class="text-[10px] uppercase tracking-wide text-gray-400" x-text="active.phone ? 'Phone' : 'WhatsApp ID'"></dt>
+                                        <dd class="break-all font-medium text-[var(--color-heading)]" x-text="active.phone || active.wa_id"></dd>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-2.5" x-show="active.country">
+                                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+                                    <div>
+                                        <dt class="text-[10px] uppercase tracking-wide text-gray-400">Country</dt>
+                                        <dd class="font-medium text-[var(--color-heading)]"><span x-text="active.country?.flag"></span> <span x-text="active.country?.name"></span></dd>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-2.5">
+                                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v4l3 2"/></svg>
+                                    <div>
+                                        <dt class="text-[10px] uppercase tracking-wide text-gray-400">Last message</dt>
+                                        <dd class="font-medium text-[var(--color-heading)]" x-text="active.at || '—'"></dd>
+                                    </div>
+                                </div>
+                            </dl>
+                        </div>
+
+                        {{-- Lead info (editable) --}}
+                        <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                            <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Lead info</p>
+                            <div class="space-y-3">
+                                {{-- Manual phone number --}}
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">Phone number <span class="text-gray-300">(add manually)</span></label>
+                                    <input type="text" x-model="form.phone" @keydown.enter.prevent="saveDetails()" placeholder="+880 1XXX-XXXXXX"
+                                           class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
+                                </div>
+                                {{-- Lead quality --}}
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">Lead quality</label>
+                                    <select x-model="form.lead_quality" class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
+                                        <option value="">— Not set —</option>
+                                        @foreach ($leadQualities as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach
+                                    </select>
+                                </div>
+                                {{-- Interested product --}}
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">Interested in</label>
+                                    <select x-model="form.interested_product" class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
+                                        <option value="">— Select a product —</option>
+                                        <template x-if="form.interested_product && !{{ \Illuminate\Support\Js::from($interestOptions) }}.includes(form.interested_product)">
+                                            <option :value="form.interested_product" x-text="form.interested_product"></option>
+                                        </template>
+                                        @foreach ($interestOptions as $opt)<option value="{{ $opt }}">{{ $opt }}</option>@endforeach
+                                    </select>
+                                    <p class="mt-1 text-[10px] text-gray-300">Manage options in Settings › WhatsApp Config.</p>
+                                </div>
+                                <button type="button" @click="saveDetails()" :disabled="savingDetails"
+                                        class="w-full rounded-lg bg-emerald-500 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50">
+                                    <span x-show="!savingDetails">Save details</span>
+                                    <span x-show="savingDetails" x-cloak>Saving…</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Client match --}}
+                        <template x-if="active.client">
+                            <div class="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 text-xs shadow-sm">
+                                <p class="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700">Matched client</p>
+                                <p class="text-sm font-semibold text-[var(--color-heading)]" x-text="active.client.name"></p>
+                                <p class="mt-0.5 text-gray-500" x-text="active.client.email"></p>
+                                <p class="text-gray-500" x-show="active.client.phone" x-text="active.client.phone"></p>
+                                <p class="text-gray-500" x-show="active.client.company" x-text="active.client.company"></p>
+                            </div>
+                        </template>
+
+                        {{-- Labels --}}
+                        <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                            <p class="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">Labels</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach ($labels as $lbl)
+                                    <button type="button" @click="toggleLabel({{ $lbl->id }})"
+                                            class="rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
+                                            :class="active.label_ids.includes({{ $lbl->id }}) ? '' : 'opacity-40'"
+                                            :style="`border-color:{{ $lbl->color }};background:{{ $lbl->color }}1a;color:{{ $lbl->color }}`">{{ $lbl->name }}</button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Notes --}}
+                        <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                            <p class="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">Internal notes</p>
+                            <form @submit.prevent="addNote()" class="mb-3">
+                                <textarea x-model="noteDraft" rows="2" placeholder="Add a private note…" class="w-full rounded-lg border-gray-200 text-xs focus:border-emerald-400 focus:ring-emerald-400"></textarea>
+                                <button class="mt-1.5 rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-amber-500">Add note</button>
+                            </form>
+                            <ul class="space-y-2">
+                                <template x-for="n in active.notes" :key="n.id">
+                                    <li class="rounded-lg bg-amber-50 p-2.5 text-xs">
+                                        <p class="whitespace-pre-line text-[var(--color-heading)]" x-text="n.body"></p>
+                                        <p class="mt-1 text-[10px] text-gray-400"><span x-text="n.user"></span> · <span x-text="n.at"></span></p>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -312,6 +367,7 @@
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
+                form: { phone: '', lead_quality: '', interested_product: '' }, savingDetails: false,
                 filters: [
                     { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'single', label: 'Single' },
                     { key: 'group', label: 'Group' }, { key: 'open', label: 'Open' },
@@ -374,6 +430,12 @@
                     const d = await r.json();
                     const atBottom = silent ? this.isAtBottom() : true;
                     this.active = d.chat; this.messages = d.messages;
+                    // Seed the editable lead form (strip the leading + so the input holds plain digits).
+                    this.form = {
+                        phone: (d.chat.phone || '').replace(/^\+/, ''),
+                        lead_quality: d.chat.lead_quality || '',
+                        interested_product: d.chat.interested_product || '',
+                    };
                     if (!silent) { const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
                     if (atBottom) this.scrollBottom();
@@ -403,6 +465,20 @@
                 async toggleLabel(id) {
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/label', { label_id: id });
                     if (r.ok) { this.active.label_ids = (await r.json()).labels.map(l => l.id); this.loadChats(); }
+                },
+                async saveDetails() {
+                    if (this.savingDetails || !this.active) return;
+                    this.savingDetails = true;
+                    try {
+                        const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/details', {
+                            phone: this.form.phone, lead_quality: this.form.lead_quality, interested_product: this.form.interested_product,
+                        });
+                        if (r.ok) {
+                            const d = await r.json();
+                            this.active.phone = d.phone; this.active.country = d.country;
+                            this.active.lead_quality = d.lead_quality; this.active.interested_product = d.interested_product;
+                        } else { alert((await r.json()).message || 'Could not save.'); }
+                    } catch { alert('Could not save.'); } finally { this.savingDetails = false; }
                 },
                 async addNote() {
                     if (!this.noteDraft.trim()) return;

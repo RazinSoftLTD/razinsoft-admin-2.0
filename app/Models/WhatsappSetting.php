@@ -14,6 +14,7 @@ class WhatsappSetting extends Model
         'gateway_secret' => 'encrypted',
         'is_connected' => 'boolean',
         'connected_at' => 'datetime',
+        'interest_options' => 'array',
     ];
 
     public static function current(): self

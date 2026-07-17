@@ -15,6 +15,8 @@ class WhatsappChat extends Model
 
     public const STATUSES = ['open' => 'Open', 'pending' => 'Pending', 'resolved' => 'Resolved'];
 
+    public const LEAD_QUALITIES = ['qualified' => 'Qualified', 'unqualified' => 'Unqualified'];
+
     public function messages(): HasMany
     {
         return $this->hasMany(WhatsappMessage::class, 'chat_id')->orderBy('id');

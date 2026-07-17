@@ -25,6 +25,8 @@ class WhatsappController extends Controller
             'agents' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
             'settings' => WhatsappSetting::current(),
+            'interestOptions' => $this->interestOptions(),
+            'leadQualities' => WhatsappChat::LEAD_QUALITIES,
             'stats' => [
                 'open' => WhatsappChat::where('status', 'open')->count(),
                 'unread' => WhatsappChat::where('unread_count', '>', 0)->count(),
@@ -122,6 +124,41 @@ class WhatsappController extends Controller
         return response()->json(['note' => ['id' => $note->id, 'body' => $note->body, 'user' => $request->user()->name, 'at' => $note->created_at->diffForHumans()]]);
     }
 
+    /** Update the CRM-ish contact fields: manual phone, lead quality, interested product. */
+    public function updateDetails(Request $request, WhatsappChat $chat)
+    {
+        $data = $request->validate([
+            'phone' => ['nullable', 'string', 'max:32'],
+            'lead_quality' => ['nullable', Rule::in(array_keys(WhatsappChat::LEAD_QUALITIES))],
+            'interested_product' => ['nullable', 'string', 'max:191'],
+        ]);
+
+        // Normalise a manually entered number to digits (keep it E.164-ish, no spaces/dashes).
+        $phone = isset($data['phone']) ? preg_replace('/[^\d]/', '', $data['phone']) : null;
+
+        $chat->update([
+            'phone' => $phone ?: ($chat->isGroup() ? null : $chat->phone),
+            'lead_quality' => $data['lead_quality'] ?? null,
+            'interested_product' => $data['interested_product'] ?? null,
+        ]);
+
+        return response()->json([
+            'phone' => $chat->realNumber() ? '+'.$chat->realNumber() : null,
+            'country' => $chat->country(),
+            'lead_quality' => $chat->lead_quality,
+            'interested_product' => $chat->interested_product,
+        ]);
+    }
+
+    /** Product names (live) plus any custom options an admin added in WhatsApp settings. */
+    private function interestOptions(): array
+    {
+        $products = \App\Models\Product::query()->orderBy('name')->pluck('name')->all();
+        $custom = WhatsappSetting::current()->interest_options ?: [];
+
+        return collect($products)->merge($custom)->filter()->unique()->values()->all();
+    }
+
     // ---------------------------------------------------------------- internals
 
     private function chatList(Request $request)
@@ -168,6 +205,8 @@ class WhatsappController extends Controller
             'phone' => $c->realNumber() ? '+'.$c->realNumber() : null,
             'country' => $c->country(),
             'last_seen' => $c->last_message_at?->diffForHumans(),
+            'lead_quality' => $c->lead_quality,
+            'interested_product' => $c->interested_product,
             'client' => $c->client ? ['name' => $c->client->name, 'email' => $c->client->email, 'phone' => $c->client->phone, 'company' => $c->client->company] : null,
             'notes' => $c->notes->map(fn ($n) => ['id' => $n->id, 'body' => $n->body, 'user' => $n->user?->name, 'at' => $n->created_at->diffForHumans()]),
         ]);

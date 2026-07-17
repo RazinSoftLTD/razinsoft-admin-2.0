@@ -56,6 +56,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp/chats/{chat}/status', [$wa, 'status'])->whereNumber('chat')->name('whatsapp.status');
             Route::post('whatsapp/chats/{chat}/label', [$wa, 'toggleLabel'])->whereNumber('chat')->name('whatsapp.label');
             Route::post('whatsapp/chats/{chat}/note', [$wa, 'addNote'])->whereNumber('chat')->name('whatsapp.note');
+            Route::post('whatsapp/chats/{chat}/details', [$wa, 'updateDetails'])->whereNumber('chat')->name('whatsapp.details');
         });
         Route::middleware('permission:whatsapp.settings')->group(function () {
             $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;

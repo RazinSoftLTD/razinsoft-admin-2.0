@@ -76,6 +76,14 @@
                         <input type="text" name="api_version" value="{{ old('api_version', $settings->api_version) }}" placeholder="v21.0" class="h-11 w-full rounded-lg border-gray-200 text-sm">
                     </div>
                 </div>
+
+                {{-- Extra interest / product options shown in the inbox contact panel --}}
+                <div class="mt-6 border-t border-gray-100 pt-6">
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Interested-in options (extra)</label>
+                    <p class="mb-2 text-xs text-gray-400">All your products are listed automatically. Add any extra options here — one per line (e.g. Custom Development, Support Package).</p>
+                    <textarea name="interest_options" rows="4" placeholder="Custom Development&#10;Annual Support&#10;Consultation" class="w-full rounded-lg border-gray-200 text-sm">{{ old('interest_options', collect($settings->interest_options ?? [])->implode("\n")) }}</textarea>
+                </div>
+
                 <div class="mt-6 flex items-center gap-2">
                     <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Settings</button>
                     <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-300 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
