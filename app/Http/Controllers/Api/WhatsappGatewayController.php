@@ -54,10 +54,9 @@ class WhatsappGatewayController extends Controller
         if (! $waId) {
             return response()->json(['ok' => false]);
         }
-        // Ignore our own outgoing echoes the gateway may forward.
-        if ($request->boolean('from_me')) {
-            return response()->json(['ok' => true]);
-        }
+        // A message we sent ourselves (from the phone or another linked device) belongs in the
+        // same thread as an outgoing bubble — 'from' is already the recipient's address here.
+        $fromMe = $request->boolean('from_me');
 
         $phone = $request->input('phone');
         $matchKey = $phone ?: (str_contains($waId, '@lid') ? null : $waId);
@@ -88,26 +87,27 @@ class WhatsappGatewayController extends Controller
 
         $message = $chat->messages()->create([
             'wa_message_id' => $waMsgId,
-            'direction' => 'in',
+            'direction' => $fromMe ? 'out' : 'in',
             'type' => $type,
             'body' => $request->input('text'),
             'media_path' => $mediaPath,
             'media_mime' => $mediaMime,
             'media_name' => $mediaName ?: $request->input('filename'),
-            'status' => 'received',
+            'status' => $fromMe ? 'sent' : 'received',
             'sent_at' => $request->input('timestamp') ? now()->setTimestamp((int) $request->input('timestamp')) : now(),
         ]);
 
         $chat->update([
             'last_message_at' => $message->sent_at,
             'last_message_preview' => Str::limit($request->input('text') ?: ucfirst($type), 120),
-            'unread_count' => $chat->unread_count + 1,
-            'name' => $chat->name ?: $request->input('name'),
+            // Only inbound messages bump the unread badge; our own replies don't.
+            'unread_count' => $fromMe ? 0 : $chat->unread_count + 1,
+            'name' => $chat->name ?: ($fromMe ? null : $request->input('name')),
             'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
         ]);
 
         try {
-            event(new WhatsappMessageReceived($chat->id, $message->id, 'in'));
+            event(new WhatsappMessageReceived($chat->id, $message->id, $fromMe ? 'out' : 'in'));
         } catch (\Throwable) {
         }
 

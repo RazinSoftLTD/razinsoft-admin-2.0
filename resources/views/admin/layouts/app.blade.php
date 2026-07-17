@@ -29,12 +29,12 @@
     @stack('head')
 </head>
 <body class="h-full bg-[var(--color-body)] text-[var(--color-heading)] antialiased"
-      x-data="{ sidebar: false, collapsed: localStorage.getItem('sidebarCollapsed') === '1' }"
+      x-data="{ sidebar: false, collapsed: localStorage.getItem('sidebarCollapsed') === '1', forceCollapse: false }"
       x-init="$watch('collapsed', v => localStorage.setItem('sidebarCollapsed', v ? '1' : '0'))">
     <!-- Sidebar -->
     <aside
         class="fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto border-r border-gray-100 bg-white transition-transform duration-200"
-        :class="{ 'translate-x-0': sidebar, '-translate-x-full': !sidebar, 'lg:translate-x-0': !collapsed, 'lg:-translate-x-full': collapsed }"
+        :class="{ 'translate-x-0': sidebar, '-translate-x-full': !sidebar, 'lg:translate-x-0': !(collapsed || forceCollapse), 'lg:-translate-x-full': (collapsed || forceCollapse) }"
     >
         @include('admin.partials.sidebar')
     </aside>
@@ -43,7 +43,7 @@
     <div x-show="sidebar" @click="sidebar = false" class="fixed inset-0 z-30 bg-black/30 lg:hidden" x-cloak></div>
 
     <!-- Main -->
-    <div class="transition-all duration-200" :class="collapsed ? 'lg:pl-0' : 'lg:pl-64'">
+    <div class="transition-all duration-200" :class="(collapsed || forceCollapse) ? 'lg:pl-0' : 'lg:pl-64'">
         @include('admin.partials.topbar')
 
         <main class="p-4 sm:p-6">

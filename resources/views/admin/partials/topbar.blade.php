@@ -4,7 +4,7 @@
         <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
     {{-- Desktop: collapse / expand sidebar --}}
-    <button type="button" class="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-50 lg:inline-flex" @click="collapsed = !collapsed" :title="collapsed ? 'Open sidebar' : 'Collapse sidebar'" :aria-label="collapsed ? 'Open sidebar' : 'Collapse sidebar'">
+    <button type="button" class="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-50 lg:inline-flex" @click="(collapsed || forceCollapse) ? (collapsed = false, forceCollapse = false) : (collapsed = true)" :title="(collapsed || forceCollapse) ? 'Open sidebar' : 'Collapse sidebar'" :aria-label="(collapsed || forceCollapse) ? 'Open sidebar' : 'Collapse sidebar'">
         <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
 
