@@ -26,7 +26,10 @@
                 </div>
                 <div class="relative mt-3">
                     <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/></svg>
-                    <input type="text" x-model.debounce.300ms="search" @input="loadChats()" placeholder="Search chats…" class="h-9 w-full rounded-lg border-gray-200 pl-9 text-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                    <input type="text" x-model="search" @input.debounce.300ms="loadChats()" placeholder="Search name, number or message…" class="h-9 w-full rounded-lg border-gray-200 pl-9 pr-8 text-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                    <button type="button" x-show="search" @click="search = ''; loadChats()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500" title="Clear">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                    </button>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-1.5">
                     <template x-for="f in filters" :key="f.key">
@@ -396,7 +399,7 @@
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
-                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false,
+                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, _chatReq: 0,
                 filters: [
                     { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'single', label: 'Single' },
                     { key: 'group', label: 'Group' }, { key: 'open', label: 'Open' },
@@ -451,8 +454,11 @@
                 },
                 setFilter(k) { this.filter = k; this.loadChats(); },
                 async loadChats() {
+                    const token = ++this._chatReq;
                     const r = await fetch(@js(route('admin.whatsapp.chats')) + '?' + this.params());
-                    this.chats = (await r.json()).chats;
+                    const data = await r.json();
+                    if (token !== this._chatReq) return; // a newer search superseded this response
+                    this.chats = data.chats;
                 },
                 async openChat(id, silent = false) {
                     const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id);
