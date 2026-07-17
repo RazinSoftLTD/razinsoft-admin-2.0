@@ -16,7 +16,7 @@
 
     {{-- Full-screen inbox: break out of the layout padding and fill the viewport below the topbar --}}
     {{-- forceCollapse hides the main sidebar so the inbox gets the full width (reset on leaving the page). --}}
-    <div x-data="waInbox()" x-init="init(); forceCollapse = true" class="-m-4 flex h-[calc(100vh-4rem)] overflow-hidden border-t border-gray-100 bg-white sm:-m-6">
+    <div x-data="waInbox()" x-init="init(); forceCollapse = true" style="height:calc(100dvh - 4rem - 1px)" class="-m-4 flex overflow-hidden border-t border-gray-100 bg-white sm:-m-6">
         {{-- ============ LEFT: chat list ============ --}}
         <aside class="flex w-80 shrink-0 flex-col border-r border-gray-100">
             <div class="border-b border-gray-100 p-4">
@@ -35,7 +35,7 @@
                     </template>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto">
+            <div class="min-h-0 flex-1 overflow-y-auto">
                 <template x-if="!chats.length">
                     <p class="py-10 text-center text-sm text-gray-300">No conversations.</p>
                 </template>

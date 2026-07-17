@@ -57,6 +57,8 @@ class WhatsappGatewayController extends Controller
         // A message we sent ourselves (from the phone or another linked device) belongs in the
         // same thread as an outgoing bubble — 'from' is already the recipient's address here.
         $fromMe = $request->boolean('from_me');
+        // Replayed from phone history — import silently (no unread bump, no live broadcast).
+        $historic = $request->boolean('historic');
 
         $isGroup = $request->input('chat_type') === 'group' || str_contains($waId, '@g.us');
         $phone = $request->input('phone');
@@ -101,18 +103,22 @@ class WhatsappGatewayController extends Controller
             'sent_at' => $request->input('timestamp') ? now()->setTimestamp((int) $request->input('timestamp')) : now(),
         ]);
 
+        // Keep last_message_* pointing at the newest message (historic imports may arrive out of order).
+        $isNewest = ! $chat->last_message_at || $message->sent_at->gte($chat->last_message_at);
         $chat->update([
-            'last_message_at' => $message->sent_at,
-            'last_message_preview' => Str::limit($request->input('text') ?: ucfirst($type), 120),
-            // Only inbound messages bump the unread badge; our own replies don't.
-            'unread_count' => $fromMe ? 0 : $chat->unread_count + 1,
+            'last_message_at' => $isNewest ? $message->sent_at : $chat->last_message_at,
+            'last_message_preview' => $isNewest ? Str::limit($request->input('text') ?: ucfirst($type), 120) : $chat->last_message_preview,
+            // Only live inbound messages bump the unread badge; our own replies and history don't.
+            'unread_count' => ($fromMe || $historic) ? $chat->unread_count : $chat->unread_count + 1,
             'name' => $chat->name ?: ($fromMe ? null : $request->input('name')),
-            'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
+            'status' => $chat->status === 'resolved' && ! $historic ? 'open' : $chat->status,
         ]);
 
-        try {
-            event(new WhatsappMessageReceived($chat->id, $message->id, $fromMe ? 'out' : 'in'));
-        } catch (\Throwable) {
+        if (! $historic) {
+            try {
+                event(new WhatsappMessageReceived($chat->id, $message->id, $fromMe ? 'out' : 'in'));
+            } catch (\Throwable) {
+            }
         }
 
         return response()->json(['ok' => true]);

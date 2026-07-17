@@ -71,6 +71,7 @@ async function start() {
     auth: authState,
     logger: pino({ level: 'silent' }),
     browser: Browsers.ubuntu('Chrome'),
+    syncFullHistory: true, // pull existing chat history from the phone on link
   })
 
   sock.ev.on('creds.update', saveCreds)
@@ -103,45 +104,19 @@ async function start() {
     }
   })
 
-  // ---- inbound messages ----
+  // ---- inbound messages (real-time) ----
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
-    for (const m of messages) {
-      if (!m.message) continue
-      const jid = m.key.remoteJid || ''
-      if (jid === 'status@broadcast') continue // skip status/story broadcasts
-      const isGroup = jid.endsWith('@g.us')
-      // The thread address: the group jid for groups, else the contact's number.
-      const from = isGroup ? jid : jid.replace('@s.whatsapp.net', '')
-      // Remember the newest inbound key so we can send a read receipt when an agent opens the chat.
-      if (!m.key.fromMe) lastKeys.set(jid, m.key)
-      // Resolve the real phone number. For a plain @s.whatsapp.net JID it's the JID itself; for a
-      // privacy LID (@lid) WhatsApp exposes the underlying number via remoteJidAlt / senderPn.
-      // In a group the number belongs to the participant who sent the message.
-      const phone = isGroup ? resolvePhone(m.key.participant || '', m.key) : resolvePhone(jid, m.key)
-      const payload = {
-        event: 'message',
-        id: m.key.id,
-        from,
-        phone,
-        chat_type: isGroup ? 'group' : 'single',
-        group_subject: isGroup ? await groupSubject(jid) : null,
-        sender_name: isGroup ? (m.pushName || null) : null,
-        from_me: !!m.key.fromMe,
-        name: isGroup ? await groupSubject(jid) : (m.pushName || null),
-        timestamp: m.messageTimestamp ? Number(m.messageTimestamp) : Math.floor(Date.now() / 1000),
-        ...parseMessage(m.message),
-      }
-      // Attach media inline (base64) for common types.
-      if (payload._mediaType) {
-        try {
-          const buf = await downloadMediaMessage(m, 'buffer', {})
-          payload.media = 'data:' + (payload.media_mime || 'application/octet-stream') + ';base64,' + Buffer.from(buf).toString('base64')
-        } catch (e) { log.warn('media download failed: ' + e.message) }
-        delete payload._mediaType
-      }
-      push(payload)
-    }
+    for (const m of messages) await handleMessage(m)
+  })
+
+  // ---- history sync: import existing chats/messages already on the phone ----
+  // Fires after linking (and on reconnect). We replay each message through the same path;
+  // Laravel dedupes by message id, so re-runs are safe.
+  sock.ev.on('messaging-history.set', async ({ messages }) => {
+    if (!Array.isArray(messages) || !messages.length) return
+    log.info('history sync: importing ' + messages.length + ' messages')
+    for (const m of messages) await handleMessage(m, true)
   })
 
   // ---- delivery / read receipts ----
@@ -167,6 +142,46 @@ function resolvePhone(jid, key) {
     return alt.includes('@lid') ? null : digits
   }
   return null
+}
+
+// Build the flat payload for one Baileys message and push it to Laravel.
+// `historic` marks messages replayed from history sync (Laravel skips the live broadcast for those).
+async function handleMessage(m, historic = false) {
+  if (!m || !m.message) return
+  const jid = m.key.remoteJid || ''
+  if (jid === 'status@broadcast') return // skip status/story broadcasts
+  const isGroup = jid.endsWith('@g.us')
+  // The thread address: the group jid for groups, else the contact's number.
+  const from = isGroup ? jid : jid.replace('@s.whatsapp.net', '')
+  // Remember the newest inbound key so we can send a read receipt when an agent opens the chat.
+  if (!m.key.fromMe && !historic) lastKeys.set(jid, m.key)
+  // Resolve the real phone number. For a plain @s.whatsapp.net JID it's the JID itself; for a
+  // privacy LID (@lid) WhatsApp exposes the underlying number via remoteJidAlt / senderPn.
+  // In a group the number belongs to the participant who sent the message.
+  const phone = isGroup ? resolvePhone(m.key.participant || '', m.key) : resolvePhone(jid, m.key)
+  const payload = {
+    event: 'message',
+    id: m.key.id,
+    from,
+    phone,
+    historic,
+    chat_type: isGroup ? 'group' : 'single',
+    group_subject: isGroup ? await groupSubject(jid) : null,
+    sender_name: isGroup ? (m.pushName || null) : null,
+    from_me: !!m.key.fromMe,
+    name: isGroup ? await groupSubject(jid) : (m.pushName || null),
+    timestamp: m.messageTimestamp ? Number(m.messageTimestamp) : Math.floor(Date.now() / 1000),
+    ...parseMessage(m.message),
+  }
+  // Attach media inline (base64) for common types.
+  if (payload._mediaType) {
+    try {
+      const buf = await downloadMediaMessage(m, 'buffer', {})
+      payload.media = 'data:' + (payload.media_mime || 'application/octet-stream') + ';base64,' + Buffer.from(buf).toString('base64')
+    } catch (e) { log.warn('media download failed: ' + e.message) }
+    delete payload._mediaType
+  }
+  push(payload)
 }
 
 // Normalise a Baileys message into our flat shape.
