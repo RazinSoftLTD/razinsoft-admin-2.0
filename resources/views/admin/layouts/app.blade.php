@@ -29,7 +29,8 @@
     @stack('head')
 </head>
 <body class="h-full bg-[var(--color-body)] text-[var(--color-heading)] antialiased"
-      x-data="{ sidebar: false, collapsed: localStorage.getItem('sidebarCollapsed') === '1', forceCollapse: false }"
+      x-data="{ sidebar: false, collapsed: localStorage.getItem('sidebarCollapsed') === '1', forceCollapse: false, lockScroll: false }"
+      :class="{ 'overflow-hidden': lockScroll }"
       x-init="$watch('collapsed', v => localStorage.setItem('sidebarCollapsed', v ? '1' : '0'))">
     <!-- Sidebar -->
     <aside
