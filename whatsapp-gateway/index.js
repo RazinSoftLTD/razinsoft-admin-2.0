@@ -161,12 +161,16 @@ async function handleMessage(key, m, historic = false) {
   const from = isGroup ? jid : jid.replace('@s.whatsapp.net', '')
   if (!m.key.fromMe && !historic) s.lastKeys.set(jid, m.key)
   const phone = isGroup ? resolvePhone(m.key.participant || '', m.key) : resolvePhone(jid, m.key)
+  const q = extractQuoted(m.message)
   const payload = {
     event: 'message',
     id: m.key.id,
     from,
     phone,
     historic,
+    quoted_id: q?.id || null,
+    quoted_body: q?.text || null,
+    quoted_participant: q?.participant || null,
     chat_type: isGroup ? 'group' : 'single',
     group_subject: isGroup ? await groupSubject(s, jid) : null,
     sender_name: isGroup ? (m.pushName || null) : null,
@@ -195,6 +199,18 @@ function resolvePhone(jid, mkey) {
     return alt.includes('@lid') ? null : digits
   }
   return null
+}
+
+// Pull the quoted (replied-to) reference out of a message's contextInfo, if any.
+function extractQuoted(msg) {
+  const ctx = msg.extendedTextMessage?.contextInfo || msg.imageMessage?.contextInfo
+    || msg.videoMessage?.contextInfo || msg.documentMessage?.contextInfo || msg.audioMessage?.contextInfo || null
+  if (!ctx || !ctx.stanzaId) return null
+  const qm = ctx.quotedMessage || {}
+  const text = qm.conversation || qm.extendedTextMessage?.text || qm.imageMessage?.caption
+    || (qm.imageMessage ? '📷 Photo' : qm.videoMessage ? '🎥 Video' : qm.audioMessage ? '🎵 Voice message'
+      : qm.documentMessage ? '📄 Document' : qm.stickerMessage ? 'Sticker' : '') || ''
+  return { id: ctx.stanzaId, text, participant: ctx.participant || null }
 }
 
 function parseMessage(msg) {
@@ -253,9 +269,17 @@ app.post('/logout', async (req, res) => {
 
 app.post('/send', async (req, res) => {
   const s = connected(req, res); if (!s) return
-  const { to, type = 'text', text, url, caption, filename, mentions } = req.body
+  const { to, type = 'text', text, url, caption, filename, mentions, quoted } = req.body
   const jid = jidOf(to)
   const mm = Array.isArray(mentions) && mentions.length ? { mentions } : {}
+  // Reply-to (quoted) — build a minimal message object; the stanza id links it to the original.
+  const opts = {}
+  if (quoted && quoted.id) {
+    opts.quoted = {
+      key: { remoteJid: jid, id: quoted.id, fromMe: !!quoted.fromMe, ...(quoted.participant ? { participant: quoted.participant } : {}) },
+      message: { conversation: quoted.text || '' },
+    }
+  }
   try {
     let content
     if (type === 'text') content = { text, ...mm }
@@ -264,7 +288,7 @@ app.post('/send', async (req, res) => {
     else if (type === 'audio') content = { audio: { url }, mimetype: 'audio/mp4', ptt: true }
     else if (type === 'document') content = { document: { url }, fileName: filename || 'document', caption, ...mm }
     else content = { text: text || '' }
-    const sent = await s.sock.sendMessage(jid, content)
+    const sent = await s.sock.sendMessage(jid, content, opts)
     res.json({ id: sent?.key?.id || '' })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })

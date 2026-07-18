@@ -75,9 +75,11 @@ class BaileysProvider implements WhatsappProvider
         }
     }
 
-    public function sendText(string $to, string $body, array $mentions = []): array
+    public function sendText(string $to, string $body, array $mentions = [], ?array $quoted = null): array
     {
-        $res = $this->post('/send', array_filter(['to' => $to, 'type' => 'text', 'text' => $body, 'mentions' => $mentions], fn ($v) => $v !== []));
+        $res = $this->post('/send', array_filter([
+            'to' => $to, 'type' => 'text', 'text' => $body, 'mentions' => $mentions, 'quoted' => $quoted,
+        ], fn ($v) => $v !== [] && $v !== null));
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to send the message.');
         }

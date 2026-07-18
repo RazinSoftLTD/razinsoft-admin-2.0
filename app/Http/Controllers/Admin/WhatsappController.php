@@ -101,21 +101,25 @@ class WhatsappController extends Controller
             'body' => ['required', 'string', 'max:4096'],
             'mentions' => ['array'],
             'mentions.*' => ['string', 'max:64'],
+            'reply_to' => ['nullable', 'integer'],
         ]);
         $settings = WhatsappSetting::current();
         if (! $settings->isConfigured()) {
             return response()->json(['error' => 'WhatsApp is not connected. Configure it in Settings › WhatsApp API.'], 422);
         }
 
+        // Build the quoted (reply-to) context from an existing message in this chat.
+        [$quoted, $quotedFields] = $this->buildQuoted($chat, $data['reply_to'] ?? null);
+
         $message = $chat->messages()->create([
             'direction' => 'out', 'type' => 'text', 'body' => $data['body'],
             'status' => 'sent', 'agent_id' => $request->user()->id, 'sent_at' => now(),
-        ]);
+        ] + $quotedFields);
 
         try {
             // Mentions only apply in groups.
             $mentions = $chat->isGroup() ? array_values(array_filter($data['mentions'] ?? [])) : [];
-            $waId = WhatsappService::for($chat->account)->sendText($chat->wa_id, $data['body'], $mentions);
+            $waId = WhatsappService::for($chat->account)->sendText($chat->wa_id, $data['body'], $mentions, $quoted);
             $message->update(['wa_message_id' => $waId]);
         } catch (\Throwable $e) {
             $message->update(['status' => 'failed', 'error' => $e->getMessage()]);
@@ -132,6 +136,38 @@ class WhatsappController extends Controller
         }
 
         return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
+    }
+
+    /** Returns [gatewayQuoted|null, fieldsToStore] for replying to a message in this chat. */
+    private function buildQuoted(WhatsappChat $chat, $replyToId): array
+    {
+        $replied = $replyToId ? $chat->messages()->find($replyToId) : null;
+        if (! $replied || ! $replied->wa_message_id) {
+            return [null, []];
+        }
+
+        $snippet = \Illuminate\Support\Str::limit($replied->body ?: ucfirst($replied->type), 200);
+        $sender = $replied->direction === 'out' ? 'You' : ($replied->sender_name ?: $chat->displayName());
+
+        $participant = null;
+        if ($chat->isGroup()) {
+            $participant = $replied->direction === 'out'
+                ? ($chat->account?->display_number ? $chat->account->display_number.'@s.whatsapp.net' : null)
+                : $replied->sender_jid;
+        }
+
+        $quoted = [
+            'id' => $replied->wa_message_id,
+            'fromMe' => $replied->direction === 'out',
+            'text' => $replied->body ?: $snippet,
+            'participant' => $participant,
+        ];
+
+        return [$quoted, [
+            'quoted_id' => $replied->wa_message_id,
+            'quoted_body' => $snippet,
+            'quoted_sender' => $sender,
+        ]];
     }
 
     /** Send an attachment (image / video / audio / document) to the chat. */
@@ -652,6 +688,7 @@ class WhatsappController extends Controller
             'deleted' => (bool) $m->deleted_at,
             'reaction' => $m->reaction,
             'my_reaction' => $m->my_reaction,
+            'quoted' => $m->quoted_id ? ['body' => $m->quoted_body, 'sender' => $m->quoted_sender] : null,
             'ts' => $at->timestamp,
             'at' => $at->format('h:i A'),
             'date_key' => $at->toDateString(),

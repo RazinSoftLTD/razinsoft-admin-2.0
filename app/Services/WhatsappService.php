@@ -71,9 +71,9 @@ class WhatsappService
     }
 
     /** Send a plain text message via the active driver. Returns the message id, or throws. */
-    public function sendText(string $to, string $body, array $mentions = []): string
+    public function sendText(string $to, string $body, array $mentions = [], ?array $quoted = null): string
     {
-        return $this->provider()->sendText($to, $body, $mentions)['id'] ?? '';
+        return $this->provider()->sendText($to, $body, $mentions, $quoted)['id'] ?? '';
     }
 
     /** Mark a chat's incoming messages as read on WhatsApp (best-effort; no-op if unsupported). */

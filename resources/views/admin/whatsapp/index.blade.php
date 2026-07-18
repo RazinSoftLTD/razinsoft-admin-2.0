@@ -238,6 +238,11 @@
                                         <div class="absolute flex items-center gap-1 opacity-0 transition group-hover:opacity-100"
                                              :style="(m.direction === 'out' ? 'right:100%;padding-right:.4rem;' : 'left:100%;padding-left:.4rem;') + 'top:50%;transform:translateY(-50%);z-index:20'"
                                              x-show="!m.deleted && editingId !== m.id">
+                                            @if ($canReply)
+                                            <button type="button" @click="replyTo = m; $nextTick(() => $refs.composer && $refs.composer.focus())" title="Reply" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-emerald-600">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 5 5v3"/></svg>
+                                            </button>
+                                            @endif
                                             <div class="relative">
                                                 <button type="button" @click="react = !react; more = false" title="React" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-emerald-600">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.9.9 2.1 1.5 3.5 1.5s2.6-.6 3.5-1.5"/></svg>
@@ -271,6 +276,13 @@
                                             </template>
                                         </div>
                                         @endif
+                                        {{-- quoted (reply-to) reference --}}
+                                        <template x-if="m.quoted">
+                                            <div class="mb-1 overflow-hidden rounded-md border-l-4 border-emerald-400 bg-black/5 px-2 py-1">
+                                                <span class="block text-[11px] font-bold text-emerald-700" x-text="m.quoted.sender || 'Reply'"></span>
+                                                <span class="block truncate text-xs text-gray-500" x-text="m.quoted.body"></span>
+                                            </div>
+                                        </template>
                                         {{-- group sender name --}}
                                         <template x-if="m.sender_name && m.direction === 'in'">
                                             <span class="mb-0.5 block text-xs font-bold text-indigo-600" x-text="m.sender_name"></span>
@@ -356,6 +368,17 @@
                     {{-- Composer — WhatsApp-style pill, smooth auto-grow --}}
                     @if ($canReply)
                         <div class="shrink-0 border-t border-gray-100 px-4 py-3" style="background:#f0f2f5;">
+                            {{-- Replying-to preview --}}
+                            <template x-if="replyTo">
+                                <div class="mb-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm">
+                                    <div class="w-1 shrink-0 self-stretch rounded bg-emerald-400"></div>
+                                    <div class="min-w-0 flex-1">
+                                        <span class="block text-[11px] font-bold text-emerald-700" x-text="replyTo.direction === 'out' ? 'You' : (replyTo.sender_name || active.name)"></span>
+                                        <span class="block truncate text-xs text-gray-500" x-text="replyTo.body || (replyTo.type === 'image' ? '📷 Photo' : replyTo.type === 'video' ? '🎥 Video' : replyTo.type === 'audio' ? '🎵 Voice message' : replyTo.type === 'document' ? '📄 Document' : 'Message')"></span>
+                                    </div>
+                                    <button type="button" @click="replyTo = null" class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 hover:bg-gray-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg></button>
+                                </div>
+                            </template>
                             <div class="mb-2 flex flex-wrap gap-1.5" x-show="showQuick" x-cloak>
                                 @foreach ($quickReplies as $qr)
                                     <button type="button" @click="draft = @js($qr->body); showQuick = false; $nextTick(() => autoGrow())" class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 shadow-sm hover:bg-gray-50">{{ $qr->shortcut ?: \Illuminate\Support\Str::limit($qr->body, 20) }}</button>
@@ -687,7 +710,7 @@
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
                 mentionOpen: false, mentionJids: [],
-                lightbox: { open: false, index: 0, items: [] }, lbTouch: 0,
+                lightbox: { open: false, index: 0, items: [] }, lbTouch: 0, replyTo: null,
                 accMenu: false,
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
@@ -781,7 +804,7 @@
                         lead_quality: d.chat.lead_quality || '',
                         interested_product: d.chat.interested_product || '',
                     };
-                    if (!silent) { const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
+                    if (!silent) { this.replyTo = null; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
                     if (atBottom) this.scrollBottom();
                 },
@@ -796,10 +819,11 @@
                     // Only keep mentions whose token still appears in the text.
                     const mentions = this.mentionJids.filter(j => body.includes('@' + String(j).split('@')[0]) || body.includes('@everyone'));
                     this.mentionJids = [];
+                    const replyId = this.replyTo?.id || null; this.replyTo = null;
                     try {
                         const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/send', {
                             method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify({ body, mentions }),
+                            body: JSON.stringify({ body, mentions, reply_to: replyId }),
                         });
                         if (r.ok) { this.messages.push((await r.json()).message); this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
                         else { alert((await r.json()).error || 'Could not send.'); this.draft = body; }

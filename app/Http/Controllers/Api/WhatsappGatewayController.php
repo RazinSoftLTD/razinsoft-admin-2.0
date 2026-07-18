@@ -132,7 +132,24 @@ class WhatsappGatewayController extends Controller
         $type = $request->input('type', 'text');
         [$mediaPath, $mediaMime, $mediaName] = $this->storeMedia($request);
 
-        $message = $chat->messages()->create([
+        // Quoted (reply-to) reference carried on the message.
+        $quotedFields = [];
+        if ($request->filled('quoted_id')) {
+            $qPart = $request->input('quoted_participant');
+            $ourNum = $account?->display_number;
+            $sender = ($qPart && $ourNum && str_starts_with((string) $qPart, (string) $ourNum))
+                ? 'You'
+                : ($isGroup && $qPart
+                    ? $chat->messages()->where('sender_jid', $qPart)->whereNotNull('sender_name')->latest('id')->value('sender_name')
+                    : $chat->displayName());
+            $quotedFields = [
+                'quoted_id' => $request->input('quoted_id'),
+                'quoted_body' => $request->input('quoted_body'),
+                'quoted_sender' => $sender,
+            ];
+        }
+
+        $message = $chat->messages()->create($quotedFields + [
             'wa_message_id' => $waMsgId,
             'direction' => $fromMe ? 'out' : 'in',
             'sender_name' => $isGroup && ! $fromMe ? $request->input('sender_name') : null,
