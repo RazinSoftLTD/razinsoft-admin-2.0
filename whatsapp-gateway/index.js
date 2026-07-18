@@ -170,6 +170,7 @@ async function handleMessage(key, m, historic = false) {
     chat_type: isGroup ? 'group' : 'single',
     group_subject: isGroup ? await groupSubject(s, jid) : null,
     sender_name: isGroup ? (m.pushName || null) : null,
+    participant: isGroup ? (m.key.participant || null) : null,
     from_me: !!m.key.fromMe,
     name: isGroup ? await groupSubject(s, jid) : (m.pushName || null),
     timestamp: m.messageTimestamp ? Number(m.messageTimestamp) : Math.floor(Date.now() / 1000),
@@ -252,15 +253,16 @@ app.post('/logout', async (req, res) => {
 
 app.post('/send', async (req, res) => {
   const s = connected(req, res); if (!s) return
-  const { to, type = 'text', text, url, caption, filename } = req.body
+  const { to, type = 'text', text, url, caption, filename, mentions } = req.body
   const jid = jidOf(to)
+  const mm = Array.isArray(mentions) && mentions.length ? { mentions } : {}
   try {
     let content
-    if (type === 'text') content = { text }
-    else if (type === 'image') content = { image: { url }, caption }
-    else if (type === 'video') content = { video: { url }, caption }
+    if (type === 'text') content = { text, ...mm }
+    else if (type === 'image') content = { image: { url }, caption, ...mm }
+    else if (type === 'video') content = { video: { url }, caption, ...mm }
     else if (type === 'audio') content = { audio: { url }, mimetype: 'audio/mp4', ptt: true }
-    else if (type === 'document') content = { document: { url }, fileName: filename || 'document', caption }
+    else if (type === 'document') content = { document: { url }, fileName: filename || 'document', caption, ...mm }
     else content = { text: text || '' }
     const sent = await s.sock.sendMessage(jid, content)
     res.json({ id: sent?.key?.id || '' })
@@ -281,14 +283,28 @@ app.post('/group-info', async (req, res) => {
     const meta = await s.sock.groupMetadata(req.body.jid)
     let picture = null
     try { picture = await s.sock.profilePictureUrl(req.body.jid, 'image') } catch {}
-    res.json({
-      subject: meta.subject || null,
-      desc: meta.desc || null,
-      picture,
-      participants: (meta.participants || []).map((p) => ({ id: p.id, admin: p.admin || null })),
-    })
+    const participants = await Promise.all((meta.participants || []).map((p) => resolveParticipant(s, p)))
+    res.json({ subject: meta.subject || null, desc: meta.desc || null, picture, participants })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
+
+// Best-effort resolve a group participant's phone + name (WhatsApp hides many behind @lid).
+async function resolveParticipant(s, p) {
+  const jid = p.id || ''
+  let phone = null, name = null
+  if (jid.endsWith('@s.whatsapp.net')) phone = jid.replace('@s.whatsapp.net', '')
+  else if (jid.endsWith('@lid')) {
+    try {
+      const pn = await s.sock.signalRepository?.lidMapping?.getPNForLID?.(jid)
+      if (pn) phone = String(pn).replace(/@.*/, '')
+    } catch {}
+  }
+  try {
+    const c = s.sock.contacts?.[jid]
+    name = c?.name || c?.notify || c?.verifiedName || null
+  } catch {}
+  return { id: jid, admin: p.admin || null, phone, name }
+}
 
 app.post('/group-subject', async (req, res) => {
   const s = connected(req, res); if (!s) return

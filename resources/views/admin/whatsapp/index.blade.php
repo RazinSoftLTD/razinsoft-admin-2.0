@@ -356,6 +356,28 @@
                                 <button type="button" @click="showQuick = !showQuick" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" title="Quick replies">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
                                 </button>
+                                {{-- @mention (groups only) --}}
+                                <div class="relative shrink-0" x-show="active && active.is_group">
+                                    <button type="button" @click="mentionOpen = !mentionOpen; if (mentionOpen && !members.length) loadMembers()" class="grid h-11 w-11 place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" :class="mentionOpen ? 'bg-gray-200 text-emerald-600' : ''" title="Mention">
+                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1"/></svg>
+                                    </button>
+                                    <div x-show="mentionOpen" x-cloak @click.outside="mentionOpen = false" class="absolute z-30 w-60 overflow-hidden rounded-2xl border border-gray-100 bg-white p-1.5 shadow-xl" style="bottom:3.5rem;left:0">
+                                        <p class="px-2 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">Mention</p>
+                                        <button type="button" @click="mentionEveryone()" class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-gray-50">
+                                            <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></span>
+                                            <span class="text-sm font-semibold text-[var(--color-heading)]">Everyone</span>
+                                        </button>
+                                        <div class="max-h-52 overflow-y-auto">
+                                            <template x-for="mb in members" :key="mb.id">
+                                                <button type="button" @click="insertMention(mb)" class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-gray-50">
+                                                    <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500" x-text="mb.name ? mb.name.trim().charAt(0).toUpperCase() : '@'"></span>
+                                                    <span class="min-w-0"><span class="block truncate text-sm text-[var(--color-heading)]" x-text="mb.name || mb.phone || 'Member'"></span></span>
+                                                </button>
+                                            </template>
+                                            <p x-show="!members.length" class="px-2.5 py-2 text-xs text-gray-400">Loading members…</p>
+                                        </div>
+                                    </div>
+                                </div>
                                 <textarea x-ref="composer" x-model="draft" @keydown.enter="if (!$event.shiftKey && !$event.isComposing) { $event.preventDefault(); send(); }" @input="autoGrow()" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
                                           class="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-sm leading-5 text-gray-800 shadow-sm outline-none ring-1 ring-gray-200 transition focus:ring-2 focus:ring-emerald-400"></textarea>
                                 <button type="submit" :disabled="!draft.trim() || sending" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50">
@@ -460,12 +482,14 @@
                             <ul class="space-y-2.5">
                                 <template x-for="mb in members" :key="mb.id">
                                     <li class="flex items-center gap-2.5">
-                                        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500" x-text="mb.country ? mb.country.flag : '👤'"></span>
+                                        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-700" x-text="mb.country ? mb.country.flag : (mb.name ? mb.name.trim().charAt(0).toUpperCase() : '👤')"></span>
                                         <div class="min-w-0 flex-1">
-                                            <p class="truncate text-sm font-medium text-[var(--color-heading)]" x-text="mb.phone || 'Hidden number'"></p>
-                                            <p class="text-[10px] text-gray-400">
-                                                <span x-show="mb.country" x-text="mb.country ? mb.country.name : ''"></span>
+                                            <p class="truncate text-sm font-medium text-[var(--color-heading)]" x-text="mb.name || mb.phone || 'Group member'"></p>
+                                            <p class="truncate text-[10px] text-gray-400">
+                                                <span x-show="mb.name && mb.phone" x-text="mb.phone"></span>
+                                                <span x-show="mb.country" x-text="(mb.name && mb.phone ? ' · ' : '') + (mb.country ? mb.country.name : '')"></span>
                                                 <span x-show="mb.timezone" x-text="' · ' + localTime(mb.timezone)"></span>
+                                                <span x-show="!mb.name && !mb.phone">Hidden by privacy</span>
                                                 <span x-show="mb.admin" class="ml-1 rounded bg-emerald-50 px-1 font-semibold text-emerald-600">admin</span>
                                             </p>
                                         </div>
@@ -635,6 +659,7 @@
                 showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
+                mentionOpen: false, mentionJids: [],
                 accMenu: false,
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
@@ -740,10 +765,13 @@
                     if (!this.draft.trim() || this.sending) return;
                     this.sending = true;
                     const body = this.draft; this.draft = '';
+                    // Only keep mentions whose token still appears in the text.
+                    const mentions = this.mentionJids.filter(j => body.includes('@' + String(j).split('@')[0]) || body.includes('@everyone'));
+                    this.mentionJids = [];
                     try {
                         const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/send', {
                             method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify({ body }),
+                            body: JSON.stringify({ body, mentions }),
                         });
                         if (r.ok) { this.messages.push((await r.json()).message); this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
                         else { alert((await r.json()).error || 'Could not send.'); this.draft = body; }
@@ -843,6 +871,20 @@
                         else { this.newChat.error = d.error || 'Could not start chat.'; }
                     } catch { this.newChat.error = 'Could not start chat.'; }
                     finally { this.newChat.busy = false; }
+                },
+                _appendMention(token) {
+                    const sep = this.draft && !this.draft.endsWith(' ') ? ' ' : '';
+                    this.draft = this.draft + sep + token + ' ';
+                    this.mentionOpen = false;
+                    this.$nextTick(() => { if (this.$refs.composer) this.$refs.composer.focus(); this.autoGrow(); });
+                },
+                insertMention(mb) {
+                    if (!this.mentionJids.includes(mb.id)) this.mentionJids.push(mb.id);
+                    this._appendMention('@' + String(mb.id).split('@')[0]);
+                },
+                mentionEveryone() {
+                    this.members.forEach(m => { if (!this.mentionJids.includes(m.id)) this.mentionJids.push(m.id); });
+                    this._appendMention('@everyone');
                 },
                 async loadMembers() {
                     if (!this.active || !this.active.is_group) return;

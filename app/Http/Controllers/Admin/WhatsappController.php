@@ -97,7 +97,11 @@ class WhatsappController extends Controller
     public function send(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
-        $data = $request->validate(['body' => ['required', 'string', 'max:4096']]);
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:4096'],
+            'mentions' => ['array'],
+            'mentions.*' => ['string', 'max:64'],
+        ]);
         $settings = WhatsappSetting::current();
         if (! $settings->isConfigured()) {
             return response()->json(['error' => 'WhatsApp is not connected. Configure it in Settings › WhatsApp API.'], 422);
@@ -109,7 +113,9 @@ class WhatsappController extends Controller
         ]);
 
         try {
-            $waId = WhatsappService::for($chat->account)->sendText($chat->wa_id, $data['body']);
+            // Mentions only apply in groups.
+            $mentions = $chat->isGroup() ? array_values(array_filter($data['mentions'] ?? [])) : [];
+            $waId = WhatsappService::for($chat->account)->sendText($chat->wa_id, $data['body'], $mentions);
             $message->update(['wa_message_id' => $waId]);
         } catch (\Throwable $e) {
             $message->update(['status' => 'failed', 'error' => $e->getMessage()]);
@@ -357,19 +363,26 @@ class WhatsappController extends Controller
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
-        $members = collect($info['participants'] ?? [])->map(function ($p) {
+        // Names we've learned from group messages (participant jid → most recent pushName).
+        $names = $chat->messages()->whereNotNull('sender_jid')->whereNotNull('sender_name')
+            ->orderByDesc('id')->pluck('sender_name', 'sender_jid');
+
+        $members = collect($info['participants'] ?? [])->map(function ($p) use ($names) {
             $jid = $p['id'] ?? '';
-            $digits = str_contains($jid, '@s.whatsapp.net') ? preg_replace('/@.*/', '', $jid) : null;
+            // Number: from the gateway, else from the jid itself when it isn't a privacy LID.
+            $digits = $p['phone'] ?: (str_contains($jid, '@s.whatsapp.net') ? preg_replace('/@.*/', '', $jid) : null);
+            $name = $p['name'] ?: ($names[$jid] ?? null);
             $meta = $this->numberMeta($digits);
 
             return [
                 'id' => $jid,
+                'name' => $name,
                 'phone' => $digits ? '+'.$digits : null,
                 'admin' => $p['admin'] ?? null,
                 'country' => $meta['country'],
                 'timezone' => $meta['timezone'],
             ];
-        })->values();
+        })->sortBy(fn ($m) => $m['name'] ? 0 : 1)->values();
 
         return response()->json([
             'subject' => $info['subject'] ?? null,

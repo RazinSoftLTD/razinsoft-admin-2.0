@@ -23,8 +23,8 @@ interface WhatsappProvider
     /** End the session (log out of WhatsApp / clear creds locally). */
     public function disconnect(): void;
 
-    /** Send a plain text message. Returns ['id' => provider message id]. */
-    public function sendText(string $to, string $body): array;
+    /** Send a plain text message. $mentions = jids to mention (groups). Returns ['id' => provider message id]. */
+    public function sendText(string $to, string $body, array $mentions = []): array;
 
     /** Mark a chat's incoming messages as read on WhatsApp. Best-effort; may be a no-op. */
     public function markRead(string $to): void;

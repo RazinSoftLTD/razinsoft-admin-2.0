@@ -136,6 +136,7 @@ class WhatsappGatewayController extends Controller
             'wa_message_id' => $waMsgId,
             'direction' => $fromMe ? 'out' : 'in',
             'sender_name' => $isGroup && ! $fromMe ? $request->input('sender_name') : null,
+            'sender_jid' => $isGroup && ! $fromMe ? $request->input('participant') : null,
             'type' => $type,
             'body' => $request->input('text'),
             'media_path' => $mediaPath,

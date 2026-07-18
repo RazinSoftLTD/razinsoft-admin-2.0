@@ -49,7 +49,7 @@ class CloudApiProvider implements WhatsappProvider
         $this->settings->update(['is_connected' => false, 'session_state' => 'disconnected']);
     }
 
-    public function sendText(string $to, string $body): array
+    public function sendText(string $to, string $body, array $mentions = []): array
     {
         $res = Http::withToken($this->settings->access_token)
             ->post($this->base().'/'.$this->settings->phone_number_id.'/messages', [
