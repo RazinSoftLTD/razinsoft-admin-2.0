@@ -70,6 +70,18 @@ class WhatsappService
         $this->provider()->markRead($to);
     }
 
+    /** Edit a previously-sent text message on WhatsApp. */
+    public function editText(string $to, string $waMessageId, string $body): void
+    {
+        $this->provider()->editText($to, $waMessageId, $body);
+    }
+
+    /** Delete a previously-sent message for everyone. */
+    public function deleteMessage(string $to, string $waMessageId): void
+    {
+        $this->provider()->deleteMessage($to, $waMessageId);
+    }
+
     /** Send a media message via the active driver. Returns the message id, or throws. */
     public function sendMedia(string $to, string $type, string $link, ?string $caption = null, ?string $filename = null): string
     {

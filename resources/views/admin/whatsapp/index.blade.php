@@ -138,6 +138,19 @@
                                     </div>
                                 </template>
                                 <div class="flex flex-col" :class="m.direction === 'out' ? 'items-end' : 'items-start'">
+                                    <div class="group flex items-center gap-1">
+                                        @if ($canReply)
+                                        <template x-if="m.direction === 'out' && !m.deleted && editingId !== m.id">
+                                            <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+                                                <button type="button" x-show="m.type === 'text'" @click="startEdit(m)" title="Edit" class="grid h-7 w-7 place-items-center rounded-full text-gray-400 hover:bg-black/5 hover:text-gray-600">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
+                                                </button>
+                                                <button type="button" @click="deleteMsg(m)" title="Delete" class="grid h-7 w-7 place-items-center rounded-full text-gray-400 hover:bg-black/5 hover:text-red-500">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        @endif
                                     <div class="relative rounded-lg px-3.5 pb-2 pt-2 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]" style="max-width:72%;"
                                          :class="m.direction === 'out' ? 'wa-out text-gray-800' : 'wa-in text-gray-800'">
                                         {{-- group sender name --}}
@@ -161,9 +174,25 @@
                                         </template>
                                         <template x-if="m.media && m.type === 'audio'"><audio :src="m.media" controls class="mb-1 w-60"></audio></template>
                                         <template x-if="m.media && m.type === 'document'"><a :href="m.media" :download="m.media_name || 'document'" target="_blank" class="mb-1 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2.5 text-gray-700 hover:bg-black/10" style="max-width:260px"><svg class="h-6 w-6 shrink-0 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg><span class="min-w-0"><span class="block truncate text-sm font-medium" x-text="m.media_name || 'Document'"></span><span class="text-[10px] text-gray-400">Tap to download</span></span></a></template>
-                                        <span x-show="m.body" x-text="m.body" class="whitespace-pre-line break-words align-bottom"></span>
+                                        {{-- deleted placeholder --}}
+                                        <span x-show="m.deleted" class="flex items-center gap-1.5 text-sm italic text-gray-400">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M5.6 5.6l12.8 12.8"/></svg>
+                                            You deleted this message
+                                        </span>
+                                        {{-- body / inline editor --}}
+                                        <span x-show="m.body && editingId !== m.id" x-text="m.body" class="whitespace-pre-line break-words align-bottom"></span>
+                                        <template x-if="editingId === m.id">
+                                            <div class="w-56 py-0.5">
+                                                <textarea x-model="editDraft" rows="2" @keydown.enter.prevent="saveEdit(m)" class="w-full rounded-md border-gray-300 text-sm text-gray-800 focus:border-emerald-400 focus:ring-emerald-400"></textarea>
+                                                <div class="mt-1 flex justify-end gap-3 text-xs">
+                                                    <button type="button" @click="editingId = null" class="text-gray-500 hover:text-gray-700">Cancel</button>
+                                                    <button type="button" @click="saveEdit(m)" class="font-semibold text-emerald-600">Save</button>
+                                                </div>
+                                            </div>
+                                        </template>
                                         {{-- inline meta (time + ticks) --}}
-                                        <span class="float-right ml-2 mt-1 inline-flex translate-y-0.5 items-center gap-0.5 text-[10px] leading-none text-gray-500/80">
+                                        <span x-show="!m.deleted && editingId !== m.id" class="float-right ml-2 mt-1 inline-flex translate-y-0.5 items-center gap-0.5 text-[10px] leading-none text-gray-500/80">
+                                            <span x-show="m.edited" class="mr-0.5 italic">edited</span>
                                             <span x-text="m.at"></span>
                                             <template x-if="m.direction === 'out'">
                                                 <svg class="h-3.5 w-3.5" :class="m.status === 'read' ? 'text-[#53bdeb]' : 'text-gray-400'" viewBox="0 0 18 12" fill="none">
@@ -177,6 +206,7 @@
                                                 </svg>
                                             </template>
                                         </span>
+                                    </div>
                                     </div>
                                     {{-- Under outgoing messages: who replied + (on the last one) Seen/Delivered status --}}
                                     <template x-if="m.direction === 'out' && (m.agent || isLastOut(i))">
@@ -431,6 +461,7 @@
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, _chatReq: 0,
+                editingId: null, editDraft: '',
                 unreadCount: {{ $stats['unread'] }},
                 filters: [
                     { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' },
@@ -524,6 +555,37 @@
                         if (r.ok) { this.messages.push((await r.json()).message); this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
                         else { alert((await r.json()).error || 'Could not send.'); this.draft = body; }
                     } catch { this.draft = body; } finally { this.sending = false; }
+                },
+                startEdit(m) {
+                    if (m.type !== 'text' || m.deleted) return;
+                    this.editingId = m.id;
+                    this.editDraft = m.body || '';
+                },
+                async saveEdit(m) {
+                    const body = this.editDraft.trim();
+                    if (!body) return;
+                    const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/messages/' + m.id + '/edit', { body });
+                    if (r.ok) {
+                        const d = (await r.json()).message;
+                        const idx = this.messages.findIndex(x => x.id === m.id);
+                        if (idx > -1) this.messages[idx] = d;
+                        this.editingId = null;
+                        this.loadChats();
+                    } else { alert((await r.json()).error || 'Could not edit the message.'); }
+                },
+                async deleteMsg(m) {
+                    if (!confirm('Delete this message for everyone?')) return;
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/messages/' + m.id, {
+                            method: 'DELETE', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
+                        });
+                        if (r.ok) {
+                            const d = (await r.json()).message;
+                            const idx = this.messages.findIndex(x => x.id === m.id);
+                            if (idx > -1) this.messages[idx] = d;
+                            this.loadChats();
+                        } else { alert((await r.json()).error || 'Could not delete the message.'); }
+                    } catch { alert('Could not delete the message.'); }
                 },
                 async sendFile(e) {
                     const file = e.target.files[0];

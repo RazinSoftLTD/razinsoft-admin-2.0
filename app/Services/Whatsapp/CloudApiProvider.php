@@ -68,6 +68,16 @@ class CloudApiProvider implements WhatsappProvider
         // The Cloud API marks messages read by message id (handled in the webhook); no chat-level call.
     }
 
+    public function editText(string $to, string $waMessageId, string $body): void
+    {
+        throw new \RuntimeException('Editing messages is not supported on the WhatsApp Cloud API.');
+    }
+
+    public function deleteMessage(string $to, string $waMessageId): void
+    {
+        throw new \RuntimeException('Deleting messages is not supported on the WhatsApp Cloud API.');
+    }
+
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array
     {
         $payload = ['messaging_product' => 'whatsapp', 'to' => $to, 'type' => $type];

@@ -144,6 +144,61 @@ class WhatsappController extends Controller
         return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
     }
 
+    /** Edit one of our own outgoing text messages (WhatsApp allows this within ~15 minutes). */
+    public function editMessage(Request $request, WhatsappChat $chat, WhatsappMessage $message)
+    {
+        abort_unless($message->chat_id === $chat->id, 404);
+        if ($message->direction !== 'out' || $message->type !== 'text' || $message->deleted_at) {
+            return response()->json(['error' => 'Only your own text messages can be edited.'], 422);
+        }
+        $data = $request->validate(['body' => ['required', 'string', 'max:4096']]);
+
+        $sentAt = $message->sent_at ?? $message->created_at;
+        if ($sentAt->lt(now()->subMinutes(15))) {
+            return response()->json(['error' => 'WhatsApp only allows editing within 15 minutes of sending.'], 422);
+        }
+        if (! $message->wa_message_id) {
+            return response()->json(['error' => 'This message can no longer be edited.'], 422);
+        }
+
+        try {
+            app(WhatsappService::class)->editText($chat->wa_id, $message->wa_message_id, $data['body']);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        $message->update(['body' => $data['body'], 'edited_at' => now()]);
+        if ($chat->messages()->max('id') === $message->id) {
+            $chat->update(['last_message_preview' => \Illuminate\Support\Str::limit($data['body'], 120)]);
+        }
+
+        return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
+    }
+
+    /** Delete one of our own outgoing messages for everyone. */
+    public function deleteMessage(Request $request, WhatsappChat $chat, WhatsappMessage $message)
+    {
+        abort_unless($message->chat_id === $chat->id, 404);
+        if ($message->direction !== 'out') {
+            return response()->json(['error' => 'You can only delete your own messages.'], 422);
+        }
+
+        if ($message->wa_message_id) {
+            try {
+                app(WhatsappService::class)->deleteMessage($chat->wa_id, $message->wa_message_id);
+            } catch (\Throwable $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+        }
+
+        $message->update(['deleted_at' => now(), 'body' => null, 'media_path' => null]);
+        if ($chat->messages()->max('id') === $message->id) {
+            $chat->update(['last_message_preview' => 'You deleted this message']);
+        }
+
+        return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
+    }
+
     public function assign(Request $request, WhatsappChat $chat)
     {
         $data = $request->validate(['assigned_to' => ['nullable', 'exists:users,id']]);
@@ -324,6 +379,8 @@ class WhatsappController extends Controller
             'sender_name' => $m->sender_name,
             'body' => $m->body, 'media' => $m->mediaUrl(), 'media_mime' => $m->media_mime, 'media_name' => $m->media_name,
             'status' => $m->status, 'agent' => $m->agent?->name,
+            'edited' => (bool) $m->edited_at,
+            'deleted' => (bool) $m->deleted_at,
             'at' => $at->format('h:i A'),
             'date_key' => $at->toDateString(),
             'day' => $at->isToday() ? 'Today' : ($at->isYesterday() ? 'Yesterday' : $at->format('d F Y')),

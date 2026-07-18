@@ -29,6 +29,12 @@ interface WhatsappProvider
     /** Mark a chat's incoming messages as read on WhatsApp. Best-effort; may be a no-op. */
     public function markRead(string $to): void;
 
+    /** Edit a previously-sent text message. */
+    public function editText(string $to, string $waMessageId, string $body): void;
+
+    /** Delete a previously-sent message for everyone. */
+    public function deleteMessage(string $to, string $waMessageId): void;
+
     /**
      * Send a media message. $source is a publicly reachable URL (Cloud API) or a local/relative
      * path the gateway can read (Baileys). Returns ['id' => provider message id].

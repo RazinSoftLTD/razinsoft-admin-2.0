@@ -93,6 +93,22 @@ class BaileysProvider implements WhatsappProvider
         }
     }
 
+    public function editText(string $to, string $waMessageId, string $body): void
+    {
+        $res = $this->client()->post('/edit', ['to' => $to, 'id' => $waMessageId, 'text' => $body]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to edit the message.');
+        }
+    }
+
+    public function deleteMessage(string $to, string $waMessageId): void
+    {
+        $res = $this->client()->post('/delete', ['to' => $to, 'id' => $waMessageId]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to delete the message.');
+        }
+    }
+
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array
     {
         $res = $this->client()->post('/send', array_filter([

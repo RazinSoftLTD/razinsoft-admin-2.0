@@ -212,6 +212,32 @@ app.post('/connect', async (req, res) => {
   res.json({ ok: true, state })
 })
 
+// Edit a previously-sent text message (WhatsApp allows this within ~15 minutes).
+app.post('/edit', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { to, id, text } = req.body
+  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
+  try {
+    await sock.sendMessage(jid, { text, edit: { remoteJid: jid, fromMe: true, id } })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Delete a sent message for everyone.
+app.post('/delete', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { to, id } = req.body
+  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
+  try {
+    await sock.sendMessage(jid, { delete: { remoteJid: jid, fromMe: true, id } })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // Mark a chat's incoming messages as read on WhatsApp (blue ticks for the other side).
 app.post('/read', async (req, res) => {
   if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
