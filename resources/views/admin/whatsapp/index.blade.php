@@ -28,6 +28,8 @@
                                 <span class="flex items-center gap-1 text-base font-bold text-[var(--color-heading)]">
                                     <span class="truncate" x-text="currentAccount().name || 'WhatsApp'"></span>
                                     <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="accMenu ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                    {{-- unread on OTHER numbers --}}
+                                    <span x-show="otherUnread()" class="grid h-4 min-w-4 place-items-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-white" x-text="otherUnread()" title="Unread on other numbers"></span>
                                 </span>
                                 <span class="block truncate text-[10px] text-gray-400" x-text="currentAccount().number ? ('+' + currentAccount().number) : 'not connected'"></span>
                             </span>
@@ -43,7 +45,8 @@
                                         <span class="block truncate text-sm font-semibold text-[var(--color-heading)]" x-text="a.name"></span>
                                         <span class="block truncate text-[10px] text-gray-400" x-text="a.number ? ('+' + a.number) : 'not connected'"></span>
                                     </span>
-                                    <svg x-show="accountId === a.id" class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
+                                    <span x-show="a.unread" class="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white" x-text="a.unread"></span>
+                                    <svg x-show="accountId === a.id && !a.unread" class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
                                 </button>
                             </template>
                             @if (auth()->user()->hasPermission('whatsapp.settings') || auth()->user()->isAdmin())
@@ -634,7 +637,7 @@
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
                 accMenu: false,
                 accountId: @js($accounts->first()->id ?? null),
-                accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected()])->values()),
+                accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
                 editingId: null, editDraft: '',
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
@@ -705,7 +708,11 @@
                     if (token !== this._chatReq) return; // a newer search superseded this response
                     this.chats = data.chats;
                     if (typeof data.unread === 'number') this.unreadCount = data.unread;
+                    if (data.account_unreads) {
+                        this.accountsList.forEach(a => { a.unread = data.account_unreads[a.id] || 0; });
+                    }
                 },
+                otherUnread() { return this.accountsList.filter(a => a.id !== this.accountId).reduce((n, a) => n + (a.unread || 0), 0); },
                 async openChat(id, silent = false) {
                     const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id);
                     const d = await r.json();

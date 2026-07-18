@@ -25,6 +25,7 @@ class WhatsappController extends Controller
         return view('admin.whatsapp.index', [
             'chats' => $this->chatList($request),
             'accounts' => $accounts,
+            'accountUnreads' => $this->accountUnreads($ids),
             'labels' => WhatsappLabel::orderBy('position')->get(),
             'agents' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
@@ -45,6 +46,17 @@ class WhatsappController extends Controller
         return \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id')->all();
     }
 
+    /** [account_id => number of chats with unread messages] for the given accounts. */
+    private function accountUnreads(array $ids): array
+    {
+        return WhatsappChat::whereIn('account_id', $ids ?: [0])
+            ->where('unread_count', '>', 0)
+            ->selectRaw('account_id, count(*) as c')
+            ->groupBy('account_id')
+            ->pluck('c', 'account_id')
+            ->all();
+    }
+
     /** Block access to a chat whose account the user isn't assigned to. */
     private function authorizeChat(Request $request, WhatsappChat $chat): void
     {
@@ -54,9 +66,12 @@ class WhatsappController extends Controller
     /** JSON chat list (used by the live filter/search sidebar). */
     public function chats(Request $request)
     {
+        $ids = $this->accessibleAccountIds($request->user());
+
         return response()->json([
             'chats' => $this->chatList($request)->map(fn ($c) => $this->chatSummary($c))->values(),
-            'unread' => WhatsappChat::whereIn('account_id', $this->accessibleAccountIds($request->user()) ?: [0])->where('unread_count', '>', 0)->count(),
+            'unread' => WhatsappChat::whereIn('account_id', $ids ?: [0])->where('unread_count', '>', 0)->count(),
+            'account_unreads' => $this->accountUnreads($ids),
         ]);
     }
 
