@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\WhatsappAccount;
 use App\Models\WhatsappSetting;
 use App\Services\Whatsapp\WhatsappManager;
 use App\Services\Whatsapp\WhatsappProvider;
@@ -9,22 +10,33 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Facade over the active WhatsApp provider (Baileys / Cloud API). Business logic (controllers,
- * webhooks) depends only on this — the underlying transport is chosen in settings and can be
- * swapped without any rewrite.
+ * Facade over the active WhatsApp provider (Baileys / Cloud API) for ONE account (session).
+ * Business logic depends only on this — transport is chosen in settings and swappable, and each
+ * account maps to its own gateway session key.
  */
 class WhatsappService
 {
     private WhatsappSetting $settings;
+
+    private string $sessionKey = 'default';
 
     public function __construct(?WhatsappSetting $settings = null)
     {
         $this->settings = $settings ?: WhatsappSetting::current();
     }
 
+    /** Build a service bound to a specific account's session. */
+    public static function for(?WhatsappAccount $account): self
+    {
+        $service = new self;
+        $service->sessionKey = $account?->session_key ?: 'default';
+
+        return $service;
+    }
+
     private function provider(): WhatsappProvider
     {
-        return app(WhatsappManager::class)->provider($this->settings);
+        return app(WhatsappManager::class)->provider($this->settings, $this->sessionKey);
     }
 
     /** Live connection status for the active driver (used by the Connection page). */

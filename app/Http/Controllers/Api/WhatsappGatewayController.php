@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Events\WhatsappMessageReceived;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappSetting;
@@ -28,28 +29,34 @@ class WhatsappGatewayController extends Controller
             return response('Unauthorized', 401);
         }
 
+        // Which connected number (account) did this event come from?
+        $account = WhatsappAccount::where('session_key', $request->input('session', 'default'))->first();
+
         return match ($request->input('event')) {
-            'connection' => $this->onConnection($request, $settings),
-            'message' => $this->onMessage($request),
-            'status' => $this->onStatus($request),
-            'reaction' => $this->onReaction($request),
+            'connection' => $this->onConnection($request, $account),
+            'message' => $this->onMessage($request, $account),
+            'status' => $this->onStatus($request, $account),
+            'reaction' => $this->onReaction($request, $account),
             default => response()->json(['ok' => true]),
         };
     }
 
-    private function onConnection(Request $request, WhatsappSetting $settings)
+    private function onConnection(Request $request, ?WhatsappAccount $account)
     {
-        $settings->update([
+        if (! $account) {
+            return response()->json(['ok' => true]);
+        }
+        $account->update([
             'session_state' => $request->input('state', 'disconnected'),
             'is_connected' => $request->input('state') === 'connected',
-            'display_number' => $request->input('number') ?: $settings->display_number,
-            'connected_at' => $request->input('state') === 'connected' ? now() : $settings->connected_at,
+            'display_number' => $request->input('number') ?: $account->display_number,
+            'connected_at' => $request->input('state') === 'connected' ? now() : $account->connected_at,
         ]);
 
         return response()->json(['ok' => true]);
     }
 
-    private function onMessage(Request $request)
+    private function onMessage(Request $request, ?WhatsappAccount $account)
     {
         $waId = $request->input('from');
         if (! $waId) {
@@ -66,7 +73,8 @@ class WhatsappGatewayController extends Controller
         // Groups have many senders, so don't auto-match them to a single client.
         $matchKey = $isGroup ? null : ($phone ?: (str_contains($waId, '@lid') ? null : $waId));
 
-        $chat = WhatsappChat::firstOrCreate(['wa_id' => $waId], [
+        // A chat is unique per account + wa_id (the same person can message two of our numbers).
+        $chat = WhatsappChat::firstOrCreate(['account_id' => $account?->id, 'wa_id' => $waId], [
             'phone' => $isGroup ? null : $phone,
             'chat_type' => $isGroup ? 'group' : 'single',
             'profile_name' => $request->input('name'),
@@ -126,11 +134,11 @@ class WhatsappGatewayController extends Controller
     }
 
     /** An emoji reaction landed on one of our messages — attach it (empty text = reaction removed). */
-    private function onReaction(Request $request)
+    private function onReaction(Request $request, ?WhatsappAccount $account)
     {
         $id = $request->input('id');
         if ($id) {
-            $message = WhatsappMessage::where('wa_message_id', $id)->first();
+            $message = $this->scopedMessage($id, $account);
             if ($message) {
                 // Our own reaction (from the phone/another device) vs the other party's.
                 $column = $request->boolean('from_me') ? 'my_reaction' : 'reaction';
@@ -145,15 +153,28 @@ class WhatsappGatewayController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function onStatus(Request $request)
+    private function onStatus(Request $request, ?WhatsappAccount $account)
     {
         if ($request->input('id') && $request->input('status')) {
-            WhatsappMessage::where('wa_message_id', $request->input('id'))
-                ->where('direction', 'out')
-                ->update(['status' => $request->input('status')]);
+            $message = $this->scopedMessage($request->input('id'), $account, 'out');
+            $message?->update(['status' => $request->input('status')]);
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /** Find a message by wa_message_id, scoped to the account's chats (ids can repeat across numbers). */
+    private function scopedMessage(string $waMessageId, ?WhatsappAccount $account, ?string $direction = null): ?WhatsappMessage
+    {
+        $q = WhatsappMessage::where('wa_message_id', $waMessageId);
+        if ($direction) {
+            $q->where('direction', $direction);
+        }
+        if ($account) {
+            $q->whereHas('chat', fn ($c) => $c->where('account_id', $account->id));
+        }
+
+        return $q->first();
     }
 
     /** Media may arrive as base64 (small files) or a URL the gateway hosts. Returns [path, mime, name]. */

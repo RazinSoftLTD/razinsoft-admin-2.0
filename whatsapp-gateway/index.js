@@ -1,14 +1,14 @@
-// RazinSoft WhatsApp Gateway (Phase 1)
-// A thin Baileys (WhatsApp Web / QR) bridge. It owns the WhatsApp connection and exposes a small
-// HTTP API to Laravel (status / connect / logout / send) while pushing inbound events to Laravel's
-// webhook. All WhatsApp-specific code lives here — the Laravel app talks only to this gateway, so it
-// can later be swapped for the Meta Cloud API without touching business logic.
+// RazinSoft WhatsApp Gateway (Phase 1) — MULTI-ACCOUNT
+// A thin Baileys (WhatsApp Web / QR) bridge. It owns one WhatsApp connection PER account (session key)
+// and exposes a small HTTP API to Laravel while pushing inbound events (tagged with the session key)
+// to Laravel's webhook. One gateway process runs many sessions, each in its own auth folder.
 
 import express from 'express'
 import pino from 'pino'
 import qrcode from 'qrcode'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
+import path from 'node:path'
 import {
   default as makeWASocket,
   useMultiFileAuthState,
@@ -21,156 +21,145 @@ import {
 const PORT = process.env.PORT || 8090
 const SECRET = process.env.GATEWAY_SECRET || 'change-me'
 const WEBHOOK = process.env.LARAVEL_WEBHOOK || ''
-const SESSION_DIR = process.env.SESSION_DIR || './session'
+const LEGACY_DIR = process.env.SESSION_DIR || './session' // the original single-session folder
+const SESSIONS_ROOT = process.env.SESSIONS_ROOT || './sessions'
 const log = pino({ level: 'info' })
 
-let sock = null
-let state = 'disconnected'   // disconnected | qr | connecting | connected
-let qrDataUrl = null
-let number = null
-const lastKeys = new Map()       // jid -> newest message key (for read receipts)
-const groupNames = new Map()     // jid -> cached group subject
+// sessionKey -> { sock, state, qr, number, lastKeys:Map, groupNames:Map, starting:bool }
+const sessions = new Map()
 
-// Resolve (and cache) a group's subject/title.
-async function groupSubject(jid) {
-  if (groupNames.has(jid)) return groupNames.get(jid)
-  try {
-    const meta = await sock.groupMetadata(jid)
-    const subject = meta?.subject || null
-    groupNames.set(jid, subject)
-    return subject
-  } catch {
-    return null
-  }
+function dirFor(key) {
+  // Keep the currently-linked number working: 'default' maps to the old single-session folder.
+  return key === 'default' ? LEGACY_DIR : path.join(SESSIONS_ROOT, key.replace(/[^a-zA-Z0-9_-]/g, ''))
 }
 
-// ---- push an event to Laravel ----
-async function push(payload) {
+function getSession(key) {
+  if (!sessions.has(key)) {
+    sessions.set(key, { sock: null, state: 'disconnected', qr: null, number: null, lastKeys: new Map(), groupNames: new Map(), starting: false })
+  }
+  return sessions.get(key)
+}
+
+// ---- push an event (tagged with its session) to Laravel ----
+async function push(key, payload) {
   if (!WEBHOOK) return
   try {
     await fetch(WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Gateway-Secret': SECRET },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ session: key, ...payload }),
     })
   } catch (e) {
     log.warn('webhook push failed: ' + e.message)
   }
 }
 
-// ---- start / restart the WhatsApp socket ----
-async function start() {
-  if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true })
-  const { state: authState, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
-  state = 'connecting'
-
-  // Pin to the latest WhatsApp Web protocol version — a stale version triggers 405 rejections.
-  const { version } = await fetchLatestBaileysVersion()
-  sock = makeWASocket({
-    version,
-    auth: authState,
-    logger: pino({ level: 'silent' }),
-    browser: Browsers.ubuntu('Chrome'),
-    syncFullHistory: true, // pull existing chat history from the phone on link
-  })
-
-  sock.ev.on('creds.update', saveCreds)
-
-  sock.ev.on('connection.update', async (u) => {
-    const { connection, lastDisconnect, qr } = u
-    if (qr) {
-      state = 'qr'
-      qrDataUrl = await qrcode.toDataURL(qr)
-      push({ event: 'connection', state: 'qr' })
-    }
-    if (connection === 'open') {
-      state = 'connected'
-      qrDataUrl = null
-      number = sock?.user?.id?.split(':')[0] || null
-      push({ event: 'connection', state: 'connected', number })
-      log.info('WhatsApp connected: ' + number)
-    }
-    if (connection === 'close') {
-      const code = lastDisconnect?.error?.output?.statusCode
-      if (code === DisconnectReason.loggedOut) {
-        state = 'disconnected'
-        try { fs.rmSync(SESSION_DIR, { recursive: true, force: true }) } catch {}
-        push({ event: 'connection', state: 'disconnected' })
-      } else {
-        // Any other drop → auto-reconnect.
-        log.warn('connection closed (' + code + '), reconnecting…')
-        setTimeout(start, 2000)
-      }
-    }
-  })
-
-  // ---- inbound messages (real-time) ----
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return
-    for (const m of messages) await handleMessage(m)
-  })
-
-  // ---- history sync: import existing chats/messages already on the phone ----
-  // Fires after linking (and on reconnect). We replay each message through the same path;
-  // Laravel dedupes by message id, so re-runs are safe.
-  sock.ev.on('messaging-history.set', async ({ messages }) => {
-    if (!Array.isArray(messages) || !messages.length) return
-    log.info('history sync: importing ' + messages.length + ' messages')
-    for (const m of messages) await handleMessage(m, true)
-  })
-
-  // ---- emoji reactions (delivered on their own event) ----
-  sock.ev.on('messages.reaction', (reactions) => {
-    for (const r of reactions) {
-      push({ event: 'reaction', id: r.key?.id, emoji: r.reaction?.text || '', from_me: !!r.reaction?.key?.fromMe })
-    }
-  })
-
-  // ---- delivery / read receipts ----
-  sock.ev.on('messages.update', (updates) => {
-    for (const u of updates) {
-      const s = u.update?.status
-      if (!s) continue
-      const map = { 2: 'sent', 3: 'delivered', 4: 'read', 5: 'read' }
-      push({ event: 'status', id: u.key.id, status: map[s] || 'sent' })
-    }
-  })
-}
-
-// Resolve the underlying phone number for a chat address (digits only, no @domain).
-// A LID (@lid) hides the number; Baileys surfaces the real one on the message key as
-// remoteJidAlt or senderPn — fall back to null when neither is present.
-function resolvePhone(jid, key) {
-  if (jid.endsWith('@s.whatsapp.net')) return jid.replace('@s.whatsapp.net', '')
-  const alt = key?.remoteJidAlt || key?.senderPn || key?.participantAlt || key?.participantPn || ''
-  if (alt && alt.includes('@s.whatsapp.net')) return alt.replace('@s.whatsapp.net', '')
-  if (alt && /^\d+$/.test(alt.replace('@lid', ''))) {
-    const digits = alt.replace('@lid', '').replace('@s.whatsapp.net', '')
-    return alt.includes('@lid') ? null : digits
+async function groupSubject(s, jid) {
+  if (s.groupNames.has(jid)) return s.groupNames.get(jid)
+  try {
+    const meta = await s.sock.groupMetadata(jid)
+    const subject = meta?.subject || null
+    s.groupNames.set(jid, subject)
+    return subject
+  } catch {
+    return null
   }
-  return null
 }
 
-// Build the flat payload for one Baileys message and push it to Laravel.
-// `historic` marks messages replayed from history sync (Laravel skips the live broadcast for those).
-async function handleMessage(m, historic = false) {
+// ---- start / restart a WhatsApp socket for one session ----
+async function start(key) {
+  const s = getSession(key)
+  if (s.starting) return
+  s.starting = true
+  try {
+    const dir = dirFor(key)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    const { state: authState, saveCreds } = await useMultiFileAuthState(dir)
+    s.state = 'connecting'
+
+    const { version } = await fetchLatestBaileysVersion()
+    const sock = makeWASocket({
+      version,
+      auth: authState,
+      logger: pino({ level: 'silent' }),
+      browser: Browsers.ubuntu('Chrome'),
+      syncFullHistory: true,
+    })
+    s.sock = sock
+
+    sock.ev.on('creds.update', saveCreds)
+
+    sock.ev.on('connection.update', async (u) => {
+      const { connection, lastDisconnect, qr } = u
+      if (qr) {
+        s.state = 'qr'
+        s.qr = await qrcode.toDataURL(qr)
+        push(key, { event: 'connection', state: 'qr' })
+      }
+      if (connection === 'open') {
+        s.state = 'connected'
+        s.qr = null
+        s.number = sock?.user?.id?.split(':')[0] || null
+        push(key, { event: 'connection', state: 'connected', number: s.number })
+        log.info(`[${key}] connected: ${s.number}`)
+      }
+      if (connection === 'close') {
+        const code = lastDisconnect?.error?.output?.statusCode
+        if (code === DisconnectReason.loggedOut) {
+          s.state = 'disconnected'
+          try { fs.rmSync(dirFor(key), { recursive: true, force: true }) } catch {}
+          push(key, { event: 'connection', state: 'disconnected' })
+        } else {
+          log.warn(`[${key}] connection closed (${code}), reconnecting…`)
+          setTimeout(() => start(key), 2000)
+        }
+      }
+    })
+
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (type !== 'notify') return
+      for (const m of messages) await handleMessage(key, m)
+    })
+
+    sock.ev.on('messaging-history.set', async ({ messages }) => {
+      if (!Array.isArray(messages) || !messages.length) return
+      log.info(`[${key}] history sync: ${messages.length} messages`)
+      for (const m of messages) await handleMessage(key, m, true)
+    })
+
+    sock.ev.on('messages.reaction', (reactions) => {
+      for (const r of reactions) {
+        push(key, { event: 'reaction', id: r.key?.id, emoji: r.reaction?.text || '', from_me: !!r.reaction?.key?.fromMe })
+      }
+    })
+
+    sock.ev.on('messages.update', (updates) => {
+      for (const u of updates) {
+        const st = u.update?.status
+        if (!st) continue
+        const map = { 2: 'sent', 3: 'delivered', 4: 'read', 5: 'read' }
+        push(key, { event: 'status', id: u.key.id, status: map[st] || 'sent' })
+      }
+    })
+  } finally {
+    s.starting = false
+  }
+}
+
+// Build the flat payload for one message and push it (tagged with its session) to Laravel.
+async function handleMessage(key, m, historic = false) {
+  const s = getSession(key)
   if (!m || !m.message) return
   const jid = m.key.remoteJid || ''
-  if (jid === 'status@broadcast') return // skip status/story broadcasts
-  // An emoji reaction to an existing message → attach the emoji, don't create a new message.
+  if (jid === 'status@broadcast') return
   if (m.message.reactionMessage) {
     const r = m.message.reactionMessage
-    push({ event: 'reaction', id: r.key?.id, emoji: r.text || '', from_me: !!m.key.fromMe })
+    push(key, { event: 'reaction', id: r.key?.id, emoji: r.text || '', from_me: !!m.key.fromMe })
     return
   }
   const isGroup = jid.endsWith('@g.us')
-  // The thread address: the group jid for groups, else the contact's number.
   const from = isGroup ? jid : jid.replace('@s.whatsapp.net', '')
-  // Remember the newest inbound key so we can send a read receipt when an agent opens the chat.
-  if (!m.key.fromMe && !historic) lastKeys.set(jid, m.key)
-  // Resolve the real phone number. For a plain @s.whatsapp.net JID it's the JID itself; for a
-  // privacy LID (@lid) WhatsApp exposes the underlying number via remoteJidAlt / senderPn.
-  // In a group the number belongs to the participant who sent the message.
+  if (!m.key.fromMe && !historic) s.lastKeys.set(jid, m.key)
   const phone = isGroup ? resolvePhone(m.key.participant || '', m.key) : resolvePhone(jid, m.key)
   const payload = {
     event: 'message',
@@ -179,14 +168,13 @@ async function handleMessage(m, historic = false) {
     phone,
     historic,
     chat_type: isGroup ? 'group' : 'single',
-    group_subject: isGroup ? await groupSubject(jid) : null,
+    group_subject: isGroup ? await groupSubject(s, jid) : null,
     sender_name: isGroup ? (m.pushName || null) : null,
     from_me: !!m.key.fromMe,
-    name: isGroup ? await groupSubject(jid) : (m.pushName || null),
+    name: isGroup ? await groupSubject(s, jid) : (m.pushName || null),
     timestamp: m.messageTimestamp ? Number(m.messageTimestamp) : Math.floor(Date.now() / 1000),
     ...parseMessage(m.message),
   }
-  // Attach media inline (base64) for common types.
   if (payload._mediaType) {
     try {
       const buf = await downloadMediaMessage(m, 'buffer', {})
@@ -194,10 +182,20 @@ async function handleMessage(m, historic = false) {
     } catch (e) { log.warn('media download failed: ' + e.message) }
     delete payload._mediaType
   }
-  push(payload)
+  push(key, payload)
 }
 
-// Normalise a Baileys message into our flat shape.
+function resolvePhone(jid, mkey) {
+  if (jid.endsWith('@s.whatsapp.net')) return jid.replace('@s.whatsapp.net', '')
+  const alt = mkey?.remoteJidAlt || mkey?.senderPn || mkey?.participantAlt || mkey?.participantPn || ''
+  if (alt && alt.includes('@s.whatsapp.net')) return alt.replace('@s.whatsapp.net', '')
+  if (alt && /^\d+$/.test(alt.replace('@lid', ''))) {
+    const digits = alt.replace('@lid', '').replace('@s.whatsapp.net', '')
+    return alt.includes('@lid') ? null : digits
+  }
+  return null
+}
+
 function parseMessage(msg) {
   if (msg.conversation) return { type: 'text', text: msg.conversation }
   if (msg.extendedTextMessage) return { type: 'text', text: msg.extendedTextMessage.text }
@@ -217,134 +215,45 @@ app.use((req, res, next) => {
   next()
 })
 
-app.get('/status', (req, res) => res.json({ state, qr: qrDataUrl, number }))
+// Resolve the session key from the request (body or query), defaulting to 'default'.
+function keyOf(req) {
+  return String(req.body?.session || req.query?.session || 'default')
+}
+function connected(req, res) {
+  const s = getSession(keyOf(req))
+  if (s.state !== 'connected' || !s.sock) { res.status(409).json({ error: 'WhatsApp is not connected.' }); return null }
+  return s
+}
+function jidOf(to) {
+  return to.includes('@') ? to : to + '@s.whatsapp.net'
+}
+
+app.get('/status', (req, res) => {
+  const s = getSession(keyOf(req))
+  res.json({ state: s.state, qr: s.qr, number: s.number })
+})
 
 app.post('/connect', async (req, res) => {
-  if (state === 'connected') return res.json({ ok: true, state })
-  try { await start() } catch (e) { return res.status(500).json({ error: e.message }) }
-  res.json({ ok: true, state })
-})
-
-// Edit a previously-sent text message (WhatsApp allows this within ~15 minutes).
-app.post('/edit', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { to, id, text } = req.body
-  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
-  try {
-    await sock.sendMessage(jid, { text, edit: { remoteJid: jid, fromMe: true, id } })
-    res.json({ ok: true })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-// Delete a sent message for everyone.
-app.post('/delete', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { to, id } = req.body
-  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
-  try {
-    await sock.sendMessage(jid, { delete: { remoteJid: jid, fromMe: true, id } })
-    res.json({ ok: true })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-// Check whether a number is on WhatsApp; returns its canonical jid.
-app.post('/check', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { number } = req.body
-  try {
-    const r = await sock.onWhatsApp(String(number).replace(/\D/g, ''))
-    res.json({ exists: !!(r && r[0]?.exists), jid: r?.[0]?.jid || null })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-// Group metadata: subject, description, picture, participants.
-app.post('/group-info', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { jid } = req.body
-  try {
-    const meta = await sock.groupMetadata(jid)
-    let picture = null
-    try { picture = await sock.profilePictureUrl(jid, 'image') } catch {}
-    res.json({
-      subject: meta.subject || null,
-      desc: meta.desc || null,
-      picture,
-      participants: (meta.participants || []).map((p) => ({ id: p.id, admin: p.admin || null })),
-    })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-// Update a group's subject (name). Requires being a group admin.
-app.post('/group-subject', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { jid, subject } = req.body
-  try {
-    await sock.groupUpdateSubject(jid, subject)
-    res.json({ ok: true })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-// Update a group's (or contact's) profile picture from a URL. Requires admin for groups.
-app.post('/group-picture', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { jid, url } = req.body
-  try {
-    await sock.updateProfilePicture(jid, { url })
-    res.json({ ok: true })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-// React to a message with an emoji (empty text removes the reaction).
-app.post('/react', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { to, id, emoji, from_me } = req.body
-  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
-  try {
-    await sock.sendMessage(jid, { react: { text: emoji || '', key: { remoteJid: jid, fromMe: !!from_me, id } } })
-    res.json({ ok: true })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
-})
-
-// Mark a chat's incoming messages as read on WhatsApp (blue ticks for the other side).
-app.post('/read', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
-  const { to } = req.body
-  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
-  const key = lastKeys.get(jid)
-  if (!key) return res.json({ ok: true, skipped: 'no-key' })
-  try {
-    await sock.readMessages([key])
-    res.json({ ok: true })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
+  const key = keyOf(req)
+  const s = getSession(key)
+  if (s.state === 'connected') return res.json({ ok: true, state: s.state })
+  try { await start(key) } catch (e) { return res.status(500).json({ error: e.message }) }
+  res.json({ ok: true, state: s.state })
 })
 
 app.post('/logout', async (req, res) => {
-  try { await sock?.logout() } catch {}
-  try { fs.rmSync(SESSION_DIR, { recursive: true, force: true }) } catch {}
-  state = 'disconnected'; qrDataUrl = null; sock = null
+  const key = keyOf(req)
+  const s = getSession(key)
+  try { await s.sock?.logout() } catch {}
+  try { fs.rmSync(dirFor(key), { recursive: true, force: true }) } catch {}
+  s.state = 'disconnected'; s.qr = null; s.sock = null
   res.json({ ok: true })
 })
 
 app.post('/send', async (req, res) => {
-  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const s = connected(req, res); if (!s) return
   const { to, type = 'text', text, url, caption, filename } = req.body
-  const jid = to.includes('@') ? to : to + '@s.whatsapp.net'
+  const jid = jidOf(to)
   try {
     let content
     if (type === 'text') content = { text }
@@ -353,13 +262,91 @@ app.post('/send', async (req, res) => {
     else if (type === 'audio') content = { audio: { url }, mimetype: 'audio/mp4', ptt: true }
     else if (type === 'document') content = { document: { url }, fileName: filename || 'document', caption }
     else content = { text: text || '' }
-    const sent = await sock.sendMessage(jid, content)
+    const sent = await s.sock.sendMessage(jid, content)
     res.json({ id: sent?.key?.id || '' })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
-app.listen(PORT, () => log.info('WhatsApp gateway listening on :' + PORT))
-// Resume an existing session on boot (persistent sessions + auto-reconnect).
-start().catch((e) => log.error(e))
+app.post('/check', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  try {
+    const r = await s.sock.onWhatsApp(String(req.body.number).replace(/\D/g, ''))
+    res.json({ exists: !!(r && r[0]?.exists), jid: r?.[0]?.jid || null })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/group-info', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  try {
+    const meta = await s.sock.groupMetadata(req.body.jid)
+    let picture = null
+    try { picture = await s.sock.profilePictureUrl(req.body.jid, 'image') } catch {}
+    res.json({
+      subject: meta.subject || null,
+      desc: meta.desc || null,
+      picture,
+      participants: (meta.participants || []).map((p) => ({ id: p.id, admin: p.admin || null })),
+    })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/group-subject', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  try { await s.sock.groupUpdateSubject(req.body.jid, req.body.subject); res.json({ ok: true }) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/group-picture', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  try { await s.sock.updateProfilePicture(req.body.jid, { url: req.body.url }); res.json({ ok: true }) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/react', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  const { to, id, emoji, from_me } = req.body
+  const jid = jidOf(to)
+  try { await s.sock.sendMessage(jid, { react: { text: emoji || '', key: { remoteJid: jid, fromMe: !!from_me, id } } }); res.json({ ok: true }) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/edit', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  const { to, id, text } = req.body
+  const jid = jidOf(to)
+  try { await s.sock.sendMessage(jid, { text, edit: { remoteJid: jid, fromMe: true, id } }); res.json({ ok: true }) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/delete', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  const { to, id } = req.body
+  const jid = jidOf(to)
+  try { await s.sock.sendMessage(jid, { delete: { remoteJid: jid, fromMe: true, id } }); res.json({ ok: true }) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/read', async (req, res) => {
+  const s = connected(req, res); if (!s) return
+  const jid = jidOf(req.body.to)
+  const mkey = s.lastKeys.get(jid)
+  if (!mkey) return res.json({ ok: true, skipped: 'no-key' })
+  try { await s.sock.readMessages([mkey]); res.json({ ok: true }) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.listen(PORT, () => log.info('WhatsApp gateway (multi-account) listening on :' + PORT))
+
+// Resume every existing session on boot (persistent sessions + auto-reconnect).
+function bootExisting() {
+  const keys = new Set()
+  if (fs.existsSync(LEGACY_DIR) && fs.readdirSync(LEGACY_DIR).length) keys.add('default')
+  if (fs.existsSync(SESSIONS_ROOT)) {
+    for (const d of fs.readdirSync(SESSIONS_ROOT)) {
+      try { if (fs.statSync(path.join(SESSIONS_ROOT, d)).isDirectory()) keys.add(d) } catch {}
+    }
+  }
+  if (!keys.size) keys.add('default') // nothing yet — prime default so the first QR works
+  for (const k of keys) start(k).catch((e) => log.error(`[${k}] ${e.message}`))
+}
+bootExisting()

@@ -32,6 +32,11 @@ class WhatsappChat extends Model
         return $this->belongsToMany(WhatsappLabel::class, 'whatsapp_chat_label', 'chat_id', 'label_id');
     }
 
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(WhatsappAccount::class, 'account_id');
+    }
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');

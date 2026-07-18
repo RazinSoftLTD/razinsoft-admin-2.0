@@ -19,8 +19,12 @@ class WhatsappController extends Controller
 {
     public function index(Request $request)
     {
+        $accounts = \App\Models\WhatsappAccount::accessibleBy($request->user())->orderBy('position')->orderBy('id')->get();
+        $ids = $accounts->pluck('id')->all() ?: [0];
+
         return view('admin.whatsapp.index', [
             'chats' => $this->chatList($request),
+            'accounts' => $accounts,
             'labels' => WhatsappLabel::orderBy('position')->get(),
             'agents' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
@@ -28,11 +32,23 @@ class WhatsappController extends Controller
             'interestOptions' => $this->interestOptions(),
             'leadQualities' => WhatsappChat::LEAD_QUALITIES,
             'stats' => [
-                'open' => WhatsappChat::where('status', 'open')->count(),
-                'unread' => WhatsappChat::where('unread_count', '>', 0)->count(),
-                'mine' => WhatsappChat::where('assigned_to', $request->user()->id)->where('status', '!=', 'resolved')->count(),
+                'open' => WhatsappChat::whereIn('account_id', $ids)->where('status', 'open')->count(),
+                'unread' => WhatsappChat::whereIn('account_id', $ids)->where('unread_count', '>', 0)->count(),
+                'mine' => WhatsappChat::whereIn('account_id', $ids)->where('assigned_to', $request->user()->id)->where('status', '!=', 'resolved')->count(),
             ],
         ]);
+    }
+
+    /** Ids of the WhatsApp accounts the given user is assigned to. */
+    private function accessibleAccountIds(User $user): array
+    {
+        return \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id')->all();
+    }
+
+    /** Block access to a chat whose account the user isn't assigned to. */
+    private function authorizeChat(Request $request, WhatsappChat $chat): void
+    {
+        abort_unless(in_array($chat->account_id, $this->accessibleAccountIds($request->user()), true), 403);
     }
 
     /** JSON chat list (used by the live filter/search sidebar). */
@@ -40,19 +56,20 @@ class WhatsappController extends Controller
     {
         return response()->json([
             'chats' => $this->chatList($request)->map(fn ($c) => $this->chatSummary($c))->values(),
-            'unread' => WhatsappChat::where('unread_count', '>', 0)->count(),
+            'unread' => WhatsappChat::whereIn('account_id', $this->accessibleAccountIds($request->user()) ?: [0])->where('unread_count', '>', 0)->count(),
         ]);
     }
 
     /** JSON thread for one chat + mark read. */
     public function show(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $chat->update(['unread_count' => 0]);
         $chat->load(['labels:id,name,color', 'assignee:id,name', 'client:id,name,email,phone,company', 'notes.user:id,name']);
 
         // Tell WhatsApp we've seen the incoming messages (blue ticks on the sender's side).
         try {
-            app(WhatsappService::class)->markRead($chat->wa_id);
+            WhatsappService::for($chat->account)->markRead($chat->wa_id);
         } catch (\Throwable) {
         }
 
@@ -64,6 +81,7 @@ class WhatsappController extends Controller
 
     public function send(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $data = $request->validate(['body' => ['required', 'string', 'max:4096']]);
         $settings = WhatsappSetting::current();
         if (! $settings->isConfigured()) {
@@ -76,7 +94,7 @@ class WhatsappController extends Controller
         ]);
 
         try {
-            $waId = app(WhatsappService::class)->sendText($chat->wa_id, $data['body']);
+            $waId = WhatsappService::for($chat->account)->sendText($chat->wa_id, $data['body']);
             $message->update(['wa_message_id' => $waId]);
         } catch (\Throwable $e) {
             $message->update(['status' => 'failed', 'error' => $e->getMessage()]);
@@ -98,6 +116,7 @@ class WhatsappController extends Controller
     /** Send an attachment (image / video / audio / document) to the chat. */
     public function sendMediaMessage(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $request->validate([
             'file' => ['required', 'file', 'max:16384'], // 16 MB — WhatsApp's practical ceiling
             'caption' => ['nullable', 'string', 'max:1024'],
@@ -125,7 +144,7 @@ class WhatsappController extends Controller
 
         try {
             // The gateway fetches this public URL to attach the file.
-            $waId = app(WhatsappService::class)->sendMedia($chat->wa_id, $type, asset('storage/'.$path), $caption, $filename);
+            $waId = WhatsappService::for($chat->account)->sendMedia($chat->wa_id, $type, asset('storage/'.$path), $caption, $filename);
             $message->update(['wa_message_id' => $waId]);
         } catch (\Throwable $e) {
             $message->update(['status' => 'failed', 'error' => $e->getMessage()]);
@@ -147,6 +166,7 @@ class WhatsappController extends Controller
     /** Edit one of our own outgoing text messages (WhatsApp allows this within ~15 minutes). */
     public function editMessage(Request $request, WhatsappChat $chat, WhatsappMessage $message)
     {
+        $this->authorizeChat($request, $chat);
         abort_unless($message->chat_id === $chat->id, 404);
         if ($message->direction !== 'out' || $message->type !== 'text' || $message->deleted_at) {
             return response()->json(['error' => 'Only your own text messages can be edited.'], 422);
@@ -162,7 +182,7 @@ class WhatsappController extends Controller
         }
 
         try {
-            app(WhatsappService::class)->editText($chat->wa_id, $message->wa_message_id, $data['body']);
+            WhatsappService::for($chat->account)->editText($chat->wa_id, $message->wa_message_id, $data['body']);
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
@@ -178,6 +198,7 @@ class WhatsappController extends Controller
     /** Delete one of our own outgoing messages for everyone. */
     public function deleteMessage(Request $request, WhatsappChat $chat, WhatsappMessage $message)
     {
+        $this->authorizeChat($request, $chat);
         abort_unless($message->chat_id === $chat->id, 404);
         if ($message->direction !== 'out') {
             return response()->json(['error' => 'You can only delete your own messages.'], 422);
@@ -185,7 +206,7 @@ class WhatsappController extends Controller
 
         if ($message->wa_message_id) {
             try {
-                app(WhatsappService::class)->deleteMessage($chat->wa_id, $message->wa_message_id);
+                WhatsappService::for($chat->account)->deleteMessage($chat->wa_id, $message->wa_message_id);
             } catch (\Throwable $e) {
                 return response()->json(['error' => $e->getMessage()], 422);
             }
@@ -202,6 +223,7 @@ class WhatsappController extends Controller
     /** React to a message with an emoji (empty removes the reaction). */
     public function reactMessage(Request $request, WhatsappChat $chat, WhatsappMessage $message)
     {
+        $this->authorizeChat($request, $chat);
         abort_unless($message->chat_id === $chat->id, 404);
         if ($message->deleted_at) {
             return response()->json(['error' => 'This message is no longer available.'], 422);
@@ -211,7 +233,7 @@ class WhatsappController extends Controller
 
         if ($message->wa_message_id) {
             try {
-                app(WhatsappService::class)->sendReaction($chat->wa_id, $message->wa_message_id, $emoji, $message->direction === 'out');
+                WhatsappService::for($chat->account)->sendReaction($chat->wa_id, $message->wa_message_id, $emoji, $message->direction === 'out');
             } catch (\Throwable $e) {
                 return response()->json(['error' => $e->getMessage()], 422);
             }
@@ -224,6 +246,7 @@ class WhatsappController extends Controller
 
     public function assign(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $data = $request->validate(['assigned_to' => ['nullable', 'exists:users,id']]);
         $chat->update(['assigned_to' => $data['assigned_to'] ?? null]);
 
@@ -232,6 +255,7 @@ class WhatsappController extends Controller
 
     public function status(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $data = $request->validate(['status' => ['required', Rule::in(array_keys(WhatsappChat::STATUSES))]]);
         $chat->update(['status' => $data['status']]);
 
@@ -241,6 +265,7 @@ class WhatsappController extends Controller
     /** Flag a chat as unread again (so it stays highlighted until reopened). */
     public function markUnread(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $chat->update(['unread_count' => max(1, $chat->unread_count)]);
 
         return response()->json(['ok' => true, 'unread' => $chat->unread_count]);
@@ -248,6 +273,7 @@ class WhatsappController extends Controller
 
     public function toggleLabel(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $data = $request->validate(['label_id' => ['required', 'exists:whatsapp_labels,id']]);
         $chat->labels()->toggle($data['label_id']);
 
@@ -256,6 +282,7 @@ class WhatsappController extends Controller
 
     public function addNote(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $data = $request->validate(['body' => ['required', 'string', 'max:2000']]);
         $note = $chat->notes()->create(['user_id' => $request->user()->id, 'body' => $data['body']]);
 
@@ -266,23 +293,23 @@ class WhatsappController extends Controller
     public function startChat(Request $request)
     {
         $data = $request->validate([
+            'account_id' => ['required', 'integer'],
             'dial_code' => ['nullable', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:32'],
         ]);
+        // The new chat opens under one of the user's accessible accounts.
+        $account = \App\Models\WhatsappAccount::accessibleBy($request->user())->find($data['account_id']);
+        abort_unless($account, 403);
+
         $digits = preg_replace('/\D/', '', trim($data['dial_code'] ?? '').trim($data['phone']));
         if (strlen($digits) < 8) {
             return response()->json(['error' => 'Enter a valid phone number with country code.'], 422);
         }
 
-        $settings = WhatsappSetting::current();
-        if (! $settings->isConfigured()) {
-            return response()->json(['error' => 'WhatsApp is not connected.'], 422);
-        }
-
         // Confirm the number is on WhatsApp and get its canonical address.
         $jid = $digits.'@s.whatsapp.net';
         try {
-            $check = app(WhatsappService::class)->checkNumber($digits);
+            $check = WhatsappService::for($account)->checkNumber($digits);
             if (isset($check['exists']) && $check['exists'] === false) {
                 return response()->json(['error' => 'This number is not on WhatsApp.'], 422);
             }
@@ -291,7 +318,7 @@ class WhatsappController extends Controller
             // Check unavailable — proceed with the plain number.
         }
 
-        $chat = WhatsappChat::firstOrCreate(['wa_id' => $jid], [
+        $chat = WhatsappChat::firstOrCreate(['account_id' => $account->id, 'wa_id' => $jid], [
             'phone' => $digits,
             'chat_type' => 'single',
             'client_id' => User::clients()->where('phone', 'like', '%'.substr($digits, -9))->value('id'),
@@ -305,11 +332,12 @@ class WhatsappController extends Controller
     /** Group members enriched with country + timezone (numbers only resolvable for non-LID participants). */
     public function groupMembers(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         if (! $chat->isGroup()) {
             return response()->json(['error' => 'Not a group chat.'], 422);
         }
         try {
-            $info = app(WhatsappService::class)->groupInfo($chat->wa_id);
+            $info = WhatsappService::for($chat->account)->groupInfo($chat->wa_id);
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
@@ -350,6 +378,7 @@ class WhatsappController extends Controller
     /** Update the CRM-ish contact fields: manual phone, lead quality, interested product. */
     public function updateDetails(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:191'],
             'phone' => ['nullable', 'string', 'max:32'],
@@ -363,7 +392,7 @@ class WhatsappController extends Controller
         // For a group, push the new subject to WhatsApp too (requires admin).
         if ($chat->isGroup() && filled($data['name'] ?? null) && $data['name'] !== $chat->name) {
             try {
-                app(WhatsappService::class)->setGroupSubject($chat->wa_id, $data['name']);
+                WhatsappService::for($chat->account)->setGroupSubject($chat->wa_id, $data['name']);
             } catch (\Throwable $e) {
                 return response()->json(['error' => $e->getMessage()], 422);
             }
@@ -390,6 +419,7 @@ class WhatsappController extends Controller
     /** Upload / replace the contact avatar. */
     public function updateAvatar(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         $request->validate(['avatar' => ['required', 'image', 'max:4096']]);
 
         // Remove the previous file so we don't leave orphans.
@@ -402,7 +432,7 @@ class WhatsappController extends Controller
         // For a group, also set the picture on WhatsApp itself (requires admin).
         if ($chat->isGroup()) {
             try {
-                app(WhatsappService::class)->setGroupPicture($chat->wa_id, asset('storage/'.$path));
+                WhatsappService::for($chat->account)->setGroupPicture($chat->wa_id, asset('storage/'.$path));
             } catch (\Throwable $e) {
                 return response()->json(['avatar' => $chat->avatarUrl(), 'warning' => 'Saved locally, but WhatsApp update failed: '.$e->getMessage()]);
             }
@@ -422,6 +452,7 @@ class WhatsappController extends Controller
     /** Convert this WhatsApp contact into a CRM Lead (or link to an existing one with the same phone). */
     public function convertToLead(Request $request, WhatsappChat $chat)
     {
+        $this->authorizeChat($request, $chat);
         if ($chat->isGroup()) {
             return response()->json(['error' => 'Group chats cannot be converted to a lead.'], 422);
         }
@@ -505,7 +536,15 @@ class WhatsappController extends Controller
 
     private function chatList(Request $request)
     {
-        $q = WhatsappChat::query()->with('labels:id,name,color', 'assignee:id,name');
+        // Scope strictly to accounts the user may access, then to the selected account.
+        $accessible = $this->accessibleAccountIds($request->user());
+        $q = WhatsappChat::query()->with('labels:id,name,color', 'assignee:id,name')
+            ->whereIn('account_id', $accessible ?: [0]);
+
+        $current = (int) $request->query('account');
+        if ($current && in_array($current, $accessible, true)) {
+            $q->where('account_id', $current);
+        }
 
         if (($status = $request->query('status')) && $status !== 'all') {
             $status === 'unread' ? $q->where('unread_count', '>', 0) : $q->where('status', $status);
@@ -544,6 +583,7 @@ class WhatsappController extends Controller
             'id' => $c->id, 'name' => $c->displayName(), 'wa_id' => $c->phoneLabel(),
             'preview' => $c->last_message_preview, 'at' => $c->last_message_at?->diffForHumans(),
             'unread' => $c->unread_count, 'status' => $c->status,
+            'account_id' => $c->account_id,
             'is_group' => $c->isGroup(),
             'color' => $c->isGroup() ? $this->groupColor($c->id) : null,
             'avatar' => $c->avatarUrl(),

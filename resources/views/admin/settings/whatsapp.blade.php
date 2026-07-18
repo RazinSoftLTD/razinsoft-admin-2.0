@@ -93,6 +93,95 @@
                 </div>
             </form>
 
+            {{-- WhatsApp numbers (accounts) --}}
+            <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-bold text-[var(--color-heading)]">WhatsApp Numbers</h2>
+                        <p class="mt-0.5 text-xs text-[var(--color-muted)]">Connect several numbers (Support, Tech, Sales…). Each has its own inbox; only assigned team members can access it.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    @foreach ($accounts as $acc)
+                        <div class="rounded-xl border border-gray-100 p-4" x-data="{ open: false }">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="grid h-9 w-9 place-items-center rounded-full text-white" style="background: {{ $acc->color }}">
+                                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Z"/></svg>
+                                    </span>
+                                    <div>
+                                        <p class="text-sm font-bold text-[var(--color-heading)]">{{ $acc->name }}</p>
+                                        <p class="flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
+                                            <span class="h-1.5 w-1.5 rounded-full {{ $acc->isConnected() ? 'bg-emerald-500' : 'bg-gray-300' }}"></span>
+                                            {{ $acc->isConnected() ? ('Connected'.($acc->display_number ? ' · +'.$acc->display_number : '')) : 'Not connected' }}
+                                            · {{ $acc->users->count() }} member{{ $acc->users->count() === 1 ? '' : 's' }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a href="{{ route('admin.whatsapp-connection', $acc) }}" class="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600">{{ $acc->isConnected() ? 'Manage' : 'Connect (QR)' }}</a>
+                                    <button type="button" @click="open = !open" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Edit</button>
+                                    <form method="POST" action="{{ route('admin.whatsapp-accounts.destroy', $acc) }}" onsubmit="return confirm('Remove this number? Its chats will be hidden.')">@csrf @method('DELETE')<button class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></form>
+                                </div>
+                            </div>
+
+                            {{-- Edit: name, color, members --}}
+                            <form method="POST" action="{{ route('admin.whatsapp-accounts.update', $acc) }}" x-show="open" x-cloak class="mt-4 border-t border-gray-100 pt-4">
+                                @csrf
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Name</label>
+                                        <input type="text" name="name" value="{{ $acc->name }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Colour</label>
+                                        <input type="color" name="color" value="{{ $acc->color }}" class="h-10 w-16 rounded-lg border-gray-200">
+                                    </div>
+                                </div>
+                                <p class="mb-1.5 mt-3 text-xs font-semibold text-[var(--color-muted)]">Team members with access</p>
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach ($panelUsers as $u)
+                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs">
+                                            <input type="checkbox" name="members[]" value="{{ $u->id }}" @checked($acc->users->contains($u->id)) class="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400">
+                                            {{ $u->name }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <button class="mt-4 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white">Save changes</button>
+                            </form>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Add number --}}
+                <form method="POST" action="{{ route('admin.whatsapp-accounts.store') }}" class="mt-4 rounded-xl border border-dashed border-gray-200 p-4" x-data="{ open: false }">
+                    @csrf
+                    <button type="button" @click="open = !open" x-show="!open" class="flex items-center gap-2 text-sm font-semibold text-emerald-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add a WhatsApp number</button>
+                    <div x-show="open" x-cloak>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Name (e.g. Support)</label>
+                                <input type="text" name="name" placeholder="Support" class="h-10 w-full rounded-lg border-gray-200 text-sm" required>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Colour</label>
+                                <input type="color" name="color" value="#25d366" class="h-10 w-16 rounded-lg border-gray-200">
+                            </div>
+                        </div>
+                        <p class="mb-1.5 mt-3 text-xs font-semibold text-[var(--color-muted)]">Assign team members</p>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ($panelUsers as $u)
+                                <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs">
+                                    <input type="checkbox" name="members[]" value="{{ $u->id }}" class="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400"> {{ $u->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                        <button class="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">Add number</button>
+                    </div>
+                </form>
+            </div>
+
             {{-- Webhook --}}
             <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Webhook</h2>

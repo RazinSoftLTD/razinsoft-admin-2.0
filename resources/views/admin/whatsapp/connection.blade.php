@@ -4,8 +4,8 @@
 @section('content')
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Connection</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Link your WhatsApp Business account by scanning a QR code — no Meta Cloud API needed.</p>
+            <h1 class="text-xl font-bold text-[var(--color-heading)]">Connect: {{ $account->name }}</h1>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Scan the QR with the phone for this number ({{ $account->name }}). Each number keeps its own session &amp; inbox.</p>
         </div>
         <a href="{{ route('admin.whatsapp-settings') }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Settings</a>
     </div>
@@ -75,19 +75,19 @@
                 init() { this.poll(); this.timer = setInterval(() => this.poll(), 3000); },
                 async poll() {
                     try {
-                        const r = await fetch(@js(route('admin.whatsapp-connection.status')));
+                        const r = await fetch(@js(route('admin.whatsapp-connection.status', $account)));
                         const d = await r.json();
                         this.state = d.state; this.qr = d.qr; this.number = d.number; this.configured = d.configured; this.message = d.message;
                     } catch {}
                 },
                 async connect() {
                     this.busy = true;
-                    try { await fetch(@js(route('admin.whatsapp-connection.connect')), { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf } }); await this.poll(); }
+                    try { await fetch(@js(route('admin.whatsapp-connection.connect', $account)), { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf } }); await this.poll(); }
                     finally { this.busy = false; }
                 },
                 async logout() {
                     if (!confirm('Disconnect WhatsApp? You will need to scan the QR again.')) return;
-                    await fetch(@js(route('admin.whatsapp-connection.logout')), { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf } });
+                    await fetch(@js(route('admin.whatsapp-connection.logout', $account)), { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf } });
                     this.state = 'disconnected'; this.qr = null;
                 },
                 destroy() { clearInterval(this.timer); },

@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Http;
 
 /**
  * Phase-1 driver — talks to the Node.js Baileys gateway (WhatsApp Web, QR login).
- * All HTTP calls to the gateway are authenticated with the shared secret; the gateway
- * pushes inbound messages back to Laravel's webhook. Business logic never touches Baileys directly.
+ * Every call carries a session key so one gateway can run many accounts. Business logic
+ * never touches Baileys directly; the gateway pushes inbound events (tagged with the session) back.
  */
 class BaileysProvider implements WhatsappProvider
 {
-    public function __construct(private WhatsappSetting $settings) {}
+    public function __construct(private WhatsappSetting $settings, private string $sessionKey = 'default') {}
 
     public function name(): string
     {
@@ -26,28 +26,29 @@ class BaileysProvider implements WhatsappProvider
             ->timeout(15);
     }
 
+    /** POST to the gateway with the session key injected. */
+    private function post(string $path, array $data = [], int $timeout = 15)
+    {
+        return $this->client()->timeout($timeout)->post($path, ['session' => $this->sessionKey] + $data);
+    }
+
     public function status(): array
     {
         if (! filled($this->settings->gateway_url)) {
             return ['configured' => false, 'connected' => false, 'state' => 'disconnected', 'qr' => null, 'number' => null, 'message' => 'Set the gateway URL first.'];
         }
         try {
-            $res = $this->client()->get('/status');
+            $res = $this->client()->get('/status', ['session' => $this->sessionKey]);
             if (! $res->successful()) {
                 return ['configured' => true, 'connected' => false, 'state' => 'disconnected', 'qr' => null, 'number' => null, 'message' => 'Gateway unreachable.'];
             }
-            $state = $res->json('state', 'disconnected');   // qr | connecting | connected | disconnected
-            $this->settings->update([
-                'session_state' => $state,
-                'display_number' => $res->json('number') ?: $this->settings->display_number,
-                'is_connected' => $state === 'connected',
-            ]);
+            $state = $res->json('state', 'disconnected');
 
             return [
                 'configured' => true,
                 'connected' => $state === 'connected',
                 'state' => $state,
-                'qr' => $res->json('qr'),          // data-URL PNG while pairing
+                'qr' => $res->json('qr'),
                 'number' => $res->json('number'),
                 'message' => null,
             ];
@@ -59,7 +60,7 @@ class BaileysProvider implements WhatsappProvider
     public function connect(): array
     {
         try {
-            $this->client()->post('/connect');
+            $this->post('/connect');
         } catch (\Throwable) {
         }
 
@@ -69,15 +70,14 @@ class BaileysProvider implements WhatsappProvider
     public function disconnect(): void
     {
         try {
-            $this->client()->post('/logout');
+            $this->post('/logout');
         } catch (\Throwable) {
         }
-        $this->settings->update(['session_state' => 'disconnected', 'is_connected' => false]);
     }
 
     public function sendText(string $to, string $body): array
     {
-        $res = $this->client()->post('/send', ['to' => $to, 'type' => 'text', 'text' => $body]);
+        $res = $this->post('/send', ['to' => $to, 'type' => 'text', 'text' => $body]);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to send the message.');
         }
@@ -88,14 +88,14 @@ class BaileysProvider implements WhatsappProvider
     public function markRead(string $to): void
     {
         try {
-            $this->client()->post('/read', ['to' => $to]);
+            $this->post('/read', ['to' => $to]);
         } catch (\Throwable) {
         }
     }
 
     public function editText(string $to, string $waMessageId, string $body): void
     {
-        $res = $this->client()->post('/edit', ['to' => $to, 'id' => $waMessageId, 'text' => $body]);
+        $res = $this->post('/edit', ['to' => $to, 'id' => $waMessageId, 'text' => $body]);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to edit the message.');
         }
@@ -103,7 +103,7 @@ class BaileysProvider implements WhatsappProvider
 
     public function deleteMessage(string $to, string $waMessageId): void
     {
-        $res = $this->client()->post('/delete', ['to' => $to, 'id' => $waMessageId]);
+        $res = $this->post('/delete', ['to' => $to, 'id' => $waMessageId]);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to delete the message.');
         }
@@ -111,7 +111,7 @@ class BaileysProvider implements WhatsappProvider
 
     public function sendReaction(string $to, string $waMessageId, string $emoji, bool $targetFromMe): void
     {
-        $res = $this->client()->post('/react', ['to' => $to, 'id' => $waMessageId, 'emoji' => $emoji, 'from_me' => $targetFromMe]);
+        $res = $this->post('/react', ['to' => $to, 'id' => $waMessageId, 'emoji' => $emoji, 'from_me' => $targetFromMe]);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to send the reaction.');
         }
@@ -119,7 +119,7 @@ class BaileysProvider implements WhatsappProvider
 
     public function checkNumber(string $number): array
     {
-        $res = $this->client()->post('/check', ['number' => $number]);
+        $res = $this->post('/check', ['number' => $number]);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to check the number.');
         }
@@ -129,7 +129,7 @@ class BaileysProvider implements WhatsappProvider
 
     public function groupInfo(string $jid): array
     {
-        $res = $this->client()->timeout(30)->post('/group-info', ['jid' => $jid]);
+        $res = $this->post('/group-info', ['jid' => $jid], 30);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to load group info.');
         }
@@ -139,7 +139,7 @@ class BaileysProvider implements WhatsappProvider
 
     public function setGroupSubject(string $jid, string $subject): void
     {
-        $res = $this->client()->post('/group-subject', ['jid' => $jid, 'subject' => $subject]);
+        $res = $this->post('/group-subject', ['jid' => $jid, 'subject' => $subject]);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to update the group name.');
         }
@@ -147,7 +147,7 @@ class BaileysProvider implements WhatsappProvider
 
     public function setGroupPicture(string $jid, string $url): void
     {
-        $res = $this->client()->post('/group-picture', ['jid' => $jid, 'url' => $url]);
+        $res = $this->post('/group-picture', ['jid' => $jid, 'url' => $url]);
         if (! $res->successful()) {
             throw new \RuntimeException($res->json('error') ?: 'Gateway failed to update the group picture.');
         }
@@ -155,7 +155,7 @@ class BaileysProvider implements WhatsappProvider
 
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array
     {
-        $res = $this->client()->post('/send', array_filter([
+        $res = $this->post('/send', array_filter([
             'to' => $to, 'type' => $type, 'url' => $source, 'caption' => $caption, 'filename' => $filename,
         ]));
         if (! $res->successful()) {

@@ -72,10 +72,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');
             Route::post('whatsapp-settings', [$ws, 'update'])->name('whatsapp-settings.update');
             Route::post('whatsapp-settings/test', [$ws, 'test'])->name('whatsapp-settings.test');
-            Route::get('whatsapp-connection', [$ws, 'connection'])->name('whatsapp-connection');
-            Route::get('whatsapp-connection/status', [$ws, 'connectionStatus'])->name('whatsapp-connection.status');
-            Route::post('whatsapp-connection/connect', [$ws, 'connect'])->name('whatsapp-connection.connect');
-            Route::post('whatsapp-connection/logout', [$ws, 'logout'])->name('whatsapp-connection.logout');
+            // Accounts (WhatsApp numbers)
+            Route::post('whatsapp-accounts', [$ws, 'accountStore'])->name('whatsapp-accounts.store');
+            Route::post('whatsapp-accounts/{account}', [$ws, 'accountUpdate'])->whereNumber('account')->name('whatsapp-accounts.update');
+            Route::delete('whatsapp-accounts/{account}', [$ws, 'accountDestroy'])->whereNumber('account')->name('whatsapp-accounts.destroy');
+            // Per-account QR connection
+            Route::get('whatsapp-connection/{account}', [$ws, 'connection'])->whereNumber('account')->name('whatsapp-connection');
+            Route::get('whatsapp-connection/{account}/status', [$ws, 'connectionStatus'])->whereNumber('account')->name('whatsapp-connection.status');
+            Route::post('whatsapp-connection/{account}/connect', [$ws, 'connect'])->whereNumber('account')->name('whatsapp-connection.connect');
+            Route::post('whatsapp-connection/{account}/logout', [$ws, 'logout'])->whereNumber('account')->name('whatsapp-connection.logout');
             Route::post('whatsapp-settings/labels', [$ws, 'labelStore'])->name('whatsapp-settings.labels.store');
             Route::delete('whatsapp-settings/labels/{label}', [$ws, 'labelDestroy'])->whereNumber('label')->name('whatsapp-settings.labels.destroy');
             Route::post('whatsapp-settings/quick-replies', [$ws, 'quickStore'])->name('whatsapp-settings.quick.store');

@@ -31,6 +31,21 @@
                         @endif
                     </div>
                 </div>
+                @if (count($accounts) > 1)
+                    {{-- Account (number) switcher --}}
+                    <div class="relative mt-3">
+                        <select x-model.number="accountId" @change="loadChats()" class="h-9 w-full rounded-lg border-gray-200 bg-gray-50 pl-3 text-sm font-medium focus:border-emerald-400 focus:ring-emerald-400">
+                            @foreach ($accounts as $acc)
+                                <option value="{{ $acc->id }}">{{ $acc->name }}{{ $acc->display_number ? '  ·  +'.$acc->display_number : '' }}{{ $acc->isConnected() ? '' : '  (offline)' }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @elseif (count($accounts) === 1)
+                    <p class="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
+                        <span class="h-1.5 w-1.5 rounded-full {{ $accounts[0]->isConnected() ? 'bg-emerald-500' : 'bg-gray-300' }}"></span>
+                        {{ $accounts[0]->name }}{{ $accounts[0]->display_number ? ' · +'.$accounts[0]->display_number : '' }}
+                    </p>
+                @endif
                 <div class="relative mt-3">
                     <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/></svg>
                     <input type="text" x-model="search" @input.debounce.300ms="loadChats()" placeholder="Search name, number or message…" class="h-9 w-full rounded-lg border-gray-200 pl-9 pr-8 text-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]">
@@ -601,6 +616,7 @@
                 showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
+                accountId: @js($accounts->first()->id ?? null),
                 editingId: null, editDraft: '',
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],
@@ -655,6 +671,7 @@
                 },
                 params() {
                     const p = new URLSearchParams();
+                    if (this.accountId) p.set('account', this.accountId);
                     if (this.search) p.set('search', this.search);
                     if (this.filter === 'mine') p.set('mine', '1');
                     else if (this.filter === 'single' || this.filter === 'group') p.set('type', this.filter);
@@ -794,7 +811,7 @@
                     if (this.newChat.busy || !this.newChat.number.trim()) return;
                     this.newChat.busy = true; this.newChat.error = '';
                     try {
-                        const r = await this.post(@js(url('admin/whatsapp/new-chat')), { phone: this.newChat.number });
+                        const r = await this.post(@js(url('admin/whatsapp/new-chat')), { phone: this.newChat.number, account_id: this.accountId });
                         const d = await r.json();
                         if (r.ok) { this.newChat.open = false; this.newChat.number = ''; await this.loadChats(); this.openChat(d.id); }
                         else { this.newChat.error = d.error || 'Could not start chat.'; }

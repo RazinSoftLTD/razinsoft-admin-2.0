@@ -3,23 +3,74 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\WhatsappAccount;
 use App\Models\WhatsappLabel;
 use App\Models\WhatsappQuickReply;
 use App\Models\WhatsappSetting;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
-/** Settings › WhatsApp API — credentials, webhook details, test connection, labels & quick replies. */
+/** Settings › WhatsApp Config — gateway config, connected numbers (accounts), labels & quick replies. */
 class WhatsappSettingController extends Controller
 {
     public function index()
     {
         return view('admin.settings.whatsapp', [
             'settings' => WhatsappSetting::current(),
+            'accounts' => WhatsappAccount::with('users:id,name')->orderBy('position')->orderBy('id')->get(),
+            'panelUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'labels' => WhatsappLabel::orderBy('position')->get(),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
             'webhookUrl' => url('/api/whatsapp/webhook'),
         ]);
+    }
+
+    // ---- accounts (WhatsApp numbers) ----
+
+    public function accountStore(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+            'color' => ['nullable', 'string', 'max:9'],
+            'members' => ['array'],
+            'members.*' => ['integer', 'exists:users,id'],
+        ]);
+        $account = WhatsappAccount::create([
+            'name' => $data['name'],
+            'color' => $data['color'] ?: '#25d366',
+            'session_key' => 'acc-'.Str::lower(Str::random(10)),
+            'position' => (int) WhatsappAccount::max('position') + 1,
+        ]);
+        $account->users()->sync($data['members'] ?? []);
+
+        return back()->with('status', 'WhatsApp number added. Now connect it by scanning the QR.');
+    }
+
+    public function accountUpdate(Request $request, WhatsappAccount $account)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+            'color' => ['nullable', 'string', 'max:9'],
+            'members' => ['array'],
+            'members.*' => ['integer', 'exists:users,id'],
+        ]);
+        $account->update(['name' => $data['name'], 'color' => $data['color'] ?: $account->color]);
+        $account->users()->sync($data['members'] ?? []);
+
+        return back()->with('status', 'Number updated.');
+    }
+
+    public function accountDestroy(WhatsappAccount $account)
+    {
+        try {
+            WhatsappService::for($account)->disconnect();
+        } catch (\Throwable) {
+        }
+        $account->delete(); // chats cascade via account_id? keep chats but null out
+
+        return back()->with('status', 'Number removed.');
     }
 
     public function update(Request $request)
@@ -59,29 +110,39 @@ class WhatsappSettingController extends Controller
         return back()->with($ok ? 'status' : 'error', $message);
     }
 
-    // ---- QR connection (Baileys driver) ----
+    // ---- QR connection (Baileys driver), per account ----
 
-    public function connection()
+    public function connection(WhatsappAccount $account)
     {
         return view('admin.whatsapp.connection', [
             'settings' => WhatsappSetting::current(),
+            'account' => $account,
         ]);
     }
 
-    /** JSON status poll for the connection page (QR + state). */
-    public function connectionStatus()
+    /** JSON status poll for the connection page (QR + state); persists state to the account. */
+    public function connectionStatus(WhatsappAccount $account)
     {
-        return response()->json(app(WhatsappService::class)->status());
+        $status = WhatsappService::for($account)->status();
+        $account->update([
+            'session_state' => $status['state'] ?? 'disconnected',
+            'is_connected' => ($status['state'] ?? '') === 'connected',
+            'display_number' => $status['number'] ?: $account->display_number,
+            'connected_at' => ($status['state'] ?? '') === 'connected' ? ($account->connected_at ?: now()) : $account->connected_at,
+        ]);
+
+        return response()->json($status);
     }
 
-    public function connect()
+    public function connect(WhatsappAccount $account)
     {
-        return response()->json(app(WhatsappService::class)->connect());
+        return response()->json(WhatsappService::for($account)->connect());
     }
 
-    public function logout()
+    public function logout(WhatsappAccount $account)
     {
-        app(WhatsappService::class)->disconnect();
+        WhatsappService::for($account)->disconnect();
+        $account->update(['session_state' => 'disconnected', 'is_connected' => false]);
 
         return response()->json(['ok' => true]);
     }
