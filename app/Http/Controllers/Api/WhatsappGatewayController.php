@@ -91,8 +91,10 @@ class WhatsappGatewayController extends Controller
             }
         }
 
+        // Dedup within THIS chat only — the same wa_message_id legitimately appears in two accounts
+        // when one of our numbers messages another (sender's outgoing copy + receiver's incoming copy).
         $waMsgId = $request->input('id');
-        if ($waMsgId && WhatsappMessage::where('wa_message_id', $waMsgId)->exists()) {
+        if ($waMsgId && $chat->messages()->where('wa_message_id', $waMsgId)->exists()) {
             return response()->json(['ok' => true]);
         }
 
