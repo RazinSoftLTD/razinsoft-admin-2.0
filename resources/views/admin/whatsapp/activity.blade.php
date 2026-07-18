@@ -43,6 +43,24 @@
                         </div>
                     </div>
 
+                    {{-- Team responsiveness --}}
+                    <div class="mt-2 grid grid-cols-2 gap-2">
+                        <div class="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2">
+                            <svg class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v4l2.5 1.5"/></svg>
+                            <span class="min-w-0">
+                                <span class="block text-[10px] uppercase tracking-wide text-gray-400">Avg. response</span>
+                                <span class="block text-sm font-bold text-[var(--color-heading)]">{{ $s['avg_response'] ?? '—' }}</span>
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2">
+                            <svg class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 6 9 17l-5-5"/></svg>
+                            <span class="min-w-0">
+                                <span class="block text-[10px] uppercase tracking-wide text-gray-400">Response rate</span>
+                                <span class="block text-sm font-bold {{ isset($s['response_rate']) && $s['response_rate'] >= 70 ? 'text-emerald-600' : 'text-[var(--color-heading)]' }}">{{ isset($s['response_rate']) ? $s['response_rate'].'%' : '—' }}</span>
+                            </span>
+                        </div>
+                    </div>
+
                     <div class="mt-3 flex items-center justify-between text-[11px] text-gray-400">
                         <span>{{ $acc->users->count() }} agent{{ $acc->users->count() === 1 ? '' : 's' }}</span>
                         <span>Last: {{ $s['last_at'] ? \Illuminate\Support\Carbon::parse($s['last_at'])->diffForHumans() : '—' }}</span>

@@ -26,14 +26,91 @@ class WhatsappActivityController extends Controller
             ->join('whatsapp_chats', 'whatsapp_chats.id', '=', 'whatsapp_messages.chat_id')
             ->groupBy('whatsapp_chats.account_id')->pluck('c', 'account_id');
 
+        $response = $this->responseMetrics($accounts->pluck('id')->all());
+
         $stats = $accounts->mapWithKeys(fn ($a) => [$a->id => [
             'chats' => (int) ($chatStats[$a->id]->chats ?? 0),
             'unread' => (int) ($chatStats[$a->id]->unread ?? 0),
             'messages' => (int) ($msgCounts[$a->id] ?? 0),
             'last_at' => $chatStats[$a->id]->last_at ?? null,
+            'avg_response' => $response[$a->id]['avg'] ?? null,
+            'response_rate' => $response[$a->id]['rate'] ?? null,
         ]]);
 
         return view('admin.whatsapp.activity', compact('accounts', 'stats'));
+    }
+
+    /**
+     * Per-account team responsiveness: average first-response time and response rate.
+     * A "turn" starts at the first client message that isn't yet answered; it's answered when the
+     * team sends the next outgoing message. avg = mean answer time; rate = answered / total turns.
+     */
+    private function responseMetrics(array $accountIds): array
+    {
+        if (! $accountIds) {
+            return [];
+        }
+
+        $rows = WhatsappMessage::query()
+            ->join('whatsapp_chats', 'whatsapp_chats.id', '=', 'whatsapp_messages.chat_id')
+            ->whereIn('whatsapp_chats.account_id', $accountIds)
+            ->whereNotNull('whatsapp_messages.sent_at')
+            ->orderBy('whatsapp_chats.account_id')
+            ->orderBy('whatsapp_messages.chat_id')
+            ->orderBy('whatsapp_messages.sent_at')
+            ->orderBy('whatsapp_messages.id')
+            ->get(['whatsapp_chats.account_id as acc', 'whatsapp_messages.chat_id as chat', 'whatsapp_messages.direction as dir', 'whatsapp_messages.sent_at as at']);
+
+        // acc => ['sum'=>seconds, 'answered'=>n, 'total'=>n]; per-chat "awaiting" state.
+        $agg = [];
+        $chatState = []; // chat_id => questionTimestamp|null
+
+        foreach ($rows as $r) {
+            $agg[$r->acc] ??= ['sum' => 0, 'answered' => 0, 'total' => 0];
+            $ts = strtotime((string) $r->at);
+
+            if ($r->dir === 'in') {
+                if (! isset($chatState[$r->chat])) {          // new unanswered turn
+                    $chatState[$r->chat] = $ts;
+                    $agg[$r->acc]['total']++;
+                }
+            } else { // 'out'
+                if (isset($chatState[$r->chat])) {
+                    $delta = $ts - $chatState[$r->chat];
+                    if ($delta >= 0) {
+                        $agg[$r->acc]['sum'] += $delta;
+                        $agg[$r->acc]['answered']++;
+                    }
+                    unset($chatState[$r->chat]);              // turn closed
+                }
+            }
+        }
+
+        $out = [];
+        foreach ($agg as $acc => $a) {
+            $out[$acc] = [
+                'avg' => $a['answered'] ? $this->humanDuration((int) round($a['sum'] / $a['answered'])) : null,
+                'rate' => $a['total'] ? (int) round($a['answered'] / $a['total'] * 100) : null,
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Seconds → "45s" / "3m 20s" / "2h 10m" / "1d 4h". */
+    private function humanDuration(int $s): string
+    {
+        if ($s < 60) {
+            return $s.'s';
+        }
+        if ($s < 3600) {
+            return floor($s / 60).'m '.($s % 60).'s';
+        }
+        if ($s < 86400) {
+            return floor($s / 3600).'h '.floor(($s % 3600) / 60).'m';
+        }
+
+        return floor($s / 86400).'d '.floor(($s % 86400) / 3600).'h';
     }
 
     public function show(WhatsappAccount $account)
