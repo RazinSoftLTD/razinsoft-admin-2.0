@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /** One connected WhatsApp number. Each account has its own gateway session and inbox. */
 class WhatsappAccount extends Model
 {
+    use SoftDeletes;
+
     protected $guarded = [];
 
     protected $casts = [

@@ -74,7 +74,7 @@ class Permissions
         // owner = client_id: the ticket's requester. "Owned" scope = tickets the user raised themselves.
         'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete', 'settings'], 'owner' => 'client_id'],
         'chat' => ['label' => 'Team Chat', 'group' => 'Support', 'actions' => ['create_group', 'clients']],
-        'whatsapp' => ['label' => 'WhatsApp', 'group' => 'Support', 'actions' => ['view', 'reply', 'assign', 'settings']],
+        'whatsapp' => ['label' => 'WhatsApp', 'group' => 'Support', 'actions' => ['view', 'reply', 'assign', 'settings', 'activity']],
         'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],
         // owner = 'id': the employee record IS the user, so "Owned" scope means their own (self) record.
         'employees' => ['label' => 'Employees', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'id'],

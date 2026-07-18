@@ -67,6 +67,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp/chats/{chat}/convert-lead', [$wa, 'convertToLead'])->whereNumber('chat')->middleware('permission:leads.create')->name('whatsapp.convert-lead');
             Route::post('whatsapp/chats/{chat}/avatar', [$wa, 'updateAvatar'])->whereNumber('chat')->name('whatsapp.avatar');
         });
+        Route::middleware('permission:whatsapp.activity')->group(function () {
+            $wact = \App\Http\Controllers\Admin\WhatsappActivityController::class;
+            Route::get('whatsapp-activity', [$wact, 'index'])->name('whatsapp-activity');
+            Route::get('whatsapp-activity/{account}', [$wact, 'show'])->whereNumber('account')->name('whatsapp-activity.show');
+            Route::get('whatsapp-activity/{account}/chats/{chat}', [$wact, 'thread'])->whereNumber('account')->whereNumber('chat')->name('whatsapp-activity.thread');
+        });
         Route::middleware('permission:whatsapp.settings')->group(function () {
             $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
             Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');

@@ -46,14 +46,45 @@ class WhatsappGatewayController extends Controller
         if (! $account) {
             return response()->json(['ok' => true]);
         }
+        $number = $request->input('number');
         $account->update([
             'session_state' => $request->input('state', 'disconnected'),
             'is_connected' => $request->input('state') === 'connected',
-            'display_number' => $request->input('number') ?: $account->display_number,
+            'display_number' => $number ?: $account->display_number,
             'connected_at' => $request->input('state') === 'connected' ? now() : $account->connected_at,
         ]);
 
+        // Re-added the same number? Pull its old chats (from a deleted/other account) back in.
+        if ($request->input('state') === 'connected' && $number) {
+            $this->relinkPriorChats($account, $number);
+        }
+
         return response()->json(['ok' => true]);
+    }
+
+    /** Move chats from any prior account (incl. soft-deleted) with the same number into this one. */
+    private function relinkPriorChats(WhatsappAccount $account, string $number): void
+    {
+        $priors = WhatsappAccount::withTrashed()
+            ->where('id', '!=', $account->id)
+            ->where('display_number', $number)
+            ->get();
+
+        foreach ($priors as $prior) {
+            foreach (WhatsappChat::where('account_id', $prior->id)->get() as $oldChat) {
+                $existing = WhatsappChat::where('account_id', $account->id)->where('wa_id', $oldChat->wa_id)->first();
+                if ($existing) {
+                    // Same contact already synced under the new account — fold the old thread into it.
+                    WhatsappMessage::where('chat_id', $oldChat->id)->update(['chat_id' => $existing->id]);
+                    \DB::table('whatsapp_notes')->where('chat_id', $oldChat->id)->update(['chat_id' => $existing->id]);
+                    \DB::table('whatsapp_chat_label')->where('chat_id', $oldChat->id)->delete();
+                    $oldChat->delete();
+                } else {
+                    $oldChat->update(['account_id' => $account->id]);
+                }
+            }
+            $prior->forceDelete();
+        }
     }
 
     private function onMessage(Request $request, ?WhatsappAccount $account)
