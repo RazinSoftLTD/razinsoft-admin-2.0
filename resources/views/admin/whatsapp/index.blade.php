@@ -327,8 +327,9 @@
                                         </template>
                                         {{-- media --}}
                                         <template x-if="m.media && m.type === 'image'">
+                                            {{-- Fixed-size thumbnail so loading never reflows the thread (no scroll jump); full view opens in the lightbox. --}}
                                             <div class="mb-1">
-                                                <img :src="m.media" @click="openLightbox(m)" loading="lazy" decoding="async" class="max-h-72 w-full cursor-pointer rounded-lg bg-gray-100 object-cover transition hover:brightness-95" style="max-width:260px;min-height:80px">
+                                                <img :src="m.media" @click="openLightbox(m)" loading="lazy" decoding="async" class="cursor-pointer rounded-lg bg-gray-200 object-cover transition hover:brightness-95" style="width:240px;height:190px;max-width:100%">
                                             </div>
                                         </template>
                                         <template x-if="m.media && m.type === 'video'">

@@ -63,6 +63,16 @@ class WhatsappController extends Controller
         abort_unless(in_array($chat->account_id, $this->accessibleAccountIds($request->user()), true), 403);
     }
 
+    /** Unread WhatsApp conversations across the current user's accessible numbers (for the top-bar badge). */
+    public function unreadCount(Request $request)
+    {
+        $ids = $this->accessibleAccountIds($request->user());
+
+        return response()->json([
+            'count' => WhatsappChat::whereIn('account_id', $ids ?: [0])->where('unread_count', '>', 0)->count(),
+        ]);
+    }
+
     /** JSON chat list (used by the live filter/search sidebar). */
     public function chats(Request $request)
     {

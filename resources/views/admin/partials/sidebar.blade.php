@@ -68,7 +68,7 @@
 
         ['type' => 'group', 'label' => 'Messenger', 'icon' => $ic['chat'], 'items' => [
             ['label' => 'Messaging', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
-            ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::where('unread_count', '>', 0)->count() ?: null],
+            ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::whereIn('account_id', \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id'))->where('unread_count', '>', 0)->count() ?: null],
         ]],
 
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
@@ -229,7 +229,7 @@
                                     </svg>
                                     <span class="flex-1">{{ $item['label'] }}</span>
                                     @if ($soon)<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-400">Soon</span>@endif
-                                    @if (! empty($item['badge']))<span class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $item['badge'] }}</span>@endif
+                                    <span data-nav-badge="{{ \Illuminate\Support\Str::slug($item['label']) }}" class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white {{ empty($item['badge'] ?? null) ? 'hidden' : '' }}">{{ $item['badge'] ?? '' }}</span>
                                 </a>
                             @endforeach
                         </div>

@@ -11,9 +11,22 @@
     <h1 class="text-base font-bold text-[var(--color-heading)] sm:text-lg">@yield('title', 'Dashboard')</h1>
 
     <div class="ml-auto flex items-center gap-2">
+        @php $me = auth()->user(); @endphp
+
+        {{-- ───── WhatsApp (only for users with access; badge scoped to their numbers) ───── --}}
+        @if ($me->hasPermission('whatsapp.view'))
+            @php
+                $waIds = \App\Models\WhatsappAccount::accessibleBy($me)->pluck('id');
+                $waUnread = $waIds->isEmpty() ? 0 : \App\Models\WhatsappChat::whereIn('account_id', $waIds)->where('unread_count', '>', 0)->count();
+            @endphp
+            <a href="{{ route('admin.whatsapp.index') }}" class="relative grid h-10 w-10 place-items-center rounded-lg text-emerald-600 hover:bg-emerald-50" title="WhatsApp" aria-label="WhatsApp">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.5 14.2c-.2.6-1.2 1.2-1.7 1.2-.4 0-1 .1-3.4-.9-2.9-1.2-4.7-4.1-4.9-4.3-.1-.2-1.1-1.5-1.1-2.8 0-1.3.7-2 .9-2.2.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6c-.2.2-.3.4-.1.7.2.3.9 1.4 1.9 2.3 1.3 1.1 2.3 1.5 2.6 1.6.2.1.4.1.6-.1l.7-.9c.2-.2.4-.2.6-.1l1.9.9c.3.1.5.2.5.4.1.2.1.9-.1 1.5Z"/></svg>
+                <span data-nav-badge="whatsapp" class="{{ $waUnread ? '' : 'hidden' }} absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">{{ $waUnread > 99 ? '99+' : $waUnread }}</span>
+            </a>
+        @endif
+
         {{-- ───── Teams message notifications (live + sound) ───── --}}
         @php
-            $me = auth()->user();
             $chatUnread = \App\Http\Controllers\Admin\ChatController::unreadTotal($me);
             $chatRecent = \App\Http\Controllers\Admin\ChatController::recentUnread($me);
         @endphp

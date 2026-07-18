@@ -105,6 +105,24 @@
                     });
                     @endif
 
+                    // Live WhatsApp badge (only users with access; count scoped to their numbers).
+                    @if (auth()->user()->hasPermission('whatsapp.view'))
+                    (function () {
+                        const refreshWa = () => {
+                            fetch(@js(route('admin.whatsapp.unread-count')), { headers: { 'Accept': 'application/json' } })
+                                .then(r => r.ok ? r.json() : null)
+                                .then(d => {
+                                    if (!d) return;
+                                    document.querySelectorAll('[data-nav-badge="whatsapp"]').forEach(b => {
+                                        b.textContent = d.count > 99 ? '99+' : d.count;
+                                        b.classList.toggle('hidden', !d.count);
+                                    });
+                                }).catch(() => {});
+                        };
+                        pusher.subscribe('whatsapp.inbox').bind('message', () => refreshWa());
+                    })();
+                    @endif
+
                     // Live Team-Chat badge — every panel user has a personal channel.
                     // The topbar bell owns both its own count and the sidebar "Teams" badge.
                     pusher.subscribe('chat.user.' + window.Razin.userId).bind('message.posted', function (d) {
