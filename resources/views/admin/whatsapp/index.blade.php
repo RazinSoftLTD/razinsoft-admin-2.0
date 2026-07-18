@@ -136,9 +136,6 @@
                             <button type="button" @click="markUnread()" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Mark as unread">
                                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
                             </button>
-                            <button type="button" @click="showInfo = !showInfo" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Contact info">
-                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5M12 8h.01"/></svg>
-                            </button>
                             @if ($canAssign)
                                 <select @change="assign($event.target.value)" class="h-9 rounded-lg border-gray-200 text-xs">
                                     <option value="">Unassigned</option>
@@ -148,6 +145,11 @@
                             <select @change="setStatus($event.target.value)" class="h-9 rounded-lg border-gray-200 text-xs">
                                 @foreach (\App\Models\WhatsappChat::STATUSES as $k => $v)<option value="{{ $k }}" :selected="active.status === '{{ $k }}'">{{ $v }}</option>@endforeach
                             </select>
+                            {{-- Navigation drawer toggle for the contact info panel (hidden by default) --}}
+                            <button type="button" @click="showInfo = !showInfo" class="grid h-9 w-9 place-items-center rounded-lg transition hover:bg-gray-100"
+                                    :class="showInfo ? 'bg-emerald-50 text-emerald-600' : 'text-gray-400 hover:text-[var(--color-heading)]'" title="Contact details">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path stroke-linecap="round" d="M15 4v16"/></svg>
+                            </button>
                         </div>
                     </div>
 
@@ -591,7 +593,7 @@
         function waInbox() {
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
-                showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
+                showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
                 editingId: null, editDraft: '',
