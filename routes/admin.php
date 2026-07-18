@@ -522,6 +522,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Activity → Employee (every employee's actions).
         Route::middleware('permission:activity.employee')->group(function () {
             Route::get('activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-logs');
+            Route::get('activity-logs/{employee}', [\App\Http\Controllers\Admin\ActivityLogController::class, 'show'])->whereNumber('employee')->name('activity-logs.show');
         });
 
         // Settings → Bin (recoverable clients + invoices; super admin only, enforced in the controller).
