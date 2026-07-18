@@ -217,7 +217,7 @@ class WhatsappController extends Controller
             }
         }
 
-        $message->update(['reaction' => $emoji ?: null]);
+        $message->update(['my_reaction' => $emoji ?: null]);
 
         return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
     }
@@ -405,6 +405,8 @@ class WhatsappController extends Controller
             'edited' => (bool) $m->edited_at,
             'deleted' => (bool) $m->deleted_at,
             'reaction' => $m->reaction,
+            'my_reaction' => $m->my_reaction,
+            'ts' => $at->timestamp,
             'at' => $at->format('h:i A'),
             'date_key' => $at->toDateString(),
             'day' => $at->isToday() ? 'Today' : ($at->isYesterday() ? 'Yesterday' : $at->format('d F Y')),

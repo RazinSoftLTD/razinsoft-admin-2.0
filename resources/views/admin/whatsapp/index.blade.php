@@ -140,28 +140,39 @@
                                 <div class="flex flex-col" :class="m.direction === 'out' ? 'items-end' : 'items-start'">
                                     <div class="group relative rounded-lg px-3.5 pb-2 pt-2 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]" style="max-width:72%;"
                                          :class="m.direction === 'out' ? 'wa-out text-gray-800' : 'wa-in text-gray-800'"
-                                         x-data="{ react: false }">
+                                         x-data="{ react: false, more: false }">
                                         @if ($canReply)
                                         {{-- Hover actions (react / edit / delete) — absolutely placed so they never shift the bubble --}}
                                         <div class="absolute flex items-center gap-1 opacity-0 transition group-hover:opacity-100"
                                              :style="(m.direction === 'out' ? 'right:100%;padding-right:.4rem;' : 'left:100%;padding-left:.4rem;') + 'top:50%;transform:translateY(-50%);z-index:20'"
                                              x-show="!m.deleted && editingId !== m.id">
                                             <div class="relative">
-                                                <button type="button" @click="react = !react" title="React" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-emerald-600">
+                                                <button type="button" @click="react = !react; more = false" title="React" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-emerald-600">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.9.9 2.1 1.5 3.5 1.5s2.6-.6 3.5-1.5"/></svg>
                                                 </button>
-                                                <div x-show="react" x-cloak @click.outside="react = false" class="absolute flex gap-1 rounded-full border border-gray-100 bg-white px-2 py-1 shadow-lg" :style="(m.direction === 'out' ? 'right:0;' : 'left:0;') + 'bottom:2.4rem;z-index:30'">
-                                                    <template x-for="e in ['👍','❤️','😂','😮','😢','🙏']" :key="e">
-                                                        <button type="button" @click="sendReaction(m, e); react = false" class="text-lg leading-none transition hover:scale-125" x-text="e"></button>
+                                                {{-- quick reaction row --}}
+                                                <div x-show="react" x-cloak @click.outside="react = false; more = false" class="absolute flex items-center gap-1 rounded-full border border-gray-100 bg-white px-2 py-1 shadow-lg" :style="(m.direction === 'out' ? 'right:0;' : 'left:0;') + 'bottom:2.4rem;z-index:30'">
+                                                    <template x-for="e in quickEmojis" :key="e">
+                                                        <button type="button" @click="sendReaction(m, e); react = false" class="rounded-full px-0.5 text-lg leading-none transition hover:scale-125" :class="m.my_reaction === e ? 'bg-emerald-100' : ''" x-text="e"></button>
+                                                    </template>
+                                                    <button type="button" @click="more = !more" title="More" class="grid h-6 w-6 place-items-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200">
+                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                                                    </button>
+                                                </div>
+                                                {{-- full emoji grid (more) --}}
+                                                <div x-show="more" x-cloak @click.outside="more = false" class="absolute rounded-xl border border-gray-100 bg-white p-2 shadow-xl"
+                                                     :style="'width:16rem;max-height:14rem;overflow-y:auto;display:grid;grid-template-columns:repeat(8,1fr);gap:.15rem;bottom:2.4rem;z-index:40;' + (m.direction === 'out' ? 'right:0' : 'left:0')">
+                                                    <template x-for="e in emojiList" :key="e">
+                                                        <button type="button" @click="sendReaction(m, e); react = false; more = false" class="rounded p-0.5 text-lg leading-none transition hover:scale-125 hover:bg-gray-50" x-text="e"></button>
                                                     </template>
                                                 </div>
                                             </div>
-                                            <template x-if="m.direction === 'out' && m.type === 'text'">
+                                            <template x-if="m.direction === 'out' && m.type === 'text' && canModify(m)">
                                                 <button type="button" @click="startEdit(m)" title="Edit" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-gray-700">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
                                                 </button>
                                             </template>
-                                            <template x-if="m.direction === 'out'">
+                                            <template x-if="m.direction === 'out' && canModify(m)">
                                                 <button type="button" @click="deleteMsg(m)" title="Delete" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-red-500">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
                                                 </button>
@@ -222,11 +233,14 @@
                                                 </svg>
                                             </template>
                                         </span>
-                                        {{-- emoji reaction badge --}}
-                                        <template x-if="m.reaction">
-                                            <span class="absolute grid place-items-center rounded-full border border-gray-100 bg-white text-sm shadow"
-                                                  :style="'height:1.45rem;min-width:1.45rem;padding:0 .2rem;bottom:-.7rem;' + (m.direction === 'out' ? 'right:.4rem' : 'left:.4rem')"
-                                                  x-text="m.reaction"></span>
+                                        {{-- emoji reaction badge(s) — both parties, WhatsApp-style --}}
+                                        <template x-if="m.reaction || m.my_reaction">
+                                            <span class="absolute inline-flex items-center gap-0.5 rounded-full border border-gray-100 bg-white text-sm shadow"
+                                                  :style="'height:1.45rem;padding:0 .3rem;bottom:-.7rem;' + (m.direction === 'out' ? 'right:.4rem' : 'left:.4rem')">
+                                                <template x-for="e in [...new Set([m.my_reaction, m.reaction].filter(Boolean))]" :key="e">
+                                                    <span class="leading-none" x-text="e"></span>
+                                                </template>
+                                            </span>
                                         </template>
                                     </div>
                                     {{-- Under outgoing messages: who replied + (on the last one) Seen/Delivered status --}}
@@ -483,6 +497,8 @@
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, _chatReq: 0,
                 editingId: null, editDraft: '',
+                quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
+                emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],
                 unreadCount: {{ $stats['unread'] }},
                 filters: [
                     { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' },
@@ -608,9 +624,11 @@
                         } else { alert((await r.json()).error || 'Could not delete the message.'); }
                     } catch { alert('Could not delete the message.'); }
                 },
+                // Own message younger than 15 min can still be edited / deleted (WhatsApp's window).
+                canModify(m) { return m.ts && (Date.now() / 1000 - m.ts) < 900; },
                 async sendReaction(m, emoji) {
-                    // Toggle off if the same emoji is tapped again.
-                    const value = (m.reaction === emoji) ? '' : emoji;
+                    // Toggle off if our own reaction is the same emoji.
+                    const value = (m.my_reaction === emoji) ? '' : emoji;
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/messages/' + m.id + '/react', { emoji: value });
                     if (r.ok) {
                         const d = (await r.json()).message;

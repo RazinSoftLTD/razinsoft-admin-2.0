@@ -132,7 +132,9 @@ class WhatsappGatewayController extends Controller
         if ($id) {
             $message = WhatsappMessage::where('wa_message_id', $id)->first();
             if ($message) {
-                $message->update(['reaction' => $request->input('emoji') ?: null]);
+                // Our own reaction (from the phone/another device) vs the other party's.
+                $column = $request->boolean('from_me') ? 'my_reaction' : 'reaction';
+                $message->update([$column => $request->input('emoji') ?: null]);
                 try {
                     event(new WhatsappMessageReceived($message->chat_id, $message->id, 'reaction'));
                 } catch (\Throwable) {

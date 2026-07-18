@@ -122,7 +122,7 @@ async function start() {
   // ---- emoji reactions (delivered on their own event) ----
   sock.ev.on('messages.reaction', (reactions) => {
     for (const r of reactions) {
-      push({ event: 'reaction', id: r.key?.id, emoji: r.reaction?.text || '' })
+      push({ event: 'reaction', id: r.key?.id, emoji: r.reaction?.text || '', from_me: !!r.reaction?.key?.fromMe })
     }
   })
 
