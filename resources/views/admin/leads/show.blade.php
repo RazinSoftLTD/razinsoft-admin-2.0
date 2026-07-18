@@ -18,6 +18,12 @@
             <h1 class="mt-2 text-xl font-bold text-[var(--color-heading)]">{{ $lead->full_name }} <span class="text-sm font-normal text-[var(--color-muted)]">{{ $lead->lead_code }}</span></h1>
         </div>
         <div class="flex items-center gap-2">
+            @if (! empty($whatsappChat) && auth()->user()->hasPermission('whatsapp.view'))
+                <a href="{{ route('admin.whatsapp.index', ['chat' => $whatsappChat->id]) }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.5 14.2c-.2.6-1.2 1.2-1.7 1.2-.4 0-1 .1-3.4-.9-2.9-1.2-4.7-4.1-4.9-4.3-.1-.2-1.1-1.5-1.1-2.8 0-1.3.7-2 .9-2.2.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6c-.2.2-.3.4-.1.7.2.3.9 1.4 1.9 2.3 1.3 1.1 2.3 1.5 2.6 1.6.2.1.4.1.6-.1l.7-.9c.2-.2.4-.2.6-.1l1.9.9c.3.1.5.2.5.4.1.2.1.9-.1 1.5Z"/></svg>
+                    WhatsApp Chat
+                </a>
+            @endif
             <a href="{{ route('admin.leads.edit', $lead) }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Edit</a>
             <a href="{{ route('admin.deals.create', ['lead' => $lead->id]) }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Create Deal</a>
             @if ($lead->isConverted())

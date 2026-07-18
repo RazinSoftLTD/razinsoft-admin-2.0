@@ -316,6 +316,79 @@ class WhatsappController extends Controller
         return $palette[$id % count($palette)];
     }
 
+    /** Convert this WhatsApp contact into a CRM Lead (or link to an existing one with the same phone). */
+    public function convertToLead(Request $request, WhatsappChat $chat)
+    {
+        if ($chat->isGroup()) {
+            return response()->json(['error' => 'Group chats cannot be converted to a lead.'], 422);
+        }
+
+        // Split the WhatsApp number into dial code + national number for the lead form.
+        [$dial, $national] = $this->splitNumber($chat->realNumber());
+        $email = $chat->client?->email;
+
+        // Reuse an existing lead with the same phone (or email) — never create a duplicate.
+        $lead = null;
+        if ($national) {
+            $lead = \App\Models\Lead::where('phone', $national)
+                ->where(fn ($q) => $q->where('dial_code', $dial)->orWhereNull('dial_code'))->first();
+        }
+        if (! $lead && $email) {
+            $lead = \App\Models\Lead::where('email', $email)->first();
+        }
+
+        $status = in_array($chat->lead_quality, ['qualified', 'unqualified'], true) ? $chat->lead_quality : 'new';
+
+        if (! $lead) {
+            $lead = \App\Models\Lead::create([
+                'full_name' => $chat->displayName(),
+                'email' => $email,
+                'phone' => $national,
+                'dial_code' => $dial,
+                'is_whatsapp' => true,
+                'lead_source' => 'WhatsApp',
+                'lead_status' => $status,
+                'notes' => $chat->interested_product ? 'Interested in: '.$chat->interested_product : null,
+                'assigned_to' => $chat->assigned_to,
+                'added_by' => $request->user()->id,
+            ]);
+        }
+
+        $chat->update(['lead_id' => $lead->id]);
+
+        return response()->json([
+            'lead' => ['id' => $lead->id, 'code' => $lead->lead_code, 'url' => route('admin.leads.show', $lead)],
+            'created' => $lead->wasRecentlyCreated,
+        ]);
+    }
+
+    /** The linked CRM lead (id/code/url) if this chat was converted, else null. */
+    private function leadLink(WhatsappChat $c): ?array
+    {
+        if (! $c->lead_id) {
+            return null;
+        }
+        $lead = \App\Models\Lead::find($c->lead_id);
+
+        return $lead ? ['id' => $lead->id, 'code' => $lead->lead_code, 'url' => route('admin.leads.show', $lead)] : null;
+    }
+
+    /** Split an E.164 digit string into [dialCode, nationalNumber] using libphonenumber. */
+    private function splitNumber(?string $number): array
+    {
+        if (! $number) {
+            return [null, null];
+        }
+        try {
+            $util = \libphonenumber\PhoneNumberUtil::getInstance();
+            $proto = $util->parse('+'.$number, null);
+
+            return ['+'.$proto->getCountryCode(), (string) $proto->getNationalNumber()];
+        } catch (\Throwable) {
+            return [null, $number];
+        }
+    }
+
     /** Product names (live) plus any custom options an admin added in WhatsApp settings. */
     private function interestOptions(): array
     {
@@ -388,6 +461,7 @@ class WhatsappController extends Controller
             'lead_quality' => $c->lead_quality,
             'interested_product' => $c->interested_product,
             'raw_name' => $c->name,
+            'lead' => $this->leadLink($c),
             'client' => $c->client ? ['name' => $c->client->name, 'email' => $c->client->email, 'phone' => $c->client->phone, 'company' => $c->client->company] : null,
             'notes' => $c->notes->map(fn ($n) => ['id' => $n->id, 'body' => $n->body, 'user' => $n->user?->name, 'at' => $n->created_at->diffForHumans()]),
         ]);

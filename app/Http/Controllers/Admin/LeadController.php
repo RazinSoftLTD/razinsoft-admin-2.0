@@ -403,8 +403,10 @@ class LeadController extends Controller
     {
         $this->authorizeLead($request, $lead);
         $lead->load('assignee:id,name', 'convertedClient:id,name,email', 'deals');
+        // A WhatsApp conversation linked to this lead (if it was converted from WhatsApp).
+        $whatsappChat = \App\Models\WhatsappChat::where('lead_id', $lead->id)->first();
 
-        return view('admin.leads.show', compact('lead'));
+        return view('admin.leads.show', compact('lead', 'whatsappChat'));
     }
 
     /** Convert a lead into a Client (customer user), reusing an existing client with the same email. */

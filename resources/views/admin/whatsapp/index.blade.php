@@ -413,6 +413,26 @@
                                     <span x-show="!savingDetails">Save details</span>
                                     <span x-show="savingDetails" x-cloak>Saving…</span>
                                 </button>
+
+                                @if (auth()->user()->hasPermission('leads.create') || auth()->user()->isAdmin())
+                                    {{-- Convert to CRM lead (or open the linked lead) --}}
+                                    <div class="mt-1 border-t border-gray-100 pt-3" x-show="!active.is_group">
+                                        <template x-if="active.lead">
+                                            <a :href="active.lead.url" class="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 3h7l5 5v13H7z"/></svg>
+                                                View Lead <span x-text="active.lead.code"></span>
+                                            </a>
+                                        </template>
+                                        <template x-if="!active.lead">
+                                            <button type="button" @click="convertLead()" :disabled="convertingLead"
+                                                    class="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                                <span x-show="!convertingLead">Convert to Lead</span>
+                                                <span x-show="convertingLead" x-cloak>Converting…</span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 
@@ -495,7 +515,7 @@
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
-                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, _chatReq: 0,
+                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0,
                 editingId: null, editDraft: '',
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],
@@ -531,6 +551,9 @@
                 },
                 init() {
                     this.loadChats();
+                    // Deep-link: open a specific chat when arrived from a CRM lead (?chat=ID).
+                    const wanted = new URLSearchParams(window.location.search).get('chat');
+                    if (wanted) { this.showInfo = true; this.openChat(parseInt(wanted, 10)); }
                     // Live updates via Reverb.
                     const wait = setInterval(() => {
                         if (window.Razin && window.Razin.pusher) {
@@ -668,6 +691,16 @@
                 async toggleLabel(id) {
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/label', { label_id: id });
                     if (r.ok) { this.active.label_ids = (await r.json()).labels.map(l => l.id); this.loadChats(); }
+                },
+                async convertLead() {
+                    if (this.convertingLead || !this.active) return;
+                    this.convertingLead = true;
+                    try {
+                        const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/convert-lead', {});
+                        if (r.ok) { this.active.lead = (await r.json()).lead; }
+                        else { alert((await r.json()).error || 'Could not convert to lead.'); }
+                    } catch { alert('Could not convert to lead.'); }
+                    finally { this.convertingLead = false; }
                 },
                 async saveDetails() {
                     if (this.savingDetails || !this.active) return;
