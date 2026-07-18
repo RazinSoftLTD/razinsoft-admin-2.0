@@ -247,15 +247,15 @@
                                         </template>
                                         {{-- media --}}
                                         <template x-if="m.media && m.type === 'image'">
-                                            {{-- Don't auto-download: show a placeholder, load the photo only on click (own sends show directly). --}}
-                                            <div class="mb-1" x-data="{ shown: m.direction === 'out' }">
-                                                <template x-if="!shown">
-                                                    <button type="button" @click="shown = true" class="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-black/5 px-4 py-3 text-left text-gray-600 transition hover:bg-black/10" style="max-width:260px;width:200px">
+                                            {{-- Don't auto-download: placeholder → load on click. State lives on the parent (by id) so it survives live refreshes. --}}
+                                            <div class="mb-1">
+                                                <template x-if="!(m.direction === 'out' || shownImages.includes(m.id))">
+                                                    <button type="button" @click="if (!shownImages.includes(m.id)) shownImages.push(m.id)" class="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-black/5 px-4 py-3 text-left text-gray-600 transition hover:bg-black/10" style="width:200px">
                                                         <svg class="h-6 w-6 shrink-0 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path stroke-linecap="round" stroke-linejoin="round" d="m4 18 5-5 4 4 3-3 4 4"/></svg>
                                                         <span><span class="block text-sm font-medium">View photo</span><span class="block text-[10px] text-gray-400">Tap to load</span></span>
                                                     </button>
                                                 </template>
-                                                <template x-if="shown">
+                                                <template x-if="m.direction === 'out' || shownImages.includes(m.id)">
                                                     <div class="group relative">
                                                         <a :href="m.media" target="_blank"><img :src="m.media" loading="lazy" decoding="async" class="max-h-80 w-full rounded-lg bg-gray-100 object-cover" style="max-width:260px;min-height:80px"></a>
                                                         <a :href="m.media" :download="m.media_name || 'image'" class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/45 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/65" title="Download">
@@ -670,7 +670,7 @@
                 showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
-                mentionOpen: false, mentionJids: [],
+                mentionOpen: false, mentionJids: [], shownImages: [],
                 accMenu: false,
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
@@ -764,7 +764,7 @@
                         lead_quality: d.chat.lead_quality || '',
                         interested_product: d.chat.interested_product || '',
                     };
-                    if (!silent) { const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
+                    if (!silent) { this.shownImages = []; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
                     if (atBottom) this.scrollBottom();
                 },
