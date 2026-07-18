@@ -21,8 +21,39 @@
         <aside class="flex w-80 shrink-0 flex-col border-r border-gray-100">
             <div class="border-b border-gray-100 p-4">
                 <div class="flex items-center justify-between">
-                    <h1 class="text-base font-bold text-[var(--color-heading)]">WhatsApp</h1>
-                    <div class="flex items-center gap-2">
+                    {{-- Account (number) switcher dropdown --}}
+                    <div class="relative min-w-0">
+                        <button type="button" @click="accMenu = !accMenu" class="flex min-w-0 items-center gap-1.5 text-left">
+                            <span class="min-w-0">
+                                <span class="flex items-center gap-1 text-base font-bold text-[var(--color-heading)]">
+                                    <span class="truncate" x-text="currentAccount().name || 'WhatsApp'"></span>
+                                    <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="accMenu ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                </span>
+                                <span class="block truncate text-[10px] text-gray-400" x-text="currentAccount().number ? ('+' + currentAccount().number) : 'not connected'"></span>
+                            </span>
+                        </button>
+                        <div x-show="accMenu" x-cloak @click.outside="accMenu = false" class="absolute left-0 top-11 z-40 w-64 overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-xl">
+                            <p class="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">WhatsApp numbers</p>
+                            <template x-for="a in accountsList" :key="a.id">
+                                <button type="button" @click="accountId = a.id; accMenu = false; active = null; loadChats()"
+                                        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-gray-50"
+                                        :class="accountId === a.id ? 'bg-emerald-50' : ''">
+                                    <span class="h-2 w-2 shrink-0 rounded-full" :class="a.connected ? 'bg-emerald-500' : 'bg-gray-300'"></span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-sm font-semibold text-[var(--color-heading)]" x-text="a.name"></span>
+                                        <span class="block truncate text-[10px] text-gray-400" x-text="a.number ? ('+' + a.number) : 'not connected'"></span>
+                                    </span>
+                                    <svg x-show="accountId === a.id" class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
+                                </button>
+                            </template>
+                            @if (auth()->user()->hasPermission('whatsapp.settings') || auth()->user()->isAdmin())
+                                <a href="{{ route('admin.whatsapp-settings') }}" class="mt-1 flex items-center gap-2 border-t border-gray-100 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Manage numbers
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
                         <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">{{ $stats['open'] }} open</span>
                         @if ($canReply)
                             <button type="button" @click="newChat.open = true; newChat.number = ''; newChat.error = ''" title="New chat" class="grid h-8 w-8 place-items-center rounded-full bg-emerald-500 text-white transition hover:bg-emerald-600">
@@ -31,21 +62,6 @@
                         @endif
                     </div>
                 </div>
-                @if (count($accounts) > 1)
-                    {{-- Account (number) switcher --}}
-                    <div class="relative mt-3">
-                        <select x-model.number="accountId" @change="loadChats()" class="h-9 w-full rounded-lg border-gray-200 bg-gray-50 pl-3 text-sm font-medium focus:border-emerald-400 focus:ring-emerald-400">
-                            @foreach ($accounts as $acc)
-                                <option value="{{ $acc->id }}">{{ $acc->name }}{{ $acc->display_number ? '  ·  +'.$acc->display_number : '' }}{{ $acc->isConnected() ? '' : '  (offline)' }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                @elseif (count($accounts) === 1)
-                    <p class="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
-                        <span class="h-1.5 w-1.5 rounded-full {{ $accounts[0]->isConnected() ? 'bg-emerald-500' : 'bg-gray-300' }}"></span>
-                        {{ $accounts[0]->name }}{{ $accounts[0]->display_number ? ' · +'.$accounts[0]->display_number : '' }}
-                    </p>
-                @endif
                 <div class="relative mt-3">
                     <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/></svg>
                     <input type="text" x-model="search" @input.debounce.300ms="loadChats()" placeholder="Search name, number or message…" class="h-9 w-full rounded-lg border-gray-200 pl-9 pr-8 text-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]">
@@ -616,7 +632,10 @@
                 showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
+                accMenu: false,
                 accountId: @js($accounts->first()->id ?? null),
+                accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected()])->values()),
+                currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
                 editingId: null, editDraft: '',
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],

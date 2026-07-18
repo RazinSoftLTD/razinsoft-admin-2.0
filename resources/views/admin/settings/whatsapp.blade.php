@@ -4,18 +4,8 @@
 @section('content')
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp API</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Settings &rsaquo; WhatsApp Business Cloud API — connect, configure and test.</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <a href="{{ route('admin.whatsapp-connection') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M20 20h.01M17 20h.01M20 17h.01"/></svg>
-                Connect via QR
-            </a>
-            <span class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold {{ $settings->isConnected() ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500' }}">
-                <span class="h-2 w-2 rounded-full {{ $settings->isConnected() ? 'bg-emerald-500' : 'bg-gray-400' }}"></span>
-                {{ $settings->isConnected() ? 'Connected'.($settings->display_number ? ' · '.$settings->display_number : '') : 'Not connected' }}
-            </span>
+            <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Config</h1>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Gateway settings, connected numbers, labels &amp; quick replies. Connect each number from the list below.</p>
         </div>
     </div>
 
