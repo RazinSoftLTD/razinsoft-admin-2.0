@@ -262,6 +262,91 @@ class WhatsappController extends Controller
         return response()->json(['note' => ['id' => $note->id, 'body' => $note->body, 'user' => $request->user()->name, 'at' => $note->created_at->diffForHumans()]]);
     }
 
+    /** Start a brand-new conversation with a phone number that isn't in the inbox yet. */
+    public function startChat(Request $request)
+    {
+        $data = $request->validate([
+            'dial_code' => ['nullable', 'string', 'max:8'],
+            'phone' => ['required', 'string', 'max:32'],
+        ]);
+        $digits = preg_replace('/\D/', '', trim($data['dial_code'] ?? '').trim($data['phone']));
+        if (strlen($digits) < 8) {
+            return response()->json(['error' => 'Enter a valid phone number with country code.'], 422);
+        }
+
+        $settings = WhatsappSetting::current();
+        if (! $settings->isConfigured()) {
+            return response()->json(['error' => 'WhatsApp is not connected.'], 422);
+        }
+
+        // Confirm the number is on WhatsApp and get its canonical address.
+        $jid = $digits.'@s.whatsapp.net';
+        try {
+            $check = app(WhatsappService::class)->checkNumber($digits);
+            if (isset($check['exists']) && $check['exists'] === false) {
+                return response()->json(['error' => 'This number is not on WhatsApp.'], 422);
+            }
+            $jid = $check['jid'] ?: $jid;
+        } catch (\Throwable) {
+            // Check unavailable — proceed with the plain number.
+        }
+
+        $chat = WhatsappChat::firstOrCreate(['wa_id' => $jid], [
+            'phone' => $digits,
+            'chat_type' => 'single',
+            'client_id' => User::clients()->where('phone', 'like', '%'.substr($digits, -9))->value('id'),
+            'status' => 'open',
+            'unread_count' => 0,
+        ]);
+
+        return response()->json(['chat' => $this->chatSummary($chat), 'id' => $chat->id]);
+    }
+
+    /** Group members enriched with country + timezone (numbers only resolvable for non-LID participants). */
+    public function groupMembers(Request $request, WhatsappChat $chat)
+    {
+        if (! $chat->isGroup()) {
+            return response()->json(['error' => 'Not a group chat.'], 422);
+        }
+        try {
+            $info = app(WhatsappService::class)->groupInfo($chat->wa_id);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        $members = collect($info['participants'] ?? [])->map(function ($p) {
+            $jid = $p['id'] ?? '';
+            $digits = str_contains($jid, '@s.whatsapp.net') ? preg_replace('/@.*/', '', $jid) : null;
+            $meta = $this->numberMeta($digits);
+
+            return [
+                'id' => $jid,
+                'phone' => $digits ? '+'.$digits : null,
+                'admin' => $p['admin'] ?? null,
+                'country' => $meta['country'],
+                'timezone' => $meta['timezone'],
+            ];
+        })->values();
+
+        return response()->json([
+            'subject' => $info['subject'] ?? null,
+            'desc' => $info['desc'] ?? null,
+            'count' => $members->count(),
+            'members' => $members,
+        ]);
+    }
+
+    /** Country + timezone for a raw E.164 digit string (null-safe). */
+    private function numberMeta(?string $digits): array
+    {
+        if (! $digits) {
+            return ['country' => null, 'timezone' => null];
+        }
+        $chat = new WhatsappChat(['wa_id' => $digits.'@s.whatsapp.net']);
+
+        return ['country' => $chat->country(), 'timezone' => $chat->timezone()];
+    }
+
     /** Update the CRM-ish contact fields: manual phone, lead quality, interested product. */
     public function updateDetails(Request $request, WhatsappChat $chat)
     {
@@ -274,6 +359,15 @@ class WhatsappController extends Controller
 
         // Normalise a manually entered number to digits (keep it E.164-ish, no spaces/dashes).
         $phone = isset($data['phone']) ? preg_replace('/[^\d]/', '', $data['phone']) : null;
+
+        // For a group, push the new subject to WhatsApp too (requires admin).
+        if ($chat->isGroup() && filled($data['name'] ?? null) && $data['name'] !== $chat->name) {
+            try {
+                app(WhatsappService::class)->setGroupSubject($chat->wa_id, $data['name']);
+            } catch (\Throwable $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+        }
 
         $chat->update([
             'name' => filled($data['name'] ?? null) ? $data['name'] : null,
@@ -304,6 +398,15 @@ class WhatsappController extends Controller
         }
         $path = $request->file('avatar')->store('whatsapp/avatars', 'public');
         $chat->update(['avatar_path' => $path]);
+
+        // For a group, also set the picture on WhatsApp itself (requires admin).
+        if ($chat->isGroup()) {
+            try {
+                app(WhatsappService::class)->setGroupPicture($chat->wa_id, asset('storage/'.$path));
+            } catch (\Throwable $e) {
+                return response()->json(['avatar' => $chat->avatarUrl(), 'warning' => 'Saved locally, but WhatsApp update failed: '.$e->getMessage()]);
+            }
+        }
 
         return response()->json(['avatar' => $chat->avatarUrl()]);
     }

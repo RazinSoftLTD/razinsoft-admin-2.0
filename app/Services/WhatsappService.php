@@ -88,6 +88,26 @@ class WhatsappService
         $this->provider()->sendReaction($to, $waMessageId, $emoji, $targetFromMe);
     }
 
+    public function checkNumber(string $number): array
+    {
+        return $this->provider()->checkNumber($number);
+    }
+
+    public function groupInfo(string $jid): array
+    {
+        return $this->provider()->groupInfo($jid);
+    }
+
+    public function setGroupSubject(string $jid, string $subject): void
+    {
+        $this->provider()->setGroupSubject($jid, $subject);
+    }
+
+    public function setGroupPicture(string $jid, string $url): void
+    {
+        $this->provider()->setGroupPicture($jid, $url);
+    }
+
     /** Send a media message via the active driver. Returns the message id, or throws. */
     public function sendMedia(string $to, string $type, string $link, ?string $caption = null, ?string $filename = null): string
     {

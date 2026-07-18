@@ -117,6 +117,42 @@ class BaileysProvider implements WhatsappProvider
         }
     }
 
+    public function checkNumber(string $number): array
+    {
+        $res = $this->client()->post('/check', ['number' => $number]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to check the number.');
+        }
+
+        return ['exists' => (bool) $res->json('exists'), 'jid' => $res->json('jid')];
+    }
+
+    public function groupInfo(string $jid): array
+    {
+        $res = $this->client()->timeout(30)->post('/group-info', ['jid' => $jid]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to load group info.');
+        }
+
+        return $res->json();
+    }
+
+    public function setGroupSubject(string $jid, string $subject): void
+    {
+        $res = $this->client()->post('/group-subject', ['jid' => $jid, 'subject' => $subject]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to update the group name.');
+        }
+    }
+
+    public function setGroupPicture(string $jid, string $url): void
+    {
+        $res = $this->client()->post('/group-picture', ['jid' => $jid, 'url' => $url]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to update the group picture.');
+        }
+    }
+
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array
     {
         $res = $this->client()->post('/send', array_filter([

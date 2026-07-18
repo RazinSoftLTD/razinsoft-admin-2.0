@@ -251,6 +251,61 @@ app.post('/delete', async (req, res) => {
   }
 })
 
+// Check whether a number is on WhatsApp; returns its canonical jid.
+app.post('/check', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { number } = req.body
+  try {
+    const r = await sock.onWhatsApp(String(number).replace(/\D/g, ''))
+    res.json({ exists: !!(r && r[0]?.exists), jid: r?.[0]?.jid || null })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Group metadata: subject, description, picture, participants.
+app.post('/group-info', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { jid } = req.body
+  try {
+    const meta = await sock.groupMetadata(jid)
+    let picture = null
+    try { picture = await sock.profilePictureUrl(jid, 'image') } catch {}
+    res.json({
+      subject: meta.subject || null,
+      desc: meta.desc || null,
+      picture,
+      participants: (meta.participants || []).map((p) => ({ id: p.id, admin: p.admin || null })),
+    })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Update a group's subject (name). Requires being a group admin.
+app.post('/group-subject', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { jid, subject } = req.body
+  try {
+    await sock.groupUpdateSubject(jid, subject)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Update a group's (or contact's) profile picture from a URL. Requires admin for groups.
+app.post('/group-picture', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { jid, url } = req.body
+  try {
+    await sock.updateProfilePicture(jid, { url })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // React to a message with an emoji (empty text removes the reaction).
 app.post('/react', async (req, res) => {
   if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })

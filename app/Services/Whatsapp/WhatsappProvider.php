@@ -38,6 +38,18 @@ interface WhatsappProvider
     /** React to a message with an emoji ($emoji empty = remove). $targetFromMe = the target is our own message. */
     public function sendReaction(string $to, string $waMessageId, string $emoji, bool $targetFromMe): void;
 
+    /** Whether a number is on WhatsApp: ['exists' => bool, 'jid' => ?string]. */
+    public function checkNumber(string $number): array;
+
+    /** Group metadata: ['subject','desc','picture','participants'=>[['id','admin']]]. */
+    public function groupInfo(string $jid): array;
+
+    /** Update a group's subject (name). */
+    public function setGroupSubject(string $jid, string $subject): void;
+
+    /** Update a group's / contact's profile picture from a public URL. */
+    public function setGroupPicture(string $jid, string $url): void;
+
     /**
      * Send a media message. $source is a publicly reachable URL (Cloud API) or a local/relative
      * path the gateway can read (Baileys). Returns ['id' => provider message id].

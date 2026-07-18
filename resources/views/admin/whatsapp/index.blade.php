@@ -22,7 +22,14 @@
             <div class="border-b border-gray-100 p-4">
                 <div class="flex items-center justify-between">
                     <h1 class="text-base font-bold text-[var(--color-heading)]">WhatsApp</h1>
-                    <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">{{ $stats['open'] }} open</span>
+                    <div class="flex items-center gap-2">
+                        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">{{ $stats['open'] }} open</span>
+                        @if ($canReply)
+                            <button type="button" @click="newChat.open = true; newChat.number = ''; newChat.error = ''" title="New chat" class="grid h-8 w-8 place-items-center rounded-full bg-emerald-500 text-white transition hover:bg-emerald-600">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
+                            </button>
+                        @endif
+                    </div>
                 </div>
                 <div class="relative mt-3">
                     <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/></svg>
@@ -74,6 +81,25 @@
                 </template>
             </div>
         </aside>
+
+        {{-- New chat modal --}}
+        <div x-show="newChat.open" x-cloak @keydown.escape.window="newChat.open = false" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.4)">
+            <div @click.outside="newChat.open = false" class="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+                <div class="mb-3 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-[var(--color-heading)]">New chat</h3>
+                    <button type="button" @click="newChat.open = false" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-gray-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg></button>
+                </div>
+                <p class="mb-2 text-xs text-gray-400">Enter the phone number with country code.</p>
+                <input type="text" x-model="newChat.number" @keydown.enter="startNewChat()" placeholder="+880 1XXX-XXXXXX"
+                       class="h-11 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
+                <p x-show="newChat.error" x-cloak class="mt-1.5 text-xs font-medium text-red-500" x-text="newChat.error"></p>
+                <button type="button" @click="startNewChat()" :disabled="newChat.busy || !newChat.number.trim()"
+                        class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50">
+                    <span x-show="!newChat.busy">Start chat</span>
+                    <span x-show="newChat.busy" x-cloak>Checking…</span>
+                </button>
+            </div>
+        </div>
 
         {{-- ============ MIDDLE: thread ============ --}}
         <section class="flex min-w-0 flex-1 flex-col">
@@ -383,8 +409,48 @@
                             </dl>
                         </div>
 
+                        {{-- Group members (groups only) --}}
+                        <div x-show="active.is_group" class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                            <div class="mb-3 flex items-center justify-between">
+                                <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Members <span x-show="members.length" x-text="'(' + members.length + ')'"></span></p>
+                                <button type="button" @click="loadMembers()" :disabled="membersLoading" class="text-[11px] font-semibold text-emerald-600 hover:underline disabled:opacity-50" x-text="membersLoading ? 'Loading…' : 'Refresh'"></button>
+                            </div>
+                            <p x-show="!members.length && !membersLoading" class="text-xs text-gray-400">No member info loaded.</p>
+                            <ul class="space-y-2.5">
+                                <template x-for="mb in members" :key="mb.id">
+                                    <li class="flex items-center gap-2.5">
+                                        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500" x-text="mb.country ? mb.country.flag : '👤'"></span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-sm font-medium text-[var(--color-heading)]" x-text="mb.phone || 'Hidden number'"></p>
+                                            <p class="text-[10px] text-gray-400">
+                                                <span x-show="mb.country" x-text="mb.country ? mb.country.name : ''"></span>
+                                                <span x-show="mb.timezone" x-text="' · ' + localTime(mb.timezone)"></span>
+                                                <span x-show="mb.admin" class="ml-1 rounded bg-emerald-50 px-1 font-semibold text-emerald-600">admin</span>
+                                            </p>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+
+                        {{-- Group settings (groups only) --}}
+                        @if ($canReply)
+                            <div x-show="active.is_group" class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Group settings</p>
+                                <label class="mb-1 block text-xs font-medium text-gray-500">Group name</label>
+                                <input type="text" x-model="form.name" @keydown.enter.prevent="saveDetails()" placeholder="Group name"
+                                       class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
+                                <button type="button" @click="saveDetails()" :disabled="savingDetails"
+                                        class="mt-3 w-full rounded-lg bg-emerald-500 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50">
+                                    <span x-show="!savingDetails">Save name</span>
+                                    <span x-show="savingDetails" x-cloak>Saving…</span>
+                                </button>
+                                <p class="mt-2 text-[10px] text-gray-400">Use the camera on the photo to change the group picture. Updating the name or photo requires you to be a group admin.</p>
+                            </div>
+                        @endif
+
                         {{-- Lead info (editable) --}}
-                        <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <div x-show="!active.is_group" class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                             <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Lead info</p>
                             <div class="space-y-3">
                                 {{-- Client name --}}
@@ -527,6 +593,7 @@
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
+                newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
                 editingId: null, editDraft: '',
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],
@@ -601,6 +668,9 @@
                     const d = await r.json();
                     const atBottom = silent ? this.isAtBottom() : true;
                     this.active = d.chat; this.messages = d.messages;
+                    // Load member list for group chats.
+                    this.members = [];
+                    if (d.chat.is_group) this.loadMembers();
                     // Seed the editable lead form (strip the leading + so the input holds plain digits).
                     this.form = {
                         name: d.chat.raw_name || '',
@@ -712,6 +782,26 @@
                 async toggleLabel(id) {
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/label', { label_id: id });
                     if (r.ok) { this.active.label_ids = (await r.json()).labels.map(l => l.id); this.loadChats(); }
+                },
+                async startNewChat() {
+                    if (this.newChat.busy || !this.newChat.number.trim()) return;
+                    this.newChat.busy = true; this.newChat.error = '';
+                    try {
+                        const r = await this.post(@js(url('admin/whatsapp/new-chat')), { phone: this.newChat.number });
+                        const d = await r.json();
+                        if (r.ok) { this.newChat.open = false; this.newChat.number = ''; await this.loadChats(); this.openChat(d.id); }
+                        else { this.newChat.error = d.error || 'Could not start chat.'; }
+                    } catch { this.newChat.error = 'Could not start chat.'; }
+                    finally { this.newChat.busy = false; }
+                },
+                async loadMembers() {
+                    if (!this.active || !this.active.is_group) return;
+                    this.membersLoading = true;
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/members');
+                        if (r.ok) this.members = (await r.json()).members || [];
+                    } catch {}
+                    finally { this.membersLoading = false; }
                 },
                 async convertLead() {
                     if (this.convertingLead || !this.active) return;

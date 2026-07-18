@@ -78,6 +78,27 @@ class CloudApiProvider implements WhatsappProvider
         throw new \RuntimeException('Deleting messages is not supported on the WhatsApp Cloud API.');
     }
 
+    public function checkNumber(string $number): array
+    {
+        // The Cloud API can message any number without a pre-check.
+        return ['exists' => true, 'jid' => $number];
+    }
+
+    public function groupInfo(string $jid): array
+    {
+        throw new \RuntimeException('Group info is not available on the WhatsApp Cloud API.');
+    }
+
+    public function setGroupSubject(string $jid, string $subject): void
+    {
+        throw new \RuntimeException('Group management is not available on the WhatsApp Cloud API.');
+    }
+
+    public function setGroupPicture(string $jid, string $url): void
+    {
+        throw new \RuntimeException('Group management is not available on the WhatsApp Cloud API.');
+    }
+
     public function sendReaction(string $to, string $waMessageId, string $emoji, bool $targetFromMe): void
     {
         $res = Http::withToken($this->settings->access_token)
