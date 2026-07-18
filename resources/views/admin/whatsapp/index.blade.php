@@ -247,11 +247,22 @@
                                         </template>
                                         {{-- media --}}
                                         <template x-if="m.media && m.type === 'image'">
-                                            <div class="group relative mb-1">
-                                                <a :href="m.media" target="_blank"><img :src="m.media" loading="lazy" decoding="async" class="max-h-80 w-full rounded-lg bg-gray-100 object-cover" style="max-width:260px;min-height:80px"></a>
-                                                <a :href="m.media" :download="m.media_name || 'image'" class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/45 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/65" title="Download">
-                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>
-                                                </a>
+                                            {{-- Don't auto-download: show a placeholder, load the photo only on click (own sends show directly). --}}
+                                            <div class="mb-1" x-data="{ shown: m.direction === 'out' }">
+                                                <template x-if="!shown">
+                                                    <button type="button" @click="shown = true" class="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-black/5 px-4 py-3 text-left text-gray-600 transition hover:bg-black/10" style="max-width:260px;width:200px">
+                                                        <svg class="h-6 w-6 shrink-0 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path stroke-linecap="round" stroke-linejoin="round" d="m4 18 5-5 4 4 3-3 4 4"/></svg>
+                                                        <span><span class="block text-sm font-medium">View photo</span><span class="block text-[10px] text-gray-400">Tap to load</span></span>
+                                                    </button>
+                                                </template>
+                                                <template x-if="shown">
+                                                    <div class="group relative">
+                                                        <a :href="m.media" target="_blank"><img :src="m.media" loading="lazy" decoding="async" class="max-h-80 w-full rounded-lg bg-gray-100 object-cover" style="max-width:260px;min-height:80px"></a>
+                                                        <a :href="m.media" :download="m.media_name || 'image'" class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/45 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/65" title="Download">
+                                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>
+                                                        </a>
+                                                    </div>
+                                                </template>
                                             </div>
                                         </template>
                                         <template x-if="m.media && m.type === 'video'">
