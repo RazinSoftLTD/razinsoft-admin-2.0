@@ -226,7 +226,12 @@
                                                 <a :href="m.media" :download="m.media_name || 'video'" class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-emerald-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download</a>
                                             </div>
                                         </template>
-                                        <template x-if="m.media && m.type === 'audio'"><audio :src="m.media" controls class="mb-1 w-60"></audio></template>
+                                        <template x-if="m.media && m.type === 'audio'">
+                                            <div class="mb-1">
+                                                <audio controls preload="metadata" class="w-60"><source :src="m.media" :type="(m.media_mime || 'audio/ogg').split(';')[0]"></audio>
+                                                <a :href="m.media" :download="m.media_name || 'audio.ogg'" class="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-emerald-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download</a>
+                                            </div>
+                                        </template>
                                         <template x-if="m.media && m.type === 'document'"><a :href="m.media" :download="m.media_name || 'document'" target="_blank" class="mb-1 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2.5 text-gray-700 hover:bg-black/10" style="max-width:260px"><svg class="h-6 w-6 shrink-0 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg><span class="min-w-0"><span class="block truncate text-sm font-medium" x-text="m.media_name || 'Document'"></span><span class="text-[10px] text-gray-400">Tap to download</span></span></a></template>
                                         {{-- deleted placeholder --}}
                                         <span x-show="m.deleted" class="flex items-center gap-1.5 text-sm italic text-gray-400">

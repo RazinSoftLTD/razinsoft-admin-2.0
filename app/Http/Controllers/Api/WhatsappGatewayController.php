@@ -168,9 +168,11 @@ class WhatsappGatewayController extends Controller
 
         try {
             $data = $request->input('media');
+            // Strip the whole data-URI header up to the first comma — the mime may carry parameters
+            // (e.g. "audio/ogg; codecs=opus"), which the old `[^;]+;base64,` pattern failed to match.
             $binary = str_starts_with($data, 'http')
                 ? @file_get_contents($data)
-                : base64_decode(preg_replace('#^data:[^;]+;base64,#', '', $data));
+                : base64_decode(preg_replace('#^data:[^,]*,#', '', $data));
             if ($binary === false || $binary === null) {
                 return [null, null, null];
             }
