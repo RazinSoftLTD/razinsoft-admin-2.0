@@ -119,6 +119,13 @@ async function start() {
     for (const m of messages) await handleMessage(m, true)
   })
 
+  // ---- emoji reactions (delivered on their own event) ----
+  sock.ev.on('messages.reaction', (reactions) => {
+    for (const r of reactions) {
+      push({ event: 'reaction', id: r.key?.id, emoji: r.reaction?.text || '' })
+    }
+  })
+
   // ---- delivery / read receipts ----
   sock.ev.on('messages.update', (updates) => {
     for (const u of updates) {
@@ -150,6 +157,12 @@ async function handleMessage(m, historic = false) {
   if (!m || !m.message) return
   const jid = m.key.remoteJid || ''
   if (jid === 'status@broadcast') return // skip status/story broadcasts
+  // An emoji reaction to an existing message → attach the emoji, don't create a new message.
+  if (m.message.reactionMessage) {
+    const r = m.message.reactionMessage
+    push({ event: 'reaction', id: r.key?.id, emoji: r.text || '', from_me: !!m.key.fromMe })
+    return
+  }
   const isGroup = jid.endsWith('@g.us')
   // The thread address: the group jid for groups, else the contact's number.
   const from = isGroup ? jid : jid.replace('@s.whatsapp.net', '')

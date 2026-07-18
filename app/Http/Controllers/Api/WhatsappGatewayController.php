@@ -32,6 +32,7 @@ class WhatsappGatewayController extends Controller
             'connection' => $this->onConnection($request, $settings),
             'message' => $this->onMessage($request),
             'status' => $this->onStatus($request),
+            'reaction' => $this->onReaction($request),
             default => response()->json(['ok' => true]),
         };
     }
@@ -118,6 +119,24 @@ class WhatsappGatewayController extends Controller
             try {
                 event(new WhatsappMessageReceived($chat->id, $message->id, $fromMe ? 'out' : 'in'));
             } catch (\Throwable) {
+            }
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** An emoji reaction landed on one of our messages — attach it (empty text = reaction removed). */
+    private function onReaction(Request $request)
+    {
+        $id = $request->input('id');
+        if ($id) {
+            $message = WhatsappMessage::where('wa_message_id', $id)->first();
+            if ($message) {
+                $message->update(['reaction' => $request->input('emoji') ?: null]);
+                try {
+                    event(new WhatsappMessageReceived($message->chat_id, $message->id, 'reaction'));
+                } catch (\Throwable) {
+                }
             }
         }
 

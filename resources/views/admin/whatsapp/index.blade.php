@@ -182,11 +182,12 @@
                                         {{-- body / inline editor --}}
                                         <span x-show="m.body && editingId !== m.id" x-text="m.body" class="whitespace-pre-line break-words align-bottom"></span>
                                         <template x-if="editingId === m.id">
-                                            <div class="w-56 py-0.5">
-                                                <textarea x-model="editDraft" rows="2" @keydown.enter.prevent="saveEdit(m)" class="w-full rounded-md border-gray-300 text-sm text-gray-800 focus:border-emerald-400 focus:ring-emerald-400"></textarea>
-                                                <div class="mt-1 flex justify-end gap-3 text-xs">
-                                                    <button type="button" @click="editingId = null" class="text-gray-500 hover:text-gray-700">Cancel</button>
-                                                    <button type="button" @click="saveEdit(m)" class="font-semibold text-emerald-600">Save</button>
+                                            <div style="width:17rem; max-width:58vw;">
+                                                <textarea x-model="editDraft" rows="2" x-init="$nextTick(() => { $el.focus(); $el.setSelectionRange($el.value.length, $el.value.length); })" @keydown.enter.prevent="saveEdit(m)" @keydown.escape="editingId = null"
+                                                          class="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm leading-snug text-gray-800 shadow-inner focus:border-emerald-400 focus:ring-emerald-400"></textarea>
+                                                <div class="mt-1.5 flex items-center justify-end gap-2 text-xs">
+                                                    <button type="button" @click="editingId = null" class="rounded-md px-2.5 py-1 font-medium text-gray-500 hover:bg-black/5">Cancel</button>
+                                                    <button type="button" @click="saveEdit(m)" class="rounded-md bg-emerald-500 px-3 py-1 font-semibold text-white hover:bg-emerald-600">Save</button>
                                                 </div>
                                             </div>
                                         </template>
@@ -206,6 +207,12 @@
                                                 </svg>
                                             </template>
                                         </span>
+                                        {{-- emoji reaction badge --}}
+                                        <template x-if="m.reaction">
+                                            <span class="absolute grid place-items-center rounded-full border border-gray-100 bg-white text-sm shadow"
+                                                  :style="'height:1.45rem;min-width:1.45rem;padding:0 .2rem;bottom:-.7rem;' + (m.direction === 'out' ? 'right:.4rem' : 'left:.4rem')"
+                                                  x-text="m.reaction"></span>
+                                        </template>
                                     </div>
                                     </div>
                                     {{-- Under outgoing messages: who replied + (on the last one) Seen/Delivered status --}}

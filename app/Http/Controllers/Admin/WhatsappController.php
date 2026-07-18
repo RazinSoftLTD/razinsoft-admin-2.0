@@ -381,6 +381,7 @@ class WhatsappController extends Controller
             'status' => $m->status, 'agent' => $m->agent?->name,
             'edited' => (bool) $m->edited_at,
             'deleted' => (bool) $m->deleted_at,
+            'reaction' => $m->reaction,
             'at' => $at->format('h:i A'),
             'date_key' => $at->toDateString(),
             'day' => $at->isToday() ? 'Today' : ($at->isYesterday() ? 'Yesterday' : $at->format('d F Y')),
