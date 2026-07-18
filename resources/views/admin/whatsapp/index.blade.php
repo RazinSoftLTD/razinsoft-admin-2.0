@@ -208,7 +208,7 @@
                                     <button type="button" @click="attachOpen = !attachOpen" class="grid h-11 w-11 place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" :class="attachOpen ? 'bg-gray-200 text-emerald-600' : ''" title="Attach">
                                         <svg class="h-6 w-6 transition" :class="attachOpen ? 'rotate-45' : ''" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
                                     </button>
-                                    <div x-show="attachOpen" x-cloak x-transition @click.outside="attachOpen = false" class="absolute bottom-14 left-0 z-20 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white p-1.5 shadow-xl">
+                                    <div x-show="attachOpen" x-cloak x-transition @click.outside="attachOpen = false" style="bottom:3.5rem; left:0;" class="absolute z-30 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white p-1.5 shadow-xl">
                                         <button type="button" @click="$refs.mediaInput.click(); attachOpen = false" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50">
                                             <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sky-100 text-sky-600"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path stroke-linecap="round" stroke-linejoin="round" d="m4 18 5-5 4 4 3-3 4 4"/></svg></span>
                                             Photos &amp; Videos
