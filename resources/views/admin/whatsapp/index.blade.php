@@ -369,6 +369,17 @@
                                         <dd class="font-medium text-[var(--color-heading)]" x-text="active.at || '—'"></dd>
                                     </div>
                                 </div>
+                                {{-- Client's current local time (from their country's timezone) --}}
+                                <div class="flex items-start gap-2.5" x-show="active.timezone">
+                                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 1.5"/></svg>
+                                    <div>
+                                        <dt class="text-[10px] uppercase tracking-wide text-gray-400">Local time</dt>
+                                        <dd class="font-semibold text-[var(--color-heading)]">
+                                            <span x-text="localTime(active.timezone)"></span>
+                                            <span class="ml-1 text-[10px] font-normal text-gray-400" x-text="tzLabel(active.timezone)"></span>
+                                        </dd>
+                                    </div>
+                                </div>
                             </dl>
                         </div>
 
@@ -515,7 +526,7 @@
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
-                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0,
+                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 editingId: null, editDraft: '',
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],
@@ -554,6 +565,8 @@
                     // Deep-link: open a specific chat when arrived from a CRM lead (?chat=ID).
                     const wanted = new URLSearchParams(window.location.search).get('chat');
                     if (wanted) { this.showInfo = true; this.openChat(parseInt(wanted, 10)); }
+                    // Keep the contact's local clock ticking.
+                    setInterval(() => { this.nowTick++; }, 20000);
                     // Live updates via Reverb.
                     const wait = setInterval(() => {
                         if (window.Razin && window.Razin.pusher) {
@@ -649,6 +662,14 @@
                 },
                 // Own message younger than 15 min can still be edited / deleted (WhatsApp's window).
                 canModify(m) { return m.ts && (Date.now() / 1000 - m.ts) < 900; },
+                // Live local time in the contact's timezone (re-runs each tick).
+                localTime(tz) {
+                    this.nowTick; // reactive dependency so the clock refreshes
+                    if (!tz) return '';
+                    try { return new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date()); }
+                    catch { return ''; }
+                },
+                tzLabel(tz) { return tz ? tz.split('/').pop().replace(/_/g, ' ') : ''; },
                 async sendReaction(m, emoji) {
                     // Toggle off if our own reaction is the same emoji.
                     const value = (m.my_reaction === emoji) ? '' : emoji;

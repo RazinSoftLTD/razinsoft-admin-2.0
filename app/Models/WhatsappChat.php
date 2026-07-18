@@ -111,6 +111,28 @@ class WhatsappChat extends Model
         }
     }
 
+    /** IANA timezone for the contact's country (best-effort), so we can show their local time. */
+    public function timezone(): ?string
+    {
+        $country = $this->country();
+        if (! $country) {
+            return null;
+        }
+        $iso = $country['code'];
+        // Big multi-timezone countries: pick a sensible primary zone.
+        $primary = [
+            'US' => 'America/New_York', 'CA' => 'America/Toronto', 'RU' => 'Europe/Moscow',
+            'AU' => 'Australia/Sydney', 'BR' => 'America/Sao_Paulo', 'MX' => 'America/Mexico_City',
+            'ID' => 'Asia/Jakarta', 'CN' => 'Asia/Shanghai', 'KZ' => 'Asia/Almaty',
+        ];
+        if (isset($primary[$iso])) {
+            return $primary[$iso];
+        }
+        $zones = \DateTimeZone::listIdentifiers(\DateTimeZone::PER_COUNTRY, $iso);
+
+        return $zones[0] ?? null;
+    }
+
     /** Turn an ISO alpha-2 code into its flag emoji (regional-indicator letters). */
     private function flagEmoji(string $iso): string
     {

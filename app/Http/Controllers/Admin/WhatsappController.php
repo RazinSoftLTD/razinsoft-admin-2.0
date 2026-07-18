@@ -457,6 +457,7 @@ class WhatsappController extends Controller
             'label_ids' => $c->labels->pluck('id'),
             'phone' => $c->realNumber() ? '+'.$c->realNumber() : null,
             'country' => $c->country(),
+            'timezone' => $c->timezone(),
             'last_seen' => $c->last_message_at?->diffForHumans(),
             'lead_quality' => $c->lead_quality,
             'interested_product' => $c->interested_product,
