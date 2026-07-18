@@ -145,10 +145,22 @@
                                             <span class="mb-0.5 block text-xs font-bold text-indigo-600" x-text="m.sender_name"></span>
                                         </template>
                                         {{-- media --}}
-                                        <template x-if="m.media && m.type === 'image'"><img :src="m.media" class="mb-1 max-h-64 rounded-md"></template>
-                                        <template x-if="m.media && m.type === 'video'"><video :src="m.media" controls class="mb-1 max-h-64 rounded-md"></video></template>
-                                        <template x-if="m.media && m.type === 'audio'"><audio :src="m.media" controls class="mb-1 w-56"></audio></template>
-                                        <template x-if="m.media && m.type === 'document'"><a :href="m.media" target="_blank" class="mb-1 flex items-center gap-2 rounded-md bg-black/5 px-2.5 py-2 text-gray-700 hover:bg-black/10"><svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg><span class="truncate" x-text="m.media_name || 'Document'"></span></a></template>
+                                        <template x-if="m.media && m.type === 'image'">
+                                            <div class="group relative mb-1">
+                                                <a :href="m.media" target="_blank"><img :src="m.media" class="max-h-80 w-full rounded-lg object-cover" style="max-width:260px"></a>
+                                                <a :href="m.media" :download="m.media_name || 'image'" class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/45 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/65" title="Download">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>
+                                                </a>
+                                            </div>
+                                        </template>
+                                        <template x-if="m.media && m.type === 'video'">
+                                            <div class="mb-1">
+                                                <video :src="m.media" controls class="max-h-80 rounded-lg" style="max-width:260px"></video>
+                                                <a :href="m.media" :download="m.media_name || 'video'" class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-emerald-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download</a>
+                                            </div>
+                                        </template>
+                                        <template x-if="m.media && m.type === 'audio'"><audio :src="m.media" controls class="mb-1 w-60"></audio></template>
+                                        <template x-if="m.media && m.type === 'document'"><a :href="m.media" :download="m.media_name || 'document'" target="_blank" class="mb-1 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2.5 text-gray-700 hover:bg-black/10" style="max-width:260px"><svg class="h-6 w-6 shrink-0 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg><span class="min-w-0"><span class="block truncate text-sm font-medium" x-text="m.media_name || 'Document'"></span><span class="text-[10px] text-gray-400">Tap to download</span></span></a></template>
                                         <span x-show="m.body" x-text="m.body" class="whitespace-pre-line break-words align-bottom"></span>
                                         {{-- inline meta (time + ticks) --}}
                                         <span class="float-right ml-2 mt-1 inline-flex translate-y-0.5 items-center gap-0.5 text-[10px] leading-none text-gray-500/80">
@@ -191,6 +203,24 @@
                                 @endforeach
                             </div>
                             <form @submit.prevent="send()" class="flex items-end gap-2">
+                                {{-- Attach (+) menu --}}
+                                <div class="relative shrink-0">
+                                    <button type="button" @click="attachOpen = !attachOpen" class="grid h-11 w-11 place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" :class="attachOpen ? 'bg-gray-200 text-emerald-600' : ''" title="Attach">
+                                        <svg class="h-6 w-6 transition" :class="attachOpen ? 'rotate-45' : ''" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                                    </button>
+                                    <div x-show="attachOpen" x-cloak x-transition @click.outside="attachOpen = false" class="absolute bottom-14 left-0 z-20 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white p-1.5 shadow-xl">
+                                        <button type="button" @click="$refs.mediaInput.click(); attachOpen = false" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sky-100 text-sky-600"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path stroke-linecap="round" stroke-linejoin="round" d="m4 18 5-5 4 4 3-3 4 4"/></svg></span>
+                                            Photos &amp; Videos
+                                        </button>
+                                        <button type="button" @click="$refs.docInput.click(); attachOpen = false" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-600"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg></span>
+                                            Document
+                                        </button>
+                                    </div>
+                                    <input type="file" x-ref="mediaInput" accept="image/*,video/*" class="hidden" @change="sendFile($event)">
+                                    <input type="file" x-ref="docInput" class="hidden" @change="sendFile($event)">
+                                </div>
                                 <button type="button" @click="showQuick = !showQuick" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" title="Quick replies">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
                                 </button>
@@ -398,7 +428,7 @@
     <script>
         function waInbox() {
             return {
-                chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false,
+                chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
                 showInfo: window.innerWidth >= 1280, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, _chatReq: 0,
                 unreadCount: {{ $stats['unread'] }},
@@ -494,6 +524,23 @@
                         if (r.ok) { this.messages.push((await r.json()).message); this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
                         else { alert((await r.json()).error || 'Could not send.'); this.draft = body; }
                     } catch { this.draft = body; } finally { this.sending = false; }
+                },
+                async sendFile(e) {
+                    const file = e.target.files[0];
+                    if (!file || !this.active || this.sending) { e.target.value = ''; return; }
+                    this.sending = true;
+                    const caption = this.draft;
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    if (caption.trim()) fd.append('caption', caption);
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/media', {
+                            method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' }, body: fd,
+                        });
+                        if (r.ok) { this.messages.push((await r.json()).message); this.draft = ''; this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
+                        else { alert((await r.json()).error || 'Could not send the file.'); }
+                    } catch { alert('Could not send the file.'); }
+                    finally { this.sending = false; e.target.value = ''; }
                 },
                 async post(url, data) {
                     return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(data) });

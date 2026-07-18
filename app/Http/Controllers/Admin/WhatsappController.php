@@ -95,6 +95,55 @@ class WhatsappController extends Controller
         return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
     }
 
+    /** Send an attachment (image / video / audio / document) to the chat. */
+    public function sendMediaMessage(Request $request, WhatsappChat $chat)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'max:16384'], // 16 MB — WhatsApp's practical ceiling
+            'caption' => ['nullable', 'string', 'max:1024'],
+        ]);
+        $settings = WhatsappSetting::current();
+        if (! $settings->isConfigured()) {
+            return response()->json(['error' => 'WhatsApp is not connected. Configure it in Settings › WhatsApp Config.'], 422);
+        }
+
+        $file = $request->file('file');
+        $mime = $file->getMimeType() ?: 'application/octet-stream';
+        $type = str_starts_with($mime, 'image/') ? 'image'
+            : (str_starts_with($mime, 'video/') ? 'video'
+            : (str_starts_with($mime, 'audio/') ? 'audio' : 'document'));
+
+        $path = $file->store('whatsapp', 'public');
+        $caption = $request->input('caption');
+        $filename = $file->getClientOriginalName();
+
+        $message = $chat->messages()->create([
+            'direction' => 'out', 'type' => $type, 'body' => $caption,
+            'media_path' => $path, 'media_mime' => $mime, 'media_name' => $filename,
+            'status' => 'sent', 'agent_id' => $request->user()->id, 'sent_at' => now(),
+        ]);
+
+        try {
+            // The gateway fetches this public URL to attach the file.
+            $waId = app(WhatsappService::class)->sendMedia($chat->wa_id, $type, asset('storage/'.$path), $caption, $filename);
+            $message->update(['wa_message_id' => $waId]);
+        } catch (\Throwable $e) {
+            $message->update(['status' => 'failed', 'error' => $e->getMessage()]);
+        }
+
+        $chat->update([
+            'last_message_at' => now(),
+            'last_message_preview' => \Illuminate\Support\Str::limit($caption ?: ucfirst($type), 120),
+            'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
+        ]);
+        try {
+            event(new WhatsappMessageReceived($chat->id, $message->id, 'out'));
+        } catch (\Throwable) {
+        }
+
+        return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
+    }
+
     public function assign(Request $request, WhatsappChat $chat)
     {
         $data = $request->validate(['assigned_to' => ['nullable', 'exists:users,id']]);
