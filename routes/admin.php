@@ -54,6 +54,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp/chats/{chat}/send', [$wa, 'send'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.send');
             Route::post('whatsapp/chats/{chat}/media', [$wa, 'sendMediaMessage'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.media');
             Route::post('whatsapp/chats/{chat}/messages/{message}/edit', [$wa, 'editMessage'])->whereNumber('chat')->whereNumber('message')->middleware('permission:whatsapp.reply')->name('whatsapp.msg.edit');
+            Route::post('whatsapp/chats/{chat}/messages/{message}/react', [$wa, 'reactMessage'])->whereNumber('chat')->whereNumber('message')->middleware('permission:whatsapp.reply')->name('whatsapp.msg.react');
             Route::delete('whatsapp/chats/{chat}/messages/{message}', [$wa, 'deleteMessage'])->whereNumber('chat')->whereNumber('message')->middleware('permission:whatsapp.reply')->name('whatsapp.msg.delete');
             Route::post('whatsapp/chats/{chat}/assign', [$wa, 'assign'])->whereNumber('chat')->middleware('permission:whatsapp.assign')->name('whatsapp.assign');
             Route::post('whatsapp/chats/{chat}/status', [$wa, 'status'])->whereNumber('chat')->name('whatsapp.status');

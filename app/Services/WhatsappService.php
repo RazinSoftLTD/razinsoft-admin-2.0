@@ -82,6 +82,12 @@ class WhatsappService
         $this->provider()->deleteMessage($to, $waMessageId);
     }
 
+    /** React to a message with an emoji (empty removes it). */
+    public function sendReaction(string $to, string $waMessageId, string $emoji, bool $targetFromMe): void
+    {
+        $this->provider()->sendReaction($to, $waMessageId, $emoji, $targetFromMe);
+    }
+
     /** Send a media message via the active driver. Returns the message id, or throws. */
     public function sendMedia(string $to, string $type, string $link, ?string $caption = null, ?string $filename = null): string
     {

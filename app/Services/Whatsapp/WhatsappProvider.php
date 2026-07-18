@@ -35,6 +35,9 @@ interface WhatsappProvider
     /** Delete a previously-sent message for everyone. */
     public function deleteMessage(string $to, string $waMessageId): void;
 
+    /** React to a message with an emoji ($emoji empty = remove). $targetFromMe = the target is our own message. */
+    public function sendReaction(string $to, string $waMessageId, string $emoji, bool $targetFromMe): void;
+
     /**
      * Send a media message. $source is a publicly reachable URL (Cloud API) or a local/relative
      * path the gateway can read (Baileys). Returns ['id' => provider message id].

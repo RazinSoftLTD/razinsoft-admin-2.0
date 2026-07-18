@@ -109,6 +109,14 @@ class BaileysProvider implements WhatsappProvider
         }
     }
 
+    public function sendReaction(string $to, string $waMessageId, string $emoji, bool $targetFromMe): void
+    {
+        $res = $this->client()->post('/react', ['to' => $to, 'id' => $waMessageId, 'emoji' => $emoji, 'from_me' => $targetFromMe]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to send the reaction.');
+        }
+    }
+
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array
     {
         $res = $this->client()->post('/send', array_filter([

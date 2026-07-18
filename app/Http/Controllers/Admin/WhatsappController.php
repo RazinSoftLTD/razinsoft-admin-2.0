@@ -199,6 +199,29 @@ class WhatsappController extends Controller
         return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
     }
 
+    /** React to a message with an emoji (empty removes the reaction). */
+    public function reactMessage(Request $request, WhatsappChat $chat, WhatsappMessage $message)
+    {
+        abort_unless($message->chat_id === $chat->id, 404);
+        if ($message->deleted_at) {
+            return response()->json(['error' => 'This message is no longer available.'], 422);
+        }
+        $data = $request->validate(['emoji' => ['nullable', 'string', 'max:16']]);
+        $emoji = $data['emoji'] ?? '';
+
+        if ($message->wa_message_id) {
+            try {
+                app(WhatsappService::class)->sendReaction($chat->wa_id, $message->wa_message_id, $emoji, $message->direction === 'out');
+            } catch (\Throwable $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+        }
+
+        $message->update(['reaction' => $emoji ?: null]);
+
+        return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
+    }
+
     public function assign(Request $request, WhatsappChat $chat)
     {
         $data = $request->validate(['assigned_to' => ['nullable', 'exists:users,id']]);

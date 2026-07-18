@@ -78,6 +78,18 @@ class CloudApiProvider implements WhatsappProvider
         throw new \RuntimeException('Deleting messages is not supported on the WhatsApp Cloud API.');
     }
 
+    public function sendReaction(string $to, string $waMessageId, string $emoji, bool $targetFromMe): void
+    {
+        $res = Http::withToken($this->settings->access_token)
+            ->post($this->base().'/'.$this->settings->phone_number_id.'/messages', [
+                'messaging_product' => 'whatsapp', 'to' => $to, 'type' => 'reaction',
+                'reaction' => ['message_id' => $waMessageId, 'emoji' => $emoji],
+            ]);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error.message') ?: 'Failed to send reaction.');
+        }
+    }
+
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array
     {
         $payload = ['messaging_product' => 'whatsapp', 'to' => $to, 'type' => $type];

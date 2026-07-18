@@ -251,6 +251,19 @@ app.post('/delete', async (req, res) => {
   }
 })
 
+// React to a message with an emoji (empty text removes the reaction).
+app.post('/react', async (req, res) => {
+  if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
+  const { to, id, emoji, from_me } = req.body
+  const jid = to?.includes('@') ? to : to + '@s.whatsapp.net'
+  try {
+    await sock.sendMessage(jid, { react: { text: emoji || '', key: { remoteJid: jid, fromMe: !!from_me, id } } })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // Mark a chat's incoming messages as read on WhatsApp (blue ticks for the other side).
 app.post('/read', async (req, res) => {
   if (state !== 'connected' || !sock) return res.status(409).json({ error: 'WhatsApp is not connected.' })
