@@ -61,7 +61,7 @@
                             <div class="flex" :class="m.direction === 'out' ? 'justify-end' : 'justify-start'">
                                 <div class="max-w-[70%] rounded-lg px-3 py-1.5 text-sm shadow-sm" :class="m.direction === 'out' ? 'bg-[#e7ffdb] text-gray-800' : 'bg-white text-gray-800'" style="max-width:70%">
                                     <template x-if="m.sender_name && m.direction === 'in'"><span class="mb-0.5 block text-xs font-bold text-indigo-600" x-text="m.sender_name"></span></template>
-                                    <template x-if="m.media && m.type === 'image'"><a :href="m.media" target="_blank"><img :src="m.media" class="mb-1 max-h-64 rounded" style="max-width:220px"></a></template>
+                                    <template x-if="m.media && m.type === 'image'"><a :href="m.media" target="_blank"><img :src="m.media" loading="lazy" decoding="async" class="mb-1 max-h-64 rounded bg-gray-100" style="max-width:220px;min-height:80px"></a></template>
                                     <template x-if="m.media && (m.type === 'video' || m.type === 'audio' || m.type === 'document')"><a :href="m.media" target="_blank" class="mb-1 block text-xs font-medium text-emerald-700 underline" x-text="m.media_name || ('Open ' + m.type)"></a></template>
                                     <span x-show="m.deleted" class="text-sm italic text-gray-400">Deleted message</span>
                                     <span x-show="m.body" x-text="m.body" class="whitespace-pre-line break-words"></span>

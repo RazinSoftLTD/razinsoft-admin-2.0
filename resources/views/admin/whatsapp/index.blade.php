@@ -88,7 +88,7 @@
                     <button type="button" @click="openChat(c.id)"
                             class="flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left transition hover:bg-gray-50"
                             :class="active && active.id === c.id ? 'bg-[var(--color-primary-soft)]' : ''">
-                        <template x-if="c.avatar"><img :src="c.avatar" class="h-10 w-10 shrink-0 rounded-full object-cover"></template>
+                        <template x-if="c.avatar"><img :src="c.avatar" loading="lazy" decoding="async" class="h-10 w-10 shrink-0 rounded-full object-cover"></template>
                         <span x-show="!c.avatar" class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold" :class="c.is_group ? 'text-white' : 'bg-emerald-100 text-emerald-700'" :style="c.is_group ? ('background:' + c.color) : ''">
                             <template x-if="c.is_group"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-1a4 4 0 0 0-3-3.87M9 20H4v-1a4 4 0 0 1 3-3.87m0 0a4 4 0 1 1 5.9 0M17 11a3 3 0 1 0-2.5-4.5"/></svg></template>
                             <span x-show="!c.is_group" x-text="c.initials"></span>
@@ -248,7 +248,7 @@
                                         {{-- media --}}
                                         <template x-if="m.media && m.type === 'image'">
                                             <div class="group relative mb-1">
-                                                <a :href="m.media" target="_blank"><img :src="m.media" class="max-h-80 w-full rounded-lg object-cover" style="max-width:260px"></a>
+                                                <a :href="m.media" target="_blank"><img :src="m.media" loading="lazy" decoding="async" class="max-h-80 w-full rounded-lg bg-gray-100 object-cover" style="max-width:260px;min-height:80px"></a>
                                                 <a :href="m.media" :download="m.media_name || 'image'" class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/45 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/65" title="Download">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>
                                                 </a>
@@ -256,7 +256,7 @@
                                         </template>
                                         <template x-if="m.media && m.type === 'video'">
                                             <div class="mb-1">
-                                                <video :src="m.media" controls class="max-h-80 rounded-lg" style="max-width:260px"></video>
+                                                <video :src="m.media" controls preload="none" class="max-h-80 rounded-lg bg-gray-100" style="max-width:260px"></video>
                                                 <a :href="m.media" :download="m.media_name || 'video'" class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-emerald-600"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download</a>
                                             </div>
                                         </template>
