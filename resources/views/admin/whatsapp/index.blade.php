@@ -166,7 +166,45 @@
         </div>
 
         {{-- ============ MIDDLE: thread ============ --}}
-        <section class="flex min-w-0 flex-1 flex-col">
+        <section class="relative flex min-w-0 flex-1 flex-col"
+                 @dragover.prevent="if (active && {{ $canReply ? 'true' : 'false' }}) dragOver = true">
+            @if ($canReply)
+                {{-- Drag-and-drop overlay --}}
+                <div x-show="dragOver" x-cloak @dragover.prevent @dragleave.prevent="dragOver = false" @drop.prevent="onDrop($event)"
+                     class="absolute inset-0 z-40 m-3 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/95 text-emerald-700">
+                    <svg class="h-12 w-12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                    <p class="mt-2 text-sm font-bold">Drop the file to send</p>
+                    <p class="text-xs text-emerald-600/80">Photos, videos, documents</p>
+                </div>
+
+                {{-- File preview + caption (WhatsApp-style) --}}
+                <template x-if="pending">
+                <div @keydown.window.escape="cancelPending()" class="absolute inset-0 z-50 flex flex-col" style="background:#efeae2">
+                    <div class="flex items-center gap-3 bg-white px-5 py-3 shadow-sm">
+                        <button type="button" @click="cancelPending()" class="grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg></button>
+                        <span class="truncate text-sm font-semibold text-[var(--color-heading)]" x-text="pending?.name"></span>
+                    </div>
+                    <div class="flex min-h-0 flex-1 items-center justify-center p-6">
+                        <template x-if="pending?.type === 'image'"><img :src="pending?.previewUrl" class="rounded-lg object-contain shadow-lg" style="max-height:70vh;max-width:90%"></template>
+                        <template x-if="pending?.type === 'video'"><video :src="pending?.previewUrl" controls class="rounded-lg shadow-lg" style="max-height:70vh;max-width:90%"></video></template>
+                        <template x-if="pending?.type === 'file'">
+                            <div class="flex flex-col items-center gap-3 rounded-2xl bg-white p-10 shadow">
+                                <svg class="h-16 w-16 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>
+                                <span class="max-w-xs truncate text-sm font-medium text-gray-600" x-text="pending?.name"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="bg-white px-4 py-3">
+                        <div class="flex items-end gap-2">
+                            <input type="text" x-model="pending.caption" @keydown.enter="sendPending()" placeholder="Add a caption…" class="h-11 flex-1 rounded-full border-0 bg-[#f0f2f5] px-4 text-sm text-gray-800 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-emerald-400">
+                            <button type="button" @click="sendPending()" :disabled="sending" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                </template>
+            @endif
             <template x-if="!active">
                 <div class="grid flex-1 place-items-center text-center">
                     <div>
@@ -711,6 +749,7 @@
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
                 mentionOpen: false, mentionJids: [],
                 lightbox: { open: false, index: 0, items: [] }, lbTouch: 0, replyTo: null,
+                dragOver: false, pending: null,
                 accMenu: false,
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
@@ -892,22 +931,41 @@
                         if (idx > -1) this.messages[idx] = d;
                     } else { alert((await r.json()).error || 'Could not react.'); }
                 },
-                async sendFile(e) {
+                // File chosen from the attach menu → preview with a caption (same flow as drag-drop).
+                sendFile(e) {
                     const file = e.target.files[0];
-                    if (!file || !this.active || this.sending) { e.target.value = ''; return; }
+                    if (file) this.pickFile(file);
+                    e.target.value = '';
+                },
+                onDrop(e) {
+                    this.dragOver = false;
+                    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+                    if (file) this.pickFile(file);
+                },
+                pickFile(file) {
+                    if (!this.active) return;
+                    const type = file.type.startsWith('image/') ? 'image' : (file.type.startsWith('video/') ? 'video' : 'file');
+                    this.pending = { file, name: file.name, type, previewUrl: (type === 'image' || type === 'video') ? URL.createObjectURL(file) : null, caption: this.draft || '' };
+                },
+                cancelPending() {
+                    if (this.pending?.previewUrl) URL.revokeObjectURL(this.pending.previewUrl);
+                    this.pending = null;
+                },
+                async sendPending() {
+                    if (!this.pending || this.sending || !this.active) return;
                     this.sending = true;
-                    const caption = this.draft;
+                    const { file, caption } = this.pending;
                     const fd = new FormData();
                     fd.append('file', file);
-                    if (caption.trim()) fd.append('caption', caption);
+                    if (caption && caption.trim()) fd.append('caption', caption);
                     try {
                         const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/media', {
                             method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' }, body: fd,
                         });
-                        if (r.ok) { this.messages.push((await r.json()).message); this.draft = ''; this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
+                        if (r.ok) { this.messages.push((await r.json()).message); this.draft = ''; this.cancelPending(); this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
                         else { alert((await r.json()).error || 'Could not send the file.'); }
                     } catch { alert('Could not send the file.'); }
-                    finally { this.sending = false; e.target.value = ''; }
+                    finally { this.sending = false; }
                 },
                 async post(url, data) {
                     return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(data) });
