@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'Bin')
+@section('title', 'Trash')
 
 @php $cur = \App\Models\Currency::symbolMap(); @endphp
 
@@ -15,7 +15,7 @@
                        f.submit();
                    } }">
         <div class="mb-6">
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">Bin</h1>
+            <h1 class="text-xl font-bold text-[var(--color-heading)]">Trash</h1>
             <p class="mt-1 text-sm text-[var(--color-muted)]">Deleted clients, invoices and WhatsApp numbers are kept here for {{ $retentionDays }} days, then permanently removed. Super admin only.</p>
         </div>
 
@@ -36,6 +36,18 @@
 
             {{-- ===== Clients ===== --}}
             <div x-show="tab === 'clients'" x-cloak>
+                @if ($clients->total())
+                    <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-2.5">
+                        <span class="text-xs text-[var(--color-muted)]">{{ $clients->total() }} client(s) in Trash</span>
+                        <form method="POST" action="{{ route('admin.bin.clients.empty') }}" onsubmit="return confirm('Permanently delete ALL {{ $clients->total() }} client(s) in the Trash? This cannot be undone.')">
+                            @csrf @method('DELETE')
+                            <button class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg>
+                                Delete all
+                            </button>
+                        </form>
+                    </div>
+                @endif
                 {{-- bulk bar --}}
                 <div x-show="cSel > 0" x-cloak class="flex items-center justify-between gap-3 border-b border-gray-100 bg-[var(--color-primary-soft)] px-5 py-3 text-sm">
                     <span class="font-semibold text-[var(--color-primary)]"><span x-text="cSel"></span> selected</span>
@@ -89,6 +101,18 @@
 
             {{-- ===== Invoices ===== --}}
             <div x-show="tab === 'invoices'" x-cloak>
+                @if ($invoices->total())
+                    <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-2.5">
+                        <span class="text-xs text-[var(--color-muted)]">{{ $invoices->total() }} invoice(s) in Trash</span>
+                        <form method="POST" action="{{ route('admin.bin.invoices.empty') }}" onsubmit="return confirm('Permanently delete ALL {{ $invoices->total() }} invoice(s) in the Trash? This cannot be undone.')">
+                            @csrf @method('DELETE')
+                            <button class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg>
+                                Delete all
+                            </button>
+                        </form>
+                    </div>
+                @endif
                 <div x-show="iSel > 0" x-cloak class="flex items-center justify-between gap-3 border-b border-gray-100 bg-[var(--color-primary-soft)] px-5 py-3 text-sm">
                     <span class="font-semibold text-[var(--color-primary)]"><span x-text="iSel"></span> selected</span>
                     <div class="flex gap-2">
@@ -140,6 +164,18 @@
 
             {{-- ===== WhatsApp Numbers ===== --}}
             <div x-show="tab === 'whatsapp'" x-cloak>
+                @if ($whatsappAccounts->count())
+                    <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-2.5">
+                        <span class="text-xs text-[var(--color-muted)]">{{ $whatsappAccounts->count() }} number(s) in Trash</span>
+                        <form method="POST" action="{{ route('admin.bin.whatsapp.empty') }}" onsubmit="return confirm('Permanently delete ALL {{ $whatsappAccounts->count() }} WhatsApp number(s) in the Trash, with every conversation and message? This cannot be undone.')">
+                            @csrf @method('DELETE')
+                            <button class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg>
+                                Delete all
+                            </button>
+                        </form>
+                    </div>
+                @endif
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">

@@ -78,7 +78,7 @@ class Permissions
         'subscribers' => ['label' => 'Subscribers', 'group' => 'Content', 'actions' => ['view', 'create', 'delete']],
         'reviews' => ['label' => 'Reviews', 'group' => 'Content', 'actions' => ['view', 'edit', 'delete']],
         'questions' => ['label' => 'Questions', 'group' => 'Content', 'actions' => ['view', 'answer', 'delete']],
-        'messages' => ['label' => 'Messages', 'group' => 'Content', 'actions' => ['view', 'delete']],
+        'messages' => ['label' => 'Contact Us', 'group' => 'Content', 'actions' => ['view', 'edit', 'delete']],
         'searches' => ['label' => 'Searches', 'group' => 'Content', 'actions' => ['view', 'delete']],
         // owner = client_id: the ticket's requester. "Owned" scope = tickets the user raised themselves.
         'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete', 'settings'], 'owner' => 'client_id'],
@@ -102,7 +102,7 @@ class Permissions
         'connection' => 'Connection Method', 'numbers' => 'WhatsApp Numbers', 'labels' => 'Labels', 'webhook' => 'Webhook',
         'clients' => 'Client messages',
         // Invoice operations.
-        'send' => 'Send', 'cancel' => 'Cancel', 'duplicate' => 'Duplicate', 'configure' => 'Configuration', 'bin' => 'Bin',
+        'send' => 'Send', 'cancel' => 'Cancel', 'duplicate' => 'Duplicate', 'configure' => 'Configuration', 'bin' => 'Trash',
         'import_export' => 'Import / Export',
         // Activity log pages.
         'employee' => 'Employee', 'client' => 'Client', 'blogs' => 'Blogs', 'products' => 'Products',

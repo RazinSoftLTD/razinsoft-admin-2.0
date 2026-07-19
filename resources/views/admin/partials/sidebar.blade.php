@@ -66,27 +66,43 @@
     $nav = [
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
-        ['type' => 'group', 'label' => 'Messenger', 'icon' => $ic['chat'], 'items' => [
-            ['label' => 'Messaging', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
-            ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::whereIn('account_id', \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id'))->where('unread_count', '>', 0)->count() ?: null],
-        ]],
-
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
             ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => ['admin.leads.index', 'admin.leads.show', 'admin.leads.edit', 'admin.leads.create', 'admin.leads.import.form'], 'perm' => 'leads.view', 'icon' => $ic['leads']],
             ['label' => 'Deals', 'route' => 'admin.deals.index', 'active' => 'admin.deals.*', 'perm' => 'deals.view', 'icon' => $ic['deals']],
+            ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
+            ['label' => 'Tickets', 'route' => 'admin.tickets.index', 'active' => 'admin.tickets.*', 'perm' => 'tickets.view', 'icon' => $ic['tickets'], 'badge' => \App\Models\Ticket::where('unread_by_admin', true)->count() ?: null],
             ['label' => 'Analytics', 'route' => 'admin.analytics.index', 'active' => 'admin.analytics.*', 'perm' => 'analytics.view', 'icon' => $ic['analytics']],
         ]],
 
-        ['type' => 'link', 'label' => 'Tickets', 'route' => 'admin.tickets.index', 'active' => 'admin.tickets.*', 'perm' => 'tickets.view', 'icon' => $ic['tickets'], 'badge' => \App\Models\Ticket::where('unread_by_admin', true)->count() ?: null],
+        ['type' => 'group', 'label' => 'Communication', 'icon' => $ic['chat'], 'items' => [
+            ['label' => 'Messenger', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
+            ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::whereIn('account_id', \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id'))->where('unread_count', '>', 0)->count() ?: null],
+            ['label' => 'Contact Us', 'route' => 'admin.messages.index', 'active' => 'admin.messages.*', 'perm' => 'messages.view', 'icon' => $ic['messaging'], 'badge' => \App\Models\ContactMessage::where('is_read', false)->count()],
+            ['label' => 'Meetings', 'route' => 'admin.meetings.index', 'active' => ['admin.meetings.index', 'admin.meetings.show'], 'perm' => 'meetings.view', 'icon' => $ic['meeting'], 'badge' => \App\Http\Controllers\Admin\MeetingController::unreadCount($user) ?: null],
+        ]],
 
         ['type' => 'group', 'label' => 'Workspace', 'icon' => $ic['workspace'], 'items' => [
             ['label' => 'Projects', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'perm' => 'projects.view', 'icon' => $ic['projects']],
             ['label' => 'Tasks', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*', 'perm' => 'projects.view', 'icon' => $ic['tasks'] ?? $ic['projects']],
         ]],
 
-        ['type' => 'link', 'label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
-        ['type' => 'link', 'label' => 'Contact Us', 'route' => 'admin.messages.index', 'active' => 'admin.messages.*', 'perm' => 'messages.view', 'icon' => $ic['messaging'], 'badge' => \App\Models\ContactMessage::where('is_read', false)->count()],
-        ['type' => 'link', 'label' => 'Book Meeting', 'route' => 'admin.meetings.index', 'active' => ['admin.meetings.index', 'admin.meetings.show'], 'perm' => 'meetings.view', 'icon' => $ic['meeting'], 'badge' => \App\Http\Controllers\Admin\MeetingController::unreadCount($user) ?: null],
+        ['type' => 'group', 'label' => 'Sales', 'icon' => $ic['orders'], 'items' => [
+            ['label' => 'Orders', 'route' => 'admin.orders.index', 'active' => 'admin.orders.*', 'perm' => 'orders.view', 'icon' => $ic['orders']],
+            ['label' => 'All Products', 'route' => 'admin.products.index', 'active' => 'admin.products.*', 'perm' => 'products.view', 'icon' => $ic['products']],
+            ['label' => 'Installation Plans', 'route' => 'admin.installation-plans', 'active' => 'admin.installation-plans*', 'perm' => 'products.view', 'icon' => $ic['tasks'] ?? $ic['products']],
+            ['label' => 'Coupons', 'route' => 'admin.coupons.index', 'active' => 'admin.coupons.*', 'perm' => 'coupons.view', 'icon' => $ic['coupons']],
+            ['label' => 'Reviews', 'route' => 'admin.reviews.index', 'active' => 'admin.reviews.*', 'perm' => 'reviews.view', 'icon' => $ic['reviews']],
+            ['label' => 'Questions', 'route' => 'admin.questions.index', 'active' => 'admin.questions.*', 'perm' => 'questions.view', 'icon' => $ic['questions'], 'badge' => \App\Models\ProductQuestion::whereDoesntHave('answers', fn ($a) => $a->where('is_admin', true))->count()],
+        ]],
+
+        ['type' => 'group', 'label' => 'Marketing', 'icon' => $ic['marketing'], 'items' => [
+            ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'perm' => 'blog.view', 'icon' => $ic['article']],
+            ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'perm' => 'blog.view', 'icon' => $ic['category']],
+            ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
+            ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'perm' => 'searches.view', 'icon' => $ic['searches']],
+            ['label' => 'Subscribers', 'route' => 'admin.subscribers.index', 'active' => 'admin.subscribers.*', 'perm' => 'subscribers.view', 'icon' => $ic['subscribers']],
+            ['label' => 'Reports', 'soon' => true, 'icon' => $ic['reports']],
+        ]],
 
         ['type' => 'group', 'label' => 'HR', 'icon' => $ic['hr'], 'items' => [
             ['label' => 'Employees', 'route' => 'admin.staff.index', 'active' => 'admin.staff.*', 'perm' => 'employees.view', 'icon' => $ic['employees']],
@@ -96,7 +112,6 @@
             ['label' => 'Leave', 'route' => 'admin.leaves.index', 'active' => 'admin.leaves.*', 'perm' => 'leave.view', 'icon' => $ic['leave']],
             ['label' => 'Attendance', 'soon' => true, 'icon' => $ic['attendance']],
             ['label' => 'Holiday', 'soon' => true, 'icon' => $ic['holiday']],
-            ['label' => 'Designation', 'soon' => true, 'icon' => $ic['designation']],
             ['label' => 'Separation', 'soon' => true, 'icon' => $ic['separation']],
         ]],
 
@@ -106,29 +121,6 @@
             ['label' => 'Invoices', 'route' => 'admin.invoices.index', 'active' => ['admin.invoices.*', 'admin.recurring.*', 'admin.invoice-templates.*'], 'perm' => 'invoices.view', 'icon' => $ic['invoice']],
             ['label' => 'Expense', 'soon' => true, 'icon' => $ic['expense']],
             ['label' => 'Bank', 'soon' => true, 'icon' => $ic['bank']],
-        ]],
-
-        ['type' => 'link', 'label' => 'Orders', 'route' => 'admin.orders.index', 'active' => 'admin.orders.*', 'perm' => 'orders.view', 'icon' => $ic['orders']],
-
-        ['type' => 'group', 'label' => 'Products', 'icon' => $ic['products'], 'items' => [
-            ['label' => 'All Products', 'route' => 'admin.products.index', 'active' => 'admin.products.*', 'perm' => 'products.view', 'icon' => $ic['products']],
-            ['label' => 'Installation Plans', 'route' => 'admin.installation-plans', 'active' => 'admin.installation-plans*', 'perm' => 'products.view', 'icon' => $ic['tasks'] ?? $ic['products']],
-            ['label' => 'Coupons', 'route' => 'admin.coupons.index', 'active' => 'admin.coupons.*', 'perm' => 'coupons.view', 'icon' => $ic['coupons']],
-            ['label' => 'Reviews', 'route' => 'admin.reviews.index', 'active' => 'admin.reviews.*', 'perm' => 'reviews.view', 'icon' => $ic['reviews']],
-            ['label' => 'Questions', 'route' => 'admin.questions.index', 'active' => 'admin.questions.*', 'perm' => 'questions.view', 'icon' => $ic['questions'], 'badge' => \App\Models\ProductQuestion::whereDoesntHave('answers', fn ($a) => $a->where('is_admin', true))->count()],
-        ]],
-
-        ['type' => 'group', 'label' => 'Marketing', 'icon' => $ic['marketing'], 'items' => [
-            ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'perm' => 'searches.view', 'icon' => $ic['searches']],
-            ['label' => 'Subscribers', 'route' => 'admin.subscribers.index', 'active' => 'admin.subscribers.*', 'perm' => 'subscribers.view', 'icon' => $ic['subscribers']],
-        ]],
-
-        ['type' => 'link', 'label' => 'Reports', 'soon' => true, 'icon' => $ic['reports']],
-
-        ['type' => 'group', 'label' => 'Blog', 'icon' => $ic['blog'], 'items' => [
-            ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'perm' => 'blog.view', 'icon' => $ic['article']],
-            ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'perm' => 'blog.view', 'icon' => $ic['category']],
-            ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
         ]],
 
         ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [
@@ -149,7 +141,7 @@
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
             ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
-            ['label' => 'Bin', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
+            ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Email / SMTP', 'route' => 'admin.email-settings', 'active' => 'admin.email-settings*', 'admin' => true, 'icon' => $ic['messaging']],
         ]],
     ];
@@ -215,12 +207,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="{{ $entry['icon'] }}"/>
                     </svg>
                     <span class="flex-1 text-left">{{ $entry['label'] }}</span>
-                    <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                    <svg class="h-4 w-4 shrink-0 text-gray-400" style="transition:transform .32s cubic-bezier(.4,0,.2,1)" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
                 </button>
 
-                <div class="grid overflow-hidden transition-all duration-200 ease-out" :class="open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'">
+                <div class="grid overflow-hidden" style="transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1)" :class="open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'">
                     <div class="min-h-0 overflow-hidden">
-                        <div class="ml-4 mt-1 space-y-1 border-l border-gray-100 pl-3">
+                        <div class="ml-4 mt-1 space-y-1 border-l border-gray-100 pl-3" style="transition:opacity .3s ease, transform .3s cubic-bezier(.4,0,.2,1)" :class="open ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'">
                             @foreach ($entry['items'] as $item)
                                 @php $active = $isItemActive($item); $soon = ! empty($item['soon']); @endphp
                                 <a href="{{ $soon ? '#' : route($item['route'], $item['params'] ?? []) }}" @if ($soon) @click.prevent aria-disabled="true" @endif

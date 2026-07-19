@@ -490,9 +490,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::middleware('permission:reviews.delete')->group(fn () => Route::delete('reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy'));
 
-        // ===== Messages =====
-        Route::middleware('permission:messages.view')->group(fn () => Route::get('messages', [ContactMessageController::class, 'index'])->name('messages.index'));
-        Route::middleware('permission:messages.delete')->group(fn () => Route::delete('messages/{message}', [ContactMessageController::class, 'destroy'])->name('messages.destroy'));
+        // ===== Contact Us (website messages) =====
+        Route::middleware('permission:messages.view')->group(function () {
+            Route::get('messages', [ContactMessageController::class, 'index'])->name('messages.index');
+            Route::get('messages/{message}', [ContactMessageController::class, 'show'])->whereNumber('message')->name('messages.show');
+        });
+        Route::middleware('permission:messages.edit')->group(fn () => Route::patch('messages/{message}/status', [ContactMessageController::class, 'updateStatus'])->whereNumber('message')->name('messages.status'));
+        Route::middleware('permission:messages.delete')->group(fn () => Route::delete('messages/{message}', [ContactMessageController::class, 'destroy'])->whereNumber('message')->name('messages.destroy'));
 
         // ===== Subscribers =====
         Route::middleware('permission:subscribers.view')->group(fn () => Route::get('subscribers', [SubscriberController::class, 'index'])->name('subscribers.index'));
@@ -576,6 +580,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('bin/clients', [\App\Http\Controllers\Admin\BinController::class, 'bulkForceDeleteClients'])->name('bin.clients.bulk-delete');
         Route::post('bin/invoices/restore', [\App\Http\Controllers\Admin\BinController::class, 'bulkRestoreInvoices'])->name('bin.invoices.bulk-restore');
         Route::delete('bin/invoices', [\App\Http\Controllers\Admin\BinController::class, 'bulkForceDeleteInvoices'])->name('bin.invoices.bulk-delete');
+        // Empty the Trash — permanently delete everything in a tab.
+        Route::delete('bin/clients/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyClients'])->name('bin.clients.empty');
+        Route::delete('bin/invoices/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyInvoices'])->name('bin.invoices.empty');
+        Route::delete('bin/whatsapp/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyWhatsapp'])->name('bin.whatsapp.empty');
 
         Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');
         Route::post('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'update'])->name('email-settings.update');

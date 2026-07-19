@@ -49,7 +49,7 @@ class WhatsappSettingController extends Controller
     {
         WhatsappAccount::onlyTrashed()->whereKey($account->id)->restore();
 
-        return back()->with('status', 'Number restored from the bin. Reconnect it by scanning the QR.');
+        return back()->with('status', 'Number restored from the Trash. Reconnect it by scanning the QR.');
     }
 
     /** Permanently delete a binned number and all its conversations. */
@@ -103,7 +103,7 @@ class WhatsappSettingController extends Controller
         }
         $account->delete(); // soft-delete → moves to the bin (kept for 1 month, then auto-purged)
 
-        return back()->with('status', 'Number moved to the bin. It will be auto-deleted after 1 month.');
+        return back()->with('status', 'Number moved to the Trash. It will be auto-deleted after 1 month.');
     }
 
     public function update(Request $request)

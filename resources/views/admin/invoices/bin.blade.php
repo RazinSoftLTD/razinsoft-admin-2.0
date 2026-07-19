@@ -1,11 +1,11 @@
 @extends('admin.layouts.app')
-@section('title', 'Invoice Bin')
+@section('title', 'Invoice Trash')
 
 @php $cur = \App\Models\Currency::symbolMap(); @endphp
 
 @section('content')
     <div class="mb-6">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">Bin</h1>
+        <h1 class="text-xl font-bold text-[var(--color-heading)]">Trash</h1>
         <p class="mt-1 text-sm text-[var(--color-muted)]">Deleted invoices are kept here for {{ $retentionDays }} days, then permanently removed. You can restore or delete them now.</p>
     </div>
 
@@ -46,7 +46,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">The Bin is empty.</td></tr>
+                        <tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">The Trash is empty.</td></tr>
                     @endforelse
                 </tbody>
             </table>

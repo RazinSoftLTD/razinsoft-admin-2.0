@@ -131,7 +131,7 @@
                                     <button type="button" @click="open = !open" class="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Edit</button>
                                     @php $cc = (int) ($chatCounts[$acc->id] ?? 0); @endphp
                                     <form method="POST" action="{{ route('admin.whatsapp-accounts.destroy', $acc) }}"
-                                          onsubmit="return confirm('Delete “{{ $acc->name }}”{{ $acc->display_number ? ' (+'.$acc->display_number.')' : '' }}?\n\nThis will move to the Bin:\n• {{ $cc }} conversation{{ $cc === 1 ? '' : 's' }} (with all their messages)\n• its team assignments\n• the WhatsApp session (you will need to re-scan the QR)\n\nIt stays in the Bin for 1 month (super admin can restore it), then auto-deletes permanently. Continue?')">@csrf @method('DELETE')<button class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></form>
+                                          onsubmit="return confirm('Delete “{{ $acc->name }}”{{ $acc->display_number ? ' (+'.$acc->display_number.')' : '' }}?\n\nThis will move to the Trash:\n• {{ $cc }} conversation{{ $cc === 1 ? '' : 's' }} (with all their messages)\n• its team assignments\n• the WhatsApp session (you will need to re-scan the QR)\n\nIt stays in the Trash for 1 month (super admin can restore it), then auto-deletes permanently. Continue?')">@csrf @method('DELETE')<button class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button></form>
                                 </div>
                             </div>
 

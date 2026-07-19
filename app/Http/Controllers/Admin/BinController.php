@@ -85,7 +85,7 @@ class BinController extends Controller
         $invoices = ClientInvoice::onlyTrashed()->whereIn('id', $ids)->get();
         foreach ($invoices as $invoice) {
             $invoice->restore();
-            $invoice->logActivity('restored', 'Invoice restored from the Bin.');
+            $invoice->logActivity('restored', 'Invoice restored from the Trash.');
         }
 
         return back()->with('status', 'Restored '.$invoices->count().' invoice(s).');
@@ -104,6 +104,43 @@ class BinController extends Controller
         }
 
         return back()->with('status', 'Permanently deleted '.$invoices->count().' invoice(s).');
+    }
+
+    // ---- Empty the Trash (permanently delete EVERYTHING in a tab) ----
+    public function emptyClients()
+    {
+        $this->guard();
+        $clients = User::onlyTrashed()->where('role', User::ROLE_CUSTOMER)->get();
+        foreach ($clients as $client) {
+            $this->wipeClient($client);
+        }
+
+        return back()->with('status', 'Trash emptied — '.$clients->count().' client(s) permanently deleted.');
+    }
+
+    public function emptyInvoices()
+    {
+        $this->guard();
+        $invoices = ClientInvoice::onlyTrashed()->get();
+        foreach ($invoices as $invoice) {
+            if ($invoice->attachment) {
+                Storage::disk('public')->delete($invoice->attachment);
+            }
+            $invoice->forceDelete();
+        }
+
+        return back()->with('status', 'Trash emptied — '.$invoices->count().' invoice(s) permanently deleted.');
+    }
+
+    public function emptyWhatsapp()
+    {
+        $this->guard();
+        $accounts = \App\Models\WhatsappAccount::onlyTrashed()->get();
+        foreach ($accounts as $account) {
+            \App\Models\WhatsappAccount::withTrashed()->find($account->id)?->wipe();
+        }
+
+        return back()->with('status', 'Trash emptied — '.$accounts->count().' WhatsApp number(s) permanently deleted.');
     }
 
     private function ids(Request $request): array

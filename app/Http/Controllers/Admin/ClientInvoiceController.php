@@ -130,7 +130,7 @@ class ClientInvoiceController extends Controller
     {
         abort_unless(auth()->user()->canAct('invoices', 'delete', $invoice), 403);
         // Soft-delete → the invoice moves to the Bin (recoverable for 30 days). Files are kept.
-        $invoice->logActivity('deleted', 'Invoice moved to the Bin.');
+        $invoice->logActivity('deleted', 'Invoice moved to the Trash.');
         $invoice->delete();
 
         return redirect()->route('admin.invoices.index')->with('status', "Invoice {$invoice->invoice_number} moved to the Bin.");
@@ -294,7 +294,7 @@ class ClientInvoiceController extends Controller
     {
         $invoice = ClientInvoice::onlyTrashed()->findOrFail($id);
         $invoice->restore();
-        $invoice->logActivity('restored', 'Invoice restored from the Bin.');
+        $invoice->logActivity('restored', 'Invoice restored from the Trash.');
 
         return back()->with('status', "Invoice {$invoice->invoice_number} restored.");
     }
