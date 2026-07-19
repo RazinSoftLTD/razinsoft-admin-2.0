@@ -78,6 +78,8 @@ class Permissions
         'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],
         // owner = 'id': the employee record IS the user, so "Owned" scope means their own (self) record.
         'employees' => ['label' => 'Employees', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'id'],
+        // Careers openings — `publish` gates who can push a draft live to the public site.
+        'careers' => ['label' => 'Careers', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete', 'publish']],
         'designations' => ['label' => 'Designations', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
         'departments' => ['label' => 'Departments', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
         'leave' => ['label' => 'Leave', 'group' => 'HR', 'actions' => ['view', 'create', 'approve', 'delete'], 'owner' => 'user_id'],
@@ -87,7 +89,7 @@ class Permissions
     public const ACTION_LABELS = [
         'view' => 'View', 'create' => 'Add', 'edit' => 'Update', 'delete' => 'Delete',
         'finance' => 'Payments', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
-        'create_group' => 'Create groups', 'assign' => 'Assign', 'settings' => 'Settings',
+        'create_group' => 'Create groups', 'assign' => 'Assign', 'settings' => 'Settings', 'publish' => 'Publish',
         'clients' => 'Client messages',
         // Invoice operations.
         'send' => 'Send', 'cancel' => 'Cancel', 'duplicate' => 'Duplicate', 'configure' => 'Configuration', 'bin' => 'Bin',

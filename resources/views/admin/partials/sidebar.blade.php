@@ -90,6 +90,7 @@
 
         ['type' => 'group', 'label' => 'HR', 'icon' => $ic['hr'], 'items' => [
             ['label' => 'Employees', 'route' => 'admin.staff.index', 'active' => 'admin.staff.*', 'perm' => 'employees.view', 'icon' => $ic['employees']],
+            ['label' => 'Careers', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.*', 'perm' => 'careers.view', 'icon' => $ic['employees']],
             ['label' => 'Designation', 'route' => 'admin.designations.index', 'active' => 'admin.designations.*', 'perm' => 'designations.view', 'icon' => $ic['designation']],
             ['label' => 'Department', 'route' => 'admin.departments.index', 'active' => 'admin.departments.*', 'perm' => 'departments.view', 'icon' => $ic['hr']],
             ['label' => 'Leave', 'route' => 'admin.leaves.index', 'active' => 'admin.leaves.*', 'perm' => 'leave.view', 'icon' => $ic['leave']],

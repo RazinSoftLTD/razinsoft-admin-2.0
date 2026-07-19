@@ -516,6 +516,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
     });
 
+    // ---- Careers openings (draft → publish workflow behind the public careers page) ----
+    Route::middleware('permission:careers.view')->group(function () {
+        Route::get('jobs', [\App\Http\Controllers\Admin\JobController::class, 'index'])->name('jobs.index');
+    });
+    Route::middleware('permission:careers.create')->group(function () {
+        Route::get('jobs/create', [\App\Http\Controllers\Admin\JobController::class, 'create'])->name('jobs.create');
+        Route::post('jobs', [\App\Http\Controllers\Admin\JobController::class, 'store'])->name('jobs.store');
+    });
+    Route::middleware('permission:careers.edit')->group(function () {
+        Route::get('jobs/{job}/edit', [\App\Http\Controllers\Admin\JobController::class, 'edit'])->whereNumber('job')->name('jobs.edit');
+        Route::put('jobs/{job}', [\App\Http\Controllers\Admin\JobController::class, 'update'])->whereNumber('job')->name('jobs.update');
+    });
+    Route::middleware('permission:careers.publish')->group(function () {
+        Route::post('jobs/{job}/publish', [\App\Http\Controllers\Admin\JobController::class, 'togglePublish'])->whereNumber('job')->name('jobs.publish');
+    });
+    Route::middleware('permission:careers.delete')->group(function () {
+        Route::delete('jobs/{job}', [\App\Http\Controllers\Admin\JobController::class, 'destroy'])->whereNumber('job')->name('jobs.destroy');
+    });
+
     // ---- Super admin only (role=admin): per-user permission overrides, roles, admin users ----
     Route::middleware('admin')->group(function () {
         Route::patch('staff/{staff}/role', [StaffController::class, 'updateRole'])->whereNumber('staff')->name('staff.role');

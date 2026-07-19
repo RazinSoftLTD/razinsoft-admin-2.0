@@ -318,6 +318,22 @@
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
         });
+        // Paste an image straight from the clipboard (screenshot / copied picture) → attach it.
+        input.addEventListener('paste', function (e) {
+            const items = (e.clipboardData && e.clipboardData.items) ? e.clipboardData.items : [];
+            for (const it of items) {
+                if (it.kind === 'file' && it.type.indexOf('image/') === 0) {
+                    const file = it.getAsFile();
+                    if (!file) continue;
+                    e.preventDefault();
+                    const ext = (file.type.split('/')[1] || 'png');
+                    const named = new File([file], (file.name && file.name !== 'image.png') ? file.name : ('pasted-' + Date.now() + '.' + ext), { type: file.type });
+                    const dt = new DataTransfer(); dt.items.add(named); fileInput.files = dt.files;
+                    fileInput.dispatchEvent(new Event('change'));
+                    return;
+                }
+            }
+        });
 
         fileInput.addEventListener('change', function () {
             if (this.files.length) { fileName.textContent = this.files[0].name; fileChip.classList.remove('hidden'); fileChip.classList.add('flex'); }
@@ -363,7 +379,9 @@
                 quick('reply', 'Reply') + quick('react', 'React') + (hasText ? quick('copy', 'Copy') : '') +
                 '<div class="relative"><button type="button" data-kebab class="grid h-7 w-7 place-items-center rounded-full bg-white text-gray-400 shadow-sm ring-1 ring-gray-100 hover:bg-gray-50"><svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>' +
                 '<div data-menu class="absolute bottom-9 z-30 hidden min-w-[8.5rem] ' + (mine ? 'right-0' : 'left-0') + ' overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">' + items + '</div></div>';
-            row.insertBefore(wrap, row.querySelector('[data-bubble-wrap]'));
+            // Place the bar on the bubble's INNER side (toward the chat centre) for both
+            // sent (row-reverse) and received rows — appending after the bubble does this.
+            row.appendChild(wrap);
             renderReactions(row, readReactions(row));
         }
 
