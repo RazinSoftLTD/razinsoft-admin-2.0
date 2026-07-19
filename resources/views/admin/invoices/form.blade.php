@@ -172,18 +172,21 @@
                                 <div class="mt-2">
                                     <div x-data="{}" class="rounded-lg border border-gray-100 bg-white">
                                         <div class="flex items-center gap-1 border-b border-gray-100 px-2 py-1">
-                                            <button type="button" @mousedown.prevent="$refs.editor.focus(); document.execCommand('bold', false, null); $refs.editor.dispatchEvent(new Event('input'))" class="grid h-6 w-6 place-items-center rounded text-xs font-bold text-[var(--color-muted)] hover:bg-gray-100" title="Bold">B</button>
-                                            <button type="button" @mousedown.prevent="$refs.editor.focus(); document.execCommand('italic', false, null); $refs.editor.dispatchEvent(new Event('input'))" class="grid h-6 w-6 place-items-center rounded text-xs italic text-[var(--color-muted)] hover:bg-gray-100" title="Italic">I</button>
-                                            <button type="button" @mousedown.prevent="$refs.editor.focus(); document.execCommand('insertUnorderedList', false, null); $refs.editor.dispatchEvent(new Event('input'))" class="grid h-6 w-6 place-items-center rounded text-[var(--color-muted)] hover:bg-gray-100" title="Bullet list">
+                                            <button type="button" @mousedown.prevent="window.RF.exec($refs.editor, 'bold')" class="grid h-6 w-6 place-items-center rounded text-xs font-bold text-[var(--color-muted)] hover:bg-gray-100" title="Bold">B</button>
+                                            <button type="button" @mousedown.prevent="window.RF.exec($refs.editor, 'italic')" class="grid h-6 w-6 place-items-center rounded text-xs italic text-[var(--color-muted)] hover:bg-gray-100" title="Italic">I</button>
+                                            <button type="button" @mousedown.prevent="window.RF.exec($refs.editor, 'underline')" class="grid h-6 w-6 place-items-center rounded text-xs underline text-[var(--color-muted)] hover:bg-gray-100" title="Underline">U</button>
+                                            <button type="button" @mousedown.prevent="window.RF.exec($refs.editor, 'insertUnorderedList')" class="grid h-6 w-6 place-items-center rounded text-[var(--color-muted)] hover:bg-gray-100" title="Bullet list">
                                                 <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
                                             </button>
                                             <span class="ml-auto text-[10px] text-gray-300">Sub-description</span>
                                         </div>
                                         <div x-ref="editor" contenteditable="true"
-                                             x-init="$el.innerHTML = item.sub_description || ''"
+                                             x-init="$el.innerHTML = window.RF.toHtml(item.sub_description)"
                                              @input="item.sub_description = $refs.editor.innerHTML"
+                                             @keydown="window.RF.enter($event, $refs.editor)"
+                                             @paste="window.RF.paste($event, $refs.editor)"
                                              data-ph="Enter Description (optional)"
-                                             class="sub-editor min-h-[56px] resize-y overflow-auto px-3 py-2 text-sm text-[var(--color-heading)] focus:outline-none"></div>
+                                             class="rich-editor min-h-[56px] resize-y overflow-auto px-3 py-2 text-sm text-[var(--color-heading)] focus:outline-none"></div>
                                     </div>
                                     <input type="hidden" :name="`items[${idx}][sub_description]`" :value="item.sub_description">
                                 </div>
@@ -202,7 +205,24 @@
                     <div class="grid gap-5 sm:grid-cols-2">
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Notes</label>
-                            <textarea name="notes" rows="3" x-model="notes" placeholder="Thank you note to the client…" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
+                            <div x-data="{}" class="rounded-lg border border-gray-200 bg-white">
+                                <div class="flex items-center gap-1 border-b border-gray-100 px-2 py-1">
+                                    <button type="button" @mousedown.prevent="window.RF.exec($refs.noteEditor, 'bold')" class="grid h-6 w-6 place-items-center rounded text-xs font-bold text-[var(--color-muted)] hover:bg-gray-100" title="Bold">B</button>
+                                    <button type="button" @mousedown.prevent="window.RF.exec($refs.noteEditor, 'italic')" class="grid h-6 w-6 place-items-center rounded text-xs italic text-[var(--color-muted)] hover:bg-gray-100" title="Italic">I</button>
+                                    <button type="button" @mousedown.prevent="window.RF.exec($refs.noteEditor, 'underline')" class="grid h-6 w-6 place-items-center rounded text-xs underline text-[var(--color-muted)] hover:bg-gray-100" title="Underline">U</button>
+                                    <button type="button" @mousedown.prevent="window.RF.exec($refs.noteEditor, 'insertUnorderedList')" class="grid h-6 w-6 place-items-center rounded text-[var(--color-muted)] hover:bg-gray-100" title="Bullet list">
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                                    </button>
+                                </div>
+                                <div x-ref="noteEditor" contenteditable="true"
+                                     x-init="$el.innerHTML = window.RF.toHtml(notes)"
+                                     @input="notes = $refs.noteEditor.innerHTML"
+                                     @keydown="window.RF.enter($event, $refs.noteEditor)"
+                                     @paste="window.RF.paste($event, $refs.noteEditor)"
+                                     data-ph="Thank you note to the client…"
+                                     class="rich-editor min-h-[76px] resize-y overflow-auto px-3 py-2 text-sm text-[var(--color-heading)] focus:outline-none"></div>
+                            </div>
+                            <input type="hidden" name="notes" :value="notes">
                         </div>
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Terms &amp; Conditions</label>
@@ -282,7 +302,7 @@
                     <div class="mt-4 space-y-3 border-t border-gray-100 pt-3 text-xs" x-show="notes || terms" x-cloak>
                         <div x-show="notes">
                             <p class="mb-0.5 font-semibold text-gray-400">Notes</p>
-                            <p class="whitespace-pre-line text-[var(--color-muted)]" x-text="notes"></p>
+                            <div class="rich-html text-[var(--color-muted)]" x-html="notes"></div>
                         </div>
                         <div x-show="terms">
                             <p class="mb-0.5 font-semibold text-gray-400">Terms &amp; Conditions</p>
@@ -332,11 +352,35 @@
 
 <style>
     [x-cloak]{display:none!important}
-    .sub-editor:empty:before{content:attr(data-ph);color:#9ca3af}
-    .sub-editor ul{list-style:disc;margin-left:1.25rem}
+    .rich-editor:empty:before{content:attr(data-ph);color:#9ca3af}
+    .rich-editor ul,.rich-html ul{list-style:disc;margin-left:1.25rem}
+    .rich-html b,.rich-html strong{font-weight:600}
 </style>
 
 <script>
+// Shared inline rich-text editor for sub-descriptions & notes.
+// Enter inserts a <br> (not a <div>) and bold uses <b> (styleWithCSS off) so the
+// stored markup stays clean inline HTML — this is what stopped "bold breaks the line".
+window.RF = {
+    _ready: false,
+    _prep() { if (this._ready) return; try { document.execCommand('styleWithCSS', false, false); } catch (e) {} this._ready = true; },
+    exec(editor, cmd) { this._prep(); editor.focus(); document.execCommand(cmd, false, null); editor.dispatchEvent(new Event('input')); },
+    enter(e, editor) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._prep(); document.execCommand('insertLineBreak'); editor.dispatchEvent(new Event('input')); } },
+    paste(e, editor) {
+        e.preventDefault();
+        const t = ((e.clipboardData || window.clipboardData).getData('text/plain') || '');
+        const html = t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/\r?\n/g, '<br>');
+        document.execCommand('insertHTML', false, html);
+        editor.dispatchEvent(new Event('input'));
+    },
+    // Existing values may be plain text (old invoices) — turn newlines into <br> so they render.
+    toHtml(v) {
+        v = v || '';
+        return v.indexOf('<') === -1
+            ? v.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/\n/g, '<br>')
+            : v;
+    },
+};
 function invoiceForm(cfg) {
     return {
         clients: cfg.clients, items: cfg.items, units: cfg.units, taxes: cfg.taxes, defaultUnit: cfg.defaultUnit,

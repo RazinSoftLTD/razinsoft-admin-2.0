@@ -49,7 +49,7 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($invoices as $inv)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-5 py-3 font-semibold text-[var(--color-heading)]">{{ $inv->invoice_number }}</td>
+                            <td class="px-5 py-3"><a href="{{ route('admin.invoices.show', $inv) }}" class="font-semibold text-[var(--color-primary)] hover:underline">{{ $inv->invoice_number }}</a></td>
                             <td class="px-5 py-3">
                                 @if ($inv->client)
                                     <a href="{{ route('admin.clients.show', $inv->client_id) }}" class="font-medium text-[var(--color-primary)] hover:underline">{{ $inv->bill_to_name ?: $inv->client->name }}</a>

@@ -11,6 +11,23 @@
         if ($other) $directByUser[$other->id] = $c;
     }
 
+    // WhatsApp-style ordering: teammates you've messaged float to the top by most-recent
+    // message; people you haven't chatted with yet fall to the bottom (alphabetical).
+    $people = $people->sort(function ($a, $b) use ($directByUser) {
+        $ta = optional(optional($directByUser[$a->id] ?? null)->latestMessage)->created_at;
+        $tb = optional(optional($directByUser[$b->id] ?? null)->latestMessage)->created_at;
+        if (! $ta && ! $tb) return strcasecmp($a->name, $b->name);
+        if (! $ta) return 1;
+        if (! $tb) return -1;
+        return $tb->timestamp <=> $ta->timestamp;
+    })->values();
+
+    // Short last-activity label like WhatsApp (time today · "Yesterday" · date).
+    $chatTime = function ($t) {
+        if (! $t) return '';
+        return $t->isToday() ? $t->format('g:i A') : ($t->isYesterday() ? 'Yesterday' : $t->format('d/m/y'));
+    };
+
     $avatar = function ($u, $size = 'h-9 w-9') {
         if ($u && $u->photo_url) {
             return '<img src="'.e($u->photo_url).'" class="'.$size.' rounded-full object-cover" alt="">';
@@ -78,7 +95,7 @@
 
                 <p class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Channels</p>
                 @forelse ($groups as $g)
-                    @php $un = $g->unreadCountFor($me); $on = $active && $active->id === $g->id; @endphp
+                    @php $un = $g->unreadCountFor($me); $on = $active && $active->id === $g->id; $glast = $g->latestMessage; @endphp
                     <a href="{{ route('admin.chat.show', $g) }}" data-turbo="false" data-conv-link data-conv="{{ $g->id }}" data-chat-row="{{ strtolower($g->name) }}"
                        class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
                         <span class="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-gray-100 text-gray-500">
@@ -88,8 +105,16 @@
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 9h12M6 15h12M9 4 7 20M17 4l-2 16"/></svg>
                             @endif
                         </span>
-                        <span class="conv-name min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-heading)]">{{ $g->name }}</span>
-                        @if ($un)<span data-unread class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                        <span class="min-w-0 flex-1">
+                            <span class="flex items-baseline justify-between gap-2">
+                                <span class="conv-name truncate text-sm font-medium text-[var(--color-heading)]">{{ $g->name }}</span>
+                                @if ($glast)<span class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $chatTime($glast->created_at) }}</span>@endif
+                            </span>
+                            <span class="mt-0.5 flex items-center justify-between gap-2">
+                                <span class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $glast?->preview ?: 'No messages yet' }}</span>
+                                @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                            </span>
+                        </span>
                     </a>
                 @empty
                     <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No channels yet.</p>
@@ -97,7 +122,13 @@
 
                 <p class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
                 @forelse ($people as $p)
-                    @php $c = $directByUser[$p->id] ?? null; $un = $c ? $c->unreadCountFor($me) : 0; $on = $active && $c && $active->id === $c->id; @endphp
+                    @php
+                        $c = $directByUser[$p->id] ?? null;
+                        $un = $c ? $c->unreadCountFor($me) : 0;
+                        $on = $active && $c && $active->id === $c->id;
+                        $last = $c?->latestMessage;
+                        $preview = $last?->preview;
+                    @endphp
                     <a href="{{ route('admin.chat.direct', $p) }}" data-turbo="false" data-conv-link data-user="{{ $p->id }}" data-chat-row="{{ strtolower($p->name) }}"
                        class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
                         <span class="relative shrink-0">
@@ -105,10 +136,15 @@
                             <span data-online="{{ $p->id }}" class="{{ $p->isOnline() ? '' : 'hidden' }} absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white"></span>
                         </span>
                         <span class="min-w-0 flex-1">
-                            <span class="conv-name block truncate text-sm font-medium text-[var(--color-heading)]">{{ $p->name }}</span>
-                            <span class="block truncate text-xs text-[var(--color-muted)]">{{ $p->designation->name ?? 'Team member' }}</span>
+                            <span class="flex items-baseline justify-between gap-2">
+                                <span class="conv-name truncate text-sm font-medium text-[var(--color-heading)]">{{ $p->name }}</span>
+                                @if ($last)<span class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $chatTime($last->created_at) }}</span>@endif
+                            </span>
+                            <span class="mt-0.5 flex items-center justify-between gap-2">
+                                <span class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $preview !== null && $preview !== '' ? $preview : ($p->designation->name ?? 'Team member') }}</span>
+                                @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                            </span>
                         </span>
-                        @if ($un)<span data-unread class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
                     </a>
                 @empty
                     <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No teammates yet.</p>

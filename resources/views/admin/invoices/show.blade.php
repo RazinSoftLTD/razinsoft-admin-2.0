@@ -133,7 +133,7 @@
                 <div class="mt-6 grid gap-6 border-t border-gray-100 p-8 text-xs leading-relaxed text-[var(--color-muted)] sm:grid-cols-2">
                     <div>
                         <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Notes</p>
-                        <p>{{ $invoice->notes ?: '—' }}</p>
+                        <p class="invoice-notes">{!! $invoice->notes ? $invoice->formattedNotes() : '—' !!}</p>
                     </div>
                     <div>
                         <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Terms</p>
