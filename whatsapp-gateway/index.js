@@ -16,7 +16,10 @@ import {
   downloadMediaMessage,
   fetchLatestBaileysVersion,
   Browsers,
+  proto,
 } from '@whiskeysockets/baileys'
+
+const REVOKE_STUB = proto?.WebMessageInfo?.StubType?.REVOKE ?? 1
 
 const PORT = process.env.PORT || 8090
 const SECRET = process.env.GATEWAY_SECRET || 'change-me'
@@ -166,7 +169,13 @@ async function start(key) {
 
     sock.ev.on('messages.update', (updates) => {
       for (const u of updates) {
-        const st = u.update?.status
+        // A revoke (delete) of a received message often arrives here, not via messages.upsert.
+        const upd = u.update || {}
+        if (upd.messageStubType === REVOKE_STUB || upd.message?.protocolMessage?.key?.id) {
+          push(key, { event: 'revoke', id: upd.message?.protocolMessage?.key?.id || u.key?.id })
+          continue
+        }
+        const st = upd.status
         if (!st) continue
         const map = { 2: 'sent', 3: 'delivered', 4: 'read', 5: 'read' }
         push(key, { event: 'status', id: u.key.id, status: map[st] || 'sent' })
