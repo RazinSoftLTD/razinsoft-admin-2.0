@@ -109,6 +109,11 @@ async function start(key) {
           s.state = 'disconnected'
           try { fs.rmSync(dirFor(key), { recursive: true, force: true }) } catch {}
           push(key, { event: 'connection', state: 'disconnected' })
+        } else if (code === DisconnectReason.connectionReplaced || code === 440) {
+          // Another session took over this number — stop, don't ping-pong reconnect.
+          s.state = 'disconnected'
+          push(key, { event: 'connection', state: 'disconnected' })
+          log.warn(`[${key}] connection replaced by another session; stopping.`)
         } else {
           log.warn(`[${key}] connection closed (${code}), reconnecting…`)
           setTimeout(() => start(key), 2000)
