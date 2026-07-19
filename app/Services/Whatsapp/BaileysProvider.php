@@ -75,6 +75,14 @@ class BaileysProvider implements WhatsappProvider
         }
     }
 
+    public function resync(): void
+    {
+        $res = $this->post('/resync', [], 30);
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error') ?: 'Gateway failed to sync.');
+        }
+    }
+
     public function sendText(string $to, string $body, array $mentions = [], ?array $quoted = null): array
     {
         $res = $this->post('/send', array_filter([

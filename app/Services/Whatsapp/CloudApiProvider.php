@@ -78,6 +78,11 @@ class CloudApiProvider implements WhatsappProvider
         throw new \RuntimeException('Deleting messages is not supported on the WhatsApp Cloud API.');
     }
 
+    public function resync(): void
+    {
+        // The Cloud API is always in sync via webhooks — nothing to do.
+    }
+
     public function checkNumber(string $number): array
     {
         // The Cloud API can message any number without a pre-check.

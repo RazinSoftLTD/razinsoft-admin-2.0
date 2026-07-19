@@ -23,6 +23,9 @@ interface WhatsappProvider
     /** End the session (log out of WhatsApp / clear creds locally). */
     public function disconnect(): void;
 
+    /** Force a reconnect so the phone re-delivers anything missed while offline. */
+    public function resync(): void;
+
     /** Send a plain text message. $mentions = jids to mention; $quoted = replied-to context. Returns ['id' => provider message id]. */
     public function sendText(string $to, string $body, array $mentions = [], ?array $quoted = null): array;
 

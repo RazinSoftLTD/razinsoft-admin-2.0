@@ -49,8 +49,15 @@
                                     <svg x-show="accountId === a.id && !a.unread" class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
                                 </button>
                             </template>
+                            @if ($canReply)
+                                {{-- Manual sync from the phone --}}
+                                <button type="button" @click="syncAccount()" :disabled="syncing" class="mt-1 flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 disabled:opacity-60">
+                                    <svg class="h-4 w-4" :class="syncing ? 'animate-spin' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 0 0-14.9-2M4 16a8 8 0 0 0 14.9 2"/></svg>
+                                    <span x-text="syncing ? 'Syncing from phone…' : 'Sync now'"></span>
+                                </button>
+                            @endif
                             @if (auth()->user()->hasPermission('whatsapp.settings') || auth()->user()->isAdmin())
-                                <a href="{{ route('admin.whatsapp-settings') }}" class="mt-1 flex items-center gap-2 border-t border-gray-100 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50">
+                                <a href="{{ route('admin.whatsapp-settings') }}" class="flex items-center gap-2 border-t border-gray-100 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Manage numbers
                                 </a>
                             @endif
@@ -751,7 +758,7 @@
                 mentionOpen: false, mentionJids: [],
                 lightbox: { open: false, index: 0, items: [] }, lbTouch: 0, replyTo: null,
                 dragOver: false, pending: null,
-                accMenu: false,
+                accMenu: false, syncing: false,
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
@@ -829,6 +836,16 @@
                     }
                 },
                 otherUnread() { return this.accountsList.filter(a => a.id !== this.accountId).reduce((n, a) => n + (a.unread || 0), 0); },
+                async syncAccount() {
+                    if (this.syncing || !this.accountId) return;
+                    this.syncing = true; this.accMenu = false;
+                    try {
+                        const r = await this.post(@js(url('admin/whatsapp/accounts')) + '/' + this.accountId + '/resync', {});
+                        if (!r.ok) { alert((await r.json()).error || 'Sync failed.'); this.syncing = false; return; }
+                        // Reconnect takes a few seconds; refresh the inbox afterwards.
+                        setTimeout(() => { this.loadChats(); if (this.active) this.openChat(this.active.id, true); this.syncing = false; }, 6000);
+                    } catch { alert('Sync failed.'); this.syncing = false; }
+                },
                 async openChat(id, silent = false) {
                     const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id);
                     const d = await r.json();

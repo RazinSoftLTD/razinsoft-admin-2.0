@@ -73,6 +73,19 @@ class WhatsappController extends Controller
         ]);
     }
 
+    /** Manual "Sync now" — reconnect the number so the phone re-delivers missed messages. */
+    public function resyncAccount(Request $request, \App\Models\WhatsappAccount $account)
+    {
+        abort_unless(in_array($account->id, $this->accessibleAccountIds($request->user()), true), 403);
+        try {
+            WhatsappService::for($account)->resync();
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     /** JSON chat list (used by the live filter/search sidebar). */
     public function chats(Request $request)
     {

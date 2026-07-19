@@ -55,6 +55,12 @@ class WhatsappService
         $this->provider()->disconnect();
     }
 
+    /** Force a reconnect so the phone re-delivers missed messages. */
+    public function resync(): void
+    {
+        $this->provider()->resync();
+    }
+
     private function base(): string
     {
         return 'https://graph.facebook.com/'.($this->settings->api_version ?: 'v21.0');

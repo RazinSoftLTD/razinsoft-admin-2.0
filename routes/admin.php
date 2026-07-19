@@ -51,6 +51,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('whatsapp', [$wa, 'index'])->name('whatsapp.index');
             Route::get('whatsapp/chats', [$wa, 'chats'])->name('whatsapp.chats');
             Route::get('whatsapp/unread-count', [$wa, 'unreadCount'])->name('whatsapp.unread-count');
+            Route::post('whatsapp/accounts/{account}/resync', [$wa, 'resyncAccount'])->whereNumber('account')->name('whatsapp.account.resync');
             Route::post('whatsapp/new-chat', [$wa, 'startChat'])->middleware('permission:whatsapp.reply')->name('whatsapp.new-chat');
             Route::get('whatsapp/chats/{chat}/members', [$wa, 'groupMembers'])->whereNumber('chat')->name('whatsapp.members');
             Route::get('whatsapp/chats/{chat}', [$wa, 'show'])->whereNumber('chat')->name('whatsapp.show');

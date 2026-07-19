@@ -261,6 +261,19 @@ app.post('/connect', async (req, res) => {
   res.json({ ok: true, state: s.state })
 })
 
+// Force a reconnect so WhatsApp re-delivers anything we missed while offline (manual "Sync now").
+app.post('/resync', async (req, res) => {
+  const key = keyOf(req)
+  const s = getSession(key)
+  try {
+    try { s.sock?.end(undefined) } catch {}
+    await start(key)
+    res.json({ ok: true, state: s.state })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.post('/logout', async (req, res) => {
   const key = keyOf(req)
   const s = getSession(key)
