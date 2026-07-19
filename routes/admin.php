@@ -82,6 +82,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
             Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');   // open the Config page
         });
+        // A stray GET to the numbers collection (typed URL / old bookmark) → the Config page, not a 405.
+        Route::get('whatsapp-accounts', fn () => redirect()->route('admin.whatsapp-settings'))->name('whatsapp-accounts.index');
         // Connection Method (gateway / API credentials)
         Route::middleware('permission:whatsapp.connection')->group(function () {
             $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
