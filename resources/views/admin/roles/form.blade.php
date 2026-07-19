@@ -35,18 +35,19 @@
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
                 <div>
                     <p class="text-sm font-bold text-[var(--color-heading)]">Permissions</p>
-                    <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--color-muted)]">
-                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-blue-400"></span>Owned <span class="text-gray-400">their records</span></span>
-                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-indigo-400"></span>Added <span class="text-gray-400">they created</span></span>
-                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-violet-400"></span>Both</span>
-                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>All <span class="text-gray-400">everyone’s</span></span>
+                    <p class="mt-0.5 text-xs text-[var(--color-muted)]">For each module, choose <b>how much</b> this role can see and do. Hover any box for a plain explanation.</p>
+                    <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--color-muted)]">
+                        <span class="inline-flex items-center gap-1.5" title="No access to this at all."><span class="h-2.5 w-2.5 rounded-full bg-gray-300"></span><b class="font-semibold text-gray-500">No access</b></span>
+                        <span class="inline-flex items-center gap-1.5" title="Only records assigned to this person."><span class="h-2.5 w-2.5 rounded-full bg-blue-400"></span><b class="font-semibold text-blue-600">Their own</b> · assigned to them</span>
+                        <span class="inline-flex items-center gap-1.5" title="Only records this person created."><span class="h-2.5 w-2.5 rounded-full bg-indigo-400"></span><b class="font-semibold text-indigo-600">They created</b> · they added</span>
+                        <span class="inline-flex items-center gap-1.5" title="All records, from everyone."><span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span><b class="font-semibold text-emerald-600">Everyone's</b> · all records</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5">
                     <span class="mr-1 text-xs text-[var(--color-muted)]">Set all</span>
-                    <button type="button" data-bulk="all" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">All</button>
-                    <button type="button" data-bulk="owned" class="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">Owned</button>
-                    <button type="button" data-bulk="none" class="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50">None</button>
+                    <button type="button" data-bulk="all" title="Give this role full access to everything" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Everyone's</button>
+                    <button type="button" data-bulk="owned" title="Limit this role to their own records everywhere" class="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">Their own</button>
+                    <button type="button" data-bulk="none" title="Remove all access" class="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50">No access</button>
                 </div>
             </div>
 
@@ -61,10 +62,11 @@
                                 <col class="w-[14%]">
                             </colgroup>
                             <thead>
+                                @php $crudHelp = ['view' => 'Can open and see this module', 'create' => 'Can add new records', 'edit' => 'Can change existing records', 'delete' => 'Can remove records']; @endphp
                                 <tr class="text-left text-[11px] uppercase tracking-wide text-gray-400">
                                     <th class="px-5 py-2 font-semibold">Module</th>
-                                    @foreach ($crud as $label)<th class="px-3 py-2 font-semibold">{{ $label }}</th>@endforeach
-                                    <th class="px-3 py-2 text-right font-semibold">Sections</th>
+                                    @foreach ($crud as $act => $label)<th class="px-3 py-2 font-semibold"><span class="cursor-help border-b border-dotted border-gray-300" title="{{ $crudHelp[$act] ?? '' }}">{{ $label }}</span></th>@endforeach
+                                    <th class="px-3 py-2 text-right font-semibold"><span class="cursor-help border-b border-dotted border-gray-300" title="Extra sub-areas inside this module (e.g. a client's Invoices or Notes tab)">Sections</span></th>
                                 </tr>
                             </thead>
                                 @foreach ($modules as $mod => $cfg)
@@ -78,9 +80,9 @@
                                             <td class="px-3 py-2.5">
                                                 @if (in_array($act, $cfg['actions'], true))
                                                     @php $key = "$mod.$act"; @endphp
-                                                    <select name="permissions[{{ $key }}]" data-perm class="perm-select">
+                                                    <select name="permissions[{{ $key }}]" data-perm title="{{ Permissions::optionHelp($mod, $act, $scopeOf($key)) }}" class="perm-select">
                                                         @foreach (Permissions::scopesFor($mod, $act) as $scope)
-                                                            <option value="{{ $scope }}" @selected($scopeOf($key) === $scope)>{{ Permissions::scopeLabel($scope) }}</option>
+                                                            <option value="{{ $scope }}" @selected($scopeOf($key) === $scope)>{{ Permissions::optionLabel($mod, $act, $scope) }}</option>
                                                         @endforeach
                                                     </select>
                                                 @else
@@ -112,9 +114,9 @@
                                                             @php $key = "$mod.$act"; @endphp
                                                             <label class="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-white px-3 py-2">
                                                                 <span class="text-xs font-semibold text-[var(--color-heading)]">{{ Permissions::actionLabel($act) }}</span>
-                                                                <select name="permissions[{{ $key }}]" data-perm class="perm-select">
+                                                                <select name="permissions[{{ $key }}]" data-perm title="{{ Permissions::optionHelp($mod, $act, $scopeOf($key)) }}" class="perm-select">
                                                                     @foreach (Permissions::scopesFor($mod, $act) as $scope)
-                                                                        <option value="{{ $scope }}" @selected($scopeOf($key) === $scope)>{{ Permissions::scopeLabel($scope) }}</option>
+                                                                        <option value="{{ $scope }}" @selected($scopeOf($key) === $scope)>{{ Permissions::optionLabel($mod, $act, $scope) }}</option>
                                                                     @endforeach
                                                                 </select>
                                                             </label>
@@ -171,9 +173,15 @@
     <script>
         (function () {
             const order = ['none', 'owned', 'added', 'both', 'all'];
+            // Plain-language tooltips, matching the server-side helpers.
+            const HELP = { none: 'No access to this at all.', owned: 'Only records assigned to this person.', added: 'Only records this person created.', both: 'Records assigned to OR created by this person.', all: "All records — from everyone." };
+            const HELP_SIMPLE = { none: 'This role cannot do this.', all: 'This role can do this.' };
             const paint = (sel) => {
                 sel.classList.remove('s-none', 's-owned', 's-added', 's-both', 's-all');
                 sel.classList.add('s-' + (sel.value || 'none'));
+                // A yes/no action has no owned/added option → use the simple wording.
+                const simple = !Array.from(sel.options).some(o => o.value === 'owned' || o.value === 'added');
+                sel.title = (simple ? HELP_SIMPLE : HELP)[sel.value] || '';
             };
             const selects = document.querySelectorAll('select[data-perm]');
             selects.forEach((sel) => { paint(sel); sel.addEventListener('change', () => paint(sel)); });

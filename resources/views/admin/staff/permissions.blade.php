@@ -38,10 +38,10 @@
                                     @endphp
                                     <label class="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
                                         <span class="{{ ! $isCrud ? 'font-semibold text-[var(--color-primary)]' : '' }}">{{ Permissions::actionLabel($act) }}</span>
-                                        <select name="override[{{ $key }}]" class="h-8 rounded border-gray-200 text-xs {{ $cur !== '' ? 'bg-indigo-50 text-indigo-700' : '' }}">
-                                            <option value="" @selected($cur === '')>Inherit ({{ Permissions::scopeLabel($roleScope) }})</option>
+                                        <select name="override[{{ $key }}]" title="{{ $cur !== '' ? Permissions::optionHelp($mod, $act, $cur) : 'Follows the role setting.' }}" class="h-8 rounded border-gray-200 text-xs {{ $cur !== '' ? 'bg-indigo-50 text-indigo-700' : '' }}">
+                                            <option value="" @selected($cur === '')>Inherit ({{ Permissions::optionLabel($mod, $act, $roleScope) }})</option>
                                             @foreach ($scopes as $scope)
-                                                <option value="{{ $scope }}" @selected($cur === $scope)>{{ Permissions::scopeLabel($scope) }}</option>
+                                                <option value="{{ $scope }}" @selected($cur === $scope)>{{ Permissions::optionLabel($mod, $act, $scope) }}</option>
                                             @endforeach
                                         </select>
                                     </label>

@@ -21,13 +21,22 @@ namespace App\Support;
  */
 class Permissions
 {
-    /** Scope ladder (narrow → wide) with UI labels. */
+    /** Scope ladder (narrow → wide) with plain-language UI labels. */
     public const SCOPES = [
-        'none' => 'None',
-        'owned' => 'Owned',
-        'added' => 'Added',
-        'both' => 'Added & Owned',
-        'all' => 'All',
+        'none' => 'No access',
+        'owned' => 'Their own',
+        'added' => 'They created',
+        'both' => 'Own + created',
+        'all' => "Everyone's",
+    ];
+
+    /** One-line plain explanation of each scope — shown as a tooltip in the matrix. */
+    public const SCOPE_HELP = [
+        'none' => 'No access to this at all.',
+        'owned' => 'Only records assigned to this person.',
+        'added' => 'Only records this person created.',
+        'both' => 'Records assigned to OR created by this person.',
+        'all' => "All records — from everyone.",
     ];
 
     /** The CRUD actions that support scoping (when the module has owner/creator columns). */
@@ -244,6 +253,35 @@ class Permissions
     public static function scopeLabel(string $scope): string
     {
         return self::SCOPES[$scope] ?? ucfirst($scope);
+    }
+
+    /** True when an action is a plain yes/no (only none/all — no owned/added nuance). */
+    public static function isSimple(string $module, string $action): bool
+    {
+        return self::scopesFor($module, $action) === ['none', 'all'];
+    }
+
+    /**
+     * Context-aware option label. Yes/no actions (create, settings, …) read
+     * "No access / Allowed"; scopable ones read "Their own / Everyone's" etc.
+     */
+    public static function optionLabel(string $module, string $action, string $scope): string
+    {
+        if (self::isSimple($module, $action)) {
+            return $scope === 'all' ? 'Allowed' : 'No access';
+        }
+
+        return self::scopeLabel($scope);
+    }
+
+    /** Tooltip text for an option, matching optionLabel's context. */
+    public static function optionHelp(string $module, string $action, string $scope): string
+    {
+        if (self::isSimple($module, $action)) {
+            return $scope === 'all' ? 'This role can do this.' : 'This role cannot do this.';
+        }
+
+        return self::SCOPE_HELP[$scope] ?? '';
     }
 
     public static function actionLabel(string $action): string
