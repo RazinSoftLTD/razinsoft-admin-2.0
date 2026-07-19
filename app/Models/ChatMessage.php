@@ -10,13 +10,49 @@ class ChatMessage extends Model
     /** How long after posting a message may still be edited or deleted (minutes). */
     public const MUTATE_WINDOW_MINUTES = 60;
 
-    protected $fillable = ['conversation_id', 'user_id', 'body', 'edited_at', 'attachment', 'attachment_name'];
+    protected $fillable = ['conversation_id', 'user_id', 'reply_to_id', 'body', 'edited_at', 'attachment', 'attachment_name', 'reactions'];
 
-    protected $casts = ['edited_at' => 'datetime'];
+    protected $casts = ['edited_at' => 'datetime', 'reactions' => 'array'];
 
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    /** The message this one is a reply to (WhatsApp-style quote), if any. */
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reply_to_id');
+    }
+
+    /**
+     * Compact quote data for the message being replied to — author + text/attachment
+     * snippet — or null when this isn't a reply (or the quoted message was deleted).
+     */
+    public function quoted(): ?array
+    {
+        $q = $this->replyTo;
+        if (! $q) {
+            return null;
+        }
+
+        return [
+            'id' => $q->id,
+            'author' => $q->author->name ?? '—',
+            'preview' => $q->preview,
+            'is_image' => $q->is_image,
+        ];
+    }
+
+    /** Raw reaction map ({userId: emoji}) — always an array, never null. */
+    public function reactionMap(): array
+    {
+        return is_array($this->reactions) ? $this->reactions : [];
+    }
+
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /** Within the edit/delete window (used to gate the author's edit & delete actions). */
@@ -46,10 +82,5 @@ class ChatMessage extends Model
         }
 
         return \Illuminate\Support\Str::limit($text, 60);
-    }
-
-    public function author(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
     }
 }

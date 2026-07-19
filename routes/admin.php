@@ -108,6 +108,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('chat/offline', [\App\Http\Controllers\Admin\ChatController::class, 'offline'])->name('chat.offline');
         Route::patch('chat/messages/{message}', [\App\Http\Controllers\Admin\ChatController::class, 'editMessage'])->whereNumber('message')->name('chat.messages.update');
         Route::post('chat/messages/{message}/forward', [\App\Http\Controllers\Admin\ChatController::class, 'forwardMessage'])->whereNumber('message')->name('chat.messages.forward');
+        Route::post('chat/messages/{message}/react', [\App\Http\Controllers\Admin\ChatController::class, 'reactMessage'])->whereNumber('message')->name('chat.messages.react');
         Route::delete('chat/messages/{message}', [\App\Http\Controllers\Admin\ChatController::class, 'destroyMessage'])->whereNumber('message')->name('chat.messages.destroy');
         Route::get('chat/{conversation}/settings', [\App\Http\Controllers\Admin\ChatController::class, 'editGroup'])->whereNumber('conversation')->name('chat.groups.edit');
         Route::post('chat/{conversation}/settings', [\App\Http\Controllers\Admin\ChatController::class, 'updateGroup'])->whereNumber('conversation')->name('chat.groups.update');

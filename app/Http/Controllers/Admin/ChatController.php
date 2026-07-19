@@ -59,7 +59,7 @@ class ChatController extends Controller
     /** The most recent $limit messages (chronological) + whether older ones exist. */
     private function recentMessages(Conversation $conversation, int $limit = 40): array
     {
-        $recent = $conversation->messages()->with('author')->orderByDesc('id')->limit($limit + 1)->get();
+        $recent = $conversation->messages()->with('author', 'replyTo.author')->orderByDesc('id')->limit($limit + 1)->get();
         $hasMore = $recent->count() > $limit;
 
         return [$recent->take($limit)->sortBy('id')->values(), $hasMore];
@@ -73,7 +73,7 @@ class ChatController extends Controller
 
         $beforeId = (int) $request->query('before_id');
         $limit = 40;
-        $older = $conversation->messages()->with('author')->where('id', '<', $beforeId)
+        $older = $conversation->messages()->with('author', 'replyTo.author')->where('id', '<', $beforeId)
             ->orderByDesc('id')->limit($limit + 1)->get();
         $hasMore = $older->count() > $limit;
         $messages = $older->take($limit)->sortBy('id')->values();
@@ -85,6 +85,7 @@ class ChatController extends Controller
                 'body' => $m->body, 'attachment' => $m->attachment_url, 'attachment_name' => $m->attachment_name,
                 'is_image' => $m->is_image, 'time' => $m->created_at->format('g:i A'),
                 'created_at' => $m->created_at->timestamp, 'edited' => (bool) $m->edited_at,
+                'quoted' => $m->quoted(), 'reactions' => (object) $m->reactionMap(),
             ]),
             'has_more' => $hasMore,
         ]);
@@ -261,7 +262,15 @@ class ChatController extends Controller
         $request->validate([
             'body' => ['nullable', 'string', 'max:20000'],
             'attachment' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip,rar,csv'],
+            'reply_to_id' => ['nullable', 'integer'],
         ]);
+
+        // A reply must point at a message that lives in THIS conversation.
+        $replyToId = null;
+        if ($request->filled('reply_to_id')) {
+            $replyToId = ChatMessage::where('id', $request->input('reply_to_id'))
+                ->where('conversation_id', $conversation->id)->value('id');
+        }
 
         // Sanitize the rich-text HTML (bold/italic/links/highlight) before it's stored & shown to others.
         $body = trim((string) $request->input('body'));
@@ -283,6 +292,7 @@ class ChatController extends Controller
 
         $message = $conversation->messages()->create([
             'user_id' => $me->id,
+            'reply_to_id' => $replyToId,
             'body' => $body,
             'attachment' => $path,
             'attachment_name' => $name,
@@ -303,6 +313,8 @@ class ChatController extends Controller
                 'is_image' => $message->is_image,
                 'created_at' => $message->created_at->timestamp,
                 'time' => $message->created_at->format('g:i A'),
+                'quoted' => $message->quoted(),
+                'reactions' => (object) $message->reactionMap(),
             ]);
         }
 
@@ -373,6 +385,29 @@ class ChatController extends Controller
         broadcast(new \App\Events\ChatMessageEdited($message->conversation_id, $message->id, $body))->toOthers();
 
         return response()->json(['ok' => true, 'id' => $message->id, 'body' => $body, 'edited' => true]);
+    }
+
+    /** Toggle an emoji reaction on a message for the current user. */
+    public function reactMessage(Request $request, ChatMessage $message)
+    {
+        $me = auth()->user();
+        abort_unless($this->canAccess($me, $message->conversation), 403);
+
+        $data = $request->validate(['emoji' => ['required', 'string', 'max:16']]);
+        $map = $message->reactionMap();
+        $key = (string) $me->id;
+
+        // Same emoji again → remove it; otherwise set/replace this user's reaction.
+        if (($map[$key] ?? null) === $data['emoji']) {
+            unset($map[$key]);
+        } else {
+            $map[$key] = $data['emoji'];
+        }
+        $message->update(['reactions' => $map ?: null]);
+
+        broadcast(new \App\Events\ChatMessageReacted($message->conversation_id, $message->id, $map));
+
+        return response()->json(['ok' => true, 'id' => $message->id, 'reactions' => (object) $map]);
     }
 
     /** Forward a message's content to a teammate's direct conversation. */

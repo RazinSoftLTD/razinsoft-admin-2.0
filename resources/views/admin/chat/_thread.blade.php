@@ -82,14 +82,22 @@
             <button type="button" id="chat-load-earlier-btn" class="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-gray-600 shadow-sm hover:bg-gray-50">Load earlier messages</button>
         </div>
         @foreach ($messages as $msg)
-            @php $mine = $msg->user_id === $me->id; @endphp
+            @php $mine = $msg->user_id === $me->id; $q = $msg->quoted(); @endphp
             <div class="group flex items-end gap-2 {{ $mine ? 'flex-row-reverse' : '' }}"
                  data-msg-id="{{ $msg->id }}" data-mine="{{ $mine ? '1' : '0' }}"
+                 data-author="{{ $msg->author->name ?? '—' }}"
+                 data-reactions="{{ json_encode($msg->reactionMap()) }}"
                  data-created="{{ $msg->created_at->timestamp }}">
                 @unless ($mine){!! $avatar($msg->author, 'h-7 w-7') !!}@endunless
                 <div class="max-w-[75%]" data-bubble-wrap>
                     @if ($isGroup && ! $mine)<p class="mb-0.5 px-1 text-xs font-semibold text-[var(--color-heading)]">{{ $msg->author->name ?? '—' }}</p>@endif
                     <div class="rounded-2xl px-3.5 py-2 text-sm {{ $mine ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-white text-[var(--color-heading)] border border-gray-100 rounded-bl-sm' }}">
+                        @if ($q)
+                            <div class="mb-1 rounded-md border-l-4 px-2 py-1 text-xs {{ $mine ? 'border-white/70 bg-white/15' : 'border-[var(--color-primary)] bg-gray-100' }}">
+                                <span class="block font-semibold {{ $mine ? 'text-white' : 'text-[var(--color-primary)]' }}">{{ $q['author'] }}</span>
+                                <span class="block truncate {{ $mine ? 'text-white/80' : 'text-gray-500' }}">{{ $q['is_image'] ? '📷 Photo' : $q['preview'] }}</span>
+                            </div>
+                        @endif
                         @if ($msg->body)<div class="chat-html break-words">{!! $msg->body !!}</div>@endif
                         @if ($msg->attachment)
                             @if ($msg->is_image)
@@ -102,6 +110,7 @@
                             @endif
                         @endif
                     </div>
+                    <div data-reactions-box class="mt-1 flex flex-wrap gap-1 {{ $mine ? 'justify-end' : '' }}"></div>
                     <p class="mt-0.5 px-1 text-[11px] text-gray-400 {{ $mine ? 'text-right' : '' }}">
                         {{ $msg->created_at->format('g:i A') }}<span data-edited-tag class="{{ $msg->edited_at ? '' : 'hidden' }}"> · edited</span>
                     </p>
@@ -127,6 +136,16 @@
             <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             <span class="font-semibold">Editing message</span>
             <button type="button" id="chat-edit-cancel" class="ml-auto font-semibold text-indigo-500 hover:underline">Cancel</button>
+        </div>
+        <div id="chat-reply-banner" class="hidden items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs">
+            <span class="h-8 w-1 shrink-0 rounded bg-[var(--color-primary)]"></span>
+            <div class="min-w-0 flex-1">
+                <span id="chat-reply-author" class="block font-semibold text-[var(--color-primary)]"></span>
+                <span id="chat-reply-text" class="block truncate text-gray-500"></span>
+            </div>
+            <button type="button" id="chat-reply-cancel" class="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600" title="Cancel reply">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
         </div>
         <div id="chat-file-chip" class="hidden items-center gap-2 border-b border-gray-100 px-4 py-2 text-xs">
             <svg class="h-4 w-4 text-[var(--color-muted)]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>

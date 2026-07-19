@@ -33,11 +33,20 @@
         [data-conv-link].active-conv .conv-name { color: var(--color-primary); }
         @keyframes chatFadeIn { from { opacity: 0; } to { opacity: 1; } }
         #thread-root { animation: chatFadeIn .18s ease; }
+        /* Full-bleed like WhatsApp — break out of the page padding, fill below the top bar. */
+        .chat-shell { margin: -1rem; height: calc(100dvh - 4rem); border-radius: 0; border-left: 0; border-right: 0; }
+        @media (min-width: 640px) { .chat-shell { margin: -1.5rem; } }
+        /* Emoji reaction chip under a bubble. */
+        .rx-chip { display: inline-flex; align-items: center; gap: .15rem; border-radius: 9999px; background: #fff; border: 1px solid #e5e7eb; padding: 0 .4rem; height: 1.25rem; font-size: .72rem; line-height: 1; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+        .rx-chip.mine { background: var(--color-primary-soft); border-color: var(--color-primary); }
+        /* Hover action bar beside a message. */
+        .msg-actions { opacity: 0; transition: opacity .12s ease; }
+        .group:hover .msg-actions { opacity: 1; }
     </style>
 @endpush
 
 @section('content')
-    <div class="flex h-[calc(100dvh-7rem)] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+    <div class="chat-shell flex overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
 
         {{-- ───────── Left rail ───────── --}}
         <aside x-data="{ tab: '{{ $tab }}' }" class="flex w-72 shrink-0 flex-col border-r border-gray-100">
@@ -208,6 +217,49 @@
         if (activeRow) { activeRow.classList.add('active-conv'); const b = activeRow.querySelector('[data-unread]'); if (b) b.remove(); }
 
         const esc = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+        // ── Reactions & reply (WhatsApp-style) ──
+        const REACT_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+        const REACT_BASE = DEL_BASE;   // /admin/chat/messages/{id}/react
+
+        // Render the reaction chips under a bubble from a {userId: emoji} map.
+        function renderReactions(row, map) {
+            const box = row.querySelector('[data-reactions-box]');
+            if (!box) return;
+            map = map || {};
+            const counts = {};              // emoji → count
+            let mine = null;
+            Object.keys(map).forEach(uid => {
+                const em = map[uid];
+                counts[em] = (counts[em] || 0) + 1;
+                if (Number(uid) === ME) mine = em;
+            });
+            row.dataset.reactions = JSON.stringify(map);
+            box.innerHTML = Object.keys(counts).map(em =>
+                '<button type="button" class="rx-chip ' + (mine === em ? 'mine' : '') + '" data-rx="' + em + '"><span>' + em + '</span>' + (counts[em] > 1 ? '<span>' + counts[em] + '</span>' : '') + '</button>'
+            ).join('');
+        }
+        function readReactions(row) { try { return JSON.parse(row.dataset.reactions || '{}'); } catch (e) { return {}; } }
+        function sendReaction(id, emoji) {
+            fetch(REACT_BASE + '/' + id + '/react', {
+                method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emoji }),
+            }).then(r => r.json()).then(d => {
+                if (d && d.id) { const row = scroll.querySelector('[data-msg-id="' + d.id + '"]'); if (row) renderReactions(row, d.reactions || {}); }
+            }).catch(() => {});
+        }
+
+        // Quoted-reply preview markup shown at the top of a bubble.
+        function quotedHtml(q, mine) {
+            if (!q) return '';
+            const accent = mine ? 'border-white/70 bg-white/15' : 'border-[var(--color-primary)] bg-gray-100';
+            const nameCol = mine ? 'text-white' : 'text-[var(--color-primary)]';
+            const txtCol = mine ? 'text-white/80' : 'text-gray-500';
+            const snippet = q.is_image ? '📷 Photo' : (q.preview || '');
+            return '<div class="mb-1 rounded-md border-l-4 px-2 py-1 text-xs ' + accent + '">'
+                + '<span class="block font-semibold ' + nameCol + '">' + esc(q.author || '') + '</span>'
+                + '<span class="block truncate ' + txtCol + '">' + esc(snippet) + '</span></div>';
+        }
         const playSound = () => { if (typeof window.Razin.playMessageSound === 'function') window.Razin.playMessageSound(); };
         const toBottom = () => { scroll.scrollTop = scroll.scrollHeight; };
         toBottom();
@@ -217,6 +269,45 @@
             const now = Date.now(); if (now - lastReadPing < 1200) return; lastReadPing = now;
             fetch(READ_URL, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } }).catch(() => {});
         }
+
+        // ── Reply state (composer banner) ──
+        let replyToId = null;
+        const replyBanner = document.getElementById('chat-reply-banner');
+        const replyAuthorEl = document.getElementById('chat-reply-author');
+        const replyTextEl = document.getElementById('chat-reply-text');
+        function startReply(row) {
+            replyToId = Number(row.dataset.msgId);
+            replyAuthorEl.textContent = row.dataset.mine === '1' ? 'You' : (row.dataset.author || 'Reply');
+            const bodyEl = row.querySelector('.chat-html');
+            const img = row.querySelector('[data-bubble-wrap] img');
+            replyTextEl.textContent = bodyEl && bodyEl.innerText.trim() ? bodyEl.innerText.trim() : (img ? '📷 Photo' : 'Attachment');
+            replyBanner.classList.remove('hidden'); replyBanner.classList.add('flex');
+            input.focus();
+        }
+        function cancelReply() { replyToId = null; replyBanner.classList.add('hidden'); replyBanner.classList.remove('flex'); }
+        document.getElementById('chat-reply-cancel').addEventListener('click', cancelReply);
+
+        // ── Emoji picker popover (for the React action) ──
+        let emojiPop = null;
+        function closeEmoji() { if (emojiPop) { emojiPop.remove(); emojiPop = null; } }
+        function openEmoji(anchor, id) {
+            closeEmoji();
+            const pop = document.createElement('div');
+            pop.className = 'fixed z-50 flex gap-1 rounded-full border border-gray-100 bg-white px-2 py-1 shadow-lg';
+            pop.innerHTML = REACT_EMOJIS.map(e => '<button type="button" class="grid h-8 w-8 place-items-center rounded-full text-lg hover:bg-gray-100" data-emoji="' + e + '">' + e + '</button>').join('');
+            document.body.appendChild(pop);
+            const r = anchor.getBoundingClientRect();
+            pop.style.top = Math.max(8, r.top - 46) + 'px';
+            pop.style.left = Math.min(window.innerWidth - pop.offsetWidth - 8, r.left - 40) + 'px';
+            emojiPop = pop;
+            pop.addEventListener('click', function (e) {
+                const b = e.target.closest('[data-emoji]');
+                if (!b) return;
+                sendReaction(id, b.dataset.emoji);
+                closeEmoji();
+            });
+        }
+        document.addEventListener('click', function (e) { if (emojiPop && !emojiPop.contains(e.target) && !e.target.closest('[data-act="react"]')) closeEmoji(); });
 
         // WhatsApp-style plain composer (auto-grow textarea, Enter to send, Shift+Enter = newline).
         const input = document.getElementById('chat-input');
@@ -243,29 +334,37 @@
         // Edit/Delete for the author are time-gated: they are re-checked every time the
         // menu opens (see refreshGated), so they disappear once the 1-hour window passes.
         function attachMenu(row) {
-            if (row.querySelector('[data-kebab]')) return;
+            if (row.querySelector('[data-actions]')) { renderReactions(row, readReactions(row)); return; }
             const id = row.dataset.msgId;
             const mine = row.dataset.mine === '1';
             const hasText = !!(row.querySelector('.chat-html') && row.querySelector('.chat-html').innerText.trim());
             const svg = (p) => '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">' + p + '</svg>';
             const ICON = {
+                reply: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M11 17 6 12l5-5M6 12h8a4 4 0 0 1 4 4v2"/>'),
+                react: svg('<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M9 15c.8.7 1.9 1 3 1s2.2-.3 3-1"/>'),
                 copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path stroke-linecap="round" d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>'),
                 edit: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
                 forward: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M20 12H4"/>'),
                 delete: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/>'),
             };
+            // Quick round icon beside the bubble.
+            const quick = (act, title) => '<button type="button" data-act="' + act + '" data-mid="' + id + '" title="' + title + '" class="grid h-7 w-7 place-items-center rounded-full bg-white text-gray-500 shadow-sm ring-1 ring-gray-100 hover:bg-gray-50 hover:text-[var(--color-heading)]">' + ICON[act] + '</button>';
             // gated=true → hidden automatically once the 1-hour window elapses (checked on open).
             const item = (act, label, danger, gated) => '<button type="button" data-act="' + act + '" data-mid="' + id + '"' + (gated ? ' data-gated="1"' : '') + ' class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium ' + (danger ? 'text-red-600' : 'text-[var(--color-heading)]') + ' hover:bg-gray-50">' + ICON[act] + '<span>' + label + '</span></button>';
-            let items = hasText ? item('copy', 'Copy') : '';
+            // Kebab menu holds the less-common actions.
+            let items = '';
             if (mine) items += item('edit', 'Edit', false, true);            // author only, within window
             items += item('forward', 'Forward');
             if (mine || IS_ADMIN) items += item('delete', 'Delete', true, mine && !IS_ADMIN); // author gated; admin anytime
             const wrap = document.createElement('div');
-            wrap.className = 'relative mb-5 self-end';
+            wrap.className = 'msg-actions relative mb-5 flex items-center gap-1 self-end';
+            wrap.setAttribute('data-actions', '');
             wrap.innerHTML =
-                '<button type="button" data-kebab class="grid h-7 w-7 place-items-center rounded-full text-gray-400 opacity-0 transition hover:bg-gray-100 group-hover:opacity-100 focus:opacity-100"><svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>' +
-                '<div data-menu class="absolute bottom-9 z-30 hidden min-w-[8.5rem] ' + (mine ? 'right-0' : 'left-0') + ' overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">' + items + '</div>';
+                quick('reply', 'Reply') + quick('react', 'React') + (hasText ? quick('copy', 'Copy') : '') +
+                '<div class="relative"><button type="button" data-kebab class="grid h-7 w-7 place-items-center rounded-full bg-white text-gray-400 shadow-sm ring-1 ring-gray-100 hover:bg-gray-50"><svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>' +
+                '<div data-menu class="absolute bottom-9 z-30 hidden min-w-[8.5rem] ' + (mine ? 'right-0' : 'left-0') + ' overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">' + items + '</div></div>';
             row.insertBefore(wrap, row.querySelector('[data-bubble-wrap]'));
+            renderReactions(row, readReactions(row));
         }
 
         function fileChipHtml(d, mine) {
@@ -288,10 +387,13 @@
             row.className = 'group flex items-end gap-2 ' + (mine ? 'flex-row-reverse' : '');
             row.dataset.msgId = d.id;
             row.dataset.mine = mine ? '1' : '0';
+            row.dataset.author = d.author || '—';
+            row.dataset.reactions = JSON.stringify(d.reactions || {});
             row.dataset.created = toEpoch(d.created_at) || Math.floor(Date.now() / 1000);
             row.innerHTML = avatarHtml(d, mine)
                 + '<div class="max-w-[75%]" data-bubble-wrap>' + name
-                + '<div class="rounded-2xl px-3.5 py-2 text-sm ' + bubble + '">' + bodyHtml + fileChipHtml(d, mine) + '</div>'
+                + '<div class="rounded-2xl px-3.5 py-2 text-sm ' + bubble + '">' + quotedHtml(d.quoted, mine) + bodyHtml + fileChipHtml(d, mine) + '</div>'
+                + '<div data-reactions-box class="mt-1 flex flex-wrap gap-1 ' + (mine ? 'justify-end' : '') + '"></div>'
                 + '<p class="mt-0.5 px-1 text-[11px] text-gray-400 ' + (mine ? 'text-right' : '') + '">' + (d.time || '') + '<span data-edited-tag class="' + (d.edited ? '' : 'hidden') + '"> · edited</span></p></div>';
             attachMenu(row);
             return row;
@@ -366,12 +468,17 @@
             wrap.querySelectorAll('[data-gated="1"]').forEach(b => b.classList.toggle('hidden', expired));
         }
         scroll.addEventListener('click', function (e) {
+            // Toggle a reaction by clicking its chip.
+            const chip = e.target.closest('.rx-chip[data-rx]');
+            if (chip) { const row = chip.closest('[data-msg-id]'); sendReaction(row.dataset.msgId, chip.dataset.rx); return; }
             const kebab = e.target.closest('[data-kebab]');
             if (kebab) { const wrap = kebab.parentElement; const m = wrap.querySelector('[data-menu]'); const open = !m.classList.contains('hidden'); closeMenus(); if (!open) { refreshGated(wrap); m.classList.remove('hidden'); } return; }
             const act = e.target.closest('[data-act]');
             if (!act) return;
             const id = act.dataset.mid;
             const row = scroll.querySelector('[data-msg-id="' + id + '"]');
+            if (act.dataset.act === 'reply') { startReply(row); return; }
+            if (act.dataset.act === 'react') { openEmoji(act, id); return; }
             closeMenus();
             if (act.dataset.act === 'copy') {
                 const txt = row.querySelector('.chat-html') ? row.querySelector('.chat-html').innerText : '';
@@ -444,11 +551,13 @@
             fd.append('_token', CSRF);
             fd.append('body', hasText ? textToHtml(input.value) : '');
             if (hasFile) fd.append('attachment', fileInput.files[0]);
+            if (replyToId) fd.append('reply_to_id', replyToId);
             fetch(STORE_URL, { method: 'POST', headers: { 'Accept': 'application/json' }, body: fd })
                 .then(r => r.json())
                 .then(d => {
-                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at });
+                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at, quoted: d.quoted, reactions: d.reactions });
                     input.value = ''; autoGrow(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
+                    cancelReply();
                 }).catch(() => {});
         });
 
@@ -469,6 +578,7 @@
             ch.bind('message.posted', function (d) { if (seen.has(Number(d.id))) return; append(d); if (Number(d.user_id) !== ME) { playSound(); markReadPing(); } });
             ch.bind('message.deleted', function (d) { removeMsg(d.id); });
             ch.bind('message.edited', function (d) { updateBody(d.id, d.body); });
+            ch.bind('message.reacted', function (d) { const row = scroll.querySelector('[data-msg-id="' + d.id + '"]'); if (row) renderReactions(row, d.reactions || {}); });
             ch.bind('typing', function (d) { if (Number(d.user_id) !== ME) showTyping(d.name); });
         })();
     };

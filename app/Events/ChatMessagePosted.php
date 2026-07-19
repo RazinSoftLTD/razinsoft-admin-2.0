@@ -36,7 +36,7 @@ class ChatMessagePosted implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        $m = $this->message->loadMissing('author', 'conversation');
+        $m = $this->message->loadMissing('author', 'conversation', 'replyTo.author');
 
         return [
             'id' => $m->id,
@@ -53,6 +53,8 @@ class ChatMessagePosted implements ShouldBroadcastNow
             'is_image' => $m->is_image,
             'created_at' => $m->created_at?->toIso8601String(),
             'time' => $m->created_at?->format('g:i A'),
+            'quoted' => $m->quoted(),
+            'reactions' => (object) $m->reactionMap(),
         ];
     }
 }
