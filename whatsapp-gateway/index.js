@@ -27,6 +27,14 @@ const log = pino({ level: 'info' })
 
 // sessionKey -> { sock, state, qr, number, lastKeys:Map, groupNames:Map, starting:bool }
 const sessions = new Map()
+let cachedVersion = null
+
+async function waVersion() {
+  if (!cachedVersion) {
+    try { cachedVersion = (await fetchLatestBaileysVersion()).version } catch { cachedVersion = undefined }
+  }
+  return cachedVersion
+}
 
 function dirFor(key) {
   // Keep the currently-linked number working: 'default' maps to the old single-session folder.
@@ -81,7 +89,7 @@ async function start(key) {
     const { state: authState, saveCreds } = await useMultiFileAuthState(dir)
     s.state = 'connecting'
 
-    const { version } = await fetchLatestBaileysVersion()
+    const version = await waVersion()
     const sock = makeWASocket({
       version,
       auth: authState,
@@ -103,6 +111,7 @@ async function start(key) {
       if (connection === 'open') {
         s.state = 'connected'
         s.qr = null
+        s.attempts = 0 // reset backoff on a healthy connection
         s.number = sock?.user?.id?.split(':')[0] || null
         push(key, { event: 'connection', state: 'connected', number: s.number })
         log.info(`[${key}] connected: ${s.number}`)
@@ -119,9 +128,12 @@ async function start(key) {
           push(key, { event: 'connection', state: 'disconnected' })
           log.warn(`[${key}] connection replaced by another session; stopping.`)
         } else {
-          log.warn(`[${key}] connection closed (${code}), reconnecting…`)
+          // Exponential backoff so a flapping connection can't storm-reconnect.
+          s.attempts = (s.attempts || 0) + 1
+          const delay = Math.min(30000, 1500 * Math.pow(2, Math.min(s.attempts - 1, 5)))
+          log.warn(`[${key}] connection closed (${code}); reconnecting in ${delay}ms (attempt ${s.attempts})`)
           clearTimeout(s.reconnectTimer)
-          s.reconnectTimer = setTimeout(() => start(key), 2500)
+          s.reconnectTimer = setTimeout(() => start(key), delay)
         }
       }
     })
@@ -134,10 +146,16 @@ async function start(key) {
       for (const m of messages) await handleMessage(key, m, historic)
     })
 
-    sock.ev.on('messaging-history.set', async ({ messages }) => {
+    sock.ev.on('messaging-history.set', ({ messages }) => {
       if (!Array.isArray(messages) || !messages.length) return
       log.info(`[${key}] history sync: ${messages.length} messages`)
-      for (const m of messages) await handleMessage(key, m, true)
+      // Import in a detached task with small gaps so the socket keepalive keeps flowing (avoids 408 storm).
+      ;(async () => {
+        for (const m of messages) {
+          try { await handleMessage(key, m, true) } catch {}
+          await new Promise((r) => setTimeout(r, 15))
+        }
+      })()
     })
 
     sock.ev.on('messages.reaction', (reactions) => {
@@ -194,10 +212,13 @@ async function handleMessage(key, m, historic = false) {
     ...parseMessage(m.message),
   }
   if (payload._mediaType) {
-    try {
-      const buf = await downloadMediaMessage(m, 'buffer', {})
-      payload.media = 'data:' + (payload.media_mime || 'application/octet-stream') + ';base64,' + Buffer.from(buf).toString('base64')
-    } catch (e) { log.warn('media download failed: ' + e.message) }
+    // Skip media download during bulk history import — downloading each blocks the socket (408 storm).
+    if (!historic) {
+      try {
+        const buf = await downloadMediaMessage(m, 'buffer', {})
+        payload.media = 'data:' + (payload.media_mime || 'application/octet-stream') + ';base64,' + Buffer.from(buf).toString('base64')
+      } catch (e) { log.warn('media download failed: ' + e.message) }
+    }
     delete payload._mediaType
   }
   push(key, payload)
