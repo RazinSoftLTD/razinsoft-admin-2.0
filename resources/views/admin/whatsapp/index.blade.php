@@ -16,7 +16,7 @@
 
     {{-- Full-screen inbox: break out of the layout padding and fill the viewport below the topbar --}}
     {{-- forceCollapse hides the main sidebar so the inbox gets the full width (reset on leaving the page). --}}
-    <div x-data="waInbox()" x-init="init(); forceCollapse = true; lockScroll = true" style="height:calc(100dvh - 4rem); margin:-1.5rem;" class="flex overflow-hidden bg-white">
+    <div x-data="waInbox()" x-init="init(); lockScroll = true" style="height:calc(100dvh - 4rem); margin:-1.5rem;" class="flex overflow-hidden bg-white">
         {{-- ============ LEFT: chat list ============ --}}
         <aside class="flex w-80 shrink-0 flex-col border-r border-gray-100">
             <div class="border-b border-gray-100 p-4">
