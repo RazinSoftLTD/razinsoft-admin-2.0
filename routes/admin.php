@@ -215,28 +215,38 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== Workspace : Projects & Tasks (desk-style, rebuilt) =====
         Route::middleware('permission:projects.view')->group(function () {
             Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
+            Route::get('projects/{project}/drawer', [ProjectController::class, 'drawer'])->whereNumber('project')->name('projects.drawer');
+            Route::post('projects/{project}/favorite', [ProjectController::class, 'toggleFavorite'])->whereNumber('project')->name('projects.favorite');
             Route::get('projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
             Route::get('tasks', [TaskController::class, 'index'])->name('tasks.index');
             Route::get('tasks/{task}', [TaskController::class, 'show'])->whereNumber('task')->name('tasks.show');
             Route::get('projects/{project}/files/{file}/download', [ProjectController::class, 'fileDownload'])->whereNumber(['project', 'file'])->name('projects.files.download');
+            Route::get('projects/{project}/prd/{item}/download', [ProjectController::class, 'prdDownload'])->whereNumber(['project', 'item'])->name('projects.prd.download');
         });
         Route::middleware('permission:projects.create')->group(function () {
             Route::get('projects/create', [ProjectController::class, 'create'])->name('projects.create');
             Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         });
         Route::middleware('permission:projects.edit')->group(function () {
+            Route::post('projects/reorder', [ProjectController::class, 'reorder'])->name('projects.reorder');
             Route::get('projects/{project}/edit', [ProjectController::class, 'edit'])->whereNumber('project')->name('projects.edit');
             Route::put('projects/{project}', [ProjectController::class, 'update'])->whereNumber('project')->name('projects.update');
             Route::post('projects/{project}/status', [ProjectController::class, 'status'])->whereNumber('project')->name('projects.status');
 
             Route::post('projects/{project}/members', [ProjectController::class, 'memberStore'])->whereNumber('project')->name('projects.members.store');
+            Route::put('projects/{project}/members/{member}/access', [ProjectController::class, 'memberAccess'])->whereNumber(['project', 'member'])->name('projects.members.access');
             Route::delete('projects/{project}/members/{member}', [ProjectController::class, 'memberDestroy'])->whereNumber(['project', 'member'])->name('projects.members.destroy');
+            Route::put('projects/{project}/settings', [ProjectController::class, 'updateSettings'])->whereNumber('project')->name('projects.settings.update');
 
             Route::post('projects/{project}/milestones', [ProjectController::class, 'milestoneStore'])->whereNumber('project')->name('projects.milestones.store');
             Route::put('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneUpdate'])->whereNumber(['project', 'milestone'])->name('projects.milestones.update');
             Route::delete('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneDestroy'])->whereNumber(['project', 'milestone'])->name('projects.milestones.destroy');
 
             Route::post('projects/{project}/files', [ProjectController::class, 'fileStore'])->whereNumber('project')->name('projects.files.store');
+            Route::post('projects/{project}/prd', [ProjectController::class, 'prdStore'])->whereNumber('project')->name('projects.prd.store');
+            Route::post('projects/{project}/prd/share', [ProjectController::class, 'prdShare'])->whereNumber('project')->name('projects.prd.share');
+            Route::put('projects/{project}/prd/{item}/review', [ProjectController::class, 'prdReview'])->whereNumber(['project', 'item'])->name('projects.prd.review');
+            Route::delete('projects/{project}/prd/{item}', [ProjectController::class, 'prdDestroy'])->whereNumber(['project', 'item'])->name('projects.prd.destroy');
             Route::delete('projects/{project}/files/{file}', [ProjectController::class, 'fileDestroy'])->whereNumber(['project', 'file'])->name('projects.files.destroy');
 
             Route::post('projects/{project}/columns', [ProjectController::class, 'columnStore'])->whereNumber('project')->name('projects.columns.store');

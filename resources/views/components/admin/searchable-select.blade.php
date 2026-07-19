@@ -3,6 +3,7 @@
     'options' => [],          // collection/array of ['id' => .., 'label' => ..]
     'selected' => null,
     'placeholder' => 'Search…',
+    'searchPlaceholder' => null,   // defaults to $placeholder
     'allowClear' => true,
     'clearLabel' => 'None',
     'required' => false,
@@ -27,7 +28,7 @@
         <svg class="h-4 w-4 text-gray-400 transition" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
     </button>
     <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
-        <div class="p-2"><input x-model="q" @click.stop type="text" placeholder="{{ $placeholder }}" class="h-9 w-full rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none"></div>
+        <div class="p-2"><input x-model="q" @click.stop type="text" placeholder="{{ $searchPlaceholder ?? $placeholder }}" class="h-9 w-full rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none"></div>
         <div class="max-h-56 overflow-y-auto pb-1">
             @if ($allowClear)
                 <button type="button" @click="pick(null)" class="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-400 hover:bg-gray-50">{{ $clearLabel }}</button>

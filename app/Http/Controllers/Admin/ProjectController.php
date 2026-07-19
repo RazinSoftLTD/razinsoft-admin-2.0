@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectFile;
+use App\Models\ProjectPrdItem;
 use App\Models\ProjectMember;
 use App\Models\ProjectMilestone;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /** Workspace › Projects — desk-style project management. */
@@ -33,14 +35,32 @@ class ProjectController extends Controller
         if ($category = $request->query('category')) {
             $q->where('category', $category);
         }
+        if (($priority = $request->query('priority')) && array_key_exists($priority, Project::PRIORITIES)) {
+            $q->where('priority', $priority);
+        }
         if ($client = $request->query('client')) {
             $q->where('client_id', $client);
         }
+        // Start-date range
         if ($from = $request->query('from')) {
             $q->whereDate('start_date', '>=', $from);
         }
         if ($to = $request->query('to')) {
             $q->whereDate('start_date', '<=', $to);
+        }
+        // End-date (deadline) range
+        if ($ef = $request->query('end_from')) {
+            $q->whereDate('deadline', '>=', $ef);
+        }
+        if ($et = $request->query('end_to')) {
+            $q->whereDate('deadline', '<=', $et);
+        }
+        // Sort — falls back to the manual drag order when no sort is chosen.
+        $sortMap = ['start' => 'start_date', 'end' => 'deadline', 'name' => 'name', 'created' => 'created_at'];
+        if (($sort = $request->query('sort')) && isset($sortMap[$sort])) {
+            $q->orderBy($sortMap[$sort], $request->query('order') === 'oldest' ? 'asc' : 'desc');
+        } else {
+            $q->orderBy('position')->orderByDesc('id');
         }
 
         $base = Project::query()->visibleTo($user);
@@ -52,7 +72,7 @@ class ProjectController extends Controller
         ];
 
         return view('admin.projects.index', [
-            'projects' => $q->latest('id')->paginate(15)->withQueryString(),
+            'projects' => $q->paginate(15)->withQueryString(),
             'stats' => $stats,
             'clients' => User::clients()->orderBy('name')->get(['id', 'name']),
         ]);
@@ -87,15 +107,140 @@ class ProjectController extends Controller
 
         $project->load('columns');
         $tab = $request->query('tab', 'overview');
+        // The Settings tab (per-project permissions, columns, requirements) is manager-only.
+        $allowed = ['overview', 'tasks', 'board', 'prd', 'milestones', 'files', 'members', 'activity'];
+        if ($request->user()->allows('projects', 'edit')) {
+            $allowed[] = 'settings';
+        }
+        $tab = in_array($tab, $allowed, true) ? $tab : 'overview';
         $tasks = $project->tasks()->with(['assignee:id,name,photo', 'milestone:id,title', 'subtasks.assignee:id,name,photo'])->get();
 
         return view('admin.projects.show', [
             'project' => $project,
-            'tab' => in_array($tab, ['overview', 'tasks', 'board', 'milestones', 'files', 'members', 'activity'], true) ? $tab : 'overview',
+            'tab' => $tab,
             'tasks' => $tasks,
             'staff' => User::assignable()->orderBy('name')->get(['id', 'name', 'photo']),
-            'activities' => $tab === 'activity' ? $project->activities()->with('user:id,name,photo')->limit(100)->get() : collect(),
+            'overview' => $tab === 'overview' ? $this->overviewData($project, (string) $request->query('range', 'month')) : null,
+            'activities' => $tab === 'activity'
+                ? $project->activities()->with('user:id,name,photo')->limit(100)->get()
+                : ($tab === 'overview' ? $project->activities()->with('user:id,name,photo')->limit(5)->get() : collect()),
         ]);
+    }
+
+    /** Everything the redesigned Overview tab needs (cards, charts, milestone list). */
+    private function overviewData(Project $project, string $range = 'month'): array
+    {
+        $doneKeys = $project->doneKeys();
+        $tasks = $project->allTasks()->whereNull('parent_id')->get(['id', 'status', 'milestone_id', 'updated_at']);
+        $total = $tasks->count();
+
+        // Donut: one slice per board column, using the column's own colour.
+        $breakdown = $project->columns->map(fn ($col) => [
+            'name' => $col->name,
+            'color' => $col->color ?: '#94a3b8',
+            'count' => $c = $tasks->where('status', $col->key)->count(),
+            'pct' => $total ? (int) round($c / $total * 100) : 0,
+        ])->values()->all();
+
+        $clientMembers = $project->members->filter(fn ($m) => $m->user && $m->user->role === User::ROLE_CUSTOMER)->count();
+
+        // Upcoming milestones with their outstanding task count.
+        $upcoming = $project->milestones->where('status', '!=', 'complete')->sortBy('end_date')->take(4)
+            ->map(fn ($ms) => [
+                'title' => $ms->title,
+                'end_date' => $ms->end_date,
+                'remaining' => $tasks->where('milestone_id', $ms->id)->whereNotIn('status', $doneKeys)->count(),
+            ])->values()->all();
+
+        return [
+            'range' => in_array($range, ['month', 'all'], true) ? $range : 'month',
+            'tasksTotal' => $total,
+            'tasksTodo' => ($first = $project->columns->first()) ? $tasks->where('status', $first->key)->count() : 0,
+            'tasksDone' => $tasks->whereIn('status', $doneKeys)->count(),
+            'breakdown' => $breakdown,
+            'milestonesTotal' => $project->milestones->count(),
+            'milestonesDone' => $project->milestones->where('status', 'complete')->count(),
+            'membersTotal' => $project->members->count(),
+            'membersClient' => $clientMembers,
+            'membersTeam' => $project->members->count() - $clientMembers,
+            'upcoming' => $upcoming,
+            'chart' => $this->progressSeries($project, $tasks, $doneKeys, $range),
+        ];
+    }
+
+    /**
+     * Actual vs planned progress over time.
+     * Actual = share of tasks already in a done column by that date.
+     * Planned = share of the start→deadline window elapsed by that date.
+     */
+    private function progressSeries(Project $project, $tasks, array $doneKeys, string $range): array
+    {
+        $end = now()->endOfDay();
+        $start = $range === 'all'
+            ? ($project->start_date?->copy() ?? $end->copy()->subDays(30))
+            : now()->startOfMonth();
+        if ($start->gt($end)) {
+            $start = $end->copy()->subDays(14);
+        }
+
+        $step = max(1, (int) ceil(max(1, $start->diffInDays($end)) / 12));   // ≤ ~13 points
+        $total = max(1, $tasks->count());
+        $pStart = $project->start_date?->copy() ?? $start;
+        $pEnd = $project->deadline?->copy() ?? $end;
+        $span = max(1, $pStart->diffInDays($pEnd));
+
+        $labels = $actual = $planned = [];
+        for ($d = $start->copy(); $d->lte($end); $d->addDays($step)) {
+            $cut = $d->copy()->endOfDay();
+            $labels[] = $d->format('d M');
+            $done = $tasks->filter(fn ($t) => in_array($t->status, $doneKeys, true) && $t->updated_at && $t->updated_at->lte($cut))->count();
+            $actual[] = (int) round($done / $total * 100);
+            $planned[] = (int) max(0, min(100, round($pStart->diffInDays($d, false) / $span * 100)));
+        }
+
+        return ['labels' => $labels, 'actual' => $actual, 'planned' => $planned];
+    }
+
+    /** Star / un-star this project for the current user. */
+    public function toggleFavorite(Request $request, Project $project)
+    {
+        $this->authorizeView($request, $project);
+        $user = $request->user();
+        $ids = collect($user->favorite_projects ?? [])->map('intval');
+        $ids = $ids->contains($project->id) ? $ids->reject(fn ($id) => $id === $project->id) : $ids->push($project->id);
+        $user->forceFill(['favorite_projects' => $ids->values()->all()])->save();
+
+        return back();
+    }
+
+    /** Persist drag-and-drop ordering of the list (positions for the reordered page). */
+    public function reorder(Request $request)
+    {
+        abort_unless($request->user()->allows('projects', 'edit'), 403);
+        $data = $request->validate([
+            'ids' => ['required', 'array'], 'ids.*' => ['integer'],
+            'base' => ['nullable', 'integer', 'min:0'],
+        ]);
+        $base = (int) ($data['base'] ?? 0);
+        // Only reorder projects this user can see; keep the given order.
+        $allowed = Project::query()->visibleTo($request->user())->whereIn('id', $data['ids'])->pluck('id')->all();
+        foreach ($data['ids'] as $i => $id) {
+            if (in_array((int) $id, $allowed, true)) {
+                Project::whereKey($id)->update(['position' => $base + $i]);
+            }
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Compact project detail for the slide-in drawer on the list (loaded via fetch). */
+    public function drawer(Request $request, Project $project)
+    {
+        $this->authorizeView($request, $project);
+        $project->load(['client:id,name,company', 'projectManager:id,name,photo', 'parent:id,name,code', 'members.user:id,name,photo,job_title', 'milestones']);
+        $project->loadCount(['tasks as tasks_total', 'children as children_count']);
+
+        return view('admin.projects._drawer', compact('project'));
     }
 
     public function edit(Request $request, Project $project)
@@ -161,6 +306,30 @@ class ProjectController extends Controller
         return back()->with('status', 'Member removed.');
     }
 
+    /** Set a member's access level for this project (Settings tab). */
+    public function memberAccess(Request $request, Project $project, ProjectMember $member)
+    {
+        abort_unless($request->user()->allows('projects', 'edit'), 403);
+        abort_if($member->project_id !== $project->id, 404);
+        $data = $request->validate(['access_level' => ['required', \Illuminate\Validation\Rule::in(array_keys(ProjectMember::ACCESS_LEVELS))]]);
+        $member->update($data);
+
+        return back()->with('status', 'Access updated for '.($member->user?->name ?? 'member').'.');
+    }
+
+    /** Per-project settings (Settings tab) — currently the requirements-file switch. */
+    public function updateSettings(Request $request, Project $project)
+    {
+        abort_unless($request->user()->allows('projects', 'edit'), 403);
+        $valid = array_keys(\App\Models\Project::PRD_SECTIONS);
+        $project->update([
+            'needs_requirements' => $request->boolean('needs_requirements'),
+            'prd_sections' => array_values(array_intersect($valid, (array) $request->input('prd_sections', []))),
+        ]);
+
+        return back()->with('status', 'Project settings saved.');
+    }
+
     // ---------------------------------------------------------------- milestones
 
     public function milestoneStore(Request $request, Project $project)
@@ -194,6 +363,112 @@ class ProjectController extends Controller
         $project->log('milestone', 'Milestone “'.$milestone->title.'” deleted.');
 
         return back()->with('status', 'Milestone deleted.');
+    }
+
+    // ---------------------------------------------------------------- PRD
+
+    /** Upload files and/or leave a note against one enabled PRD section. */
+    public function prdStore(Request $request, Project $project)
+    {
+        $this->authorizeView($request, $project);
+        $data = $request->validate([
+            'section' => ['required', 'string', 'in:'.implode(',', $project->prdSectionKeys())],
+            'note' => ['nullable', 'string', 'max:5000'],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['file', 'max:20480'],
+        ]);
+
+        $uploads = $request->file('files', []);
+        if (! $uploads && blank($data['note'] ?? null)) {
+            return back()->withErrors(['files' => 'Attach a file or write a note.']);
+        }
+
+        foreach ($uploads as $upload) {
+            $project->prdItems()->create([
+                'section' => $data['section'],
+                'name' => $upload->getClientOriginalName(),
+                'path' => $upload->store('projects/'.$project->id.'/prd', 'public'),
+                'mime' => $upload->getClientMimeType(),
+                'size' => $upload->getSize(),
+                'uploaded_by' => $request->user()->id,
+            ]);
+        }
+        if (filled($data['note'] ?? null)) {
+            $project->prdItems()->create([
+                'section' => $data['section'],
+                'note' => $data['note'],
+                'uploaded_by' => $request->user()->id,
+            ]);
+        }
+
+        $label = Project::PRD_SECTIONS[$data['section']][0];
+        $project->log('file', 'PRD updated — '.$label.'.');
+
+        return back()->with('status', 'PRD updated.');
+    }
+
+    public function prdDownload(Request $request, Project $project, ProjectPrdItem $item)
+    {
+        abort_if($item->project_id !== $project->id || ! $item->path, 404);
+        $this->authorizeView($request, $project);
+
+        return Storage::disk('public')->download($item->path, $item->name);
+    }
+
+    public function prdDestroy(Request $request, Project $project, ProjectPrdItem $item)
+    {
+        abort_if($item->project_id !== $project->id, 404);
+        $this->authorizeView($request, $project);
+        if ($item->path) {
+            Storage::disk('public')->delete($item->path);
+        }
+        $item->delete();
+
+        return back()->with('status', 'Removed.');
+    }
+
+    /** Create (or revoke) the client-facing PRD link. */
+    public function prdShare(Request $request, Project $project)
+    {
+        abort_unless($request->user()->allows('projects', 'edit'), 403);
+
+        if ($request->boolean('revoke')) {
+            $project->update(['prd_share_token' => null]);
+            $project->log('file', 'PRD client link revoked.');
+
+            return back()->with('status', 'Client link revoked.');
+        }
+
+        if (! $project->prd_share_token) {
+            $project->update(['prd_share_token' => Str::random(48)]);
+            $project->log('file', 'PRD client link created.');
+        }
+
+        return back()->with('status', 'Client link ready.');
+    }
+
+    /** Approve or send back a client submission. */
+    public function prdReview(Request $request, Project $project, ProjectPrdItem $item)
+    {
+        abort_unless($request->user()->allows('projects', 'edit'), 403);
+        abort_if($item->project_id !== $project->id, 404);
+
+        $data = $request->validate([
+            'status' => ['required', 'in:approved,rejected,pending'],
+            'review_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $item->update([
+            'status' => $data['status'],
+            'review_note' => $data['review_note'] ?? null,
+            'approved_by' => $data['status'] === 'pending' ? null : $request->user()->id,
+            'approved_at' => $data['status'] === 'pending' ? null : now(),
+        ]);
+
+        $label = Project::PRD_SECTIONS[$item->section][0] ?? $item->section;
+        $project->log('file', 'PRD '.$data['status'].' — '.$label.'.');
+
+        return back()->with('status', 'Review saved.');
     }
 
     // ---------------------------------------------------------------- files
@@ -270,7 +545,7 @@ class ProjectController extends Controller
         $project->columns()->create([
             'key' => $key, 'name' => $data['name'], 'color' => $data['color'] ?: '#94a3b8',
             'position' => (int) $project->columns()->max('position') + 1,
-            'is_done' => $request->boolean('is_done'), 'is_excluded' => false,
+            'is_done' => $request->boolean('is_done'), 'is_review' => $request->boolean('is_review'), 'is_excluded' => false,
         ]);
         $project->log('column', 'Board column “'.$data['name'].'” added.');
 
@@ -285,7 +560,7 @@ class ProjectController extends Controller
             'color' => ['nullable', 'string', 'max:20'],
             'is_done' => ['nullable', 'boolean'],
         ]);
-        $column->update(['name' => $data['name'], 'color' => $data['color'] ?: $column->color, 'is_done' => $request->boolean('is_done')]);
+        $column->update(['name' => $data['name'], 'color' => $data['color'] ?: $column->color, 'is_done' => $request->boolean('is_done'), 'is_review' => $request->boolean('is_review')]);
         $project->log('column', 'Board column “'.$column->name.'” updated.');
 
         return back()->with('status', 'Column updated.');

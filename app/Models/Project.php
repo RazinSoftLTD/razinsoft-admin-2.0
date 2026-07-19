@@ -20,7 +20,48 @@ class Project extends Model
         'auto_progress' => 'boolean',
         'progress' => 'integer',
         'hours_allocated' => 'integer',
+        'needs_requirements' => 'boolean',
+        'prd_sections' => 'array',
     ];
+
+    /**
+     * Catalogue of PRD (requirement) sections a project can collect.
+     * key => [label, hint, required?, icon path, icon tint]
+     * Settings decides which are switched on; the PRD tab renders only those.
+     */
+    public const PRD_SECTIONS = [
+        'play_store' => ['Play Store Account Information', 'Provide your Google Play Console account details.', true, 'm5 3 14 9-14 9V3Z', 'bg-emerald-50 text-emerald-600'],
+        'app_store' => ['App Store Account Information', 'Provide your Apple App Store Connect account details.', true, 'M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM11 18h2', 'bg-gray-100 text-gray-700'],
+        'server' => ['Server Requirements', 'Provide your server and hosting information.', true, 'M4 5h16v5H4zM4 14h16v5H4zM7 7.5h.01M7 16.5h.01', 'bg-slate-100 text-slate-600'],
+        'brand' => ['Brand Assets & Design', 'Upload logo, colors, icons and brand related assets.', true, 'M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 0-4h-.5a1.5 1.5 0 0 1 0-3H15a5 5 0 0 0 5-5c0-3.5-3.6-6-8-6ZM7.5 11h.01M10 7.5h.01M14 7h.01', 'bg-violet-50 text-violet-600'],
+        'firebase' => ['Firebase Configuration', 'Provide your Firebase project configuration and keys.', false, 'M12 22a7 7 0 0 0 7-7c0-4-3-6-4-9-1 2-2 3-3 3s-1-2-1-4c-2 2-6 5-6 10a7 7 0 0 0 7 7Z', 'bg-amber-50 text-amber-600'],
+        'domain' => ['Domain & Website Information', 'Provide domain, website and related access details.', false, 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z', 'bg-blue-50 text-blue-600'],
+        'email' => ['System Email Configuration', 'Provide SMTP and email configuration for system.', false, 'M3 6h18v12H3zM3 7l9 6 9-6', 'bg-sky-50 text-sky-600'],
+        'api_keys' => ['Third-party API Keys', 'Provide API keys for third-party services.', false, 'M15 7a4 4 0 1 1-3.9 5H8v3H5v-3H3v-3h8.1A4 4 0 0 1 15 7Z', 'bg-yellow-50 text-yellow-600'],
+        'files' => ['Project Files & Documents', 'Upload design files, documents and other project files.', false, 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z', 'bg-orange-50 text-orange-600'],
+        'notes' => ['Additional Notes', 'Any additional information or special instructions.', false, 'M8 3h8a2 2 0 0 1 2 2v14l-6-3-6 3V5a2 2 0 0 1 2-2Z', 'bg-indigo-50 text-indigo-600'],
+    ];
+
+    /** Section keys switched on for this project (only ones that still exist in the catalogue). */
+    public function prdSectionKeys(): array
+    {
+        return array_values(array_intersect(
+            array_keys(self::PRD_SECTIONS),
+            (array) ($this->prd_sections ?? [])
+        ));
+    }
+
+    /** Public URL clients use to fill in the PRD (null until the link is shared). */
+    public function prdShareUrl(): ?string
+    {
+        return $this->prd_share_token ? route('prd.public', $this->prd_share_token) : null;
+    }
+
+    /** Everything submitted against this project's PRD sections. */
+    public function prdItems(): HasMany
+    {
+        return $this->hasMany(ProjectPrdItem::class)->latest();
+    }
 
     /** Desk-style lifecycle. "Overdue" is derived from the deadline, not stored. */
     public const STATUSES = [
@@ -135,6 +176,14 @@ class Project extends Model
         $cols = $this->relationLoaded('columns') ? $this->columns : $this->columns()->get();
 
         return $cols->where('is_done', true)->pluck('key')->all() ?: ['completed'];
+    }
+
+    /** Column keys that mean "waiting for review/approval". */
+    public function reviewKeys(): array
+    {
+        $cols = $this->relationLoaded('columns') ? $this->columns : $this->columns()->get();
+
+        return $cols->where('is_review', true)->pluck('key')->all();
     }
 
     /** Column keys excluded from progress (e.g. Cancelled). */

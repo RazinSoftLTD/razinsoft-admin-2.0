@@ -54,6 +54,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'permissions' => 'array',
             'wa_number_order' => 'array',
+            'favorite_projects' => 'array',
             'joining_date' => 'date',
             'date_of_birth' => 'date',
             'probation_end_date' => 'date',

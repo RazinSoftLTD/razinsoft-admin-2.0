@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\InvoicePayController;
+use App\Http\Controllers\PublicPrdController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -15,3 +16,7 @@ Route::get('invoice/pay/{token}/checkout', [InvoicePayController::class, 'checko
 Route::get('invoice/pay/{token}/success', [InvoicePayController::class, 'success'])->name('pay.invoice.success');
 Route::get('invoice/pay/{token}/paypal', [InvoicePayController::class, 'paypal'])->name('pay.invoice.paypal');
 Route::get('invoice/pay/{token}/paypal/return', [InvoicePayController::class, 'paypalReturn'])->name('pay.invoice.paypal.return');
+
+// ---- Client-facing PRD (token-guarded, no login). Clients submit only; review stays in the panel. ----
+Route::get('prd/{token}', [PublicPrdController::class, 'show'])->name('prd.public');
+Route::post('prd/{token}', [PublicPrdController::class, 'store'])->name('prd.public.store');
