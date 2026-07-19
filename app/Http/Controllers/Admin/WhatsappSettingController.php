@@ -198,6 +198,18 @@ class WhatsappSettingController extends Controller
         return back()->with('status', 'Quick reply added.');
     }
 
+    public function quickUpdate(Request $request, WhatsappQuickReply $quickReply)
+    {
+        $data = $request->validate([
+            'shortcut' => ['nullable', 'string', 'max:40'],
+            'body' => ['required', 'string', 'max:2000'],
+            'account_id' => ['required', 'exists:whatsapp_accounts,id'],
+        ]);
+        $quickReply->update($data);
+
+        return back()->with('status', 'Quick reply updated.');
+    }
+
     public function quickDestroy(WhatsappQuickReply $quickReply)
     {
         $quickReply->delete();

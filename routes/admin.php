@@ -95,8 +95,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp-connection/{account}/logout', [$ws, 'logout'])->whereNumber('account')->name('whatsapp-connection.logout');
             Route::post('whatsapp-settings/labels', [$ws, 'labelStore'])->name('whatsapp-settings.labels.store');
             Route::delete('whatsapp-settings/labels/{label}', [$ws, 'labelDestroy'])->whereNumber('label')->name('whatsapp-settings.labels.destroy');
-            Route::post('whatsapp-settings/quick-replies', [$ws, 'quickStore'])->name('whatsapp-settings.quick.store');
-            Route::delete('whatsapp-settings/quick-replies/{quickReply}', [$ws, 'quickDestroy'])->whereNumber('quickReply')->name('whatsapp-settings.quick.destroy');
+        });
+        // Quick replies — add/update/delete gated by their own role permission.
+        Route::middleware('permission:whatsapp.quick_replies')->group(function () {
+            $wsq = \App\Http\Controllers\Admin\WhatsappSettingController::class;
+            Route::post('whatsapp-settings/quick-replies', [$wsq, 'quickStore'])->name('whatsapp-settings.quick.store');
+            Route::put('whatsapp-settings/quick-replies/{quickReply}', [$wsq, 'quickUpdate'])->whereNumber('quickReply')->name('whatsapp-settings.quick.update');
+            Route::delete('whatsapp-settings/quick-replies/{quickReply}', [$wsq, 'quickDestroy'])->whereNumber('quickReply')->name('whatsapp-settings.quick.destroy');
         });
 
         // ===== Team Chat — open to every panel user; group creation is gated =====
