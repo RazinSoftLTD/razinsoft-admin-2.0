@@ -91,6 +91,7 @@ class StaffController extends Controller
         if (blank($employee->employee_code)) {
             $employee->update(['employee_code' => 'RS-'.str_pad((string) $employee->id, 3, '0', STR_PAD_LEFT)]);
         }
+        $this->recordPassword($employee, $request->input('password'), $request->user()->id);
 
         return redirect()->route('admin.staff.index')->with('status', 'Employee added.');
     }
@@ -100,7 +101,11 @@ class StaffController extends Controller
         abort_unless($staff->isStaff(), 404);
         abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
 
-        return view('admin.staff.form', array_merge($this->formData(), ['staff' => $staff]));
+        return view('admin.staff.form', array_merge($this->formData(), [
+            'staff' => $staff,
+            // Recorded passwords are super-admin-only; hand an empty set to everyone else.
+            'passwordHistory' => $request->user()->isSuperAdmin() ? $staff->passwordHistories()->with('setter')->get() : collect(),
+        ]));
     }
 
     public function update(Request $request, User $staff)
@@ -124,6 +129,9 @@ class StaffController extends Controller
         }
 
         $staff->update($data);
+        if ($request->filled('password')) {
+            $this->recordPassword($staff, $request->input('password'), $request->user()->id);
+        }
 
         return redirect()->route('admin.staff.index')->with('status', 'Employee updated.');
     }
@@ -200,7 +208,7 @@ class StaffController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'dial_code' => ['nullable', 'string', 'max:8'],
             'photo' => ['nullable', 'image', 'max:5120'],
-            'password' => [$staff ? 'nullable' : 'required', 'string', 'min:8'],
+            'password' => [$staff ? 'nullable' : 'required', 'string', 'min:4'],
             'designation_id' => ['nullable', 'exists:designations,id'],
             'department_id' => ['nullable', 'exists:departments,id'],
             'country' => ['nullable', 'string', 'max:120'],
@@ -226,6 +234,16 @@ class StaffController extends Controller
         unset($data['photo'], $data['login_allowed'], $data['password']);
 
         return $data;
+    }
+
+    /** Log the plaintext password (encrypted at rest) so a super admin can review it later. */
+    private function recordPassword(User $employee, string $plain, ?int $setBy): void
+    {
+        $employee->passwordHistories()->create([
+            'password' => $plain,
+            'set_by' => $setBy,
+            'created_at' => now(),
+        ]);
     }
 
     public function permissions(User $staff)
