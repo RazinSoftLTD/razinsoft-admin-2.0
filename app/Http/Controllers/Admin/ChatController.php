@@ -39,6 +39,7 @@ class ChatController extends Controller
 
         $active = null;
         $messages = collect();
+        $hasMore = false;
         if ($conversation && $conversation->exists) {
             abort_unless($this->canAccess($me, $conversation), 403);
             // First staff to open a client conversation joins it (so read/unread tracking works).
@@ -48,11 +49,45 @@ class ChatController extends Controller
             }
             $active = $conversation;
             $tab = $conversation->type === 'client' ? 'client' : 'team';
-            $messages = $conversation->messages()->with('author')->orderBy('id')->get();
+            [$messages, $hasMore] = $this->recentMessages($conversation);
             $this->markRead($conversation, $me);
         }
 
-        return view('admin.chat.index', compact('conversations', 'clientConversations', 'people', 'active', 'messages', 'tab', 'canClients'));
+        return view('admin.chat.index', compact('conversations', 'clientConversations', 'people', 'active', 'messages', 'hasMore', 'tab', 'canClients'));
+    }
+
+    /** The most recent $limit messages (chronological) + whether older ones exist. */
+    private function recentMessages(Conversation $conversation, int $limit = 40): array
+    {
+        $recent = $conversation->messages()->with('author')->orderByDesc('id')->limit($limit + 1)->get();
+        $hasMore = $recent->count() > $limit;
+
+        return [$recent->take($limit)->sortBy('id')->values(), $hasMore];
+    }
+
+    /** Older messages before a given id — powers the "Load earlier messages" button. */
+    public function olderMessages(Request $request, Conversation $conversation)
+    {
+        $me = auth()->user();
+        abort_unless($this->canAccess($me, $conversation), 403);
+
+        $beforeId = (int) $request->query('before_id');
+        $limit = 40;
+        $older = $conversation->messages()->with('author')->where('id', '<', $beforeId)
+            ->orderByDesc('id')->limit($limit + 1)->get();
+        $hasMore = $older->count() > $limit;
+        $messages = $older->take($limit)->sortBy('id')->values();
+
+        return response()->json([
+            'messages' => $messages->map(fn ($m) => [
+                'id' => $m->id, 'user_id' => $m->user_id,
+                'author' => $m->author->name ?? '—', 'author_photo' => $m->author->photo_url ?? null,
+                'body' => $m->body, 'attachment' => $m->attachment_url, 'attachment_name' => $m->attachment_name,
+                'is_image' => $m->is_image, 'time' => $m->created_at->format('g:i A'),
+                'created_at' => $m->created_at->timestamp, 'edited' => (bool) $m->edited_at,
+            ]),
+            'has_more' => $hasMore,
+        ]);
     }
 
     /** Team conversations need membership; client conversations need the `chat.clients` permission. */
@@ -104,10 +139,10 @@ class ChatController extends Controller
         }
 
         $active = $conversation->load('members');
-        $messages = $conversation->messages()->with('author')->orderBy('id')->get();
+        [$messages, $hasMore] = $this->recentMessages($conversation);
         $this->markRead($conversation, $me);
 
-        return view('admin.chat._pane', compact('active', 'messages', 'me'));
+        return view('admin.chat._pane', compact('active', 'messages', 'hasMore', 'me'));
     }
 
     public function createGroup()

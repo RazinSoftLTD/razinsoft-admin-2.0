@@ -13,7 +13,7 @@
     };
 @endphp
 
-<div id="thread-root" class="flex min-h-0 flex-1 flex-col"
+<div id="thread-root" class="relative flex min-h-0 flex-1 flex-col"
      data-conv-id="{{ $active->id }}"
      data-me="{{ (int) $me->id }}"
      data-counterpart-id="{{ optional($active->counterpart($me))->id }}"
@@ -23,6 +23,7 @@
      data-store-url="{{ route('admin.chat.messages.store', $active) }}"
      data-typing-url="{{ route('admin.chat.typing', $active) }}"
      data-read-url="{{ route('admin.chat.read', $active) }}"
+     data-older-url="{{ route('admin.chat.older', $active) }}"
      data-del-base="{{ url('admin/chat/messages') }}">
 
     {{-- Header --}}
@@ -68,8 +69,18 @@
         @endif
     </div>
 
+    {{-- Drag & drop overlay --}}
+    <div id="chat-drop-overlay" class="pointer-events-none absolute inset-0 z-40 m-3 hidden flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-soft)]/95 text-[var(--color-primary)]">
+        <svg class="h-12 w-12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <p class="mt-2 text-sm font-bold">Drop the file to attach</p>
+    </div>
+
     {{-- Messages --}}
     <div id="chat-scroll" class="min-h-0 flex-1 space-y-3 overflow-y-auto bg-gray-50/60 px-5 py-4">
+        {{-- Load earlier messages --}}
+        <div id="chat-load-earlier" class="{{ ($hasMore ?? false) ? 'flex' : 'hidden' }} justify-center pb-1">
+            <button type="button" id="chat-load-earlier-btn" class="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-gray-600 shadow-sm hover:bg-gray-50">Load earlier messages</button>
+        </div>
         @foreach ($messages as $msg)
             @php $mine = $msg->user_id === $me->id; @endphp
             <div class="group flex items-end gap-2 {{ $mine ? 'flex-row-reverse' : '' }}"

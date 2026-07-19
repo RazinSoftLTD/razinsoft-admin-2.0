@@ -286,9 +286,7 @@
             if (d.avatar) return '<img src="' + d.avatar + '" class="h-7 w-7 rounded-full object-cover" alt="">';
             return '<span class="h-7 w-7 grid place-items-center rounded-full bg-[var(--color-primary-soft)] text-sm font-bold text-[var(--color-primary)]">' + esc((d.author || '?').charAt(0).toUpperCase()) + '</span>';
         }
-        function append(d) {
-            if (seen.has(Number(d.id))) return;
-            seen.add(Number(d.id));
+        function makeRow(d) {
             const mine = Number(d.user_id) === ME;
             const name = (isGroup && !mine) ? '<p class="mb-0.5 px-1 text-xs font-semibold text-[var(--color-heading)]">' + esc(d.author) + '</p>' : '';
             const bubble = mine ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-white text-[var(--color-heading)] border border-gray-100 rounded-bl-sm';
@@ -302,10 +300,57 @@
                 + '<div class="max-w-[75%]" data-bubble-wrap>' + name
                 + '<div class="rounded-2xl px-3.5 py-2 text-sm ' + bubble + '">' + bodyHtml + fileChipHtml(d, mine) + '</div>'
                 + '<p class="mt-0.5 px-1 text-[11px] text-gray-400 ' + (mine ? 'text-right' : '') + '">' + (d.time || '') + '<span data-edited-tag class="' + (d.edited ? '' : 'hidden') + '"> · edited</span></p></div>';
-            scroll.appendChild(row);
             attachMenu(row);
+            return row;
+        }
+        function append(d) {
+            if (seen.has(Number(d.id))) return;
+            seen.add(Number(d.id));
+            scroll.appendChild(makeRow(d));
             toBottom();
         }
+
+        // ── Load earlier messages (pagination) + drag-and-drop ──
+        const OLDER_URL = root.dataset.olderUrl;
+        const earlierWrap = document.getElementById('chat-load-earlier');
+        const earlierBtn = document.getElementById('chat-load-earlier-btn');
+        let loadingOlder = false;
+        async function loadOlder() {
+            if (loadingOlder || !earlierBtn) return;
+            loadingOlder = true; earlierBtn.textContent = 'Loading…';
+            const firstRow = scroll.querySelector('[data-msg-id]');
+            const beforeId = firstRow ? firstRow.dataset.msgId : 0;
+            const prevHeight = scroll.scrollHeight;
+            try {
+                const r = await fetch(OLDER_URL + '?before_id=' + beforeId, { headers: { 'Accept': 'application/json' } });
+                const d = await r.json();
+                (d.messages || []).slice().reverse().forEach(m => {           // newest-first insert keeps order
+                    if (seen.has(Number(m.id))) return;
+                    seen.add(Number(m.id));
+                    earlierWrap.after(makeRow(m));
+                });
+                earlierWrap.classList.toggle('hidden', !d.has_more);
+                earlierWrap.classList.toggle('flex', !!d.has_more);
+                scroll.scrollTop = scroll.scrollHeight - prevHeight;         // keep position
+            } catch {} finally { loadingOlder = false; earlierBtn.textContent = 'Load earlier messages'; }
+        }
+        if (earlierBtn) earlierBtn.addEventListener('click', loadOlder);
+        scroll.addEventListener('scroll', function () {
+            if (scroll.scrollTop < 60 && !earlierWrap.classList.contains('hidden') && !loadingOlder) loadOlder();
+        });
+
+        // Drag a file onto the thread → attach it (with an optional message as caption).
+        const dropOverlay = document.getElementById('chat-drop-overlay');
+        let dragDepth = 0;
+        root.addEventListener('dragenter', function (e) { if (![...(e.dataTransfer?.types || [])].includes('Files')) return; e.preventDefault(); dragDepth++; dropOverlay.classList.remove('hidden'); dropOverlay.classList.add('flex'); });
+        root.addEventListener('dragover', function (e) { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+        root.addEventListener('dragleave', function () { dragDepth--; if (dragDepth <= 0) { dragDepth = 0; dropOverlay.classList.add('hidden'); dropOverlay.classList.remove('flex'); } });
+        root.addEventListener('drop', function (e) {
+            if (!e.dataTransfer.files.length) return;
+            e.preventDefault(); dragDepth = 0; dropOverlay.classList.add('hidden'); dropOverlay.classList.remove('flex');
+            const dt = new DataTransfer(); dt.items.add(e.dataTransfer.files[0]); fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change'));
+        });
         function removeMsg(id) { const el = scroll.querySelector('[data-msg-id="' + id + '"]'); if (el) el.remove(); }
         function updateBody(id, html) {
             const el = scroll.querySelector('[data-msg-id="' + id + '"]');
