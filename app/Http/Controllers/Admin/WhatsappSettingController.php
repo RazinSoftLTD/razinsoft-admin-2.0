@@ -191,7 +191,7 @@ class WhatsappSettingController extends Controller
         $data = $request->validate([
             'shortcut' => ['nullable', 'string', 'max:40'],
             'body' => ['required', 'string', 'max:2000'],
-            'account_id' => ['nullable', 'exists:whatsapp_accounts,id'],   // null = shared across all numbers
+            'account_id' => ['required', 'exists:whatsapp_accounts,id'],   // each quick reply belongs to one number
         ]);
         WhatsappQuickReply::create($data);
 

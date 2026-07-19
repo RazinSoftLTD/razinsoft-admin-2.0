@@ -36,26 +36,27 @@
                         </button>
                         <div x-show="accMenu" x-cloak @click.outside="accMenu = false" class="absolute left-0 top-11 z-40 w-64 overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-xl">
                             <p class="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">WhatsApp numbers</p>
+                            {{-- Drag a number to reorder it (saved per employee). Each row has its own Sync icon. --}}
                             <template x-for="a in accountsList" :key="a.id">
-                                <button type="button" @click="accountId = a.id; accMenu = false; active = null; loadChats()"
-                                        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-gray-50"
-                                        :class="accountId === a.id ? 'bg-emerald-50' : ''">
-                                    <span class="h-2 w-2 shrink-0 rounded-full" :class="a.connected ? 'bg-emerald-500' : 'bg-gray-300'"></span>
-                                    <span class="min-w-0 flex-1">
-                                        <span class="block truncate text-sm font-semibold text-[var(--color-heading)]" x-text="a.name"></span>
-                                        <span class="block truncate text-[10px] text-gray-400" x-text="a.number ? ('+' + a.number) : 'not connected'"></span>
-                                    </span>
-                                    <span x-show="a.unread" class="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white" x-text="a.unread"></span>
-                                    <svg x-show="accountId === a.id && !a.unread" class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
-                                </button>
+                                <div draggable="true" @dragstart="dragId = a.id" @dragover.prevent @drop.prevent="dropOnNumber(a.id)" @dragend="dragId = null"
+                                     class="group flex items-center gap-1.5 rounded-lg px-2 py-2 transition hover:bg-gray-50"
+                                     :class="[accountId === a.id ? 'bg-emerald-50' : '', dragId === a.id ? 'opacity-40' : '']">
+                                    <svg class="h-4 w-4 shrink-0 cursor-grab text-gray-300 group-hover:text-gray-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>
+                                    <button type="button" @click="accountId = a.id; accMenu = false; active = null; loadChats()" class="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                                        <span class="h-2 w-2 shrink-0 rounded-full" :class="a.connected ? 'bg-emerald-500' : 'bg-gray-300'"></span>
+                                        <span class="min-w-0 flex-1">
+                                            <span class="block truncate text-sm font-semibold text-[var(--color-heading)]" x-text="a.name"></span>
+                                            <span class="block truncate text-[10px] text-gray-400" x-text="a.number ? ('+' + a.number) : 'not connected'"></span>
+                                        </span>
+                                        <span x-show="a.unread" class="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white" x-text="a.unread"></span>
+                                    </button>
+                                    @if ($canReply)
+                                        <button type="button" @click.stop="syncAccount(a.id)" :disabled="syncingId === a.id" title="Sync this number from the phone" class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-60">
+                                            <svg class="h-4 w-4" :class="syncingId === a.id ? 'wa-spin' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 0 0-14.9-2M4 16a8 8 0 0 0 14.9 2"/></svg>
+                                        </button>
+                                    @endif
+                                </div>
                             </template>
-                            @if ($canReply)
-                                {{-- Manual sync from the phone --}}
-                                <button type="button" @click="syncAccount()" :disabled="syncing" class="mt-1 flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 disabled:opacity-60">
-                                    <svg class="h-4 w-4" :class="syncing ? 'wa-spin' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 0 0-14.9-2M4 16a8 8 0 0 0 14.9 2"/></svg>
-                                    <span x-text="syncing ? 'Syncing from phone…' : 'Sync now'"></span>
-                                </button>
-                            @endif
                             @if (auth()->user()->hasPermission('whatsapp.settings') || auth()->user()->isAdmin())
                                 <a href="{{ route('admin.whatsapp-settings') }}" class="flex items-center gap-2 border-t border-gray-100 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Manage numbers
@@ -793,13 +794,13 @@
                 mentionOpen: false, mentionJids: [],
                 lightbox: { open: false, index: 0, items: [] }, lbTouch: 0, replyTo: null,
                 dragOver: false, pending: null,
-                accMenu: false, syncing: false, hasMore: false, loadingOlder: false,
+                accMenu: false, syncingId: null, dragId: null, hasMore: false, loadingOlder: false,
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
                 quickReplies: @js($quickReplies->map(fn ($q) => ['shortcut' => $q->shortcut, 'body' => $q->body, 'account_id' => $q->account_id])->values()),
-                // Quick replies for the selected number = its own + the shared (account_id = null) ones.
-                visibleQuickReplies() { return this.quickReplies.filter(q => !q.account_id || q.account_id === this.accountId); },
+                // Quick replies are per-number — show only the selected number's own set.
+                visibleQuickReplies() { return this.quickReplies.filter(q => q.account_id === this.accountId); },
                 // Type "/" in the composer → live quick-reply picker (filtered by the shortcut typed).
                 slashIndex: 0, slashOff: false,
                 slashMatches() {
@@ -883,15 +884,28 @@
                     }
                 },
                 otherUnread() { return this.accountsList.filter(a => a.id !== this.accountId).reduce((n, a) => n + (a.unread || 0), 0); },
-                async syncAccount() {
-                    if (this.syncing || !this.accountId) return;
-                    this.syncing = true; this.accMenu = false;
+                async syncAccount(id) {
+                    id = id || this.accountId;
+                    if (this.syncingId || !id) return;
+                    this.syncingId = id;
                     try {
-                        const r = await this.post(@js(url('admin/whatsapp/accounts')) + '/' + this.accountId + '/resync', {});
-                        if (!r.ok) { alert((await r.json()).error || 'Sync failed.'); this.syncing = false; return; }
-                        // Reconnect takes a few seconds; refresh the inbox afterwards.
-                        setTimeout(() => { this.loadChats(); if (this.active) this.openChat(this.active.id, true); this.syncing = false; }, 6000);
-                    } catch { alert('Sync failed.'); this.syncing = false; }
+                        const r = await this.post(@js(url('admin/whatsapp/accounts')) + '/' + id + '/resync', {});
+                        if (!r.ok) { alert((await r.json()).error || 'Sync failed.'); this.syncingId = null; return; }
+                        // Reconnect takes a few seconds; refresh the inbox afterwards (only if it's the open number).
+                        setTimeout(() => { if (id === this.accountId) { this.loadChats(); if (this.active) this.openChat(this.active.id, true); } this.syncingId = null; }, 6000);
+                    } catch { alert('Sync failed.'); this.syncingId = null; }
+                },
+                // Drag & drop reorder of the numbers — persisted per employee.
+                dropOnNumber(targetId) {
+                    if (this.dragId == null || this.dragId === targetId) { this.dragId = null; return; }
+                    const list = this.accountsList;
+                    const from = list.findIndex(a => a.id === this.dragId);
+                    const to = list.findIndex(a => a.id === targetId);
+                    this.dragId = null;
+                    if (from < 0 || to < 0) return;
+                    const [moved] = list.splice(from, 1);
+                    list.splice(to, 0, moved);
+                    this.post(@js(route('admin.whatsapp.number-order')), { order: list.map(a => a.id) }).catch(() => {});
                 },
                 async openChat(id, silent = false) {
                     const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id);

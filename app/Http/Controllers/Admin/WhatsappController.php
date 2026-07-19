@@ -20,6 +20,11 @@ class WhatsappController extends Controller
     public function index(Request $request)
     {
         $accounts = \App\Models\WhatsappAccount::accessibleBy($request->user())->orderBy('position')->orderBy('id')->get();
+        // Each employee can reorder the numbers themselves (drag & drop) — apply their saved order.
+        if ($order = $request->user()->wa_number_order) {
+            $pos = array_flip($order);
+            $accounts = $accounts->sortBy(fn ($a) => $pos[$a->id] ?? 9999)->values();
+        }
         $ids = $accounts->pluck('id')->all() ?: [0];
 
         return view('admin.whatsapp.index', [
@@ -82,6 +87,18 @@ class WhatsappController extends Controller
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Save this employee's own drag-and-drop ordering of the WhatsApp numbers. */
+    public function saveNumberOrder(Request $request)
+    {
+        $data = $request->validate(['order' => ['array'], 'order.*' => ['integer']]);
+        // Keep only numbers this user can actually see.
+        $allowed = $this->accessibleAccountIds($request->user());
+        $order = array_values(array_intersect(array_map('intval', $data['order']), $allowed));
+        $request->user()->forceFill(['wa_number_order' => $order])->save();
 
         return response()->json(['ok' => true]);
     }

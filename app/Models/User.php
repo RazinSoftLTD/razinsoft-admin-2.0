@@ -53,6 +53,7 @@ class User extends Authenticatable
             'last_seen_at' => 'datetime',
             'password' => 'hashed',
             'permissions' => 'array',
+            'wa_number_order' => 'array',
             'joining_date' => 'date',
             'date_of_birth' => 'date',
             'probation_end_date' => 'date',
