@@ -52,7 +52,7 @@
                             @if ($canReply)
                                 {{-- Manual sync from the phone --}}
                                 <button type="button" @click="syncAccount()" :disabled="syncing" class="mt-1 flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 disabled:opacity-60">
-                                    <svg class="h-4 w-4" :class="syncing ? 'animate-spin' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 0 0-14.9-2M4 16a8 8 0 0 0 14.9 2"/></svg>
+                                    <svg class="h-4 w-4" :class="syncing ? 'wa-spin' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 0 0-14.9-2M4 16a8 8 0 0 0 14.9 2"/></svg>
                                     <span x-text="syncing ? 'Syncing from phone…' : 'Sync now'"></span>
                                 </button>
                             @endif
@@ -721,6 +721,10 @@
     </div>
 
     <style>
+        /* Guaranteed spin for the Sync button (works even if the Tailwind utility isn't compiled). */
+        @keyframes waSpin { to { transform: rotate(360deg); } }
+        .wa-spin { animation: waSpin .9s linear infinite; }
+
         /* WhatsApp Web thread: warm beige base + a faint doodle texture. */
         .wa-thread {
             background-color: #efeae2;

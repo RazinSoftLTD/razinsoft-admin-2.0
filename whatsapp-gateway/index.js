@@ -71,6 +71,10 @@ async function start(key) {
   const s = getSession(key)
   if (s.starting) return
   s.starting = true
+  // Tear down any previous socket first — two live sockets on one number cause 440 (replaced) loops.
+  try { s.sock?.ev?.removeAllListeners?.() } catch {}
+  try { s.sock?.end?.(undefined) } catch {}
+  s.sock = null
   try {
     const dir = dirFor(key)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
@@ -116,7 +120,8 @@ async function start(key) {
           log.warn(`[${key}] connection replaced by another session; stopping.`)
         } else {
           log.warn(`[${key}] connection closed (${code}), reconnecting…`)
-          setTimeout(() => start(key), 2000)
+          clearTimeout(s.reconnectTimer)
+          s.reconnectTimer = setTimeout(() => start(key), 2500)
         }
       }
     })
