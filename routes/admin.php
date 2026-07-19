@@ -94,8 +94,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp-accounts', [$ws, 'accountStore'])->name('whatsapp-accounts.store');
             Route::post('whatsapp-accounts/{account}', [$ws, 'accountUpdate'])->whereNumber('account')->name('whatsapp-accounts.update');
             Route::delete('whatsapp-accounts/{account}', [$ws, 'accountDestroy'])->whereNumber('account')->name('whatsapp-accounts.destroy');
-            Route::post('whatsapp-accounts/{account}/restore', [$ws, 'accountRestore'])->whereNumber('account')->name('whatsapp-accounts.restore');
-            Route::delete('whatsapp-accounts/{account}/force', [$ws, 'accountForceDelete'])->whereNumber('account')->name('whatsapp-accounts.force-delete');
+            Route::post('whatsapp-accounts/{account}/restore', [$ws, 'accountRestore'])->whereNumber('account')->withTrashed()->name('whatsapp-accounts.restore');
+            Route::delete('whatsapp-accounts/{account}/force', [$ws, 'accountForceDelete'])->whereNumber('account')->withTrashed()->name('whatsapp-accounts.force-delete');
             Route::get('whatsapp-connection/{account}', [$ws, 'connection'])->whereNumber('account')->name('whatsapp-connection');
             Route::get('whatsapp-connection/{account}/status', [$ws, 'connectionStatus'])->whereNumber('account')->name('whatsapp-connection.status');
             Route::post('whatsapp-connection/{account}/connect', [$ws, 'connect'])->whereNumber('account')->name('whatsapp-connection.connect');
