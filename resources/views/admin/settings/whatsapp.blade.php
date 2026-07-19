@@ -221,6 +221,10 @@
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Quick Replies</h2>
                 <form method="POST" action="{{ route('admin.whatsapp-settings.quick.store') }}" class="mb-4 space-y-2">
                     @csrf
+                    <select name="account_id" class="h-9 w-full rounded-lg border-gray-200 text-sm">
+                        <option value="">All numbers (shared)</option>
+                        @foreach ($accounts as $acc)<option value="{{ $acc->id }}">{{ $acc->name }}{{ $acc->display_number ? ' · +'.$acc->display_number : '' }}</option>@endforeach
+                    </select>
                     <input type="text" name="shortcut" placeholder="Shortcut (e.g. /hi)" class="h-9 w-full rounded-lg border-gray-200 text-sm">
                     <textarea name="body" required rows="2" placeholder="Message…" class="w-full rounded-lg border-gray-200 text-sm"></textarea>
                     <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white">Add Quick Reply</button>
@@ -229,6 +233,7 @@
                     @foreach ($quickReplies as $qr)
                         <li class="flex items-start justify-between gap-2 rounded-lg border border-gray-50 px-3 py-2">
                             <div class="min-w-0">
+                                <span class="rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $qr->account_id ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500' }}">{{ $qr->account?->name ?? 'All numbers' }}</span>
                                 @if ($qr->shortcut)<span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">{{ $qr->shortcut }}</span>@endif
                                 <p class="mt-0.5 text-xs text-[var(--color-muted)]">{{ \Illuminate\Support\Str::limit($qr->body, 80) }}</p>
                             </div>

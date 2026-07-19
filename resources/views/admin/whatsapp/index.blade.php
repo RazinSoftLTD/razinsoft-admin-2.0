@@ -436,10 +436,26 @@
                                 </div>
                             </template>
                             <div class="mb-2 flex flex-wrap gap-1.5" x-show="showQuick" x-cloak>
-                                @foreach ($quickReplies as $qr)
-                                    <button type="button" @click="draft = @js($qr->body); showQuick = false; $nextTick(() => autoGrow())" class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 shadow-sm hover:bg-gray-50">{{ $qr->shortcut ?: \Illuminate\Support\Str::limit($qr->body, 20) }}</button>
-                                @endforeach
+                                <template x-for="qr in visibleQuickReplies()" :key="qr.shortcut + '|' + qr.body">
+                                    <button type="button" @click="draft = qr.body; showQuick = false; $nextTick(() => autoGrow())" class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 shadow-sm hover:bg-gray-50" x-text="qr.shortcut || qr.body.slice(0, 20)"></button>
+                                </template>
+                                <span x-show="!visibleQuickReplies().length" class="px-1 text-[11px] text-gray-400">No quick replies for this number. Add some in Settings › WhatsApp.</span>
                             </div>
+
+                            {{-- Slash "/" quick-reply picker — appears while typing a shortcut --}}
+                            <div x-show="slashOpen()" x-cloak @click.outside="slashOff = true"
+                                 class="mb-2 max-h-56 overflow-y-auto rounded-xl border border-gray-100 bg-white p-1 shadow-lg">
+                                <p class="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">Quick replies</p>
+                                <template x-for="(qr, i) in slashMatches()" :key="qr.shortcut + '|' + qr.body">
+                                    <button type="button" @click="pickSlash(qr)" @mouseenter="slashIndex = i"
+                                            :class="slashIndex === i ? 'bg-emerald-50' : ''"
+                                            class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-emerald-50">
+                                        <span class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500" x-text="qr.shortcut"></span>
+                                        <span class="min-w-0 flex-1 truncate text-xs text-gray-600" x-text="qr.body"></span>
+                                    </button>
+                                </template>
+                            </div>
+
                             <form @submit.prevent="send()" class="flex items-end gap-2">
                                 {{-- Attach (+) menu --}}
                                 <div class="relative shrink-0">
@@ -484,7 +500,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                <textarea x-ref="composer" x-model="draft" @keydown.enter="if (!$event.shiftKey && !$event.isComposing) { $event.preventDefault(); send(); }" @input="autoGrow()" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
+                                <textarea x-ref="composer" x-model="draft"
+                                          @keydown.enter="if (slashOpen()) { $event.preventDefault(); pickSlash(slashMatches()[slashIndex]); } else if (!$event.shiftKey && !$event.isComposing) { $event.preventDefault(); send(); }"
+                                          @keydown.arrow-down="if (slashOpen()) { $event.preventDefault(); slashNav(1); }"
+                                          @keydown.arrow-up="if (slashOpen()) { $event.preventDefault(); slashNav(-1); }"
+                                          @keydown.escape="slashOff = true"
+                                          @input="autoGrow(); slashOff = false; slashIndex = 0" rows="1" placeholder="Type a message…  (Enter to send · type / for quick replies)"
                                           class="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-sm leading-5 text-gray-800 shadow-sm outline-none ring-1 ring-gray-200 transition focus:ring-2 focus:ring-emerald-400"></textarea>
                                 <button type="submit" :disabled="!draft.trim() || sending" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
@@ -776,6 +797,18 @@
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
+                quickReplies: @js($quickReplies->map(fn ($q) => ['shortcut' => $q->shortcut, 'body' => $q->body, 'account_id' => $q->account_id])->values()),
+                // Quick replies for the selected number = its own + the shared (account_id = null) ones.
+                visibleQuickReplies() { return this.quickReplies.filter(q => !q.account_id || q.account_id === this.accountId); },
+                // Type "/" in the composer → live quick-reply picker (filtered by the shortcut typed).
+                slashIndex: 0, slashOff: false,
+                slashMatches() {
+                    const t = this.draft.replace(/^\//, '').toLowerCase();
+                    return this.visibleQuickReplies().filter(q => q.shortcut && q.shortcut.replace(/^\//, '').toLowerCase().startsWith(t));
+                },
+                slashOpen() { return !this.slashOff && this.draft.startsWith('/') && !/\s/.test(this.draft) && this.slashMatches().length > 0; },
+                slashNav(dir) { const n = this.slashMatches().length; if (n) this.slashIndex = (this.slashIndex + dir + n) % n; },
+                pickSlash(qr) { if (!qr) return; this.draft = qr.body; this.slashIndex = 0; this.$nextTick(() => { this.autoGrow(); if (this.$refs.composer) this.$refs.composer.focus(); }); },
                 editingId: null, editDraft: '',
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],

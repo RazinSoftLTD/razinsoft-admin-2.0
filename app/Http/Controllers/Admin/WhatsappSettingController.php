@@ -25,7 +25,7 @@ class WhatsappSettingController extends Controller
             'chatCounts' => \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
             'panelUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'labels' => WhatsappLabel::orderBy('position')->get(),
-            'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
+            'quickReplies' => WhatsappQuickReply::with('account:id,name')->orderByRaw('account_id is null desc')->orderBy('account_id')->orderBy('shortcut')->get(),
             'webhookUrl' => url('/api/whatsapp/webhook'),
         ]);
     }
@@ -188,7 +188,11 @@ class WhatsappSettingController extends Controller
 
     public function quickStore(Request $request)
     {
-        $data = $request->validate(['shortcut' => ['nullable', 'string', 'max:40'], 'body' => ['required', 'string', 'max:2000']]);
+        $data = $request->validate([
+            'shortcut' => ['nullable', 'string', 'max:40'],
+            'body' => ['required', 'string', 'max:2000'],
+            'account_id' => ['nullable', 'exists:whatsapp_accounts,id'],   // null = shared across all numbers
+        ]);
         WhatsappQuickReply::create($data);
 
         return back()->with('status', 'Quick reply added.');
