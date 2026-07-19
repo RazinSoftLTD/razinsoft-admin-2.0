@@ -9,6 +9,11 @@
         $canWebhook = $u->hasPermission('whatsapp.webhook');
         $canLabels = $u->hasPermission('whatsapp.labels');
         $canQuick = $u->hasPermission('whatsapp.quick_replies');
+        // Left column = gateway/numbers/webhook; right column = labels/quick replies.
+        // When only one side is visible we drop the 2-column grid so nothing floats alone.
+        $hasLeft = $canConnection || $canNumbers || $canWebhook;
+        $hasRight = $canLabels || $canQuick;
+        $bothCols = $hasLeft && $hasRight;
     @endphp
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -19,9 +24,10 @@
 
     @if (session('error'))<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>@endif
 
-    <div class="grid gap-6 lg:grid-cols-3">
+    <div class="grid gap-6 {{ $bothCols ? 'lg:grid-cols-3' : '' }}">
         {{-- Credentials --}}
-        <div class="lg:col-span-2">
+        @if ($hasLeft)
+        <div class="{{ $bothCols ? 'lg:col-span-2' : 'max-w-3xl' }}">
             @if ($canConnection)
             <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm" x-data="{ driver: @js(old('driver', $settings->driver ?? 'baileys')) }">
                 @csrf
@@ -210,9 +216,11 @@
             </div>
             @endif
         </div>
+        @endif
 
         {{-- Labels + quick replies --}}
-        <div class="space-y-6">
+        @if ($hasRight)
+        <div class="space-y-6 {{ $bothCols ? '' : 'max-w-xl' }}">
             @if ($canLabels)
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Labels</h2>
@@ -296,6 +304,7 @@
             </div>
             @endif
         </div>
+        @endif
     </div>
 
     @if (! $canConnection && ! $canNumbers && ! $canWebhook && ! $canLabels && ! $canQuick)
