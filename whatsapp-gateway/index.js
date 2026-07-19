@@ -117,8 +117,11 @@ async function start(key) {
     })
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
-      if (type !== 'notify') return
-      for (const m of messages) await handleMessage(key, m)
+      // 'notify' = live/real-time; 'append' = messages synced on (re)connect that we were offline for.
+      // Import 'append' quietly (historic) so a disconnect→reconnect still catches up with the phone.
+      if (type !== 'notify' && type !== 'append') return
+      const historic = type === 'append'
+      for (const m of messages) await handleMessage(key, m, historic)
     })
 
     sock.ev.on('messaging-history.set', async ({ messages }) => {
