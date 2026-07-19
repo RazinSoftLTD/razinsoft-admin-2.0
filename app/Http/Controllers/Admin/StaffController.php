@@ -221,7 +221,9 @@ class StaffController extends Controller
 
         $data['status'] = ($data['login_allowed'] ?? true) ? User::STATUS_ACTIVE : User::STATUS_BLOCKED;
         $data['role_id'] = $request->input('role_id') ?: null;
-        unset($data['photo'], $data['login_allowed']);
+        // Password is handled explicitly by store()/update() so an empty field on
+        // edit never nulls the existing hash — drop it from the validated payload.
+        unset($data['photo'], $data['login_allowed'], $data['password']);
 
         return $data;
     }

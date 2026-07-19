@@ -19,11 +19,17 @@ class LoginController extends Controller
     public function attempt(Request $request)
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($data, $request->boolean('remember'))) {
+        // Staff can sign in with either their email address or their user ID
+        // (employee code, e.g. RS-045) — pick the matching column automatically.
+        $login = trim($data['email']);
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'employee_code';
+        $credentials = [$field => $login, 'password' => $data['password']];
+
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages(['email' => 'These credentials do not match our records.']);
         }
 

@@ -25,10 +25,10 @@
             <form method="POST" action="{{ route('admin.login.attempt') }}" class="mt-6 space-y-4">
                 @csrf
                 <div>
-                    <label for="email" class="mb-1.5 block text-sm font-medium">Email</label>
-                    <input id="email" name="email" type="email" required autofocus value="{{ old('email') }}"
+                    <label for="email" class="mb-1.5 block text-sm font-medium">Email or User ID</label>
+                    <input id="email" name="email" type="text" required autofocus value="{{ old('email') }}"
                            class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-                           placeholder="admin@razinsoft.com">
+                           placeholder="admin@razinsoft.com / RS-045">
                 </div>
                 <div>
                     <label for="password" class="mb-1.5 block text-sm font-medium">Password</label>

@@ -21,18 +21,12 @@
 @endphp
 
 @push('head')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <style>
         .chat-html a { text-decoration: underline; }
         .chat-html p { margin: 0; }
         .chat-html ul, .chat-html ol { margin: .25rem 0; padding-left: 1.25rem; }
         .chat-html ul { list-style: disc; }
         .chat-html ol { list-style: decimal; }
-        #chat-editor .ql-editor { min-height: 2.5rem; max-height: 10rem; font-size: .875rem; padding: .5rem .75rem; }
-        #chat-editor .ql-editor.ql-blank::before { left: .75rem; font-style: normal; color: #9ca3af; }
-        .chat-composer .ql-toolbar.ql-snow { border: 0; border-bottom: 1px solid #f0f0f0; padding: .35rem .5rem; }
-        .chat-composer .ql-container.ql-snow { border: 0; }
         [data-conv-link] { transition: background-color .12s ease; }
         [data-conv-link]:hover { background: #f9fafb; }
         [data-conv-link].active-conv, [data-conv-link].active-conv:hover { background: var(--color-primary-soft); }
@@ -179,10 +173,11 @@
     <script>
     // Thread initialiser — called deterministically on every frame load (Turbo) and on first render.
     window.__initChatThread = function (root) {
-        if (!root || !window.Quill) return;
-        // Guard against a double-init on the same frame content (would nest Quill's toolbar).
-        const editorEl = document.getElementById('chat-editor');
-        if (!editorEl || editorEl.classList.contains('ql-container')) return;
+        if (!root) return;
+        // Guard against a double-init on the same frame content.
+        const editorEl = document.getElementById('chat-input');
+        if (!editorEl || editorEl.dataset.ready === '1') return;
+        editorEl.dataset.ready = '1';
         window.Razin = window.Razin || {};
 
         const ME = Number(root.dataset.me);
@@ -223,17 +218,15 @@
             fetch(READ_URL, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } }).catch(() => {});
         }
 
-        const quill = new Quill('#chat-editor', {
-            theme: 'snow',
-            placeholder: 'Write a message…',
-            modules: { toolbar: [
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ background: ['#fff3bf', '#d3f9d8', '#ffe3e3', '#e5dbff', false] }],
-                [{ list: 'ordered' }, { list: 'bullet' }],
-                ['link', 'clean'],
-            ] },
+        // WhatsApp-style plain composer (auto-grow textarea, Enter to send, Shift+Enter = newline).
+        const input = document.getElementById('chat-input');
+        const autoGrow = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 160) + 'px'; };
+        const textToHtml = (t) => esc(t).replace(/\n/g, '<br>');
+        const htmlToText = (h) => { const d = document.createElement('div'); d.innerHTML = (h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li)>/gi, '\n'); return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim(); };
+        input.addEventListener('input', autoGrow);
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
         });
-        quill.keyboard.addBinding({ key: 13 }, { shiftKey: false }, function () { form.requestSubmit(); return false; });
 
         fileInput.addEventListener('change', function () {
             if (this.files.length) { fileName.textContent = this.files[0].name; fileChip.classList.remove('hidden'); fileChip.classList.add('flex'); }
@@ -400,13 +393,13 @@
         const editBanner = document.getElementById('chat-edit-banner');
         function startEdit(id, html) {
             editingId = id;
-            quill.root.innerHTML = html || '';
+            input.value = htmlToText(html || '');
             editBanner.classList.remove('hidden'); editBanner.classList.add('flex');
-            quill.focus();
+            input.focus(); autoGrow();
         }
         function cancelEdit() {
             editingId = null;
-            quill.setContents([]);
+            input.value = ''; autoGrow();
             editBanner.classList.add('hidden'); editBanner.classList.remove('flex');
         }
         document.getElementById('chat-edit-cancel').addEventListener('click', cancelEdit);
@@ -420,15 +413,14 @@
             clearTimeout(typingHideTimer);
             typingHideTimer = setTimeout(() => { typingInd.classList.add('hidden'); typingInd.classList.remove('flex'); }, 3500);
         }
-        quill.on('text-change', function (_d, _o, source) {
-            if (source !== 'user') return;
+        input.addEventListener('input', function () {
             const now = Date.now(); if (now - lastTypingSent < 2500) return; lastTypingSent = now;
             fetch(TYPING_URL, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } }).catch(() => {});
         });
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            const hasText = quill.getText().trim().length > 0;
+            const hasText = input.value.trim().length > 0;
 
             // Editing an existing message → PATCH (text only, within the 1-hour window).
             if (editingId) {
@@ -437,7 +429,7 @@
                 fetch(DEL_BASE + '/' + id, {
                     method: 'PATCH',
                     headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ body: quill.root.innerHTML }),
+                    body: JSON.stringify({ body: textToHtml(input.value) }),
                 }).then(r => r.json()).then(d => {
                     if (d.error) { window.Razin.toast(d.error); return; }
                     updateBody(id, d.body);
@@ -450,13 +442,13 @@
             if (!hasText && !hasFile) return;
             const fd = new FormData();
             fd.append('_token', CSRF);
-            fd.append('body', hasText ? quill.root.innerHTML : '');
+            fd.append('body', hasText ? textToHtml(input.value) : '');
             if (hasFile) fd.append('attachment', fileInput.files[0]);
             fetch(STORE_URL, { method: 'POST', headers: { 'Accept': 'application/json' }, body: fd })
                 .then(r => r.json())
                 .then(d => {
                     if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at });
-                    quill.setContents([]); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
+                    input.value = ''; autoGrow(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
                 }).catch(() => {});
         });
 

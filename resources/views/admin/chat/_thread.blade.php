@@ -133,17 +133,16 @@
             <span id="chat-file-name" class="truncate font-medium text-[var(--color-heading)]"></span>
             <button type="button" id="chat-file-remove" class="ml-1 text-red-500 hover:underline">Remove</button>
         </div>
-        <div class="chat-composer">
-            <div id="chat-editor"></div>
-        </div>
-        <div class="flex items-center justify-between gap-2 px-3 py-2">
-            <label class="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-gray-500 hover:bg-gray-50" title="Attach a file">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
+        {{-- WhatsApp-style composer: attach + auto-grow pill + round send --}}
+        <div class="flex items-end gap-2 px-3 py-3" style="background:#f0f2f5">
+            <label class="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" title="Attach a file">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
                 <input type="file" id="chat-file" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv">
             </label>
-            <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                Send
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+            <textarea id="chat-input" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
+                      class="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-sm leading-5 text-gray-800 shadow-sm outline-none ring-1 ring-gray-200 transition focus:ring-2 focus:ring-[var(--color-primary)]"></textarea>
+            <button type="submit" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
             </button>
         </div>
     </form>
