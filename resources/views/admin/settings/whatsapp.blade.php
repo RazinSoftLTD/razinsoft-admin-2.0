@@ -2,6 +2,14 @@
 @section('title', 'WhatsApp API')
 
 @section('content')
+    @php
+        $u = auth()->user();
+        $canConnection = $u->hasPermission('whatsapp.connection');
+        $canNumbers = $u->hasPermission('whatsapp.numbers');
+        $canWebhook = $u->hasPermission('whatsapp.webhook');
+        $canLabels = $u->hasPermission('whatsapp.labels');
+        $canQuick = $u->hasPermission('whatsapp.quick_replies');
+    @endphp
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
             <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Config</h1>
@@ -14,6 +22,7 @@
     <div class="grid gap-6 lg:grid-cols-3">
         {{-- Credentials --}}
         <div class="lg:col-span-2">
+            @if ($canConnection)
             <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm" x-data="{ driver: @js(old('driver', $settings->driver ?? 'baileys')) }">
                 @csrf
                 {{-- Connection method --}}
@@ -82,8 +91,10 @@
                     </button>
                 </div>
             </form>
+            @endif
 
             {{-- WhatsApp numbers (accounts) --}}
+            @if ($canNumbers)
             <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <div class="mb-4 flex items-center justify-between">
                     <div>
@@ -173,8 +184,10 @@
                     </div>
                 </form>
             </div>
+            @endif
 
             {{-- Webhook --}}
+            @if ($canWebhook)
             <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Webhook</h2>
                 <p class="mb-3 text-xs text-[var(--color-muted)]">In Meta &rsaquo; WhatsApp &rsaquo; Configuration, set the Callback URL and Verify Token below, then subscribe to the <strong>messages</strong> field.</p>
@@ -195,10 +208,12 @@
                     </div>
                 </div>
             </div>
+            @endif
         </div>
 
         {{-- Labels + quick replies --}}
         <div class="space-y-6">
+            @if ($canLabels)
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Labels</h2>
                 <form method="POST" action="{{ route('admin.whatsapp-settings.labels.store') }}" class="mb-4 flex items-center gap-2">
@@ -216,21 +231,22 @@
                     @endforeach
                 </div>
             </div>
+            @endif
 
-            @php $canQuick = auth()->user()->hasPermission('whatsapp.quick_replies'); @endphp
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm" x-data="{ acc: {{ $accounts->first()->id ?? 'null' }}, ids: @js($quickReplies->pluck('account_id')) }">
+            @if ($canQuick)
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm" x-data="{ acc: {{ $quickAccounts->first()->id ?? 'null' }}, ids: @js($quickReplies->pluck('account_id')) }">
                 <div class="flex items-center justify-between gap-2">
                     <h2 class="text-sm font-bold text-[var(--color-heading)]">Quick Replies</h2>
-                    @if ($accounts->isNotEmpty())
+                    @if ($quickAccounts->isNotEmpty())
                         <select x-model.number="acc" class="h-8 rounded-lg border-gray-200 text-xs">
-                            @foreach ($accounts as $acc)<option value="{{ $acc->id }}">{{ $acc->name }}{{ $acc->display_number ? ' · +'.$acc->display_number : '' }}</option>@endforeach
+                            @foreach ($quickAccounts as $acc)<option value="{{ $acc->id }}">{{ $acc->name }}{{ $acc->display_number ? ' · +'.$acc->display_number : '' }}</option>@endforeach
                         </select>
                     @endif
                 </div>
-                <p class="mb-4 mt-1 text-xs text-gray-400">Each number has its own quick replies — pick a number above to manage its set.</p>
+                <p class="mb-4 mt-1 text-xs text-gray-400">Each number has its own quick replies — pick a number above to manage its set. You only see the numbers you have access to.</p>
 
-                @if ($accounts->isEmpty())
-                    <p class="rounded-lg border border-dashed border-gray-100 px-3 py-4 text-center text-xs text-gray-400">Connect a WhatsApp number first, then add its quick replies.</p>
+                @if ($quickAccounts->isEmpty())
+                    <p class="rounded-lg border border-dashed border-gray-100 px-3 py-4 text-center text-xs text-gray-400">You don't have access to any WhatsApp number yet.</p>
                 @else
                     @if ($canQuick)
                         <form method="POST" action="{{ route('admin.whatsapp-settings.quick.store') }}" class="mb-4 space-y-2">
@@ -278,6 +294,11 @@
                     </ul>
                 @endif
             </div>
+            @endif
         </div>
     </div>
+
+    @if (! $canConnection && ! $canNumbers && ! $canWebhook && ! $canLabels && ! $canQuick)
+        <p class="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-400">You don't have permission to manage any WhatsApp Config section yet. Ask an admin to grant the sections you need.</p>
+    @endif
 @endsection

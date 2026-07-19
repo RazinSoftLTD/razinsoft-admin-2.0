@@ -77,22 +77,33 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('whatsapp-activity/{account}', [$wact, 'show'])->whereNumber('account')->name('whatsapp-activity.show');
             Route::get('whatsapp-activity/{account}/chats/{chat}', [$wact, 'thread'])->whereNumber('account')->whereNumber('chat')->name('whatsapp-activity.thread');
         });
+        // Each WhatsApp Config section is gated by its own permission.
         Route::middleware('permission:whatsapp.settings')->group(function () {
             $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
-            Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');
+            Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');   // open the Config page
+        });
+        // Connection Method (gateway / API credentials)
+        Route::middleware('permission:whatsapp.connection')->group(function () {
+            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
             Route::post('whatsapp-settings', [$ws, 'update'])->name('whatsapp-settings.update');
             Route::post('whatsapp-settings/test', [$ws, 'test'])->name('whatsapp-settings.test');
-            // Accounts (WhatsApp numbers)
+        });
+        // WhatsApp Numbers (accounts + per-number QR connection)
+        Route::middleware('permission:whatsapp.numbers')->group(function () {
+            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
             Route::post('whatsapp-accounts', [$ws, 'accountStore'])->name('whatsapp-accounts.store');
             Route::post('whatsapp-accounts/{account}', [$ws, 'accountUpdate'])->whereNumber('account')->name('whatsapp-accounts.update');
             Route::delete('whatsapp-accounts/{account}', [$ws, 'accountDestroy'])->whereNumber('account')->name('whatsapp-accounts.destroy');
             Route::post('whatsapp-accounts/{account}/restore', [$ws, 'accountRestore'])->whereNumber('account')->name('whatsapp-accounts.restore');
             Route::delete('whatsapp-accounts/{account}/force', [$ws, 'accountForceDelete'])->whereNumber('account')->name('whatsapp-accounts.force-delete');
-            // Per-account QR connection
             Route::get('whatsapp-connection/{account}', [$ws, 'connection'])->whereNumber('account')->name('whatsapp-connection');
             Route::get('whatsapp-connection/{account}/status', [$ws, 'connectionStatus'])->whereNumber('account')->name('whatsapp-connection.status');
             Route::post('whatsapp-connection/{account}/connect', [$ws, 'connect'])->whereNumber('account')->name('whatsapp-connection.connect');
             Route::post('whatsapp-connection/{account}/logout', [$ws, 'logout'])->whereNumber('account')->name('whatsapp-connection.logout');
+        });
+        // Labels
+        Route::middleware('permission:whatsapp.labels')->group(function () {
+            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
             Route::post('whatsapp-settings/labels', [$ws, 'labelStore'])->name('whatsapp-settings.labels.store');
             Route::delete('whatsapp-settings/labels/{label}', [$ws, 'labelDestroy'])->whereNumber('label')->name('whatsapp-settings.labels.destroy');
         });

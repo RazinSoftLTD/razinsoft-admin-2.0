@@ -15,19 +15,33 @@ use Illuminate\Support\Str;
 /** Settings › WhatsApp Config — gateway config, connected numbers (accounts), labels & quick replies. */
 class WhatsappSettingController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         WhatsappAccount::purgeExpiredBin(); // auto-remove numbers binned over a month
+
+        // Quick replies are limited to the numbers this user has access to (admins see all).
+        $quickAccounts = $this->quickAccounts($request->user());
+        $quickIds = $quickAccounts->pluck('id')->all() ?: [0];
 
         return view('admin.settings.whatsapp', [
             'settings' => WhatsappSetting::current(),
             'accounts' => WhatsappAccount::with('users:id,name')->orderBy('position')->orderBy('id')->get(),
+            'quickAccounts' => $quickAccounts,
             'chatCounts' => \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
             'panelUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'labels' => WhatsappLabel::orderBy('position')->get(),
-            'quickReplies' => WhatsappQuickReply::with('account:id,name')->orderByRaw('account_id is null desc')->orderBy('account_id')->orderBy('shortcut')->get(),
+            'quickReplies' => WhatsappQuickReply::with('account:id,name')->whereIn('account_id', $quickIds)
+                ->orderBy('account_id')->orderBy('shortcut')->get(),
             'webhookUrl' => url('/api/whatsapp/webhook'),
         ]);
+    }
+
+    /** WhatsApp numbers this user may manage quick replies for (admins: all; others: assigned). */
+    private function quickAccounts(User $user)
+    {
+        $q = $user->isAdmin() ? WhatsappAccount::query() : WhatsappAccount::accessibleBy($user);
+
+        return $q->orderBy('position')->orderBy('id')->get();
     }
 
     /** Restore a number from the bin. */
@@ -193,6 +207,8 @@ class WhatsappSettingController extends Controller
             'body' => ['required', 'string', 'max:2000'],
             'account_id' => ['required', 'exists:whatsapp_accounts,id'],   // each quick reply belongs to one number
         ]);
+        // Can only add to a number this user has access to.
+        abort_unless(in_array((int) $data['account_id'], $this->quickAccounts($request->user())->pluck('id')->all(), true), 403);
         WhatsappQuickReply::create($data);
 
         return back()->with('status', 'Quick reply added.');
@@ -205,13 +221,17 @@ class WhatsappSettingController extends Controller
             'body' => ['required', 'string', 'max:2000'],
             'account_id' => ['required', 'exists:whatsapp_accounts,id'],
         ]);
+        // Both the reply's current number and the target number must be accessible.
+        $accessible = $this->quickAccounts($request->user())->pluck('id')->all();
+        abort_unless(in_array((int) $data['account_id'], $accessible, true) && in_array((int) $quickReply->account_id, $accessible, true), 403);
         $quickReply->update($data);
 
         return back()->with('status', 'Quick reply updated.');
     }
 
-    public function quickDestroy(WhatsappQuickReply $quickReply)
+    public function quickDestroy(Request $request, WhatsappQuickReply $quickReply)
     {
+        abort_unless(in_array((int) $quickReply->account_id, $this->quickAccounts($request->user())->pluck('id')->all(), true), 403);
         $quickReply->delete();
 
         return back()->with('status', 'Quick reply removed.');
