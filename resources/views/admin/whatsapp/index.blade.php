@@ -324,7 +324,7 @@
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
                                                 </button>
                                             </template>
-                                            <template x-if="m.direction === 'out' && canModify(m)">
+                                            <template x-if="m.direction === 'out' && !m.deleted">
                                                 <button type="button" @click="deleteMsg(m)" title="Delete" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-red-500">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
                                                 </button>
@@ -365,7 +365,7 @@
                                         {{-- deleted placeholder --}}
                                         <span x-show="m.deleted" class="flex items-center gap-1.5 text-sm italic text-gray-400">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M5.6 5.6l12.8 12.8"/></svg>
-                                            You deleted this message
+                                            <span x-text="m.direction === 'out' ? 'You deleted this message' : 'This message was deleted'"></span>
                                         </span>
                                         {{-- body / inline editor --}}
                                         <span x-show="m.body && editingId !== m.id" x-text="m.body" class="whitespace-pre-line break-words align-bottom"></span>

@@ -37,6 +37,7 @@ class WhatsappGatewayController extends Controller
             'message' => $this->onMessage($request, $account),
             'status' => $this->onStatus($request, $account),
             'reaction' => $this->onReaction($request, $account),
+            'revoke' => $this->onRevoke($request, $account),
             default => response()->json(['ok' => true]),
         };
     }
@@ -196,6 +197,24 @@ class WhatsappGatewayController extends Controller
                 $message->update([$column => $request->input('emoji') ?: null]);
                 try {
                     event(new WhatsappMessageReceived($message->chat_id, $message->id, 'reaction'));
+                } catch (\Throwable) {
+                }
+            }
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** A message was deleted/revoked on WhatsApp — reflect it as a deleted message. */
+    private function onRevoke(Request $request, ?WhatsappAccount $account)
+    {
+        $id = $request->input('id');
+        if ($id) {
+            $message = $this->scopedMessage($id, $account);
+            if ($message && ! $message->deleted_at) {
+                $message->update(['deleted_at' => now(), 'body' => null, 'media_path' => null]);
+                try {
+                    event(new WhatsappMessageReceived($message->chat_id, $message->id, 'revoke'));
                 } catch (\Throwable) {
                 }
             }

@@ -183,6 +183,11 @@ async function handleMessage(key, m, historic = false) {
   if (!m || !m.message) return
   const jid = m.key.remoteJid || ''
   if (jid === 'status@broadcast') return
+  // A message was deleted/revoked → mark it deleted, don't create a phantom "[Unsupported message]".
+  if (m.message.protocolMessage?.key?.id) {
+    push(key, { event: 'revoke', id: m.message.protocolMessage.key.id })
+    return
+  }
   if (m.message.reactionMessage) {
     const r = m.message.reactionMessage
     push(key, { event: 'reaction', id: r.key?.id, emoji: r.text || '', from_me: !!m.key.fromMe })
