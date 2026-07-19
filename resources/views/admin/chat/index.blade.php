@@ -59,6 +59,12 @@
         /* Hover action bar beside a message. */
         .msg-actions { opacity: 0; transition: opacity .12s ease; }
         .group:hover .msg-actions { opacity: 1; }
+        /* Conversation bumped to the top of the list. */
+        @keyframes convBump { 0% { background: var(--color-primary-soft); } 100% { background: transparent; } }
+        [data-conv-link].conv-bump { animation: convBump .8s ease; }
+        /* New message sliding in at the bottom. */
+        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .msg-in { animation: msgIn .2s ease; }
     </style>
 @endpush
 
@@ -93,7 +99,7 @@
                 <input type="text" data-chat-search placeholder="Search people…"
                        class="mb-3 h-9 w-full rounded-lg border border-gray-200 px-3 text-sm">
 
-                <p class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Channels</p>
+                <p id="ch-header" class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Channels</p>
                 @forelse ($groups as $g)
                     @php $un = $g->unreadCountFor($me); $on = $active && $active->id === $g->id; $glast = $g->latestMessage; @endphp
                     <a href="{{ route('admin.chat.show', $g) }}" data-turbo="false" data-conv-link data-conv="{{ $g->id }}" data-chat-row="{{ strtolower($g->name) }}"
@@ -108,10 +114,10 @@
                         <span class="min-w-0 flex-1">
                             <span class="flex items-baseline justify-between gap-2">
                                 <span class="conv-name truncate text-sm font-medium text-[var(--color-heading)]">{{ $g->name }}</span>
-                                @if ($glast)<span class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $chatTime($glast->created_at) }}</span>@endif
+                                <span data-row-time class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $glast ? $chatTime($glast->created_at) : '' }}</span>
                             </span>
                             <span class="mt-0.5 flex items-center justify-between gap-2">
-                                <span class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $glast?->preview ?: 'No messages yet' }}</span>
+                                <span data-row-preview class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $glast?->preview ?: 'No messages yet' }}</span>
                                 @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
                             </span>
                         </span>
@@ -120,7 +126,7 @@
                     <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No channels yet.</p>
                 @endforelse
 
-                <p class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
+                <p id="dm-header" class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
                 @forelse ($people as $p)
                     @php
                         $c = $directByUser[$p->id] ?? null;
@@ -138,10 +144,10 @@
                         <span class="min-w-0 flex-1">
                             <span class="flex items-baseline justify-between gap-2">
                                 <span class="conv-name truncate text-sm font-medium text-[var(--color-heading)]">{{ $p->name }}</span>
-                                @if ($last)<span class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $chatTime($last->created_at) }}</span>@endif
+                                <span data-row-time class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $last ? $chatTime($last->created_at) : '' }}</span>
                             </span>
                             <span class="mt-0.5 flex items-center justify-between gap-2">
-                                <span class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $preview !== null && $preview !== '' ? $preview : ($p->designation->name ?? 'Team member') }}</span>
+                                <span data-row-preview class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $preview !== null && $preview !== '' ? $preview : ($p->designation->name ?? 'Team member') }}</span>
                                 @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
                             </span>
                         </span>
@@ -155,7 +161,7 @@
             @if ($canClients)
                 <div x-show="tab === 'client'" x-cloak class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
                     <input type="text" data-chat-search placeholder="Search clients…" class="mb-3 h-9 w-full rounded-lg border border-gray-200 px-3 text-sm">
-                    <p class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Client Messages</p>
+                    <p id="cl-header" class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Client Messages</p>
                     @forelse ($clientConversations as $c)
                         @php
                             $client = $c->clientMember() ?? $c->members->first();
@@ -229,6 +235,7 @@
         const CSRF = document.querySelector('meta[name="csrf-token"]').content;
         const CONV = Number(root.dataset.convId);
         const isGroup = root.dataset.isGroup === '1';
+        const CONV_TYPE = root.dataset.convType || 'direct';
         const IS_ADMIN = root.dataset.isAdmin === '1';
         const STORE_URL = root.dataset.storeUrl;
         const TYPING_URL = root.dataset.typingUrl;
@@ -284,6 +291,38 @@
                 if (d && d.id) { const row = scroll.querySelector('[data-msg-id="' + d.id + '"]'); if (row) renderReactions(row, d.reactions || {}); }
             }).catch(() => {});
         }
+
+        // Move a conversation's left-list row to the top of its section and refresh its
+        // preview/time/unread — the live WhatsApp-style reorder (no reload needed).
+        window.Razin.bumpConversation = function (o) {
+            const aside = document.querySelector('aside');
+            if (!aside) return;
+            let row, headerId;
+            if (o.type === 'direct') { row = aside.querySelector('a[data-user="' + o.userId + '"]'); headerId = 'dm-header'; }
+            else { row = aside.querySelector('a[data-conv="' + o.convId + '"]'); headerId = o.type === 'client' ? 'cl-header' : 'ch-header'; }
+            if (!row) return;
+            const pv = row.querySelector('[data-row-preview]');
+            const tm = row.querySelector('[data-row-time]');
+            if (pv && o.preview != null && o.preview !== '') pv.textContent = o.preview;
+            if (tm && o.time) tm.textContent = o.time;
+            if (o.incUnread) {
+                let b = row.querySelector('[data-unread]');
+                if (!b) {
+                    b = document.createElement('span');
+                    b.setAttribute('data-unread', '');
+                    b.className = 'grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white';
+                    b.textContent = '0';
+                    (pv ? pv.parentElement : row).appendChild(b);
+                }
+                b.textContent = String((parseInt(b.textContent, 10) || 0) + 1);
+                if (pv) { pv.classList.add('font-medium', 'text-[var(--color-heading)]'); pv.classList.remove('text-[var(--color-muted)]'); }
+                if (tm) { tm.classList.add('font-semibold', 'text-[var(--color-primary)]'); tm.classList.remove('text-gray-400'); }
+            }
+            const header = document.getElementById(headerId);
+            if (header && header.parentElement === row.parentElement) header.after(row);   // → top of its section
+            row.classList.remove('conv-bump'); void row.offsetWidth; row.classList.add('conv-bump');
+            setTimeout(() => row.classList.remove('conv-bump'), 800);
+        };
 
         // Quoted-reply preview markup shown at the top of a bubble.
         function quotedHtml(q, mine) {
@@ -455,7 +494,9 @@
         function append(d) {
             if (seen.has(Number(d.id))) return;
             seen.add(Number(d.id));
-            scroll.appendChild(makeRow(d));
+            const row = makeRow(d);
+            row.classList.add('msg-in');
+            scroll.appendChild(row);
             toBottom();
         }
 
@@ -601,6 +642,7 @@
 
             const hasFile = fileInput.files.length > 0;
             if (!hasText && !hasFile) return;
+            const sentPreview = input.value.trim() || (hasFile ? '📎 ' + (fileInput.files[0]?.name || 'Attachment') : '');
             const fd = new FormData();
             fd.append('_token', CSRF);
             fd.append('body', hasText ? textToHtml(input.value) : '');
@@ -612,6 +654,11 @@
                     if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at, quoted: d.quoted, reactions: d.reactions });
                     input.value = ''; autoGrow(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
                     cancelReply();
+                    // My own message → bump this conversation to the top of the left list (no unread).
+                    if (window.Razin.bumpConversation) window.Razin.bumpConversation({
+                        type: CONV_TYPE, convId: CONV, userId: Number(root.dataset.counterpartId) || null,
+                        preview: sentPreview, time: (d && d.time) || '', incUnread: false,
+                    });
                 }).catch(() => {});
         });
 
@@ -634,6 +681,23 @@
             ch.bind('message.edited', function (d) { updateBody(d.id, d.body); });
             ch.bind('message.reacted', function (d) { const row = scroll.querySelector('[data-msg-id="' + d.id + '"]'); if (row) renderReactions(row, d.reactions || {}); });
             ch.bind('typing', function (d) { if (Number(d.user_id) !== ME) showTyping(d.name); });
+
+            // Personal channel → live-reorder the left list for EVERY conversation I'm in (bind once).
+            if (!window.__chatListBound) {
+                window.__chatListBound = true;
+                window.Razin.pusher.subscribe('chat.user.' + ME).bind('message.posted', function (d) {
+                    if (typeof window.Razin.bumpConversation !== 'function') return;
+                    const open = Number(window.Razin.openConversation) === Number(d.conversation_id);
+                    window.Razin.bumpConversation({
+                        type: d.conv_type || 'direct',
+                        convId: d.conversation_id,
+                        userId: d.user_id,
+                        preview: d.preview,
+                        time: d.time,
+                        incUnread: !open && Number(d.user_id) !== ME,
+                    });
+                });
+            }
         })();
     };
 

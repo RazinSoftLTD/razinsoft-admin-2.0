@@ -18,6 +18,7 @@
      data-me="{{ (int) $me->id }}"
      data-counterpart-id="{{ optional($active->counterpart($me))->id }}"
      data-is-group="{{ $isGroup ? '1' : '0' }}"
+     data-conv-type="{{ $active->type }}"
      data-is-admin="{{ $me->isAdmin() ? '1' : '0' }}"
      data-url="{{ route('admin.chat.show', $active) }}"
      data-store-url="{{ route('admin.chat.messages.store', $active) }}"
@@ -76,7 +77,9 @@
     </div>
 
     {{-- Messages --}}
-    <div id="chat-scroll" class="min-h-0 flex-1 space-y-3 overflow-y-auto bg-gray-50/60 px-5 py-4">
+    <div id="chat-scroll" class="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto bg-gray-50/60 px-5 py-4">
+        {{-- Spacer: pushes a short thread to the bottom (WhatsApp-style); collapses to 0 once it overflows. --}}
+        <div class="flex-1"></div>
         {{-- Load earlier messages --}}
         <div id="chat-load-earlier" class="{{ ($hasMore ?? false) ? 'flex' : 'hidden' }} justify-center pb-1">
             <button type="button" id="chat-load-earlier-btn" class="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-gray-600 shadow-sm hover:bg-gray-50">Load earlier messages</button>
