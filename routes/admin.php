@@ -55,6 +55,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp/new-chat', [$wa, 'startChat'])->middleware('permission:whatsapp.reply')->name('whatsapp.new-chat');
             Route::get('whatsapp/chats/{chat}/members', [$wa, 'groupMembers'])->whereNumber('chat')->name('whatsapp.members');
             Route::get('whatsapp/chats/{chat}', [$wa, 'show'])->whereNumber('chat')->name('whatsapp.show');
+            Route::get('whatsapp/chats/{chat}/older', [$wa, 'olderMessages'])->whereNumber('chat')->name('whatsapp.older');
             Route::post('whatsapp/chats/{chat}/send', [$wa, 'send'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.send');
             Route::post('whatsapp/chats/{chat}/media', [$wa, 'sendMediaMessage'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.media');
             Route::post('whatsapp/chats/{chat}/messages/{message}/edit', [$wa, 'editMessage'])->whereNumber('chat')->whereNumber('message')->middleware('permission:whatsapp.reply')->name('whatsapp.msg.edit');

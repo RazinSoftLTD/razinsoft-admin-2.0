@@ -19,7 +19,8 @@ class WhatsappChat extends Model
 
     public function messages(): HasMany
     {
-        return $this->hasMany(WhatsappMessage::class, 'chat_id')->orderBy('id');
+        // Chronological — history-synced messages arrive out of insertion order, so sort by real time.
+        return $this->hasMany(WhatsappMessage::class, 'chat_id')->orderBy('sent_at')->orderBy('id');
     }
 
     public function notes(): HasMany

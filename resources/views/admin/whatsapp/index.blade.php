@@ -264,8 +264,18 @@
 
                     {{-- Messages — WhatsApp Web look (beige doodle bg, green/white bubbles) --}}
                     {{-- flex-col + mt-auto anchors messages to the bottom (empty space stays on top, like WhatsApp). --}}
-                    <div class="wa-thread flex flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-16" x-ref="thread">
+                    <div class="wa-thread flex flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-16" x-ref="thread"
+                         @scroll.debounce.150ms="if ($refs.thread.scrollTop < 80 && hasMore && !loadingOlder) loadOlder()">
                         <div class="space-y-3" style="margin-top:auto">
+                        {{-- Load earlier messages (WhatsApp/Facebook style) --}}
+                        <template x-if="hasMore">
+                            <div class="flex justify-center pb-1">
+                                <button type="button" @click="loadOlder()" :disabled="loadingOlder" class="rounded-full bg-white/90 px-4 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition hover:bg-white disabled:opacity-60">
+                                    <span x-show="!loadingOlder">Load earlier messages</span>
+                                    <span x-show="loadingOlder" x-cloak>Loading…</span>
+                                </button>
+                            </div>
+                        </template>
                         <template x-for="(m, i) in messages" :key="m.id">
                             <div>
                                 {{-- Date separator pill --}}
@@ -762,7 +772,7 @@
                 mentionOpen: false, mentionJids: [],
                 lightbox: { open: false, index: 0, items: [] }, lbTouch: 0, replyTo: null,
                 dragOver: false, pending: null,
-                accMenu: false, syncing: false,
+                accMenu: false, syncing: false, hasMore: false, loadingOlder: false,
                 accountId: @js($accounts->first()->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
@@ -854,7 +864,7 @@
                     const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id);
                     const d = await r.json();
                     const atBottom = silent ? this.isAtBottom() : true;
-                    this.active = d.chat; this.messages = d.messages;
+                    this.active = d.chat; this.messages = d.messages; this.hasMore = !!d.has_more;
                     // Load member list for group chats.
                     this.members = [];
                     if (d.chat.is_group) this.loadMembers();
@@ -868,6 +878,23 @@
                     if (!silent) { this.replyTo = null; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
                     if (atBottom) this.scrollBottom();
+                },
+                async loadOlder() {
+                    if (this.loadingOlder || !this.active || !this.messages.length) return;
+                    this.loadingOlder = true;
+                    const beforeId = this.messages[0].id;
+                    const t = this.$refs.thread;
+                    const prevHeight = t ? t.scrollHeight : 0;
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/older?before_id=' + beforeId);
+                        const d = await r.json();
+                        if (d.messages && d.messages.length) {
+                            this.messages = [...d.messages, ...this.messages];
+                            this.hasMore = !!d.has_more;
+                            // Keep the same message in view after older ones are prepended.
+                            this.$nextTick(() => { const t2 = this.$refs.thread; if (t2) t2.scrollTop = t2.scrollHeight - prevHeight; });
+                        } else { this.hasMore = false; }
+                    } catch {} finally { this.loadingOlder = false; }
                 },
                 isAtBottom() {
                     const t = this.$refs.thread;

@@ -111,9 +111,42 @@ class WhatsappController extends Controller
         } catch (\Throwable) {
         }
 
+        $limit = 40;
+        // Newest N (fetched desc, then flipped to chronological for display).
+        $recent = $chat->messages()->with('agent:id,name')->reorder()->orderByDesc('sent_at')->orderByDesc('id')->limit($limit + 1)->get();
+        $hasMore = $recent->count() > $limit;
+        $messages = $recent->take($limit)->sortBy([['sent_at', 'asc'], ['id', 'asc']])->values();
+
         return response()->json([
             'chat' => $this->chatDetail($chat),
-            'messages' => $chat->messages()->with('agent:id,name')->get()->map(fn ($m) => $this->messagePayload($m)),
+            'messages' => $messages->map(fn ($m) => $this->messagePayload($m)),
+            'has_more' => $hasMore,
+        ]);
+    }
+
+    /** Load older messages (before a given message) — powers the "Load earlier messages" button. */
+    public function olderMessages(Request $request, WhatsappChat $chat)
+    {
+        $this->authorizeChat($request, $chat);
+        $anchor = $chat->messages()->find($request->query('before_id'));
+        if (! $anchor) {
+            return response()->json(['messages' => [], 'has_more' => false]);
+        }
+
+        $limit = 40;
+        $older = $chat->messages()->with('agent:id,name')->reorder()->orderByDesc('sent_at')->orderByDesc('id')
+            ->where(function ($x) use ($anchor) {
+                $x->where('sent_at', '<', $anchor->sent_at)
+                    ->orWhere(fn ($y) => $y->where('sent_at', $anchor->sent_at)->where('id', '<', $anchor->id));
+            })
+            ->limit($limit + 1)->get();
+
+        $hasMore = $older->count() > $limit;
+        $messages = $older->take($limit)->sortBy([['sent_at', 'asc'], ['id', 'asc']])->values();
+
+        return response()->json([
+            'messages' => $messages->map(fn ($m) => $this->messagePayload($m)),
+            'has_more' => $hasMore,
         ]);
     }
 
