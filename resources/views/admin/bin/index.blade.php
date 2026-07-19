@@ -16,7 +16,7 @@
                    } }">
         <div class="mb-6">
             <h1 class="text-xl font-bold text-[var(--color-heading)]">Bin</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Deleted clients and invoices are kept here for {{ $retentionDays }} days, then permanently removed. Super admin only.</p>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Deleted clients, invoices and WhatsApp numbers are kept here for {{ $retentionDays }} days, then permanently removed. Super admin only.</p>
         </div>
 
         @if (session('status'))<div class="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>@endif
@@ -31,6 +31,7 @@
             <div class="flex gap-1 border-b border-gray-100 px-4 pt-3">
                 <button type="button" @click="tab = 'clients'" :class="tab === 'clients' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'" class="border-b-2 px-4 py-2.5 text-sm font-semibold">Clients <span class="ml-1 rounded-full bg-gray-100 px-1.5 text-xs">{{ $clients->total() }}</span></button>
                 <button type="button" @click="tab = 'invoices'" :class="tab === 'invoices' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'" class="border-b-2 px-4 py-2.5 text-sm font-semibold">Invoices <span class="ml-1 rounded-full bg-gray-100 px-1.5 text-xs">{{ $invoices->total() }}</span></button>
+                <button type="button" @click="tab = 'whatsapp'" :class="tab === 'whatsapp' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'" class="border-b-2 px-4 py-2.5 text-sm font-semibold">WhatsApp Numbers <span class="ml-1 rounded-full bg-gray-100 px-1.5 text-xs">{{ $whatsappAccounts->count() }}</span></button>
             </div>
 
             {{-- ===== Clients ===== --}}
@@ -135,6 +136,54 @@
                     </table>
                 </div>
                 <div class="p-4">{{ $invoices->links() }}</div>
+            </div>
+
+            {{-- ===== WhatsApp Numbers ===== --}}
+            <div x-show="tab === 'whatsapp'" x-cloak>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
+                            <tr>
+                                <th class="px-5 py-3 font-semibold">Number</th>
+                                <th class="px-5 py-3 font-semibold">Conversations kept</th>
+                                <th class="px-5 py-3 font-semibold">Deleted</th>
+                                <th class="px-5 py-3 font-semibold">Auto-purge</th>
+                                <th class="px-5 py-3 text-right font-semibold">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse ($whatsappAccounts as $acc)
+                                @php $tc = (int) ($whatsappCounts[$acc->id] ?? 0); @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="grid h-8 w-8 place-items-center rounded-full text-white" style="background: {{ $acc->color }}"><svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Z"/></svg></span>
+                                            <div>
+                                                <p class="font-semibold text-[var(--color-heading)]">{{ $acc->name }}</p>
+                                                <p class="text-xs text-[var(--color-muted)]">{{ $acc->display_number ? '+'.$acc->display_number : 'not connected' }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-5 py-3 text-[var(--color-muted)]">{{ $tc }}</td>
+                                    <td class="px-5 py-3 text-[var(--color-muted)]">{{ $acc->deleted_at->format('d M Y, h:i A') }}</td>
+                                    <td class="px-5 py-3 text-[var(--color-muted)]">{{ $acc->deleted_at->addDays($retentionDays)->format('d M Y') }} <span class="text-xs text-gray-400">({{ $acc->deleted_at->addDays($retentionDays)->diffForHumans() }})</span></td>
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center justify-end gap-2">
+                                            <form method="POST" action="{{ route('admin.whatsapp-accounts.restore', $acc->id) }}">
+                                                @csrf<button class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:bg-gray-50">Restore</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.whatsapp-accounts.force-delete', $acc->id) }}" onsubmit="return confirm('Permanently delete “{{ $acc->name }}” and its {{ $tc }} conversation(s)? This cannot be undone.')">
+                                                @csrf @method('DELETE')<button class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Delete forever</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No deleted WhatsApp numbers.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

@@ -17,18 +17,12 @@ class WhatsappSettingController extends Controller
 {
     public function index()
     {
-        // Auto-purge numbers that have been in the bin for over a month.
-        $this->purgeExpiredBin();
-
-        $accounts = WhatsappAccount::with('users:id,name')->orderBy('position')->orderBy('id')->get();
-        $counts = \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id');
+        WhatsappAccount::purgeExpiredBin(); // auto-remove numbers binned over a month
 
         return view('admin.settings.whatsapp', [
             'settings' => WhatsappSetting::current(),
-            'accounts' => $accounts,
-            'chatCounts' => $counts,
-            'trashed' => auth()->user()->isAdmin() ? WhatsappAccount::onlyTrashed()->orderByDesc('deleted_at')->get() : collect(),
-            'trashCounts' => \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
+            'accounts' => WhatsappAccount::with('users:id,name')->orderBy('position')->orderBy('id')->get(),
+            'chatCounts' => \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
             'panelUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'labels' => WhatsappLabel::orderBy('position')->get(),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
@@ -47,32 +41,9 @@ class WhatsappSettingController extends Controller
     /** Permanently delete a binned number and all its conversations. */
     public function accountForceDelete(WhatsappAccount $account)
     {
-        $acc = WhatsappAccount::withTrashed()->findOrFail($account->id);
-        $this->hardDeleteAccount($acc);
+        WhatsappAccount::withTrashed()->findOrFail($account->id)->wipe();
 
         return back()->with('status', 'Number and its conversations permanently deleted.');
-    }
-
-    /** Force-delete accounts that have sat in the bin for more than a month. */
-    private function purgeExpiredBin(): void
-    {
-        WhatsappAccount::onlyTrashed()->where('deleted_at', '<', now()->subMonth())->get()
-            ->each(fn ($a) => $this->hardDeleteAccount($a));
-    }
-
-    /** Wipe an account's chats/messages/notes/labels + session, then delete the row. */
-    private function hardDeleteAccount(WhatsappAccount $acc): void
-    {
-        $chatIds = \App\Models\WhatsappChat::where('account_id', $acc->id)->pluck('id');
-        \App\Models\WhatsappMessage::whereIn('chat_id', $chatIds)->delete();
-        \DB::table('whatsapp_notes')->whereIn('chat_id', $chatIds)->delete();
-        \DB::table('whatsapp_chat_label')->whereIn('chat_id', $chatIds)->delete();
-        \App\Models\WhatsappChat::where('account_id', $acc->id)->delete();
-        try {
-            WhatsappService::for($acc)->disconnect();
-        } catch (\Throwable) {
-        }
-        $acc->forceDelete();
     }
 
     // ---- accounts (WhatsApp numbers) ----

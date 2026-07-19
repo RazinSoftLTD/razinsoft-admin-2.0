@@ -24,10 +24,13 @@ class BinController extends Controller
     public function index()
     {
         $this->guard();
+        \App\Models\WhatsappAccount::purgeExpiredBin(self::RETENTION_DAYS); // auto-remove expired WhatsApp numbers
 
         return view('admin.bin.index', [
             'clients' => User::onlyTrashed()->where('role', User::ROLE_CUSTOMER)->latest('deleted_at')->paginate(15, ['*'], 'clients_page'),
             'invoices' => ClientInvoice::onlyTrashed()->with('client:id,name')->latest('deleted_at')->paginate(15, ['*'], 'invoices_page'),
+            'whatsappAccounts' => \App\Models\WhatsappAccount::onlyTrashed()->latest('deleted_at')->get(),
+            'whatsappCounts' => \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
             'retentionDays' => self::RETENTION_DAYS,
         ]);
     }

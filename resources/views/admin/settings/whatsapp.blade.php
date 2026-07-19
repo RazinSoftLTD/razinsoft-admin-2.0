@@ -174,36 +174,6 @@
                 </form>
             </div>
 
-            {{-- Bin (super admin only) --}}
-            @if (auth()->user()->isAdmin() && $trashed->isNotEmpty())
-                <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                    <div class="mb-4 flex items-center gap-2">
-                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
-                        <h2 class="text-sm font-bold text-[var(--color-heading)]">Bin</h2>
-                        <span class="text-xs text-[var(--color-muted)]">Deleted numbers are kept 1 month, then permanently removed.</span>
-                    </div>
-                    <div class="space-y-3">
-                        @foreach ($trashed as $acc)
-                            @php
-                                $purgeAt = \Illuminate\Support\Carbon::parse($acc->deleted_at)->addMonth();
-                                $daysLeft = max(0, (int) now()->diffInDays($purgeAt, false));
-                                $tc = (int) ($trashCounts[$acc->id] ?? 0);
-                            @endphp
-                            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
-                                <div>
-                                    <p class="text-sm font-bold text-[var(--color-heading)]">{{ $acc->name }} <span class="font-normal text-gray-400">{{ $acc->display_number ? '· +'.$acc->display_number : '' }}</span></p>
-                                    <p class="text-xs text-[var(--color-muted)]">{{ $tc }} conversation{{ $tc === 1 ? '' : 's' }} kept · auto-deletes in <strong>{{ $daysLeft }} day{{ $daysLeft === 1 ? '' : 's' }}</strong> ({{ $purgeAt->format('d M Y') }})</p>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <form method="POST" action="{{ route('admin.whatsapp-accounts.restore', $acc->id) }}">@csrf<button class="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600">Restore</button></form>
-                                    <form method="POST" action="{{ route('admin.whatsapp-accounts.force-delete', $acc->id) }}" onsubmit="return confirm('Permanently delete “{{ $acc->name }}” and its {{ $tc }} conversation(s)? This cannot be undone.')">@csrf @method('DELETE')<button class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Delete forever</button></form>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
             {{-- Webhook --}}
             <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Webhook</h2>
