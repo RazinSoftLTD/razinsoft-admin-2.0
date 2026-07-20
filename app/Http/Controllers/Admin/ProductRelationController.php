@@ -45,7 +45,7 @@ class ProductRelationController extends Controller
             'tech' => ['rel' => 'tech', 'rules' => ['name' => 'required|string|max:255', 'color' => 'nullable|string|max:50', 'sort_order' => 'nullable|integer']],
             'suitable' => ['rel' => 'suitableFor', 'rules' => ['label' => 'required|string|max:255', 'sort_order' => 'nullable|integer']],
             'docs' => ['rel' => 'docs', 'rules' => ['title' => 'required|string|max:255', 'type' => 'nullable|string|max:50', 'url' => 'nullable|url', 'sort_order' => 'nullable|integer']],
-            'demos' => ['rel' => 'demos', 'rules' => ['type' => 'nullable|string|max:50', 'icon' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif,svg|max:2048', 'title' => 'required|string|max:255', 'subtitle' => 'nullable|string|max:255', 'badge' => 'nullable|string|max:50', 'url' => 'required|url', 'sort_order' => 'nullable|integer']],
+            'demos' => ['rel' => 'demos', 'rules' => ['type' => 'nullable|string|max:50', 'icon' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif,svg|max:2048', 'title' => 'required|string|max:255', 'subtitle' => 'nullable|string|max:255', 'badge' => 'nullable|string|max:50', 'bg_color' => ['nullable','string','max:20','regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'], 'url' => 'required|url', 'sort_order' => 'nullable|integer']],
             'faqs' => ['rel' => 'faqs', 'rules' => ['question' => 'required|string|max:255', 'answer' => 'nullable|string', 'sort_order' => 'nullable|integer']],
             'gallery-groups' => ['rel' => 'galleryGroups', 'rules' => ['name' => 'required|string|max:255', 'sort_order' => 'nullable|integer']],
         ];

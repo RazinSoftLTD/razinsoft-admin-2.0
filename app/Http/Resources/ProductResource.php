@@ -54,6 +54,7 @@ class ProductResource extends JsonResource
                 'title' => $d->title,
                 'subtitle' => $d->subtitle,
                 'badge' => $d->badge,
+                'bg_color' => $d->bg_color,
                 'url' => $d->url,
             ])->values()),
             'plans' => PlanResource::collection($this->whenLoaded('plans')),

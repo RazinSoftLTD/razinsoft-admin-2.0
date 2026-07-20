@@ -163,17 +163,6 @@ class ProductController extends Controller
         return $data;
     }
 
-    /** Save the "Try It Live" section background colour (from the Demos & Downloads screen). */
-    public function tryItLiveBg(Request $request, Product $product)
-    {
-        $data = $request->validate([
-            'try_it_live_bg' => ['nullable', 'string', 'max:20', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
-        ]);
-        $product->update(['try_it_live_bg' => $data['try_it_live_bg'] ?? null]);
-
-        return back()->with('status', 'Try It Live background saved.');
-    }
-
     /** Store uploaded thumbnail/hero on the public disk; keep existing path otherwise. */
     private function handleImages(Request $request, array $data, ?Product $product = null): array
     {
