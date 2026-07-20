@@ -21,6 +21,7 @@ class Project extends Model
         'progress' => 'integer',
         'hours_allocated' => 'integer',
         'needs_requirements' => 'boolean',
+        'time_tracking' => 'boolean',
         'prd_sections' => 'array',
     ];
 
@@ -49,6 +50,35 @@ class Project extends Model
             array_keys(self::PRD_SECTIONS),
             (array) ($this->prd_sections ?? [])
         ));
+    }
+
+    public function timeLogs(): HasMany
+    {
+        return $this->hasMany(ProjectTimeLog::class)->latest('spent_on')->latest('id');
+    }
+
+    /** Total minutes logged across the whole project. */
+    public function totalMinutes(): int
+    {
+        return (int) $this->timeLogs()->sum('minutes');
+    }
+
+    /** Public URL of the project avatar (null → callers show initials). */
+    public function avatarUrl(): ?string
+    {
+        if (! $this->avatar) {
+            return null;
+        }
+
+        return str_starts_with($this->avatar, 'http') ? $this->avatar : asset('storage/'.$this->avatar);
+    }
+
+    /** Up to two letters from the project name, for the avatar fallback. */
+    public function initials(): string
+    {
+        $words = preg_split('/\s+/', trim((string) $this->name)) ?: [];
+
+        return strtoupper(mb_substr($words[0] ?? '?', 0, 1).(count($words) > 1 ? mb_substr(end($words), 0, 1) : ''));
     }
 
     /** Public URL clients use to fill in the PRD (null until the link is shared). */

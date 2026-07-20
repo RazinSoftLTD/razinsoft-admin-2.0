@@ -237,6 +237,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('projects/{project}/members/{member}/access', [ProjectController::class, 'memberAccess'])->whereNumber(['project', 'member'])->name('projects.members.access');
             Route::delete('projects/{project}/members/{member}', [ProjectController::class, 'memberDestroy'])->whereNumber(['project', 'member'])->name('projects.members.destroy');
             Route::put('projects/{project}/settings', [ProjectController::class, 'updateSettings'])->whereNumber('project')->name('projects.settings.update');
+            Route::post('projects/{project}/profile', [ProjectController::class, 'updateProfile'])->whereNumber('project')->name('projects.profile.update');
 
             Route::post('projects/{project}/milestones', [ProjectController::class, 'milestoneStore'])->whereNumber('project')->name('projects.milestones.store');
             Route::put('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneUpdate'])->whereNumber(['project', 'milestone'])->name('projects.milestones.update');
@@ -244,6 +245,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::post('projects/{project}/files', [ProjectController::class, 'fileStore'])->whereNumber('project')->name('projects.files.store');
             Route::post('projects/{project}/prd', [ProjectController::class, 'prdStore'])->whereNumber('project')->name('projects.prd.store');
+            Route::post('projects/{project}/time', [ProjectController::class, 'timeStore'])->whereNumber('project')->name('projects.time.store');
+            Route::delete('projects/{project}/time/{log}', [ProjectController::class, 'timeDestroy'])->whereNumber(['project', 'log'])->name('projects.time.destroy');
             Route::post('projects/{project}/prd/share', [ProjectController::class, 'prdShare'])->whereNumber('project')->name('projects.prd.share');
             Route::put('projects/{project}/prd/{item}/review', [ProjectController::class, 'prdReview'])->whereNumber(['project', 'item'])->name('projects.prd.review');
             Route::delete('projects/{project}/prd/{item}', [ProjectController::class, 'prdDestroy'])->whereNumber(['project', 'item'])->name('projects.prd.destroy');
@@ -584,9 +587,36 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('activity-logs/{employee}', [\App\Http\Controllers\Admin\ActivityLogController::class, 'show'])->whereNumber('employee')->name('activity-logs.show');
         });
 
+        // ---- Activity → CodeCanyon (official Envato API only; no scraping) ----
+        Route::middleware('permission:codecanyon.view')->group(function () {
+            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
+            Route::get('codecanyon', [$cc, 'index'])->name('codecanyon.index');
+            Route::get('codecanyon/authors/{author}', [$cc, 'author'])->whereNumber('author')->name('codecanyon.author');
+            Route::get('codecanyon/products/{product}', [$cc, 'product'])->whereNumber('product')->name('codecanyon.product');
+        });
+        Route::middleware('permission:codecanyon.manage')->group(function () {
+            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
+            Route::post('codecanyon/authors', [$cc, 'storeAuthor'])->name('codecanyon.authors.store');
+            Route::delete('codecanyon/authors/{author}', [$cc, 'destroyAuthor'])->whereNumber('author')->name('codecanyon.authors.destroy');
+            Route::post('codecanyon/products', [$cc, 'storeProduct'])->name('codecanyon.products.store');
+            Route::put('codecanyon/products/{product}', [$cc, 'updateProduct'])->whereNumber('product')->name('codecanyon.products.update');
+            Route::delete('codecanyon/products/{product}', [$cc, 'destroyProduct'])->whereNumber('product')->name('codecanyon.products.destroy');
+            Route::post('codecanyon/niches', [$cc, 'storeNiche'])->name('codecanyon.niches.store');
+            Route::delete('codecanyon/niches/{niche}', [$cc, 'destroyNiche'])->whereNumber('niche')->name('codecanyon.niches.destroy');
+            Route::post('codecanyon/sync', [$cc, 'sync'])->name('codecanyon.sync');
+        });
+        Route::middleware('permission:codecanyon.settings')->group(function () {
+            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
+            Route::get('codecanyon-settings', [$cc, 'settings'])->name('codecanyon-settings');
+            Route::put('codecanyon-settings', [$cc, 'saveSettings'])->name('codecanyon-settings.save');
+        });
+
         // Settings → Bin (recoverable clients + invoices; super admin only, enforced in the controller).
         Route::get('bin', [\App\Http\Controllers\Admin\BinController::class, 'index'])->name('bin');
         Route::post('bin/clients/{id}/restore', [\App\Http\Controllers\Admin\BinController::class, 'restoreClient'])->whereNumber('id')->name('bin.clients.restore');
+        Route::post('bin/projects/{id}/restore', [\App\Http\Controllers\Admin\BinController::class, 'restoreProject'])->whereNumber('id')->name('bin.projects.restore');
+        Route::delete('bin/projects/{id}', [\App\Http\Controllers\Admin\BinController::class, 'forceDeleteProject'])->whereNumber('id')->name('bin.projects.force-delete');
+        Route::delete('bin/projects/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyProjects'])->name('bin.projects.empty');
         Route::delete('bin/clients/{id}', [\App\Http\Controllers\Admin\BinController::class, 'forceDeleteClient'])->whereNumber('id')->name('bin.clients.force-delete');
         Route::post('bin/clients/restore', [\App\Http\Controllers\Admin\BinController::class, 'bulkRestoreClients'])->name('bin.clients.bulk-restore');
         Route::delete('bin/clients', [\App\Http\Controllers\Admin\BinController::class, 'bulkForceDeleteClients'])->name('bin.clients.bulk-delete');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientInvoice;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -29,10 +30,49 @@ class BinController extends Controller
         return view('admin.bin.index', [
             'clients' => User::onlyTrashed()->where('role', User::ROLE_CUSTOMER)->latest('deleted_at')->paginate(15, ['*'], 'clients_page'),
             'invoices' => ClientInvoice::onlyTrashed()->with('client:id,name')->latest('deleted_at')->paginate(15, ['*'], 'invoices_page'),
+            'projects' => Project::onlyTrashed()->with('client:id,name')->latest('deleted_at')->get(),
             'whatsappAccounts' => \App\Models\WhatsappAccount::onlyTrashed()->latest('deleted_at')->get(),
             'whatsappCounts' => \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
             'retentionDays' => self::RETENTION_DAYS,
         ]);
+    }
+
+    // ---- Projects ----
+    public function restoreProject(int $id)
+    {
+        $this->guard();
+        $project = Project::onlyTrashed()->findOrFail($id);
+        $project->restore();
+
+        return back()->with('status', "Project “{$project->name}” restored.");
+    }
+
+    public function forceDeleteProject(int $id)
+    {
+        $this->guard();
+        $project = Project::onlyTrashed()->findOrFail($id);
+        $name = $project->name;
+        $this->wipeProject($project);
+
+        return back()->with('status', "Project “{$name}” permanently deleted.");
+    }
+
+    public function emptyProjects()
+    {
+        $this->guard();
+        $projects = Project::onlyTrashed()->get();
+        foreach ($projects as $project) {
+            $this->wipeProject($project);
+        }
+
+        return back()->with('status', 'Permanently deleted '.$projects->count().' project(s).');
+    }
+
+    /** Remove a project for good, along with the files it owns on disk. */
+    private function wipeProject(Project $project): void
+    {
+        Storage::disk('public')->deleteDirectory('projects/'.$project->id);
+        $project->forceDelete();
     }
 
     // ---- Clients ----

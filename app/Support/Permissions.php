@@ -67,6 +67,8 @@ class Permissions
         'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
         // Activity logs — each page is its own toggle (Employee actions, Client visits, Blogs & Products reports).
         'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products']],
+        // CodeCanyon market analysis (Activity → CodeCanyon) + its API config.
+        'codecanyon' => ['label' => 'CodeCanyon', 'group' => 'Activity', 'actions' => ['view', 'manage', 'settings']],
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
         // invoices: base CRUD scoped via created_by (= added). The extra ops (payments/send/
         // cancel/duplicate) are individually scopable; configuration + bin are global none/all.

@@ -108,7 +108,13 @@ class ProjectController extends Controller
         $project->load('columns');
         $tab = $request->query('tab', 'overview');
         // The Settings tab (per-project permissions, columns, requirements) is manager-only.
-        $allowed = ['overview', 'tasks', 'board', 'prd', 'milestones', 'files', 'members', 'activity'];
+        $allowed = ['overview', 'tasks', 'board', 'milestones', 'files', 'members', 'activity'];
+        if ($project->needs_requirements) {
+            $allowed[] = 'prd';
+        }
+        if ($project->time_tracking) {
+            $allowed[] = 'time';
+        }
         if ($request->user()->allows('projects', 'edit')) {
             $allowed[] = 'settings';
         }
@@ -324,6 +330,7 @@ class ProjectController extends Controller
         $valid = array_keys(\App\Models\Project::PRD_SECTIONS);
         $project->update([
             'needs_requirements' => $request->boolean('needs_requirements'),
+            'time_tracking' => $request->boolean('time_tracking'),
             'prd_sections' => array_values(array_intersect($valid, (array) $request->input('prd_sections', []))),
         ]);
 
@@ -425,6 +432,77 @@ class ProjectController extends Controller
         $item->delete();
 
         return back()->with('status', 'Removed.');
+    }
+
+    /** Name, subtitle and avatar — edited from the Settings tab. */
+    public function updateProfile(Request $request, Project $project)
+    {
+        abort_unless($request->user()->allows('projects', 'edit'), 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:160'],
+            'subtitle' => ['nullable', 'string', 'max:160'],
+            'avatar' => ['nullable', 'image', 'max:4096'],
+        ]);
+
+        $update = ['name' => $data['name'], 'subtitle' => $data['subtitle'] ?? null];
+
+        if ($request->boolean('remove_avatar') && $project->avatar) {
+            Storage::disk('public')->delete($project->avatar);
+            $update['avatar'] = null;
+        }
+        if ($file = $request->file('avatar')) {
+            if ($project->avatar) {
+                Storage::disk('public')->delete($project->avatar);
+            }
+            $update['avatar'] = $file->store('projects/'.$project->id.'/avatar', 'public');
+        }
+
+        $project->update($update);
+        $project->log('updated', 'Project details updated.');
+
+        return back()->with('status', 'Project details saved.');
+    }
+
+    /** Log time against the project (optionally against one task). */
+    public function timeStore(Request $request, Project $project)
+    {
+        $this->authorizeView($request, $project);
+        abort_unless($project->time_tracking, 404);
+
+        $data = $request->validate([
+            'task_id' => ['nullable', 'integer', Rule::exists('project_tasks', 'id')->where('project_id', $project->id)],
+            'hours' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'minutes' => ['nullable', 'integer', 'min:0', 'max:59'],
+            'spent_on' => ['required', 'date'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $total = ((int) ($data['hours'] ?? 0)) * 60 + (int) ($data['minutes'] ?? 0);
+        if ($total < 1) {
+            return back()->withErrors(['hours' => 'Enter how long you worked.']);
+        }
+
+        $project->timeLogs()->create([
+            'task_id' => $data['task_id'] ?? null,
+            'user_id' => $request->user()->id,
+            'minutes' => $total,
+            'spent_on' => $data['spent_on'],
+            'note' => $data['note'] ?? null,
+        ]);
+        $project->log('updated', \App\Models\ProjectTimeLog::humanMinutes($total).' logged.');
+
+        return back()->with('status', 'Time logged.');
+    }
+
+    public function timeDestroy(Request $request, Project $project, \App\Models\ProjectTimeLog $log)
+    {
+        abort_if($log->project_id !== $project->id, 404);
+        // Own entries, or anyone's if you can edit the project.
+        abort_unless($log->user_id === $request->user()->id || $request->user()->allows('projects', 'edit'), 403);
+        $log->delete();
+
+        return back()->with('status', 'Time entry removed.');
     }
 
     /** Create (or revoke) the client-facing PRD link. */

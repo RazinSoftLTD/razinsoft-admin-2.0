@@ -31,6 +31,7 @@
             <div class="flex gap-1 border-b border-gray-100 px-4 pt-3">
                 <button type="button" @click="tab = 'clients'" :class="tab === 'clients' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'" class="border-b-2 px-4 py-2.5 text-sm font-semibold">Clients <span class="ml-1 rounded-full bg-gray-100 px-1.5 text-xs">{{ $clients->total() }}</span></button>
                 <button type="button" @click="tab = 'invoices'" :class="tab === 'invoices' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'" class="border-b-2 px-4 py-2.5 text-sm font-semibold">Invoices <span class="ml-1 rounded-full bg-gray-100 px-1.5 text-xs">{{ $invoices->total() }}</span></button>
+                <button type="button" @click="tab = 'projects'" :class="tab === 'projects' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'" class="border-b-2 px-4 py-2.5 text-sm font-semibold">Projects <span class="ml-1 rounded-full bg-gray-100 px-1.5 text-xs">{{ $projects->count() }}</span></button>
                 <button type="button" @click="tab = 'whatsapp'" :class="tab === 'whatsapp' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]'" class="border-b-2 px-4 py-2.5 text-sm font-semibold">WhatsApp Numbers <span class="ml-1 rounded-full bg-gray-100 px-1.5 text-xs">{{ $whatsappAccounts->count() }}</span></button>
             </div>
 
@@ -160,6 +161,69 @@
                     </table>
                 </div>
                 <div class="p-4">{{ $invoices->links() }}</div>
+            </div>
+
+            {{-- ===== Projects ===== --}}
+            <div x-show="tab === 'projects'" x-cloak>
+                @if ($projects->count())
+                    <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-2.5">
+                        <span class="text-xs text-[var(--color-muted)]">{{ $projects->count() }} project(s) in Trash</span>
+                        <form method="POST" action="{{ route('admin.bin.projects.empty') }}" onsubmit="return confirm('Permanently delete ALL {{ $projects->count() }} project(s) in the Trash, with every task, file and milestone? This cannot be undone.')">
+                            @csrf @method('DELETE')
+                            <button class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7"/></svg>
+                                Delete all
+                            </button>
+                        </form>
+                    </div>
+                @endif
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
+                            <tr>
+                                <th class="px-5 py-3 font-semibold">Project</th>
+                                <th class="px-5 py-3 font-semibold">Client</th>
+                                <th class="px-5 py-3 font-semibold">Deleted</th>
+                                <th class="px-5 py-3 font-semibold">Auto-purge</th>
+                                <th class="px-5 py-3 text-right font-semibold">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse ($projects as $prj)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-2">
+                                            @if ($prj->avatarUrl())
+                                                <img src="{{ $prj->avatarUrl() }}" alt="" class="h-8 w-8 rounded-lg object-cover">
+                                            @else
+                                                <span class="grid h-8 w-8 place-items-center rounded-lg bg-[var(--color-primary-soft)] text-xs font-bold text-[var(--color-primary)]">{{ $prj->initials() }}</span>
+                                            @endif
+                                            <div>
+                                                <p class="font-semibold text-[var(--color-heading)]">{{ $prj->name }}</p>
+                                                <p class="text-xs text-[var(--color-muted)]">{{ $prj->code }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-5 py-3 text-[var(--color-muted)]">{{ $prj->client?->name ?? '—' }}</td>
+                                    <td class="px-5 py-3 text-[var(--color-muted)]">{{ $prj->deleted_at->format('d M Y, h:i A') }}</td>
+                                    <td class="px-5 py-3 text-[var(--color-muted)]">{{ $prj->deleted_at->addDays($retentionDays)->format('d M Y') }} <span class="text-xs text-gray-400">({{ $prj->deleted_at->addDays($retentionDays)->diffForHumans() }})</span></td>
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center justify-end gap-2">
+                                            <form method="POST" action="{{ route('admin.bin.projects.restore', $prj->id) }}">
+                                                @csrf<button class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:bg-gray-50">Restore</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.bin.projects.force-delete', $prj->id) }}" onsubmit="return confirm('Permanently delete “{{ $prj->name }}” with every task, file and milestone? This cannot be undone.')">
+                                                @csrf @method('DELETE')<button class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Delete forever</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No deleted projects.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {{-- ===== WhatsApp Numbers ===== --}}

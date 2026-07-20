@@ -27,6 +27,17 @@ class ProjectTask extends Model
 
     public const PRIORITIES = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
 
+    public function timeLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProjectTimeLog::class, 'task_id')->latest('spent_on')->latest('id');
+    }
+
+    /** Total minutes logged against this task. */
+    public function totalMinutes(): int
+    {
+        return (int) $this->timeLogs()->sum('minutes');
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);

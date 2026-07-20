@@ -12,11 +12,22 @@
         'overview'   => ['Overview',   'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', null],
         'board'      => ['Kanban',     'M4 5h6v14H4zM14 5h6v14h-6z', null],
         'tasks'      => ['Tasks',      'm9 12 2 2 4-4M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z', $tasks->count()],
-        'prd'        => ['PRD',        'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2M9 12h6M9 16h4', null],
         'files'      => ['Files',      'M7 3h7l5 5v13H7zM14 3v5h5', $project->files->count()],
         'milestones' => ['Milestones', 'M5 21V4m0 0h11l-1.5 3.5L16 11H5', $project->milestones->count()],
         'members'    => ['Members',    'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', $project->members->count()],
     ];
+    // PRD sits after Tasks, but only when Settings says this project collects one.
+    // Time sits right after Tasks, only when the project tracks time.
+    if ($project->time_tracking) {
+        $tabs = array_slice($tabs, 0, 3, true)
+            + ['time' => ['Time', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2', null]]
+            + array_slice($tabs, 3, null, true);
+    }
+    if ($project->needs_requirements) {
+        $tabs = array_slice($tabs, 0, 3, true)
+            + ['prd' => ['PRD', 'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2M9 12h6M9 16h4', null]]
+            + array_slice($tabs, 3, null, true);
+    }
     if ($canEdit) {
         $tabs['settings'] = ['Settings', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-2.9-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.1-2.9H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.1-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.1V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 2.9 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9Z', null];
     }
@@ -36,7 +47,19 @@
     {{-- Title row --}}
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex min-w-0 flex-wrap items-center gap-3">
-            <h1 class="text-3xl font-bold text-[var(--color-heading)]">{{ $project->name }}</h1>
+            {{-- Avatar (falls back to initials) --}}
+            @if ($project->avatarUrl())
+                <img src="{{ $project->avatarUrl() }}" alt="" class="shrink-0 rounded-xl object-cover" style="height:48px;width:48px">
+            @else
+                <span class="grid shrink-0 place-items-center rounded-xl bg-[var(--color-primary-soft)] text-base font-bold text-[var(--color-primary)]" style="height:48px;width:48px">{{ $project->initials() }}</span>
+            @endif
+
+            <div class="min-w-0">
+                <h1 class="truncate text-3xl font-bold text-[var(--color-heading)]">{{ $project->name }}</h1>
+                @if ($project->subtitle)
+                    <p class="truncate text-sm text-[var(--color-muted)]">{{ $project->subtitle }}</p>
+                @endif
+            </div>
 
             @if ($canEdit)
                 <div class="relative" x-data="{ open: false }" @click.outside="open = false">
@@ -69,28 +92,11 @@
             </form>
         </div>
 
-        @if ($canEdit)
-            <div class="relative" x-data="{ open: false }" @click.outside="open = false">
-                <button type="button" @click="open = !open" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-[var(--color-heading)]">
-                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
-                </button>
-                <div x-show="open" x-cloak class="absolute right-0 z-30 mt-1.5 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
-                    <a href="{{ route('admin.projects.edit', $project) }}" class="block px-3.5 py-2 text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50">Edit project</a>
-                    <a href="{{ route('admin.projects.show', $project) }}?tab=settings" class="block px-3.5 py-2 text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50">Project settings</a>
-                    @if ($me->allows('projects', 'delete'))
-                        <form method="POST" action="{{ route('admin.projects.destroy', $project) }}" onsubmit="return confirm('Delete this project and all of its tasks?')">
-                            @csrf @method('DELETE')
-                            <button class="block w-full px-3.5 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">Delete project</button>
-                        </form>
-                    @endif
-                </div>
-            </div>
-        @endif
     </div>
 
     {{-- Tabs --}}
     <div class="mb-6 mt-4 overflow-x-auto">
-        <div class="flex min-w-max gap-6 border-b border-gray-200">
+        <div class="flex gap-6 border-b border-gray-200" style="min-width:max-content">
             @foreach ($tabs as $key => [$label, $icon, $count])
                 @php $on = $tab === $key; @endphp
                 <a href="{{ route('admin.projects.show', $project) }}?tab={{ $key }}"

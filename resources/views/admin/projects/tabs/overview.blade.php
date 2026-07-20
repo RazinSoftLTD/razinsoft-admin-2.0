@@ -51,7 +51,7 @@
 
 {{-- ===== Progress overview + Task status ===== --}}
 <div class="mt-6 grid gap-6 lg:grid-cols-2">
-    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
             <h3 class="text-lg font-bold text-[var(--color-heading)]">Progress Overview</h3>
             <select onchange="window.location = '{{ route('admin.projects.show', $project) }}?tab=overview&range=' + this.value"
@@ -60,14 +60,14 @@
                 <option value="all" @selected($o['range'] === 'all')>All Time</option>
             </select>
         </div>
-        <div id="projProgressChart"></div>
+        <div id="projProgressChart" class="min-w-0"></div>
         <div class="flex flex-wrap items-center justify-center gap-5 text-xs text-[var(--color-muted)]">
             <span class="inline-flex items-center gap-2"><span class="w-6 rounded bg-[var(--color-primary)]" style="height:2px"></span>Actual Progress</span>
-            <span class="inline-flex items-center gap-2"><span class="w-6 border-t-2 border-dashed border-gray-300" style="height:0"></span>Planned Progress</span>
+            <span class="inline-flex items-center gap-2"><span class="w-6" style="height:0;border-top:2px dashed #d1d5db"></span>Planned Progress</span>
         </div>
     </div>
 
-    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <h3 class="mb-3 text-lg font-bold text-[var(--color-heading)]">Task Status</h3>
         @if ($o['tasksTotal'] === 0)
             <p class="py-12 text-center text-sm text-gray-400">No tasks yet.</p>
@@ -176,7 +176,7 @@
         if (line && !line.dataset.done) {
             line.dataset.done = '1';
             new ApexCharts(line, {
-                chart: { type: 'line', height: 240, toolbar: { show: false }, fontFamily: 'inherit' },
+                chart: { type: 'line', height: 240, width: '100%', toolbar: { show: false }, fontFamily: 'inherit', parentHeightOffset: 0, redrawOnParentResize: true },
                 series: [
                     { name: 'Actual Progress', data: @js($o['chart']['actual']) },
                     { name: 'Planned Progress', data: @js($o['chart']['planned']) },
@@ -196,7 +196,7 @@
         if (donut && !donut.dataset.done) {
             donut.dataset.done = '1';
             new ApexCharts(donut, {
-                chart: { type: 'donut', height: 200, fontFamily: 'inherit' },
+                chart: { type: 'donut', height: 200, width: '100%', fontFamily: 'inherit', redrawOnParentResize: true },
                 series: @js(collect($o['breakdown'])->pluck('count')->all()),
                 labels: @js(collect($o['breakdown'])->pluck('name')->all()),
                 colors: @js(collect($o['breakdown'])->pluck('color')->all()),
@@ -211,5 +211,8 @@
                 } } } },
             }).render();
         }
+
+        // Apex can measure before the grid has settled — nudge it once the layout is final.
+        requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     })();
 </script>

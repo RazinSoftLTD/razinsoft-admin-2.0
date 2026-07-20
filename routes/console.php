@@ -14,3 +14,7 @@ Schedule::command('invoices:recurring')->dailyAt('06:00');
 // Permanently purge invoices & clients sitting in the Bin for more than 30 days.
 Schedule::command('invoices:purge-bin')->dailyAt('03:00');
 Schedule::command('clients:purge-bin')->dailyAt('03:10');
+Schedule::command('projects:purge-bin')->dailyAt('03:20');
+
+// Envato gives no sales history — this daily run is what records it for the CodeCanyon dashboard.
+Schedule::command('codecanyon:sync')->dailyAt('04:00')->withoutOverlapping();
