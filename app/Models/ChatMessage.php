@@ -10,9 +10,10 @@ class ChatMessage extends Model
     /** How long after posting a message may still be edited or deleted (minutes). */
     public const MUTATE_WINDOW_MINUTES = 60;
 
-    protected $fillable = ['conversation_id', 'user_id', 'reply_to_id', 'body', 'edited_at', 'attachment', 'attachment_name', 'reactions'];
+    protected $fillable = ['conversation_id', 'user_id', 'reply_to_id', 'body', 'checklist', 'edited_at', 'attachment', 'attachment_name', 'reactions'];
 
-    protected $casts = ['edited_at' => 'datetime', 'reactions' => 'array'];
+    protected $casts = [
+        'checklist' => 'array','edited_at' => 'datetime', 'reactions' => 'array'];
 
     public function conversation(): BelongsTo
     {

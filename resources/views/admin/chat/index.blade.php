@@ -274,6 +274,7 @@
         // ── Reactions & reply (WhatsApp-style) ──
         const REACT_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
         const REACT_BASE = DEL_BASE;   // /admin/chat/messages/{id}/react
+        const CHECKLIST_BASE = DEL_BASE;  // /admin/chat/messages/{id}/checklist
 
         // Render the reaction chips under a bubble from a {userId: emoji} map.
         function renderReactions(row, map) {
@@ -412,14 +413,54 @@
             input.focus();
             const cmd = btn.dataset.fmt;
             if (cmd === 'createLink') {
-                const url = prompt('Link URL (https://…)');
-                if (url && /^(https?:\/\/|mailto:)/i.test(url)) document.execCommand('createLink', false, url);
+                let url = prompt('Link URL (https://…)');
+                if (url) {
+                    url = url.trim();
+                    if (!/^(https?:\/\/|mailto:)/i.test(url)) url = 'https://' + url;
+                    const sel = window.getSelection();
+                    if (sel && sel.toString()) {
+                        document.execCommand('createLink', false, url);
+                    } else {
+                        // No text selected → drop the URL in as a clickable link.
+                        document.execCommand('insertHTML', false, '<a href="' + url.replace(/"/g, '&quot;') + '">' + url.replace(/</g, '&lt;') + '</a>&nbsp;');
+                    }
+                }
             } else if (cmd === 'blockquote') {
                 document.execCommand('formatBlock', false, 'blockquote');
             } else {
                 document.execCommand(cmd, false, null);
             }
         });
+        // ── Checklist builder ──
+        let checklistItems = [];
+        const clWrap = document.getElementById('chat-checklist');
+        const clItemsEl = document.getElementById('chat-checklist-items');
+        const clInput = document.getElementById('chat-checklist-input');
+        const renderChecklistBuilder = () => {
+            clItemsEl.innerHTML = checklistItems.map((t, i) =>
+                '<div class="flex items-center gap-2 text-sm text-gray-700"><span class="grid h-4 w-4 place-items-center rounded border border-gray-300"></span>' +
+                '<span class="flex-1">' + esc(t) + '</span>' +
+                '<button type="button" data-cl-rm="' + i + '" class="text-gray-300 hover:text-red-500">&times;</button></div>').join('');
+            clWrap.classList.toggle('hidden', checklistItems.length === 0 && document.activeElement !== clInput);
+        };
+        const addChecklistItem = () => {
+            const v = clInput.value.trim();
+            if (v) { checklistItems.push(v.slice(0, 500)); clInput.value = ''; renderChecklistBuilder(); }
+            clInput.focus();
+        };
+        document.getElementById('chat-checklist-btn')?.addEventListener('click', function () {
+            clWrap.classList.remove('hidden'); clInput.focus();
+        });
+        document.getElementById('chat-checklist-add')?.addEventListener('click', addChecklistItem);
+        clInput?.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); addChecklistItem(); }
+        });
+        clItemsEl?.addEventListener('click', function (e) {
+            const b = e.target.closest('[data-cl-rm]'); if (!b) return;
+            checklistItems.splice(Number(b.dataset.clRm), 1); renderChecklistBuilder();
+        });
+        const clearChecklist = () => { checklistItems = []; clItemsEl.innerHTML = ''; clWrap.classList.add('hidden'); };
+
         // Paste as plain text so foreign markup never enters the composer.
         input.addEventListener('paste', function (e) {
             const items = (e.clipboardData && e.clipboardData.items) ? e.clipboardData.items : [];
@@ -428,8 +469,18 @@
             const text = (e.clipboardData || window.clipboardData).getData('text/plain');
             document.execCommand('insertText', false, text);
         });
+        // True when the caret sits inside a list — there Enter should make a new item, not send.
+        const caretInList = () => {
+            const sel = window.getSelection();
+            let n = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+            while (n && n !== input) { if (n.nodeName === 'LI' || n.nodeName === 'UL' || n.nodeName === 'OL') return true; n = n.parentNode; }
+            return false;
+        };
         input.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+                if (caretInList()) return;              // let the browser add the next list item
+                e.preventDefault(); form.requestSubmit();
+            }
         });
         // Paste an image straight from the clipboard (screenshot / copied picture) → attach it.
         input.addEventListener('paste', function (e) {
@@ -513,6 +564,7 @@
             const name = (isGroup && !mine) ? '<p class="mb-0.5 px-1 text-xs font-semibold text-[var(--color-heading)]">' + esc(d.author) + '</p>' : '';
             const bubble = mine ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-white text-[var(--color-heading)] border border-gray-100 rounded-bl-sm';
             const bodyHtml = d.body ? '<div class="chat-html break-words">' + d.body + '</div>' : '';
+            const checklistHtml = checklistToHtml(d.id, d.checklist, mine);
             const row = document.createElement('div');
             row.className = 'group flex items-end gap-2 ' + (mine ? 'flex-row-reverse' : '');
             row.dataset.msgId = d.id;
@@ -522,12 +574,49 @@
             row.dataset.created = toEpoch(d.created_at) || Math.floor(Date.now() / 1000);
             row.innerHTML = avatarHtml(d, mine)
                 + '<div class="max-w-[75%]" data-bubble-wrap>' + name
-                + '<div class="rounded-2xl px-3.5 py-2 text-sm ' + bubble + '">' + quotedHtml(d.quoted, mine) + bodyHtml + fileChipHtml(d, mine) + '</div>'
+                + '<div class="rounded-2xl px-3.5 py-2 text-sm ' + bubble + '">' + quotedHtml(d.quoted, mine) + bodyHtml + checklistHtml + fileChipHtml(d, mine) + '</div>'
                 + '<div data-reactions-box class="mt-1 flex flex-wrap gap-1 ' + (mine ? 'justify-end' : '') + '"></div>'
                 + '<p class="mt-0.5 px-1 text-[11px] text-gray-400 ' + (mine ? 'text-right' : '') + '">' + (d.time || '') + '<span data-edited-tag class="' + (d.edited ? '' : 'hidden') + '"> · edited</span></p></div>';
             attachMenu(row);
             return row;
         }
+        // Build the interactive checklist markup for a message (mirrors the Blade render).
+        function checklistToHtml(msgId, list, mine) {
+            if (!Array.isArray(list) || !list.length) return '';
+            const rows = list.map((it, i) => {
+                const on = !!it.checked;
+                const box = on ? 'border-emerald-500 bg-emerald-500 text-white' : (mine ? 'border-white/40' : 'border-gray-300');
+                const tick = on ? '<svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>' : '';
+                return '<li class="flex items-start gap-2 text-sm"><button type="button" data-check-toggle data-msg="' + msgId + '" data-idx="' + i + '" class="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border ' + box + '">' + tick + '</button><span class="' + (on ? 'line-through opacity-60' : '') + '">' + esc(it.text) + '</span></li>';
+            }).join('');
+            return '<ul class="chat-checklist mt-1 space-y-1" data-msg-checklist="' + msgId + '">' + rows + '</ul>';
+        }
+        // Tick / untick — persist and update the button, then let the broadcast update everyone else.
+        function applyChecklistToggle(msgId, idx, checked) {
+            const li = document.querySelector('[data-msg-checklist="' + msgId + '"] [data-check-toggle][data-idx="' + idx + '"]');
+            if (!li) return;
+            const span = li.parentElement.querySelector('span');
+            if (checked) {
+                li.classList.remove('border-white/40', 'border-gray-300'); li.classList.add('border-emerald-500', 'bg-emerald-500', 'text-white');
+                li.innerHTML = '<svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>';
+                span.classList.add('line-through', 'opacity-60');
+            } else {
+                li.classList.remove('border-emerald-500', 'bg-emerald-500', 'text-white'); li.classList.add('border-gray-300');
+                li.innerHTML = '';
+                span.classList.remove('line-through', 'opacity-60');
+            }
+        }
+        scroll.addEventListener('click', function (e) {
+            const btn = e.target.closest('[data-check-toggle]'); if (!btn) return;
+            const msgId = btn.dataset.msg, idx = Number(btn.dataset.idx);
+            const checked = !(btn.classList.contains('bg-emerald-500'));
+            applyChecklistToggle(msgId, idx, checked);
+            fetch(CHECKLIST_BASE + '/' + msgId + '/checklist', {
+                method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ index: idx, checked }),
+            }).then(r => { if (!r.ok) applyChecklistToggle(msgId, idx, !checked); }).catch(() => applyChecklistToggle(msgId, idx, !checked));
+        });
+
         function append(d) {
             if (seen.has(Number(d.id))) return;
             seen.add(Number(d.id));
@@ -678,18 +767,20 @@
             }
 
             const hasFile = fileInput.files.length > 0;
-            if (!hasText && !hasFile) return;
-            const sentPreview = getText() || (hasFile ? '📎 ' + (fileInput.files[0]?.name || 'Attachment') : '');
+            const hasChecklist = checklistItems.length > 0;
+            if (!hasText && !hasFile && !hasChecklist) return;
+            const sentPreview = getText() || (hasFile ? '📎 ' + (fileInput.files[0]?.name || 'Attachment') : (hasChecklist ? '☑ Checklist' : ''));
             const fd = new FormData();
             fd.append('_token', CSRF);
             fd.append('body', hasText ? getHtml() : '');
+            checklistItems.forEach(t => fd.append('checklist[]', t));
             if (hasFile) fd.append('attachment', fileInput.files[0]);
             if (replyToId) fd.append('reply_to_id', replyToId);
             fetch(STORE_URL, { method: 'POST', headers: { 'Accept': 'application/json' }, body: fd })
                 .then(r => r.json())
                 .then(d => {
-                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at, quoted: d.quoted, reactions: d.reactions });
-                    clearInput(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
+                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, checklist: d.checklist, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at, quoted: d.quoted, reactions: d.reactions });
+                    clearInput(); clearChecklist(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
                     cancelReply();
                     // My own message → bump this conversation to the top of the left list (no unread).
                     if (window.Razin.bumpConversation) window.Razin.bumpConversation({
@@ -717,6 +808,7 @@
             ch.bind('message.deleted', function (d) { removeMsg(d.id); });
             ch.bind('message.edited', function (d) { updateBody(d.id, d.body); });
             ch.bind('message.reacted', function (d) { const row = scroll.querySelector('[data-msg-id="' + d.id + '"]'); if (row) renderReactions(row, d.reactions || {}); });
+            ch.bind('checklist.toggled', function (d) { applyChecklistToggle(String(d.id), Number(d.index), !!d.checked); });
             ch.bind('typing', function (d) { if (Number(d.user_id) !== ME) showTyping(d.name); });
 
             // Personal channel → live-reorder the left list for EVERY conversation I'm in (bind once).

@@ -102,6 +102,19 @@
                             </div>
                         @endif
                         @if ($msg->body)<div class="chat-html break-words">{!! $msg->body !!}</div>@endif
+                        @if (!empty($msg->checklist))
+                            <ul class="chat-checklist mt-1 space-y-1" data-msg-checklist="{{ $msg->id }}">
+                                @foreach ($msg->checklist as $ci => $item)
+                                    <li class="flex items-start gap-2 text-sm">
+                                        <button type="button" data-check-toggle data-msg="{{ $msg->id }}" data-idx="{{ $ci }}"
+                                                class="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border {{ !empty($item['checked']) ? 'border-emerald-500 bg-emerald-500 text-white' : ($mine ? 'border-white/40' : 'border-gray-300') }}">
+                                            @if (!empty($item['checked']))<svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>@endif
+                                        </button>
+                                        <span class="{{ !empty($item['checked']) ? 'line-through opacity-60' : '' }}">{{ $item['text'] }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
                         @if ($msg->attachment)
                             @if ($msg->is_image)
                                 <a href="{{ $msg->attachment_url }}" target="_blank" rel="noopener"><img src="{{ $msg->attachment_url }}" class="mt-1 max-h-56 rounded-lg" alt="{{ $msg->attachment_name }}"></a>
@@ -163,27 +176,46 @@
             </label>
             <div class="chat-input-wrap flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-200">
                 {{-- Formatting toolbar --}}
-                <div class="flex flex-wrap items-center gap-0.5 border-b border-gray-100 px-2 py-1">
+                <div class="flex items-center gap-1.5 border-b border-gray-100 px-2.5 py-1.5">
                     @php
+                        // Grouped Lucide-style icons; `null` marks a divider between groups.
                         $tools = [
-                            ['bold', 'Bold', 'M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z'],
-                            ['italic', 'Italic', 'M14 4h-4M14 20h-4M15 4 9 20'],
-                            ['underline', 'Underline', 'M7 4v7a5 5 0 0 0 10 0V4M5 21h14'],
-                            ['strikeThrough', 'Strikethrough', 'M4 12h16M8 7a4 4 0 0 1 8 0M8 17a4 4 0 0 0 8 0'],
-                            ['insertUnorderedList', 'Bulleted list', 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01'],
-                            ['insertOrderedList', 'Numbered list', 'M10 6h10M10 12h10M10 18h10M4 6h2m-2 6h2m-2 6h2'],
-                            ['blockquote', 'Quote', 'M7 7h4v6H7zM13 7h4v6h-4zM7 13c0 2 1 3 3 4M13 13c0 2 1 3 3 4'],
+                            ['bold', 'Bold', 'M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8'],
+                            ['italic', 'Italic', 'M19 4h-9M14 20H5M15 4 9 20'],
+                            ['underline', 'Underline', 'M6 4v6a6 6 0 0 0 12 0V4M4 20h16'],
+                            ['strikeThrough', 'Strikethrough', 'M16 4H9a3 3 0 0 0-2.83 4M14 12a4 4 0 0 1 0 8H6M4 12h16'],
+                            null,
+                            ['insertUnorderedList', 'Bulleted list', 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'],
+                            ['insertOrderedList', 'Numbered list', 'M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.4-2-1'],
+                            null,
+                            ['blockquote', 'Quote', 'M6 17h3l2-4V7H5v6h3zM14 17h3l2-4V7h-6v6h3z'],
+                            ['createLink', 'Add link', 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],
                         ];
                     @endphp
-                    @foreach ($tools as [$cmd, $label, $icon])
-                        <button type="button" data-fmt="{{ $cmd }}" title="{{ $label }}" tabindex="-1"
-                                class="grid h-7 w-7 place-items-center rounded text-gray-500 transition hover:bg-gray-100 hover:text-gray-800">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
-                        </button>
+                    @foreach ($tools as $tool)
+                        @if ($tool === null)
+                            <span class="mx-0.5 h-5 w-px shrink-0 bg-gray-200"></span>
+                        @else
+                            <button type="button" data-fmt="{{ $tool[0] }}" title="{{ $tool[1] }}" tabindex="-1"
+                                    class="grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                                <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $tool[2] }}"/></svg>
+                            </button>
+                        @endif
                     @endforeach
-                    <button type="button" data-fmt="createLink" title="Add link" tabindex="-1" class="grid h-7 w-7 place-items-center rounded text-gray-500 transition hover:bg-gray-100 hover:text-gray-800">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+                    <span class="mx-0.5 h-5 w-px shrink-0 bg-gray-200"></span>
+                    <button type="button" id="chat-checklist-btn" title="Add a checklist" tabindex="-1" class="grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
                     </button>
+                </div>
+                {{-- Checklist builder (hidden until the button is clicked) --}}
+                <div id="chat-checklist" class="hidden border-b border-gray-100 px-3 py-2">
+                    <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Checklist</p>
+                    <div id="chat-checklist-items" class="space-y-1"></div>
+                    <div class="mt-1.5 flex items-center gap-2">
+                        <input id="chat-checklist-input" type="text" maxlength="500" placeholder="Add an item, press Enter"
+                               class="h-8 flex-1 rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                        <button type="button" id="chat-checklist-add" class="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">Add</button>
+                    </div>
                 </div>
                 <div id="chat-input" contenteditable="true" data-placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
                      class="chat-composer overflow-y-auto px-4 py-3 text-sm leading-5 text-gray-800 outline-none" style="max-height:10rem;min-height:2.75rem"></div>

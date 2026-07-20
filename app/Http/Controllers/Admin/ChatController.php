@@ -249,6 +249,29 @@ class ChatController extends Controller
         return redirect()->route('admin.chat.show', $conversation)->with('status', 'Channel updated.');
     }
 
+    /** Tick / untick a shared checklist item on a message (anyone in the conversation). */
+    public function toggleChecklist(Request $request, ChatMessage $message)
+    {
+        $conversation = $message->conversation;
+        abort_unless($this->canAccess(auth()->user(), $conversation), 403);
+
+        $data = $request->validate([
+            'index' => ['required', 'integer', 'min:0'],
+            'checked' => ['required', 'boolean'],
+        ]);
+
+        $list = $message->checklist ?? [];
+        if (! array_key_exists($data['index'], $list)) {
+            abort(404);
+        }
+        $list[$data['index']]['checked'] = $request->boolean('checked');
+        $message->update(['checklist' => $list]);
+
+        broadcast(new \App\Events\ChatChecklistToggled($message->conversation_id, $message->id, $data['index'], $request->boolean('checked')))->toOthers();
+
+        return response()->json(['ok' => true]);
+    }
+
     public function sendMessage(Request $request, Conversation $conversation)
     {
         $me = auth()->user();
@@ -263,7 +286,15 @@ class ChatController extends Controller
             'body' => ['nullable', 'string', 'max:20000'],
             'attachment' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip,rar,csv'],
             'reply_to_id' => ['nullable', 'integer'],
+            'checklist' => ['nullable', 'array', 'max:50'],
+            'checklist.*' => ['string', 'max:500'],
         ]);
+
+        // Shared to-do items — each starts unchecked.
+        $checklist = collect((array) $request->input('checklist', []))
+            ->map(fn ($t) => trim((string) $t))->filter()->take(50)
+            ->map(fn ($t) => ['text' => mb_substr($t, 0, 500), 'checked' => false])->values()->all();
+        $checklist = $checklist ?: null;
 
         // A reply must point at a message that lives in THIS conversation.
         $replyToId = null;
@@ -284,7 +315,7 @@ class ChatController extends Controller
         }
 
         // Need either text or a file.
-        if (($body === null || strip_tags($body) === '' && ! str_contains($body, '<img')) && ! $path) {
+        if (($body === null || strip_tags($body) === '' && ! str_contains($body, '<img')) && ! $path && ! $checklist) {
             return $request->wantsJson()
                 ? response()->json(['error' => 'Message is empty.'], 422)
                 : back();
@@ -294,6 +325,7 @@ class ChatController extends Controller
             'user_id' => $me->id,
             'reply_to_id' => $replyToId,
             'body' => $body,
+            'checklist' => $checklist,
             'attachment' => $path,
             'attachment_name' => $name,
         ]);
@@ -311,6 +343,7 @@ class ChatController extends Controller
                 'attachment' => $message->attachment_url,
                 'attachment_name' => $message->attachment_name,
                 'is_image' => $message->is_image,
+                'checklist' => $message->checklist,
                 'created_at' => $message->created_at->timestamp,
                 'time' => $message->created_at->format('g:i A'),
                 'quoted' => $message->quoted(),
