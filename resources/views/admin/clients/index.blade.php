@@ -323,7 +323,7 @@
         {{-- Grid --}}
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             @forelse ($clients as $c)
-                <div class="relative rounded-xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md">
+                <div class="relative rounded-xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-lg">
                     <div class="absolute right-3 top-3" x-data="{ open: false }">
                         <button @click="open = !open" @click.outside="open = false" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Actions">
                             <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>

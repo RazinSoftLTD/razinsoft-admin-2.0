@@ -13,6 +13,40 @@
     <div class="ml-auto flex items-center gap-2">
         @php $me = auth()->user(); @endphp
 
+        {{-- ───── Running task timer (global — only one can run at a time) ───── --}}
+        @php
+            $liveTimer = \App\Models\ProjectTaskTimer::with('task:id,title,project_id')
+                ->where('user_id', $me->id)->whereNotNull('started_at')->first();
+        @endphp
+        @if ($liveTimer && $liveTimer->task)
+            <div class="mr-1 flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-3 py-1.5 shadow-sm">
+                <a href="{{ route('admin.tasks.show', $liveTimer->task_id) }}" class="flex min-w-0 items-center gap-2" title="{{ $liveTimer->task->title }}">
+                    <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-500">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
+                    </span>
+                    <span class="hidden min-w-0 sm:block">
+                        <span class="block truncate text-[11px] font-semibold text-[var(--color-muted)]" style="max-width:8rem">{{ $liveTimer->task->title }}</span>
+                        <span class="block text-sm font-bold text-[var(--color-heading)]"
+                              x-data="topbarTicker({{ $liveTimer->elapsedSeconds() }})" x-text="clock" x-init="run()">{{ $liveTimer->clock() }}</span>
+                    </span>
+                    <span class="text-sm font-bold text-[var(--color-heading)] sm:hidden"
+                          x-data="topbarTicker({{ $liveTimer->elapsedSeconds() }})" x-text="clock" x-init="run()">{{ $liveTimer->clock() }}</span>
+                </a>
+                <form method="POST" action="{{ route('admin.tasks.timer.pause', $liveTimer->task_id) }}" data-turbo="false">
+                    @csrf
+                    <button title="Pause" class="grid h-8 w-8 place-items-center rounded-lg border border-gray-200 text-[var(--color-primary)] transition hover:bg-gray-50">
+                        <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('admin.tasks.timer.stop', $liveTimer->task_id) }}" data-turbo="false">
+                    @csrf
+                    <button title="Stop and log" class="grid h-8 w-8 place-items-center rounded-lg bg-red-500 text-white transition hover:opacity-80">
+                        <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                    </button>
+                </form>
+            </div>
+        @endif
+
         {{-- ───── WhatsApp (only for users with access; badge scoped to their numbers) ───── --}}
         @if ($me->hasPermission('whatsapp.view'))
             @php
@@ -156,6 +190,25 @@
                 }
                 this.recount();
                 this.beep();
+            },
+        };
+    }
+</script>
+
+<script>
+    // Live clock for the topbar timer.
+    function topbarTicker(startSeconds) {
+        return {
+            clock: '00:00:00',
+            run() {
+                const from = Date.now();
+                const paint = () => {
+                    const s = startSeconds + Math.floor((Date.now() - from) / 1000);
+                    const p = n => String(n).padStart(2, '0');
+                    this.clock = p(Math.floor(s / 3600)) + ':' + p(Math.floor(s / 60) % 60) + ':' + p(s % 60);
+                };
+                paint();
+                setInterval(paint, 1000);
             },
         };
     }

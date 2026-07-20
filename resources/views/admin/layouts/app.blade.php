@@ -10,6 +10,10 @@
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <style>[x-cloak]{display:none!important}</style>
     @vite(['resources/css/app.css'])
+    <style>
+        /* Disabled-field styling: the compiled stylesheet has no disabled:* variants. */
+        .is-disabled:disabled { background-color: #f9fafb; color: #9ca3af; cursor: not-allowed; }
+    </style>
 
     {{-- Hotwire Turbo: SPA-like navigation (menus swap without a full reload). --}}
     <script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.12/dist/turbo.es2017-umd.min.js"></script>

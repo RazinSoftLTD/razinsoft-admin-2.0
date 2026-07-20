@@ -13,7 +13,7 @@
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             @foreach ($accounts as $acc)
                 @php $s = $stats[$acc->id]; @endphp
-                <a href="{{ route('admin.whatsapp-activity.show', $acc) }}" class="block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-md">
+                <a href="{{ route('admin.whatsapp-activity.show', $acc) }}" class="block rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:border-emerald-200 hover:shadow-lg">
                     <div class="flex items-center gap-3">
                         <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white" style="background: {{ $acc->color }}">
                             <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Z"/></svg>

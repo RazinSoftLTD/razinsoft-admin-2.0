@@ -69,11 +69,15 @@ class Permissions
         'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products']],
         // CodeCanyon market analysis (Activity → CodeCanyon) + its API config.
         'codecanyon' => ['label' => 'CodeCanyon', 'group' => 'Activity', 'actions' => ['view', 'manage', 'settings']],
-        'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
+        'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'members', 'milestones', 'files', 'prd', 'settings', 'columns'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
+        // Tasks live inside projects but each part of a task is its own toggle.
+        'tasks' => ['label' => 'Tasks', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'status', 'comments', 'attachments', 'time', 'subtasks'], 'owner' => 'assigned_to', 'creator' => 'created_by'],
         // invoices: base CRUD scoped via created_by (= added). The extra ops (payments/send/
         // cancel/duplicate) are individually scopable; configuration + bin are global none/all.
         'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance', 'send', 'cancel', 'duplicate', 'configure', 'bin'], 'owner' => 'owner_id', 'creator' => 'created_by'],
-        'products' => ['label' => 'Products', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'products' => ['label' => 'Products', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'publish', 'clone', 'relations']],
+        // Installation Plans has its own screens (features, plans, copy-from), so it gets its own toggles.
+        'installation_plans' => ['label' => 'Installation Plans', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'copy']],
         'orders' => ['label' => 'Orders', 'group' => 'Sales', 'actions' => ['view', 'create']],
         'coupons' => ['label' => 'Coupons', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
         'blog' => ['label' => 'Blog', 'group' => 'Content', 'actions' => ['view', 'create', 'edit', 'delete']],
@@ -106,6 +110,12 @@ class Permissions
         // Invoice operations.
         'send' => 'Send', 'cancel' => 'Cancel', 'duplicate' => 'Duplicate', 'configure' => 'Configuration', 'bin' => 'Trash',
         'import_export' => 'Import / Export',
+        // Product & installation-plan operations.
+        'clone' => 'Duplicate product', 'relations' => 'Manage related content', 'copy' => 'Copy from another product',
+        // Project & task sections.
+        'members' => 'Members', 'milestones' => 'Milestones', 'files' => 'Files', 'prd' => 'PRD / Requirements',
+        'columns' => 'Board columns', 'status' => 'Move on board', 'comments' => 'Comments',
+        'attachments' => 'Attachments', 'time' => 'Time tracking', 'subtasks' => 'Subtasks',
         // Activity log pages.
         'employee' => 'Employee', 'client' => 'Client', 'blogs' => 'Blogs', 'products' => 'Products',
         // Client detail-page sections (Profile rides on view — no separate action).

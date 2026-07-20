@@ -42,6 +42,7 @@
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            @if (auth()->user()->allows('products', 'publish'))
             <form method="POST" action="{{ route('admin.products.publish', $product) }}">
                 @csrf
                 <button class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white {{ $isPublished ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600' }}">
@@ -54,6 +55,7 @@
                     @endif
                 </button>
             </form>
+            @endif
             <a href="{{ route('admin.products.edit', $product) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
                 Edit general &amp; media
@@ -118,8 +120,9 @@
     {{-- Section tabs/cards --}}
     <h3 class="mb-3 mt-8 text-sm font-bold uppercase tracking-wide text-gray-400">Manage sections</h3>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        @if (auth()->user()->allows('products', 'relations'))
         @foreach ($sections as $s)
-            <a href="{{ route('admin.products.relation.edit', [$product, $s['key']]) }}" class="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-[var(--color-primary)] hover:shadow-md">
+            <a href="{{ route('admin.products.relation.edit', [$product, $s['key']]) }}" class="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-[var(--color-primary)] hover:shadow-lg">
                 <div class="flex items-center gap-3">
                     <span class="grid h-10 w-10 place-items-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">@foreach (explode(' ', $s['icon']) as $d)<path stroke-linecap="round" stroke-linejoin="round" d="{{ $d }}"/>@endforeach</svg>
@@ -132,5 +135,6 @@
                 <svg class="h-5 w-5 text-gray-300 transition group-hover:text-[var(--color-primary)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
             </a>
         @endforeach
+        @endif
     </div>
 @endsection

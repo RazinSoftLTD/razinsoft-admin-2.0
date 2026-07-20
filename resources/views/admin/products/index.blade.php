@@ -42,12 +42,14 @@
                                     <a href="{{ route('admin.products.show', $p) }}" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="View &amp; manage">
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7.5 10-7.5S22 12 22 12s-3.6 7.5-10 7.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                                     </a>
+                                    @if (auth()->user()->allows('products', 'clone'))
                                     <form method="POST" action="{{ route('admin.products.clone', $p) }}" onsubmit="return confirm('Clone this product with all its content (as a draft)?')">
                                         @csrf
                                         <button class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Clone">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
                                         </button>
                                     </form>
+                                    @endif
                                     <form method="POST" action="{{ route('admin.products.destroy', $p) }}" onsubmit="return confirm('Delete this product?')">
                                         @csrf @method('DELETE')
                                         <button class="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Delete">

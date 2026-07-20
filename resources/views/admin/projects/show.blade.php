@@ -4,6 +4,20 @@
 @php
     $me = auth()->user();
     $canEdit = $me->allows('projects', 'edit');
+    // Per-section rights — each tab/action checks its own flag.
+    $can = [
+        'members' => $me->allows('projects', 'members'),
+        'milestones' => $me->allows('projects', 'milestones'),
+        'files' => $me->allows('projects', 'files'),
+        'prd' => $me->allows('projects', 'prd'),
+        'settings' => $me->allows('projects', 'settings'),
+        'columns' => $me->allows('projects', 'columns'),
+        'taskCreate' => $me->allows('tasks', 'create'),
+        'taskEdit' => $me->allows('tasks', 'edit'),
+        'taskDelete' => $me->allows('tasks', 'delete'),
+        'taskStatus' => $me->allows('tasks', 'status'),
+        'taskTime' => $me->allows('tasks', 'time'),
+    ];
     $statusDot = ['todo' => 'bg-sky-500', 'in_progress' => 'bg-blue-500', 'on_hold' => 'bg-amber-500', 'completed' => 'bg-emerald-500', 'cancelled' => 'bg-gray-400'];
     $statusPill = ['todo' => 'bg-sky-50 text-sky-700', 'in_progress' => 'bg-blue-50 text-blue-700', 'on_hold' => 'bg-amber-50 text-amber-700', 'completed' => 'bg-emerald-50 text-emerald-700', 'cancelled' => 'bg-gray-100 text-gray-500'];
 
@@ -18,17 +32,17 @@
     ];
     // PRD sits after Tasks, but only when Settings says this project collects one.
     // Time sits right after Tasks, only when the project tracks time.
-    if ($project->time_tracking) {
+    if ($project->time_tracking && $can['taskTime']) {
         $tabs = array_slice($tabs, 0, 3, true)
             + ['time' => ['Time', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2', null]]
             + array_slice($tabs, 3, null, true);
     }
-    if ($project->needs_requirements) {
+    if ($project->needs_requirements && $can['prd']) {
         $tabs = array_slice($tabs, 0, 3, true)
             + ['prd' => ['PRD', 'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2M9 12h6M9 16h4', null]]
             + array_slice($tabs, 3, null, true);
     }
-    if ($canEdit) {
+    if ($can['settings']) {
         $tabs['settings'] = ['Settings', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-2.9-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.1-2.9H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.1-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.1V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 2.9 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9Z', null];
     }
     $tabs['activity'] = ['Activity', 'M3 12h4l3 8 4-16 3 8h4', null];
@@ -37,6 +51,7 @@
 @endphp
 
 @section('content')
+    <div @if ($tab === 'board') x-data="taskBoard(@js($project->columns->pluck('key')), '{{ $project->id }}')" x-init="init()" @elseif ($tab === 'tasks') x-data="{ addOpen: false }" @endif>
     {{-- Breadcrumb --}}
     <nav class="mb-2 flex items-center gap-2 text-sm text-[var(--color-muted)]">
         <a href="{{ route('admin.projects.index') }}" class="hover:text-[var(--color-heading)]">Projects</a>
@@ -61,27 +76,6 @@
                 @endif
             </div>
 
-            @if ($canEdit)
-                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
-                    <button type="button" @click="open = !open" class="rounded-full px-3 py-1 text-sm font-semibold transition hover:opacity-80 {{ $statusPill[$project->status] ?? 'bg-gray-100 text-gray-500' }}">
-                        {{ \App\Models\Project::STATUSES[$project->status] ?? $project->status }}
-                    </button>
-                    <div x-show="open" x-cloak class="absolute left-0 z-30 mt-1.5 w-40 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
-                        @foreach (\App\Models\Project::STATUSES as $k => $v)
-                            <form method="POST" action="{{ route('admin.projects.status', $project) }}">
-                                @csrf
-                                <input type="hidden" name="status" value="{{ $k }}">
-                                <button class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50 {{ $project->status === $k ? 'bg-gray-50' : '' }}">
-                                    <span class="h-2 w-2 rounded-full {{ $statusDot[$k] }}"></span>{{ $v }}
-                                </button>
-                            </form>
-                        @endforeach
-                    </div>
-                </div>
-            @else
-                <span class="rounded-full px-3 py-1 text-sm font-semibold {{ $statusPill[$project->status] ?? 'bg-gray-100 text-gray-500' }}">{{ \App\Models\Project::STATUSES[$project->status] ?? $project->status }}</span>
-            @endif
-
             {{-- Favourite --}}
             <form method="POST" action="{{ route('admin.projects.favorite', $project) }}">
                 @csrf
@@ -92,6 +86,39 @@
             </form>
         </div>
 
+        @if ($tab === 'tasks' && $can['taskCreate'])
+            <button type="button" @click="addOpen = true"
+                    class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Task
+            </button>
+        @endif
+
+        @if ($tab === 'board')
+            {{-- Board controls live beside the title so the board itself stays clean --}}
+            <div class="flex flex-wrap items-center gap-3">
+                <p class="text-xs text-[var(--color-muted)]" x-show="hidden.length" x-cloak>
+                    <span x-text="hidden.length"></span> column(s) hidden
+                    <button type="button" @click="showAll()" class="ml-1 font-semibold text-[var(--color-primary)] hover:underline">Show all</button>
+                </p>
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                    <button type="button" @click="open = !open"
+                            class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-[var(--color-heading)] transition hover:bg-gray-50">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6v14H4zM14 5h6v14h-6z"/></svg>
+                        Columns
+                    </button>
+                    <div x-show="open" x-cloak class="absolute right-0 z-30 mt-1.5 w-56 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
+                        @foreach ($project->columns as $col)
+                            <label class="flex cursor-pointer items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50">
+                                <input type="checkbox" :checked="visible('{{ $col->key }}')" @change="toggle('{{ $col->key }}')"
+                                       class="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                                <span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background: {{ $col->color }}"></span>
+                                <span class="truncate">{{ $col->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 
     {{-- Tabs --}}
@@ -112,4 +139,5 @@
     </div>
 
     @include('admin.projects.tabs.'.$tab)
+    </div>
 @endsection

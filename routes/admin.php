@@ -220,6 +220,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('projects/{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
             Route::get('tasks', [TaskController::class, 'index'])->name('tasks.index');
             Route::get('tasks/{task}', [TaskController::class, 'show'])->whereNumber('task')->name('tasks.show');
+            Route::get('tasks/{task}/files/{file}/download', [TaskController::class, 'fileDownload'])->whereNumber(['task', 'file'])->name('tasks.files.download');
             Route::get('projects/{project}/files/{file}/download', [ProjectController::class, 'fileDownload'])->whereNumber(['project', 'file'])->name('projects.files.download');
             Route::get('projects/{project}/prd/{item}/download', [ProjectController::class, 'prdDownload'])->whereNumber(['project', 'item'])->name('projects.prd.download');
         });
@@ -232,38 +233,70 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('projects/{project}/edit', [ProjectController::class, 'edit'])->whereNumber('project')->name('projects.edit');
             Route::put('projects/{project}', [ProjectController::class, 'update'])->whereNumber('project')->name('projects.update');
             Route::post('projects/{project}/status', [ProjectController::class, 'status'])->whereNumber('project')->name('projects.status');
+        });
 
+        // ---- Project sections, each with its own permission ----
+        Route::middleware('permission:projects.members')->group(function () {
             Route::post('projects/{project}/members', [ProjectController::class, 'memberStore'])->whereNumber('project')->name('projects.members.store');
             Route::put('projects/{project}/members/{member}/access', [ProjectController::class, 'memberAccess'])->whereNumber(['project', 'member'])->name('projects.members.access');
             Route::delete('projects/{project}/members/{member}', [ProjectController::class, 'memberDestroy'])->whereNumber(['project', 'member'])->name('projects.members.destroy');
+        });
+        Route::middleware('permission:projects.settings')->group(function () {
             Route::put('projects/{project}/settings', [ProjectController::class, 'updateSettings'])->whereNumber('project')->name('projects.settings.update');
             Route::post('projects/{project}/profile', [ProjectController::class, 'updateProfile'])->whereNumber('project')->name('projects.profile.update');
-
+        });
+        Route::middleware('permission:projects.milestones')->group(function () {
             Route::post('projects/{project}/milestones', [ProjectController::class, 'milestoneStore'])->whereNumber('project')->name('projects.milestones.store');
             Route::put('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneUpdate'])->whereNumber(['project', 'milestone'])->name('projects.milestones.update');
             Route::delete('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneDestroy'])->whereNumber(['project', 'milestone'])->name('projects.milestones.destroy');
-
+        });
+        Route::middleware('permission:projects.files')->group(function () {
             Route::post('projects/{project}/files', [ProjectController::class, 'fileStore'])->whereNumber('project')->name('projects.files.store');
+            Route::delete('projects/{project}/files/{file}', [ProjectController::class, 'fileDestroy'])->whereNumber(['project', 'file'])->name('projects.files.destroy');
+        });
+        Route::middleware('permission:projects.prd')->group(function () {
             Route::post('projects/{project}/prd', [ProjectController::class, 'prdStore'])->whereNumber('project')->name('projects.prd.store');
-            Route::post('projects/{project}/time', [ProjectController::class, 'timeStore'])->whereNumber('project')->name('projects.time.store');
-            Route::delete('projects/{project}/time/{log}', [ProjectController::class, 'timeDestroy'])->whereNumber(['project', 'log'])->name('projects.time.destroy');
             Route::post('projects/{project}/prd/share', [ProjectController::class, 'prdShare'])->whereNumber('project')->name('projects.prd.share');
             Route::put('projects/{project}/prd/{item}/review', [ProjectController::class, 'prdReview'])->whereNumber(['project', 'item'])->name('projects.prd.review');
             Route::delete('projects/{project}/prd/{item}', [ProjectController::class, 'prdDestroy'])->whereNumber(['project', 'item'])->name('projects.prd.destroy');
-            Route::delete('projects/{project}/files/{file}', [ProjectController::class, 'fileDestroy'])->whereNumber(['project', 'file'])->name('projects.files.destroy');
-
+        });
+        Route::middleware('permission:projects.columns')->group(function () {
             Route::post('projects/{project}/columns', [ProjectController::class, 'columnStore'])->whereNumber('project')->name('projects.columns.store');
             Route::put('projects/{project}/columns/{column}', [ProjectController::class, 'columnUpdate'])->whereNumber(['project', 'column'])->name('projects.columns.update');
             Route::delete('projects/{project}/columns/{column}', [ProjectController::class, 'columnDestroy'])->whereNumber(['project', 'column'])->name('projects.columns.destroy');
+        });
 
+        // ---- Tasks, section by section ----
+        Route::middleware('permission:tasks.create')->group(function () {
             Route::post('tasks', [TaskController::class, 'store'])->name('tasks.store');
+        });
+        Route::middleware('permission:tasks.edit')->group(function () {
             Route::put('tasks/{task}', [TaskController::class, 'update'])->whereNumber('task')->name('tasks.update');
+        });
+        Route::middleware('permission:tasks.status')->group(function () {
             Route::post('tasks/{task}/status', [TaskController::class, 'status'])->whereNumber('task')->name('tasks.status');
+        });
+        Route::middleware('permission:tasks.comments')->group(function () {
             Route::post('tasks/{task}/comments', [TaskController::class, 'commentStore'])->whereNumber('task')->name('tasks.comments.store');
             Route::delete('tasks/{task}/comments/{comment}', [TaskController::class, 'commentDestroy'])->whereNumber(['task', 'comment'])->name('tasks.comments.destroy');
         });
+        Route::middleware('permission:tasks.attachments')->group(function () {
+            Route::post('tasks/{task}/files', [TaskController::class, 'fileStore'])->whereNumber('task')->name('tasks.files.store');
+            Route::delete('tasks/{task}/files/{file}', [TaskController::class, 'fileDestroy'])->whereNumber(['task', 'file'])->name('tasks.files.destroy');
+        });
+        Route::middleware('permission:tasks.time')->group(function () {
+            Route::post('projects/{project}/time', [ProjectController::class, 'timeStore'])->whereNumber('project')->name('projects.time.store');
+            Route::delete('projects/{project}/time/{log}', [ProjectController::class, 'timeDestroy'])->whereNumber(['project', 'log'])->name('projects.time.destroy');
+            Route::post('tasks/{task}/timer/start', [TaskController::class, 'timerStart'])->whereNumber('task')->name('tasks.timer.start');
+            Route::post('tasks/{task}/timer/pause', [TaskController::class, 'timerPause'])->whereNumber('task')->name('tasks.timer.pause');
+            Route::post('tasks/{task}/timer/stop', [TaskController::class, 'timerStop'])->whereNumber('task')->name('tasks.timer.stop');
+            Route::post('tasks/{task}/timer/cancel', [TaskController::class, 'timerCancel'])->whereNumber('task')->name('tasks.timer.cancel');
+        });
+
         Route::middleware('permission:projects.delete')->group(function () {
             Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->whereNumber('project')->name('projects.destroy');
+        });
+        Route::middleware('permission:tasks.delete')->group(function () {
             Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->whereNumber('task')->name('tasks.destroy');
         });
 
@@ -363,30 +396,48 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== Products =====
         Route::middleware('permission:products.view')->group(function () {
             Route::get('products', [ProductController::class, 'index'])->name('products.index');
-            Route::get('installation-plans', [\App\Http\Controllers\Admin\InstallationPlanController::class, 'index'])->name('installation-plans');
             Route::get('products/{product}', [ProductController::class, 'show'])->whereNumber('product')->name('products.show');
-            Route::get('products/{product}/manage/{relation}', [ProductRelationController::class, 'edit'])->whereNumber('product')->name('products.relation.edit');
         });
-        Route::middleware('permission:products.edit')->prefix('installation-plans')->name('installation-plans.')->group(function () {
-            $ip = \App\Http\Controllers\Admin\InstallationPlanController::class;
-            Route::post('{product}/features', [$ip, 'featureStore'])->whereNumber('product')->name('features.store');
-            Route::put('{product}/features/{feature}', [$ip, 'featureUpdate'])->whereNumber(['product', 'feature'])->name('features.update');
-            Route::delete('{product}/features/{feature}', [$ip, 'featureDestroy'])->whereNumber(['product', 'feature'])->name('features.destroy');
-            Route::post('{product}/plans', [$ip, 'planStore'])->whereNumber('product')->name('plans.store');
-            Route::put('{product}/plans/{plan}', [$ip, 'planUpdate'])->whereNumber(['product', 'plan'])->name('plans.update');
-            Route::delete('{product}/plans/{plan}', [$ip, 'planDestroy'])->whereNumber(['product', 'plan'])->name('plans.destroy');
-            Route::post('{product}/plans/{plan}/toggle', [$ip, 'toggle'])->whereNumber(['product', 'plan'])->name('toggle');
-            Route::post('{product}/copy-from', [$ip, 'copyFrom'])->whereNumber('product')->name('copy-from');
+        // ===== Installation Plans (own permission set) =====
+        $ip = \App\Http\Controllers\Admin\InstallationPlanController::class;
+        Route::middleware('permission:installation_plans.view')->group(function () use ($ip) {
+            Route::get('installation-plans', [$ip, 'index'])->name('installation-plans');
+        });
+        Route::prefix('installation-plans')->name('installation-plans.')->group(function () use ($ip) {
+            Route::middleware('permission:installation_plans.create')->group(function () use ($ip) {
+                Route::post('{product}/features', [$ip, 'featureStore'])->whereNumber('product')->name('features.store');
+                Route::post('{product}/plans', [$ip, 'planStore'])->whereNumber('product')->name('plans.store');
+            });
+            Route::middleware('permission:installation_plans.edit')->group(function () use ($ip) {
+                Route::put('{product}/features/{feature}', [$ip, 'featureUpdate'])->whereNumber(['product', 'feature'])->name('features.update');
+                Route::put('{product}/plans/{plan}', [$ip, 'planUpdate'])->whereNumber(['product', 'plan'])->name('plans.update');
+                Route::post('{product}/plans/{plan}/toggle', [$ip, 'toggle'])->whereNumber(['product', 'plan'])->name('toggle');
+            });
+            Route::middleware('permission:installation_plans.delete')->group(function () use ($ip) {
+                Route::delete('{product}/features/{feature}', [$ip, 'featureDestroy'])->whereNumber(['product', 'feature'])->name('features.destroy');
+                Route::delete('{product}/plans/{plan}', [$ip, 'planDestroy'])->whereNumber(['product', 'plan'])->name('plans.destroy');
+            });
+            Route::middleware('permission:installation_plans.copy')->group(function () use ($ip) {
+                Route::post('{product}/copy-from', [$ip, 'copyFrom'])->whereNumber('product')->name('copy-from');
+            });
         });
         Route::middleware('permission:products.create')->group(function () {
             Route::get('products/create', [ProductController::class, 'create'])->name('products.create');
             Route::post('products', [ProductController::class, 'store'])->name('products.store');
+        });
+        Route::middleware('permission:products.clone')->group(function () {
             Route::post('products/{product}/clone', [ProductController::class, 'clone'])->name('products.clone');
+        });
+        Route::middleware('permission:products.publish')->group(function () {
+            Route::post('products/{product}/publish', [ProductController::class, 'togglePublish'])->name('products.publish');
         });
         Route::middleware('permission:products.edit')->group(function () {
             Route::get('products/{product}/edit', [ProductController::class, 'edit'])->whereNumber('product')->name('products.edit');
             Route::put('products/{product}', [ProductController::class, 'update'])->whereNumber('product')->name('products.update');
-            Route::post('products/{product}/publish', [ProductController::class, 'togglePublish'])->name('products.publish');
+        });
+        // Gallery, features, FAQs … everything on the product's "manage" screens.
+        Route::middleware('permission:products.relations')->group(function () {
+            Route::get('products/{product}/manage/{relation}', [ProductRelationController::class, 'edit'])->whereNumber('product')->name('products.relation.edit');
             Route::post('products/{product}/gallery-images/{image}/move', [ProductRelationController::class, 'moveGalleryImage'])->name('products.gallery.move');
             Route::post('products/{product}/{relation}', [ProductRelationController::class, 'store'])->name('products.relation.store');
             Route::put('products/{product}/{relation}/{id}', [ProductRelationController::class, 'update'])->name('products.relation.update');

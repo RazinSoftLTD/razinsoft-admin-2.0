@@ -99,7 +99,7 @@
                         <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style="background: {{ $n->color }}1a; color: {{ $n->color }}">
                             {{ $n->name }} ({{ $n->products_count }})
                             <form method="POST" action="{{ route('admin.codecanyon.niches.destroy', $n) }}" onsubmit="return confirm('Remove this niche?')">
-                                @csrf @method('DELETE')<button class="opacity-60 hover:opacity-100">&times;</button>
+                                @csrf @method('DELETE')<button class="opacity-60 hover:opacity-80">&times;</button>
                             </form>
                         </span>
                     @endforeach

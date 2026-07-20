@@ -234,7 +234,7 @@
                     @foreach ($labels as $lbl)
                         <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style="background: {{ $lbl->color }}1a; color: {{ $lbl->color }};">
                             {{ $lbl->name }}
-                            <form method="POST" action="{{ route('admin.whatsapp-settings.labels.destroy', $lbl) }}" onsubmit="return confirm('Remove label?')">@csrf @method('DELETE')<button class="opacity-60 hover:opacity-100">×</button></form>
+                            <form method="POST" action="{{ route('admin.whatsapp-settings.labels.destroy', $lbl) }}" onsubmit="return confirm('Remove label?')">@csrf @method('DELETE')<button class="opacity-60 hover:opacity-80">×</button></form>
                         </span>
                     @endforeach
                 </div>

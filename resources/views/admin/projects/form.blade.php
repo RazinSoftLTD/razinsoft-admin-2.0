@@ -23,7 +23,7 @@
         @if ($project->exists) @method('PUT') @endif
 
         {{-- ── Sticky action bar ── --}}
-        <div class="sticky top-16 z-10 -mx-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-[var(--color-body)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div class="sticky top-16 z-10 -mx-4 mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-[var(--color-body)]/95 px-4 py-3 backdrop-blur sm:-mt-4 sm:px-6">
             <div class="flex items-center gap-3">
                 <a href="{{ $project->exists ? route('admin.projects.show', $project) : route('admin.projects.index') }}" class="grid h-9 w-9 place-items-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50" title="Back">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M19 12H5m6 6-6-6 6-6"/></svg>

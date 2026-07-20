@@ -14,7 +14,7 @@
                             <template x-if="preview"><img :src="preview" class="h-full w-full object-cover" alt=""></template>
                             <template x-if="!preview"><span>{{ $project->initials() }}</span></template>
                         </span>
-                        <span class="absolute bottom-2 right-2 grid h-9 w-9 place-items-center rounded-full bg-white text-gray-500 shadow-md transition group-hover:text-[var(--color-primary)]">
+                        <span class="absolute bottom-2 right-2 grid h-9 w-9 place-items-center rounded-full bg-white text-gray-500 shadow-lg transition group-hover:text-[var(--color-primary)]">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h3l2-2h6l2 2h3v11H4zM12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
                         </span>
                         <input type="file" name="avatar" accept="image/*" class="sr-only"
@@ -35,13 +35,13 @@
 
                 {{-- Fields --}}
                 <div class="min-w-0 flex-1 divide-y divide-gray-100" style="min-width:280px">
-                    <div class="pb-5">
+                    <div class="pb-4">
                         <span class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
                             <svg class="h-4 w-4 text-[var(--color-primary)]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4zM8 5v14"/></svg>
                             Project name
                         </span>
                         <input type="text" name="name" maxlength="160" required value="{{ old('name', $project->name) }}"
-                               class="mt-1 w-full border-0 bg-transparent p-0 text-xl font-bold text-[var(--color-heading)] focus:ring-0">
+                               class="mt-1 w-full border-0 p-0 text-xl font-bold text-[var(--color-heading)] focus:ring-0">
                         <p class="mt-1 text-xs text-[var(--color-muted)]">This is the project name visible to all members.</p>
                         @error('name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
@@ -53,7 +53,7 @@
                         </span>
                         <input type="text" name="subtitle" maxlength="160" value="{{ old('subtitle', $project->subtitle) }}"
                                placeholder="Add a short subtitle"
-                               class="mt-1 w-full border-0 bg-transparent p-0 text-xl font-bold text-[var(--color-heading)] placeholder:font-normal placeholder:text-gray-300 focus:ring-0">
+                               class="mt-1 w-full border-0 p-0 text-xl font-bold text-[var(--color-heading)] placeholder:font-normal placeholder:text-gray-300 focus:ring-0">
                         <p class="mt-1 text-xs text-[var(--color-muted)]">A short description or subtitle for this project.</p>
                         @error('subtitle')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
@@ -307,7 +307,7 @@
 
                     <div class="mt-2 space-y-2" x-ref="list" @change="recount()">
                         @foreach (\App\Models\Project::PRD_SECTIONS as $key => [$label, $hint, $required, $icon, $tint])
-                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 transition hover:border-gray-300 hover:bg-gray-50">
+                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 transition hover:border-gray-200 hover:bg-gray-50">
                                 <input type="checkbox" name="prd_sections[]" value="{{ $key }}" @checked(in_array($key, $picked, true))
                                        class="h-4 w-4 shrink-0 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
                                 <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg {{ $tint }}">

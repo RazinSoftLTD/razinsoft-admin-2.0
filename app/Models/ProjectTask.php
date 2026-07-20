@@ -13,7 +13,8 @@ class ProjectTask extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['start_date' => 'date', 'due_date' => 'date', 'completed_at' => 'datetime'];
+    protected $casts = [
+        'labels' => 'array','start_date' => 'date', 'due_date' => 'date', 'completed_at' => 'datetime'];
 
     /** Board columns, in order (desk-style). */
     public const STATUSES = [
@@ -38,6 +39,38 @@ class ProjectTask extends Model
         return (int) $this->timeLogs()->sum('minutes');
     }
 
+    public function files(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProjectTaskFile::class, 'task_id')->latest();
+    }
+
+    /** "4h 2d 30m" / "90" → minutes. Returns null when nothing usable was typed. */
+    public static function parseEstimate(?string $input): ?int
+    {
+        if (blank($input)) {
+            return null;
+        }
+        if (preg_match_all('/(\d+(?:\.\d+)?)\s*(w|d|h|m)?/i', strtolower($input), $m, PREG_SET_ORDER)) {
+            $minutes = 0;
+            foreach ($m as $part) {
+                if ($part[0] === '' || $part[1] === '') {
+                    continue;
+                }
+                $n = (float) $part[1];
+                $minutes += match ($part[2] ?? 'm') {
+                    'w' => $n * 60 * 8 * 5,   // a 40-hour week
+                    'd' => $n * 60 * 8,       // an 8-hour day
+                    'h' => $n * 60,
+                    default => $n,
+                };
+            }
+
+            return (int) round($minutes) ?: null;
+        }
+
+        return null;
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
@@ -51,6 +84,34 @@ class ProjectTask extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /** This task's slice of the project activity log. */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ProjectActivityLog::class, 'task_id')->latest();
+    }
+
+    public function timers(): HasMany
+    {
+        return $this->hasMany(ProjectTaskTimer::class, 'task_id');
+    }
+
+    /** The current user's running timer on this task, if any. */
+    public function runningTimer(?int $userId = null): ?ProjectTaskTimer
+    {
+        return $this->timers()->where('user_id', $userId ?? auth()->id())->first();
+    }
+
+    public function loggedMinutes(): int
+    {
+        return (int) $this->timeLogs()->sum('minutes');
+    }
+
+    /** Log an event against both the project and this task. */
+    public function log(string $action, string $description): void
+    {
+        $this->project?->log($action, $description, auth()->id(), $this->id);
     }
 
     public function subtasks(): HasMany

@@ -5,6 +5,35 @@
     $statusLabel = \App\Models\Project::STATUSES[$project->status] ?? $project->status;
 @endphp
 
+{{-- ===== Next milestone ===== --}}
+@if (! empty($o['upcoming']))
+    @php
+        $next = $o['upcoming'][0];
+        $nextDue = $next['end_date'];
+        $nextDays = $nextDue ? (int) now()->startOfDay()->diffInDays($nextDue, false) : null;
+        $due = $nextDays === null
+            ? 'No due date'
+            : ($nextDays < 0 ? abs($nextDays).' days overdue' : ($nextDays === 0 ? 'Due today' : 'Due in '.$nextDays.' days'));
+    @endphp
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-[var(--color-primary-soft)] p-4 shadow-sm">
+        <div class="flex min-w-0 items-center gap-3">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[var(--color-primary)]">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16v14H4zM4 10h16M8 3v3M16 3v3"/></svg>
+            </span>
+            <div class="min-w-0">
+                <p class="truncate text-sm font-bold text-[var(--color-heading)]">Next Milestone: {{ $next['title'] }}</p>
+                <p class="truncate text-xs text-[var(--color-muted)]">
+                    {{ $next['remaining'] }} task{{ $next['remaining'] === 1 ? '' : 's' }} remaining
+                    · <span class="{{ $nextDays !== null && $nextDays < 0 ? 'font-semibold text-red-600' : '' }}">{{ $due }}</span>
+                    @if ($nextDue) ({{ $nextDue->format('d M Y') }}) @endif
+                </p>
+            </div>
+        </div>
+        <a href="{{ route('admin.projects.show', $project) }}?tab=milestones"
+           class="shrink-0 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[var(--color-heading)] shadow-sm transition hover:bg-gray-50">View Milestones</a>
+    </div>
+@endif
+
 {{-- ===== Stat cards — one row on desktop, 2-up on tablet, stacked on phone ===== --}}
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     {{-- Overall progress ring --}}
@@ -135,7 +164,7 @@
         @else
             <ul class="relative space-y-4">
                 {{-- timeline rail behind the icons --}}
-                <span class="pointer-events-none absolute left-4 top-3 bottom-3 w-px bg-gray-100"></span>
+                <span class="pointer-events-none absolute w-px bg-gray-100" style="left:16px;top:16px;bottom:16px"></span>
                 @foreach ($activities as $a)
                     <li class="relative flex items-center gap-3">
                         @php

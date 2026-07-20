@@ -4,7 +4,10 @@
 @php
     $me = auth()->user();
     $priorityBadge = ['low' => 'bg-gray-100 text-gray-500', 'medium' => 'bg-amber-50 text-amber-600', 'high' => 'bg-orange-50 text-orange-600', 'urgent' => 'bg-red-50 text-red-600'];
-    $canEdit = $me->allows('projects', 'edit');
+    $canEdit = $me->allows('tasks', 'edit');
+    $canStatus = $me->allows('tasks', 'status');
+    $canCreate = $me->allows('tasks', 'create');
+    $canDelete = $me->allows('tasks', 'delete');
 @endphp
 
 @section('content')
@@ -20,7 +23,7 @@
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M4.5 19.5a7.5 7.5 0 0 1 15 0"/></svg>
                     My Tasks
                 </a>
-                @if ($canEdit)
+                @if ($canCreate)
                     <button type="button" @click="addOpen = true" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Task
                     </button>
@@ -52,7 +55,7 @@
                 <option value="all" @selected(request('status') === 'all')>All Status</option>
                 @foreach ($statusFilter as $k => $v)<option value="{{ $k }}" @selected(request('status') === $k)>{{ $v }}</option>@endforeach
             </select>
-            <select name="project" class="h-10 max-w-48 rounded-lg border-gray-200 text-sm">
+            <select name="project" class="h-10  rounded-lg border-gray-200 text-sm">
                 <option value="">All Projects</option>
                 @foreach ($projects as $p)<option value="{{ $p->id }}" @selected(request('project') == $p->id)>{{ $p->name }}</option>@endforeach
             </select>
@@ -123,34 +126,53 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3.5">
-                                    @php $opts = $task->project?->statusOptions() ?? []; @endphp
-                                    @if ($canEdit)
-                                        <form method="POST" action="{{ route('admin.tasks.status', $task) }}" data-turbo="false">
+                                    @php $opts = $task->project?->statusOptions() ?? []; $sc = $task->statusColor(); @endphp
+                                    @if ($canStatus ?? $canEdit)
+                                        <form method="POST" action="{{ route('admin.tasks.status', $task) }}" data-turbo="false" class="relative inline-flex">
                                             @csrf
-                                            <div class="relative inline-flex items-center">
-                                                <span class="pointer-events-none absolute left-2.5 h-2 w-2 rounded-full" style="background: {{ $task->statusColor() }};"></span>
-                                                <select name="status" onchange="this.form.submit()" class="h-8 rounded-lg border-gray-200 pl-6 pr-7 text-xs font-medium text-[var(--color-heading)]">
-                                                    @foreach ($opts as $k => $v)<option value="{{ $k }}" @selected($task->status === $k)>{{ $v }}</option>@endforeach
-                                                </select>
-                                            </div>
+                                            <span class="pointer-events-none absolute left-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full" style="background: {{ $sc }}"></span>
+                                            <select name="status" onchange="this.form.submit()"
+                                                    class="h-8 cursor-pointer appearance-none rounded-full border-0 pl-7 pr-7 text-xs font-semibold focus:ring-2"
+                                                    style="background: {{ $sc }}1a; color: {{ $sc }}">
+                                                @foreach ($opts as $k => $v)<option value="{{ $k }}" @selected($task->status === $k)>{{ $v }}</option>@endforeach
+                                            </select>
+                                            <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+                                                <svg class="h-3 w-3" style="color: {{ $sc }}" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                            </span>
                                         </form>
                                     @else
-                                        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-heading)]"><span class="h-2 w-2 rounded-full" style="background: {{ $task->statusColor() }};"></span>{{ $task->statusLabel() }}</span>
+                                        <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold" style="background: {{ $sc }}1a; color: {{ $sc }}">
+                                            <span class="h-2 w-2 rounded-full" style="background: {{ $sc }}"></span>{{ $task->statusLabel() }}
+                                        </span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3.5 text-right">
-                                    <div class="inline-flex items-center gap-1">
-                                        <a href="{{ route('admin.tasks.show', $task) }}" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Open">
-                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                                        </a>
-                                        @if ($me->allows('projects', 'delete'))
-                                            <form method="POST" action="{{ route('admin.tasks.destroy', $task) }}" data-turbo="false" onsubmit="return confirm('Delete this task?')">
-                                                @csrf @method('DELETE')
-                                                <button class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500" title="Delete">
-                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m3 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7"/></svg>
-                                                </button>
-                                            </form>
-                                        @endif
+                                    <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false">
+                                        <button type="button" @click="open = !open" title="Actions"
+                                                class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+                                        </button>
+                                        <div x-show="open" x-cloak class="absolute right-0 z-30 mt-1.5 w-36 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 text-left shadow-lg">
+                                            <a href="{{ route('admin.tasks.show', $task) }}" class="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50">
+                                                <svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                View
+                                            </a>
+                                            @if ($canEdit)
+                                                <a href="{{ route('admin.tasks.show', $task) }}?edit=1" class="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50">
+                                                    <svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.9 4.5a2.1 2.1 0 0 1 3 3L8 19.5l-4 1 1-4L16.9 4.5Z"/></svg>
+                                                    Edit
+                                                </a>
+                                            @endif
+                                            @if ($canDelete ?? $me->allows('tasks', 'delete'))
+                                                <form method="POST" action="{{ route('admin.tasks.destroy', $task) }}" data-turbo="false" onsubmit="return confirm('Delete this task?')">
+                                                    @csrf @method('DELETE')
+                                                    <button class="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">
+                                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5h6v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7"/></svg>
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -161,72 +183,253 @@
             <div class="mt-6">{{ $tasks->links() }}</div>
         @endif
 
-        {{-- Add Task modal (global: pick the project) --}}
+        {{-- Add Task modal — same shape as inside a project, plus a project picker --}}
         @if ($canEdit)
-            <div x-show="addOpen" x-cloak @keydown.escape.window="addOpen = false">
+            <div x-show="addOpen" x-cloak @keydown.escape.window="addOpen = false"
+                 x-data="globalTaskForm(@js($projectMeta), {{ $nextTaskId }}, {{ $me->id }}, @js(old('project_id')))">
                 <div x-show="addOpen" x-transition.opacity class="fixed inset-0 z-50 bg-black/40" @click="addOpen = false"></div>
-                <div x-show="addOpen" x-transition class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-16" @click.self="addOpen = false">
-                    <div class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-                        <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                            <h3 class="text-base font-bold text-[var(--color-heading)]">Add Task</h3>
-                            <button type="button" @click="addOpen = false" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100"><svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg></button>
+                <div x-show="addOpen" x-transition class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 py-10" @click.self="addOpen = false">
+                    <div class="w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+                        <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2M12 11v6M9 14h6"/></svg>
+                                </span>
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="text-lg font-bold text-[var(--color-heading)]">Add New Task</h3>
+                                        <span class="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500" x-text="taskCode" x-show="projectId"></span>
+                                    </div>
+                                    <p class="text-xs text-[var(--color-muted)]">Create a new task and add details</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="addOpen = false" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                            </button>
                         </div>
+
                         @if ($errors->any())
-                            <div class="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"><ul class="list-inside list-disc space-y-0.5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
+                            <div class="mt-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <ul class="list-inside list-disc space-y-0.5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+                            </div>
                         @endif
-                        <form method="POST" action="{{ route('admin.tasks.store') }}" data-turbo="false" class="space-y-4 px-5 py-4">
+
+                        <form method="POST" action="{{ route('admin.tasks.store') }}" enctype="multipart/form-data" data-turbo="false" @submit="submitting = true">
                             @csrf
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div>
-                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Project <span class="text-red-500">*</span></label>
-                                    <x-admin.searchable-select name="project_id" :options="$projects->map(fn ($p) => ['id' => $p->id, 'label' => $p->name.' ('.$p->code.')'])" :selected="old('project_id')" placeholder="Search project…" :allow-clear="false" required />
+                            <div class="grid gap-0 lg:grid-cols-3">
+                                {{-- Main --}}
+                                <div class="space-y-5 p-6 lg:col-span-2">
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Task Title <span class="text-red-500">*</span></label>
+                                        <input type="text" name="title" required maxlength="120" x-model="title" value="{{ old('title') }}"
+                                               placeholder="Enter a clear and concise task title"
+                                               class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                        <p class="mt-1 text-right text-xs text-[var(--color-muted)]"><span x-text="title.length">0</span> / 120</p>
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Description</label>
+                                        <x-admin.rich-editor name="description" placeholder="Describe the task in detail..." :min-height="150" />
+                                        <p class="mt-1 text-xs text-[var(--color-muted)]">Bold, italics, lists and links are supported.</p>
+                                    </div>
+
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Project <span class="text-red-500">*</span></label>
+                                            <select name="project_id" required x-model="projectId" @change="onProject()"
+                                                    class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                                <option value="">Select a project</option>
+                                                @foreach ($projects as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ $p->code }})</option>@endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Task Board Column <span class="text-red-500">*</span></label>
+                                            <select name="status" required x-model="status" :disabled="!projectId"
+                                                    class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] is-disabled">
+                                                <template x-if="!projectId"><option value="">Pick a project first</option></template>
+                                                <template x-for="c in meta.columns" :key="c.key">
+                                                    <option :value="c.key" x-text="c.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Priority</label>
+                                            <select name="priority" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                                @foreach (\App\Models\ProjectTask::PRIORITIES as $k => $v)<option value="{{ $k }}" @selected(old('priority', 'medium') === $k)>{{ $v }}</option>@endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Labels</label>
+                                            <div class="flex flex-wrap items-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1.5 focus-within:border-[var(--color-primary)]" style="min-height:44px">
+                                                <template x-for="(label, i) in labels" :key="i">
+                                                    <span class="inline-flex items-center gap-1 rounded bg-[var(--color-primary-soft)] px-2 py-1 text-xs font-semibold text-[var(--color-primary)]">
+                                                        <span x-text="label"></span>
+                                                        <input type="hidden" name="labels[]" :value="label">
+                                                        <button type="button" @click="labels.splice(i, 1)" class="opacity-60 hover:opacity-80">&times;</button>
+                                                    </span>
+                                                </template>
+                                                <input type="text" x-model="labelDraft" @keydown.enter.prevent="addLabel()"
+                                                       @keydown.backspace="if (!labelDraft && labels.length) labels.pop()"
+                                                       placeholder="Type and press Enter"
+                                                       class="min-w-0 flex-1 border-0 p-0 text-sm placeholder:text-gray-400 focus:ring-0" style="background:transparent">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-xl border border-gray-200 p-4" x-data="{ over: false, names: [] }">
+                                        <p class="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]">
+                                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.5 12.8 20.7a5 5 0 0 1-7-7l8.2-8.3a3.3 3.3 0 1 1 4.7 4.7l-8.2 8.2a1.7 1.7 0 0 1-2.4-2.4l7.6-7.5"/></svg>
+                                            Attachments <span class="font-normal text-[var(--color-muted)]">(Optional)</span>
+                                        </p>
+                                        <label class="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center transition"
+                                               :class="over ? 'border-[var(--color-primary)] bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'"
+                                               @dragover.prevent="over = true" @dragleave="over = false"
+                                               @drop.prevent="over = false; $refs.files.files = $event.dataTransfer.files; names = [...$refs.files.files].map(f => f.name)">
+                                            <svg class="h-7 w-7 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                                            <span class="mt-2 text-sm text-[var(--color-muted)]">Drag &amp; drop files here or <span class="font-semibold text-[var(--color-primary)]">browse</span></span>
+                                            <span class="mt-0.5 text-xs text-gray-400">Supports: JPG, PNG, PDF, DOC, ZIP (Max. 20MB)</span>
+                                            <input type="file" name="attachments[]" multiple x-ref="files" class="sr-only" @change="names = [...$event.target.files].map(f => f.name)">
+                                        </label>
+                                        <ul x-show="names.length" x-cloak class="mt-2 space-y-1">
+                                            <template x-for="(n, i) in names" :key="i">
+                                                <li class="truncate rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-[var(--color-heading)]" x-text="n"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Assigned To</label>
-                                    <x-admin.searchable-select name="assigned_to" :options="$assignees->map(fn ($a) => ['id' => $a->id, 'label' => $a->name])" :selected="old('assigned_to')" placeholder="Search staff…" clear-label="Unassigned" />
-                                </div>
-                            </div>
-                            <div>
-                                <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Title <span class="text-red-500">*</span></label>
-                                <input type="text" name="title" value="{{ old('title') }}" required placeholder="What needs to be done?" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
-                            </div>
-                            <div>
-                                <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Description</label>
-                                <textarea name="description" rows="3" placeholder="Optional details…" class="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">{{ old('description') }}</textarea>
-                            </div>
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div><label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Start Date</label><input type="date" name="start_date" value="{{ old('start_date') }}" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"></div>
-                                <div><label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Due Date</label><input type="date" name="due_date" value="{{ old('due_date') }}" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"></div>
-                            </div>
-                            <div class="grid gap-4 sm:grid-cols-3">
-                                <div>
-                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Status</label>
-                                    <select name="status" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
-                                        @foreach ($statusFilter as $k => $v)<option value="{{ $k }}" @selected(old('status', 'todo') === $k)>{{ $v }}</option>@endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Priority</label>
-                                    <select name="priority" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                                        @foreach (\App\Models\ProjectTask::PRIORITIES as $k => $v)<option value="{{ $k }}" @selected(old('priority', 'medium') === $k)>{{ $v }}</option>@endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Estimate</label>
-                                    <div class="flex items-center gap-1.5">
-                                        <input type="number" name="estimated_hours" value="{{ old('estimated_hours') }}" min="0" placeholder="h" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                                        <input type="number" name="estimated_extra_minutes" value="{{ old('estimated_extra_minutes') }}" min="0" max="59" placeholder="m" class="h-11 w-full rounded-lg border-gray-200 text-sm">
+
+                                {{-- Sidebar --}}
+                                <div class="task-modal-side space-y-5 border-gray-100 bg-gray-50 p-6">
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Assignee</label>
+                                        <select name="assigned_to" x-model="assignee"
+                                                class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                            <option value="">Unassigned</option>
+                                            @foreach ($assignees as $s)<option value="{{ $s->id }}">{{ $s->name }}</option>@endforeach
+                                        </select>
+                                        <button type="button" @click="assignee = '{{ $me->id }}'" class="mt-1.5 text-xs font-semibold text-[var(--color-primary)] hover:underline">Assign to me</button>
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Due Date</label>
+                                        <input type="date" name="due_date" value="{{ old('due_date') }}" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Estimated Time <span class="font-normal text-[var(--color-muted)]">(Optional)</span></label>
+                                        <input type="text" name="estimate" maxlength="40" placeholder="e.g. 4h, 2d, 30m"
+                                               class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                        <p class="mt-1 text-xs text-[var(--color-muted)]">A day counts as 8h, a week as 5 days.</p>
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Start Date <span class="font-normal text-[var(--color-muted)]">(Optional)</span></label>
+                                        <input type="date" name="start_date" value="{{ old('start_date') }}" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Milestone <span class="font-normal text-[var(--color-muted)]">(Optional)</span></label>
+                                        <select name="milestone_id" :disabled="!projectId"
+                                                class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] is-disabled">
+                                            <option value="">No milestone</option>
+                                            <template x-for="m in meta.milestones" :key="m.id">
+                                                <option :value="m.id" x-text="m.title"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Task Type</label>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <label class="cursor-pointer rounded-xl border p-3 transition"
+                                                   :class="type === 'task' ? 'border-[var(--color-primary)] bg-white ring-1 ring-[var(--color-primary)]' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                                                <span class="flex items-center gap-2">
+                                                    <input type="radio" x-model="type" value="task" class="h-4 w-4 accent-[var(--color-primary)]">
+                                                    <span class="text-sm font-semibold text-[var(--color-heading)]">Task</span>
+                                                </span>
+                                                <span class="mt-0.5 block pl-7 text-xs text-[var(--color-muted)]">A regular task</span>
+                                            </label>
+                                            <label class="cursor-pointer rounded-xl border p-3 transition"
+                                                   :class="type === 'subtask' ? 'border-[var(--color-primary)] bg-white ring-1 ring-[var(--color-primary)]' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                                                <span class="flex items-center gap-2">
+                                                    <input type="radio" x-model="type" value="subtask" class="h-4 w-4 accent-[var(--color-primary)]">
+                                                    <span class="text-sm font-semibold text-[var(--color-heading)]">Subtask</span>
+                                                </span>
+                                                <span class="mt-0.5 block pl-7 text-xs text-[var(--color-muted)]">Break down a task</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div x-show="type === 'subtask'" x-cloak>
+                                        <label class="mb-1.5 block text-sm font-semibold text-[var(--color-heading)]">Parent Task <span class="text-red-500">*</span></label>
+                                        <select name="parent_id" :required="type === 'subtask'" :disabled="type !== 'subtask' || !projectId"
+                                                class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                            <option value="">Select parent task</option>
+                                            <template x-for="t in meta.tasks" :key="t.id">
+                                                <option :value="t.id" x-text="t.title"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+
+                                    <div x-show="type === 'task'" x-cloak class="flex gap-2 rounded-xl bg-[var(--color-primary-soft)] p-3 text-xs text-[var(--color-heading)]">
+                                        <svg class="h-4 w-4 shrink-0 text-[var(--color-primary)]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5m0-8h.01"/></svg>
+                                        You can break down larger tasks into subtasks after creating this task.
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex justify-end gap-2 pt-2">
-                                <button type="button" @click="addOpen = false" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
-                                <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Task</button>
+
+                            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-6 py-4">
+                                <label class="flex cursor-pointer items-center gap-2 text-sm text-[var(--color-heading)]">
+                                    <input type="checkbox" name="create_another" value="1" class="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                                    Create Another
+                                </label>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="addOpen = false" class="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-semibold text-[var(--color-muted)] transition hover:bg-gray-50">Cancel</button>
+                                    <button :disabled="submitting || !projectId"
+                                            class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)] disabled:opacity-60">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+                                        <span x-text="submitting ? 'Creating...' : 'Create Task'">Create Task</span>
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
+
+            <style>
+                .task-modal-side { border-top-width: 1px; }
+                @media (min-width: 1024px) { .task-modal-side { border-top-width: 0; border-left-width: 1px; } }
+            </style>
+
+            <script>
+                function globalTaskForm(meta, nextId, meId, preselected) {
+                    return {
+                        all: meta,
+                        projectId: preselected || '',
+                        title: @js(old('title', '')),
+                        labels: [], labelDraft: '',
+                        assignee: '', type: 'task', status: '',
+                        submitting: false,
+                        get meta() { return this.all[this.projectId] || { code: '', columns: [], milestones: [], tasks: [] }; },
+                        get taskCode() { return this.meta.code ? this.meta.code + '-' + nextId : ''; },
+                        init() { if (this.projectId) this.onProject(); },
+                        onProject() {
+                            // Columns, milestones and parent tasks all belong to the chosen project.
+                            this.status = this.meta.columns[0]?.key || '';
+                        },
+                        addLabel(value) {
+                            const v = (value ?? this.labelDraft).trim().replace(/,$/, '');
+                            if (v && !this.labels.includes(v) && this.labels.length < 12) this.labels.push(v);
+                            this.labelDraft = '';
+                        },
+                    };
+                }
+            </script>
         @endif
     </div>
 @endsection

@@ -36,7 +36,7 @@
 
     {{-- Revenue area chart + activity --}}
     <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 lg:col-span-2">
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 lg:col-span-2">
             <div class="flex items-center justify-between">
                 <div>
                     <h3 class="font-semibold text-gray-800">Revenue Overview</h3>
@@ -44,10 +44,10 @@
                 </div>
                 <span class="rounded-lg bg-[var(--color-brand-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-brand)]">12 months</span>
             </div>
-            <div id="revChart" class="mt-4 -ml-2"></div>
+            <div id="revChart" class="mt-4 -ml-2 min-w-0"></div>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
             <h3 class="font-semibold text-gray-800">Order Activity</h3>
             <div class="mt-4 grid grid-cols-2 gap-4">
                 @foreach (['today' => 'Today', 'week' => 'This week', 'month' => 'This month', 'pending' => 'Pending'] as $k => $lbl)
@@ -62,14 +62,14 @@
 
     {{-- Orders bar + status donut --}}
     <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 lg:col-span-2">
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 lg:col-span-2">
             <h3 class="font-semibold text-gray-800">Orders per Month</h3>
-            <div id="ordChart" class="mt-4 -ml-2"></div>
+            <div id="ordChart" class="mt-4 -ml-2 min-w-0"></div>
         </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
             <h3 class="font-semibold text-gray-800">Orders by Status</h3>
             @if ($statuses->sum() > 0)
-                <div id="statusChart" class="mt-2"></div>
+                <div id="statusChart" class="mt-2 min-w-0"></div>
                 <ul class="mt-4 space-y-2">
                     @foreach ($statuses as $st => $c)
                         <li class="flex items-center justify-between text-sm">
@@ -86,7 +86,7 @@
 
     {{-- Recent orders + top products --}}
     <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="rounded-2xl border border-gray-200 bg-white lg:col-span-2">
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white lg:col-span-2">
             <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                 <h3 class="font-semibold text-gray-800">Recent Orders</h3>
                 <a href="{{ route('admin.orders.index') }}" class="text-sm font-semibold text-[var(--color-brand)] hover:underline">View all</a>
@@ -112,7 +112,7 @@
             </div>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
             <h3 class="font-semibold text-gray-800">Top Products</h3>
             <ul class="mt-4 space-y-4">
                 @forelse ($topProducts as $tp)
@@ -135,7 +135,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const series = @json($series);
             const brand = '#465fff';
-            const baseOpts = { chart: { fontFamily: 'inherit', toolbar: { show: false } }, grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }, dataLabels: { enabled: false }, xaxis: { categories: series.labels, axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#9ca3af' } } }, yaxis: { labels: { style: { colors: '#9ca3af' } } }, tooltip: { theme: 'light' } };
+            const baseOpts = { chart: { fontFamily: 'inherit', width: '100%', toolbar: { show: false }, parentHeightOffset: 0, redrawOnParentResize: true }, grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }, dataLabels: { enabled: false }, xaxis: { categories: series.labels, axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#9ca3af' } } }, yaxis: { labels: { style: { colors: '#9ca3af' } } }, tooltip: { theme: 'light' } };
 
             if (window.ApexCharts) {
                 new ApexCharts(document.querySelector('#revChart'), {
@@ -157,7 +157,7 @@
                     const colorMap = @json($statusColors);
                     const labels = Object.keys(st);
                     new ApexCharts(el, {
-                        chart: { type: 'donut', height: 240, fontFamily: 'inherit' },
+                        chart: { type: 'donut', height: 240, width: '100%', fontFamily: 'inherit', redrawOnParentResize: true },
                         labels, series: Object.values(st).map(Number),
                         colors: labels.map(l => colorMap[l] || '#94a3b8'),
                         legend: { show: false }, dataLabels: { enabled: false },
@@ -165,6 +165,9 @@
                         stroke: { width: 0 },
                     }).render();
                 }
+
+                // Apex can measure before the grid has settled — nudge it once the layout is final.
+                requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
             }
         });
     </script>

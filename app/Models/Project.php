@@ -271,10 +271,11 @@ class Project extends Model
         return $this->deadline && $this->deadline->isPast() && ! in_array($this->status, self::CLOSED_STATUSES, true);
     }
 
-    public function log(string $action, string $description, ?int $userId = null): void
+    public function log(string $action, string $description, ?int $userId = null, ?int $taskId = null): void
     {
         $this->activities()->create([
             'user_id' => $userId ?? auth()->id(),
+            'task_id' => $taskId,
             'action' => $action,
             'description' => mb_substr($description, 0, 500),
         ]);

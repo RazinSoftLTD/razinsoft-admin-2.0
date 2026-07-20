@@ -1,17 +1,12 @@
 @php
+    $canStatus = $me->allows('tasks', 'status');
+    $canDelete = $me->allows('tasks', 'delete');
     $statusOptions = $project->statusOptions();
     $colColor = $project->columns->pluck('color', 'key')->all();
     $priorityBadge = ['low' => 'bg-gray-100 text-gray-500', 'medium' => 'bg-amber-50 text-amber-600', 'high' => 'bg-orange-50 text-orange-600', 'urgent' => 'bg-red-50 text-red-600'];
 @endphp
 
-<div x-data="{ addOpen: false }">
-    @if ($canEdit)
-        <div class="mb-4 flex justify-end">
-            <button type="button" @click="addOpen = true" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Task
-            </button>
-        </div>
-    @endif
+<div>
 
     @if ($tasks->isEmpty())
         <div class="rounded-xl border border-dashed border-gray-200 py-16 text-center">
@@ -60,33 +55,53 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3.5">
+                                @php $sc = $colColor[$task->status] ?? '#94a3b8'; @endphp
                                 @if ($canEdit)
-                                    <form method="POST" action="{{ route('admin.tasks.status', $task) }}" data-turbo="false">
+                                    <form method="POST" action="{{ route('admin.tasks.status', $task) }}" data-turbo="false" class="relative inline-flex">
                                         @csrf
-                                        <div class="relative inline-flex items-center">
-                                            <span class="pointer-events-none absolute left-2.5 h-2 w-2 rounded-full" style="background: {{ $colColor[$task->status] ?? '#94a3b8' }};"></span>
-                                            <select name="status" onchange="this.form.submit()" class="h-8 rounded-lg border-gray-200 pl-6 pr-7 text-xs font-medium text-[var(--color-heading)]">
-                                                @foreach ($statusOptions as $k => $v)<option value="{{ $k }}" @selected($task->status === $k)>{{ $v }}</option>@endforeach
-                                            </select>
-                                        </div>
+                                        <span class="pointer-events-none absolute left-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full" style="background: {{ $sc }}"></span>
+                                        <select name="status" onchange="this.form.submit()"
+                                                class="h-8 cursor-pointer appearance-none rounded-full border-0 pl-7 pr-7 text-xs font-semibold focus:ring-2"
+                                                style="background: {{ $sc }}1a; color: {{ $sc }}">
+                                            @foreach ($statusOptions as $k => $v)<option value="{{ $k }}" @selected($task->status === $k)>{{ $v }}</option>@endforeach
+                                        </select>
+                                        <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+                                            <svg class="h-3 w-3" style="color: {{ $sc }}" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                        </span>
                                     </form>
                                 @else
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-heading)]"><span class="h-2 w-2 rounded-full" style="background: {{ $colColor[$task->status] ?? '#94a3b8' }};"></span>{{ $statusOptions[$task->status] ?? $task->status }}</span>
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold" style="background: {{ $sc }}1a; color: {{ $sc }}">
+                                        <span class="h-2 w-2 rounded-full" style="background: {{ $sc }}"></span>{{ $statusOptions[$task->status] ?? $task->status }}
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-4 py-3.5 text-right">
-                                <div class="inline-flex items-center gap-1">
-                                    <a href="{{ route('admin.tasks.show', $task) }}" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Open">
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    </a>
-                                    @if ($me->allows('projects', 'delete'))
-                                        <form method="POST" action="{{ route('admin.tasks.destroy', $task) }}" data-turbo="false" onsubmit="return confirm('Delete this task?')">
-                                            @csrf @method('DELETE')
-                                            <button class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500" title="Delete">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m3 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7"/></svg>
-                                            </button>
-                                        </form>
-                                    @endif
+                                <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false">
+                                    <button type="button" @click="open = !open" title="Actions"
+                                            class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+                                    </button>
+                                    <div x-show="open" x-cloak class="absolute right-0 z-30 mt-1.5 w-36 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 text-left shadow-lg">
+                                        <a href="{{ route('admin.tasks.show', $task) }}" class="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50">
+                                            <svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            View
+                                        </a>
+                                        @if ($canEdit)
+                                            <a href="{{ route('admin.tasks.show', $task) }}?edit=1" class="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[var(--color-heading)] hover:bg-gray-50">
+                                                <svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.9 4.5a2.1 2.1 0 0 1 3 3L8 19.5l-4 1 1-4L16.9 4.5Z"/></svg>
+                                                Edit
+                                            </a>
+                                        @endif
+                                        @if ($canDelete ?? $me->allows('tasks', 'delete'))
+                                            <form method="POST" action="{{ route('admin.tasks.destroy', $task) }}" data-turbo="false" onsubmit="return confirm('Delete “{{ $task->title }}”?')">
+                                                @csrf @method('DELETE')
+                                                <button class="flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">
+                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5h6v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7"/></svg>
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                             </td>
                         </tr>

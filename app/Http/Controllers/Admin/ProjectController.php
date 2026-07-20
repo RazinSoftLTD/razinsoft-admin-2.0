@@ -108,18 +108,26 @@ class ProjectController extends Controller
         $project->load('columns');
         $tab = $request->query('tab', 'overview');
         // The Settings tab (per-project permissions, columns, requirements) is manager-only.
-        $allowed = ['overview', 'tasks', 'board', 'milestones', 'files', 'members', 'activity'];
-        if ($project->needs_requirements) {
+        $user = $request->user();
+        $allowed = ['overview', 'tasks', 'board', 'activity'];
+        foreach (['milestones', 'files', 'members'] as $section) {
+            if ($user->allows('projects', $section)) {
+                $allowed[] = $section;
+            }
+        }
+        if ($project->needs_requirements && $user->allows('projects', 'prd')) {
             $allowed[] = 'prd';
         }
-        if ($project->time_tracking) {
+        if ($project->time_tracking && $user->allows('tasks', 'time')) {
             $allowed[] = 'time';
         }
-        if ($request->user()->allows('projects', 'edit')) {
+        if ($user->allows('projects', 'settings')) {
             $allowed[] = 'settings';
         }
         $tab = in_array($tab, $allowed, true) ? $tab : 'overview';
-        $tasks = $project->tasks()->with(['assignee:id,name,photo', 'milestone:id,title', 'subtasks.assignee:id,name,photo'])->get();
+        // Newest task first — the manual sort_order still wins when it has been set.
+        $tasks = $project->tasks()->with(['assignee:id,name,photo', 'milestone:id,title', 'subtasks.assignee:id,name,photo'])
+            ->reorder()->orderBy('sort_order')->orderByDesc('id')->get();
 
         return view('admin.projects.show', [
             'project' => $project,

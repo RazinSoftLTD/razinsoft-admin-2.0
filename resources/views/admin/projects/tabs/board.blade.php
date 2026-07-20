@@ -6,32 +6,40 @@
 @endphp
 
 <div x-data="{ addOpen: false, addStatus: '{{ $firstKey }}', colsOpen: false }" @open-columns.window="colsOpen = true">
-    {{-- Kanban — columns scroll vertically inside, so the horizontal scrollbar sits at the bottom --}}
-    <div x-data="taskBoard()" class="flex gap-4 overflow-x-auto pb-2">
+    <div>
+        {{-- Kanban — columns scroll vertically inside, so the horizontal scrollbar sits at the bottom --}}
+        <div class="kanban-scroll flex gap-4 overflow-x-auto pb-3">
         @foreach ($columns as $col)
             @php $items = $byStatus->get($col->key, collect()); @endphp
-            <div class="w-72 shrink-0" data-col="{{ $col->key }}">
+            <div class="w-72 shrink-0" data-col="{{ $col->key }}" x-show="visible('{{ $col->key }}')" x-cloak>
                 {{-- Colored header --}}
                 <div class="mb-2 flex items-center justify-between rounded-lg px-3 py-2.5" style="background: {{ $col->color }}1a;">
                     <span class="flex items-center gap-2 text-sm font-bold" style="color: {{ $col->color }};">
                         <span class="h-2.5 w-2.5 rounded-full" style="background: {{ $col->color }};"></span>{{ $col->name }}
                         <span data-count class="rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold">{{ $items->count() }}</span>
                     </span>
-                    @if ($col->is_done)<span class="text-[10px] font-bold uppercase" style="color: {{ $col->color }};">Done</span>@endif
+                    <span class="flex items-center gap-1.5">
+                        @if ($col->is_done)<span class="text-[10px] font-bold uppercase" style="color: {{ $col->color }};">Done</span>@endif
+                        <button type="button" @click="toggle('{{ $col->key }}')" title="Hide this column"
+                                class="grid h-6 w-6 place-items-center rounded text-gray-400 transition hover:bg-gray-50 hover:text-[var(--color-heading)]">
+                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.2A9.7 9.7 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3 3.9M6.2 6.2A17 17 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 4-.8"/></svg>
+                        </button>
+                    </span>
                 </div>
                 <div data-dropzone="{{ $col->key }}" @dragover.prevent @dragenter.prevent="$el.classList.add('ring-2')" @dragleave="$el.classList.remove('ring-2')" @drop="drop($event, '{{ $col->key }}')"
                      class="max-h-[calc(100vh-22rem)] min-h-[9rem] space-y-2 overflow-y-auto rounded-xl p-2 transition ring-[var(--color-primary)]" style="background: {{ $col->color }}0d;">
                     @foreach ($items as $task)
                         <div draggable="{{ $canEdit ? 'true' : 'false' }}" @if ($canEdit) @dragstart="dragStart($event, {{ $task->id }})" @dragend="dragEnd($event)" @endif
                              data-task="{{ $task->id }}"
-                             class="rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:shadow {{ $canEdit ? 'cursor-grab active:cursor-grabbing' : '' }}">
+                             @click="openTask($event, @js(route('admin.tasks.show', $task)))"
+                             class="group cursor-pointer rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:border-[var(--color-primary)] hover:shadow">
                             <div class="flex items-start justify-between gap-2">
-                                <a href="{{ route('admin.tasks.show', $task) }}" class="text-sm font-semibold leading-snug text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $task->title }}</a>
+                                <span class="text-sm font-semibold leading-tight text-[var(--color-heading)] transition group-hover:text-[var(--color-primary)]">{{ $task->title }}</span>
                                 <span class="mt-1 h-2 w-2 shrink-0 rounded-full {{ $priDot[$task->priority] ?? 'bg-gray-300' }}" title="{{ ucfirst($task->priority) }}"></span>
                             </div>
                             <p class="mt-1 text-[10px] font-semibold text-gray-300">{{ $task->code() }}</p>
                             @if ($task->milestone)<span class="mt-1.5 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">{{ $task->milestone->title }}</span>@endif
-                            <div class="mt-2.5 flex items-center justify-between text-[11px] text-gray-400">
+                            <div class="mt-3 flex items-center justify-between text-[11px] text-gray-400">
                                 <span class="inline-flex items-center gap-1 {{ $task->isOverdue() ? 'font-semibold text-red-500' : '' }}">
                                     @if ($task->due_date)
                                         <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path stroke-linecap="round" d="M3 9h18M8 3v4M16 3v4"/></svg>
@@ -64,6 +72,7 @@
                 </button>
             </div>
         @endif
+        </div>
     </div>
 
     @if ($canEdit)
@@ -120,13 +129,44 @@
     @endif
 </div>
 
+<style>
+    /* Slim horizontal scrollbar for the board instead of the browser's full-width default. */
+    .kanban-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+    .kanban-scroll::-webkit-scrollbar { height: 8px; }
+    .kanban-scroll::-webkit-scrollbar-track { background: transparent; }
+    .kanban-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    .kanban-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
 <script>
-    function taskBoard() {
+    function taskBoard(keys, projectId) {
         return {
             dragId: null,
+            dragging: false,
+            keys: keys,
+            hidden: [],
+            storeKey: 'kanban-hidden:' + projectId,
+
+            init() {
+                try { this.hidden = JSON.parse(localStorage.getItem(this.storeKey)) || []; } catch (e) { this.hidden = []; }
+                // Drop keys for columns that no longer exist.
+                this.hidden = this.hidden.filter(k => this.keys.includes(k));
+            },
+            visible(key) { return !this.hidden.includes(key); },
+            toggle(key) {
+                this.hidden = this.visible(key) ? [...this.hidden, key] : this.hidden.filter(k => k !== key);
+                localStorage.setItem(this.storeKey, JSON.stringify(this.hidden));
+            },
+            showAll() { this.hidden = []; localStorage.removeItem(this.storeKey); },
+
+            /** Open the task, but never while dragging or when a control inside the card was clicked. */
+            openTask(e, url) {
+                if (this.dragging || e.target.closest('a, button, form, input, label')) return;
+                window.location = url;
+            },
+
             csrf: document.querySelector('meta[name="csrf-token"]').content,
-            dragStart(e, id) { this.dragId = id; e.dataTransfer.effectAllowed = 'move'; e.target.classList.add('opacity-40'); },
-            dragEnd(e) { e.target.classList.remove('opacity-40'); },
+            dragStart(e, id) { this.dragId = id; this.dragging = true; e.dataTransfer.effectAllowed = 'move'; e.target.classList.add('opacity-40'); },
+            dragEnd(e) { e.target.classList.remove('opacity-40'); setTimeout(() => this.dragging = false, 0); },
             drop(e, status) {
                 e.currentTarget.classList.remove('ring-2');
                 const card = document.querySelector('[data-task="' + this.dragId + '"]');

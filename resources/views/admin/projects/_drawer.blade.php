@@ -21,7 +21,7 @@
             <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusStyle[$project->status] ?? 'bg-gray-100 text-gray-500' }}">{{ \App\Models\Project::STATUSES[$project->status] ?? $project->status }}</span>
             <span class="rounded px-2 py-0.5 text-[10px] font-bold uppercase {{ $priorityBadge[$project->priority] ?? 'bg-gray-100 text-gray-500' }}">{{ $project->priority }}</span>
         </div>
-        <div class="mt-2.5 flex items-center gap-2">
+        <div class="mt-3 flex items-center gap-2">
             <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full {{ $progress >= 100 ? 'bg-emerald-500' : 'bg-[var(--color-primary)]' }}" style="width: {{ $progress }}%"></div></div>
             <span class="text-[11px] font-semibold text-gray-400">{{ $progress }}%</span>
         </div>

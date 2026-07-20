@@ -108,7 +108,7 @@
                                     <span class="absolute left-1 top-1 z-10 rounded-md bg-black/50 px-1.5 text-[10px] font-bold text-white">{{ $iLoop + 1 }}</span>
                                     <img src="{{ \App\Http\Resources\ProductResource::media($img->image) }}" class="h-20 w-full rounded-lg border border-gray-100 object-cover">
                                     {{-- Reorder: move earlier / later within the group --}}
-                                    <div class="absolute inset-x-1 bottom-1 flex justify-between opacity-0 transition-opacity group-hover:opacity-100">
+                                    <div class="absolute inset-x-1 bottom-1 flex justify-between opacity-0 transition-opacity group-hover:opacity-80">
                                         <form method="POST" action="{{ $move($img->id) }}">@csrf<input type="hidden" name="direction" value="up"><button {{ $iLoop === 0 ? 'disabled' : '' }} class="rounded-md bg-white/90 p-1 text-gray-700 shadow disabled:opacity-30" title="Move earlier"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6"/></svg></button></form>
                                         <form method="POST" action="{{ $move($img->id) }}">@csrf<input type="hidden" name="direction" value="down"><button {{ $iLoop === $g->images->count() - 1 ? 'disabled' : '' }} class="rounded-md bg-white/90 p-1 text-gray-700 shadow disabled:opacity-30" title="Move later"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg></button></form>
                                     </div>

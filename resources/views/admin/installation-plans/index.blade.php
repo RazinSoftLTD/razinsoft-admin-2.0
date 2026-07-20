@@ -1,7 +1,15 @@
 @extends('admin.layouts.app')
 @section('title', 'Installation Plans')
 
-@php $canEdit = auth()->user()->allows('products', 'edit'); @endphp
+@php
+    $me = auth()->user();
+    $canCreate = $me->allows('installation_plans', 'create');
+    $canUpdate = $me->allows('installation_plans', 'edit');
+    $canDelete = $me->allows('installation_plans', 'delete');
+    $canCopy = $me->allows('installation_plans', 'copy');
+    // Anything that changes the page at all.
+    $canEdit = $canCreate || $canUpdate || $canDelete;
+@endphp
 
 @section('content')
     <div class="mb-6">
@@ -24,7 +32,7 @@
         <div class="rounded-xl border border-dashed border-gray-200 py-16 text-center"><p class="text-sm text-gray-400">No products yet. Create a product first.</p></div>
     @else
         {{-- Copy from another product --}}
-        @if ($canEdit && $products->where('id', '!=', $product->id)->where('installation_plans_count', '>', 0)->isNotEmpty())
+        @if ($canCopy && $products->where('id', '!=', $product->id)->where('installation_plans_count', '>', 0)->isNotEmpty())
             <div class="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-gray-200 bg-white p-4" x-data="{ open: false }">
                 <div class="flex-1">
                     <p class="text-sm font-semibold text-[var(--color-heading)]">Copy plans from another product</p>

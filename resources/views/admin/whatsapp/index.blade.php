@@ -291,7 +291,7 @@
                                          x-data="{ react: false, more: false }">
                                         @if ($canReply)
                                         {{-- Hover actions (react / edit / delete) — absolutely placed so they never shift the bubble --}}
-                                        <div class="absolute flex items-center gap-1 opacity-0 transition group-hover:opacity-100"
+                                        <div class="absolute flex items-center gap-1 opacity-0 transition group-hover:opacity-80"
                                              :style="(m.direction === 'out' ? 'right:100%;padding-right:.4rem;' : 'left:100%;padding-left:.4rem;') + 'top:50%;transform:translateY(-50%);z-index:20'"
                                              x-show="!m.deleted && editingId !== m.id">
                                             @if ($canReply)
@@ -373,7 +373,7 @@
                                         <template x-if="editingId === m.id">
                                             <div style="width:17rem; max-width:58vw;">
                                                 <textarea x-model="editDraft" rows="2" x-init="$nextTick(() => { $el.focus(); $el.setSelectionRange($el.value.length, $el.value.length); })" @keydown.enter.prevent="saveEdit(m)" @keydown.escape="editingId = null"
-                                                          class="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm leading-snug text-gray-800 shadow-inner focus:border-emerald-400 focus:ring-emerald-400"></textarea>
+                                                          class="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm leading-tight text-gray-800 shadow-inner focus:border-emerald-400 focus:ring-emerald-400"></textarea>
                                                 <div class="mt-1.5 flex items-center justify-end gap-2 text-xs">
                                                     <button type="button" @click="editingId = null" class="rounded-md px-2.5 py-1 font-medium text-gray-500 hover:bg-black/5">Cancel</button>
                                                     <button type="button" @click="saveEdit(m)" class="rounded-md bg-emerald-500 px-3 py-1 font-semibold text-white hover:bg-emerald-600">Save</button>

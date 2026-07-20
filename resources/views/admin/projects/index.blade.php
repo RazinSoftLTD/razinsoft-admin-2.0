@@ -115,7 +115,7 @@
                                         @csrf
                                         <div class="relative inline-flex items-center rounded-full {{ $statusPill[$project->status] ?? 'bg-gray-50 text-gray-500' }}">
                                             <span class="pointer-events-none absolute left-3 h-2 w-2 rounded-full {{ $statusDot[$project->status] ?? 'bg-gray-400' }}"></span>
-                                            <select name="status" onchange="this.form.submit()" style="color:inherit" class="h-8 cursor-pointer appearance-none rounded-full border-0 bg-transparent pl-7 pr-4 text-xs font-semibold focus:ring-1 focus:ring-[var(--color-primary)]">
+                                            <select name="status" onchange="this.form.submit()" style="color:inherit" class="h-8 cursor-pointer appearance-none rounded-full border-0 pl-7 pr-4 text-xs font-semibold focus:ring-1 focus:ring-[var(--color-primary)]">
                                                 @foreach (\App\Models\Project::STATUSES as $k => $v)<option value="{{ $k }}" @selected($project->status === $k)>{{ $v }}</option>@endforeach
                                             </select>
                                         </div>
@@ -178,7 +178,7 @@
                         @php
                             $statusOpts = array_merge(['all' => 'All', 'overdue' => 'Overdue'], \App\Models\Project::STATUSES);
                             $pillOn = 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-sm';
-                            $pillOff = 'border-gray-200 bg-white text-[var(--color-muted)] hover:border-gray-300 hover:bg-gray-50 hover:text-[var(--color-heading)]';
+                            $pillOff = 'border-gray-200 bg-white text-[var(--color-muted)] hover:border-gray-200 hover:bg-gray-50 hover:text-[var(--color-heading)]';
                             $pillBase = 'rounded-full border px-3 py-1.5 text-xs font-semibold transition';
                         @endphp
 
