@@ -50,6 +50,24 @@
                 <x-admin.field label="Hero alt" name="hero_alt" :value="$product->hero_alt" />
             </div>
             <x-admin.field label="Overview" name="overview" type="textarea" :rows="5" :value="$product->overview" />
+
+            {{-- "Try It Live" section background on the public product page --}}
+            <div x-data="{ color: @js($product->try_it_live_bg ?: '') }">
+                <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">“Try It Live” background</label>
+                <div class="flex flex-wrap items-center gap-3">
+                    <input type="color" :value="color || '#f8fafc'" @input="color = $event.target.value"
+                           class="h-10 w-14 cursor-pointer rounded-lg border border-gray-200 p-1">
+                    <input type="text" name="try_it_live_bg" x-model="color" maxlength="20"
+                           placeholder="#f8fafc (leave blank for default)"
+                           class="h-10 w-44 rounded-lg border border-gray-200 px-3 text-sm">
+                    <button type="button" @click="color = ''" x-show="color" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">Reset</button>
+                    <span class="ml-auto inline-flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-xs text-[var(--color-muted)]">
+                        Preview
+                        <span class="h-5 w-16 rounded" :style="`background: ${color || '#f8fafc'}`"></span>
+                    </span>
+                </div>
+                <p class="mt-1 text-xs text-[var(--color-muted)]">Colour behind the product page’s “Try It Live” cards. Blank = website default.</p>
+            </div>
         </div>
     </div>
 </div>

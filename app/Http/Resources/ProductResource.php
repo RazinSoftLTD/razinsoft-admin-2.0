@@ -39,6 +39,7 @@ class ProductResource extends JsonResource
             'hero_image' => self::media($this->hero_image),
             'hero_alt' => $this->hero_alt ?: $this->name,
             'overview' => $this->overview,
+            'try_it_live_bg' => $this->try_it_live_bg,
             'demo' => [
                 'live' => $this->live_demo_url,
                 'admin' => $this->admin_demo_url,

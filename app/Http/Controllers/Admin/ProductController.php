@@ -149,6 +149,7 @@ class ProductController extends Controller
             'thumbnail_alt' => ['nullable', 'string', 'max:255'],
             'hero_alt' => ['nullable', 'string', 'max:255'],
             'overview' => ['nullable', 'string'],
+            'try_it_live_bg' => ['nullable', 'string', 'max:20', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
             'thumbnail' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('product')],
             'hero_image' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('product')],
         ], [
