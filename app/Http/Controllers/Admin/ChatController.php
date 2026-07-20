@@ -274,7 +274,7 @@ class ChatController extends Controller
 
         // Sanitize the rich-text HTML (bold/italic/links/highlight) before it's stored & shown to others.
         $body = trim((string) $request->input('body'));
-        $body = $body !== '' ? clean($body) : null;
+        $body = $body !== '' ? \App\Support\Html::clean($body) : null;
 
         $path = $name = null;
         if ($request->hasFile('attachment')) {
@@ -375,7 +375,7 @@ class ChatController extends Controller
 
         $request->validate(['body' => ['required', 'string', 'max:20000']]);
         $body = trim((string) $request->input('body'));
-        $body = $body !== '' ? clean($body) : null;
+        $body = $body !== '' ? \App\Support\Html::clean($body) : null;
         if ($body === null || (strip_tags($body) === '' && ! str_contains($body, '<img'))) {
             return response()->json(['error' => 'Message cannot be empty.'], 422);
         }

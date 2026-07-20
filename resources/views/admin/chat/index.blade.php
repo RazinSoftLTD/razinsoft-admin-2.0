@@ -41,6 +41,16 @@
     <style>
         .chat-html a { text-decoration: underline; }
         .chat-html p { margin: 0; }
+        .chat-html blockquote { border-left: 3px solid rgba(0,0,0,.15); padding-left: .6rem; margin: .25rem 0; opacity: .85; }
+        .chat-html s, .chat-html strike { text-decoration: line-through; }
+        /* Rich composer */
+        .chat-composer:empty:before { content: attr(data-placeholder); color: #9ca3af; pointer-events: none; }
+        .chat-input-wrap:focus-within { --tw-ring-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary); }
+        .chat-composer ul, .chat-composer ol { margin: .25rem 0; padding-left: 1.25rem; }
+        .chat-composer ul { list-style: disc; }
+        .chat-composer ol { list-style: decimal; }
+        .chat-composer blockquote { border-left: 3px solid #e5e7eb; padding-left: .6rem; color: #6b7280; }
+        .chat-composer a { color: var(--color-primary); text-decoration: underline; }
         .chat-html ul, .chat-html ol { margin: .25rem 0; padding-left: 1.25rem; }
         .chat-html ul { list-style: disc; }
         .chat-html ol { list-style: decimal; }
@@ -384,12 +394,40 @@
         }
         document.addEventListener('click', function (e) { if (emojiPop && !emojiPop.contains(e.target) && !e.target.closest('[data-act="react"]')) closeEmoji(); });
 
-        // WhatsApp-style plain composer (auto-grow textarea, Enter to send, Shift+Enter = newline).
+        // Rich composer (contenteditable + formatting toolbar). Enter to send, Shift+Enter = newline.
         const input = document.getElementById('chat-input');
-        const autoGrow = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 160) + 'px'; };
-        const textToHtml = (t) => esc(t).replace(/\n/g, '<br>');
+        const autoGrow = () => {};                                   // contenteditable grows on its own
+        const textToHtml = (t) => esc(t).replace(/\n/g, '<br>');    // still used for the edit PATCH path
         const htmlToText = (h) => { const d = document.createElement('div'); d.innerHTML = (h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li)>/gi, '\n'); return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim(); };
-        input.addEventListener('input', autoGrow);
+        // Read/write the editor uniformly (replaces the old textarea .value calls).
+        const getHtml = () => { const h = input.innerHTML.trim(); return (h === '<br>' || h === '<div><br></div>') ? '' : h; };
+        const getText = () => (input.textContent || '').trim();
+        const setHtml = (h) => { input.innerHTML = h || ''; };
+        const clearInput = () => { input.innerHTML = ''; };
+        // Toolbar buttons.
+        const toolbar = input.closest('.flex-1')?.querySelector('[data-fmt]')?.parentElement;
+        if (toolbar) toolbar.addEventListener('mousedown', function (e) {
+            const btn = e.target.closest('[data-fmt]'); if (!btn) return;
+            e.preventDefault();                                       // keep the caret in the editor
+            input.focus();
+            const cmd = btn.dataset.fmt;
+            if (cmd === 'createLink') {
+                const url = prompt('Link URL (https://…)');
+                if (url && /^(https?:\/\/|mailto:)/i.test(url)) document.execCommand('createLink', false, url);
+            } else if (cmd === 'blockquote') {
+                document.execCommand('formatBlock', false, 'blockquote');
+            } else {
+                document.execCommand(cmd, false, null);
+            }
+        });
+        // Paste as plain text so foreign markup never enters the composer.
+        input.addEventListener('paste', function (e) {
+            const items = (e.clipboardData && e.clipboardData.items) ? e.clipboardData.items : [];
+            for (const it of items) { if (it.kind === 'file' && it.type.indexOf('image/') === 0) return; }
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+            document.execCommand('insertText', false, text);
+        });
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
         });
@@ -400,7 +438,6 @@
                 if (it.kind === 'file' && it.type.indexOf('image/') === 0) {
                     const file = it.getAsFile();
                     if (!file) continue;
-                    e.preventDefault();
                     const ext = (file.type.split('/')[1] || 'png');
                     const named = new File([file], (file.name && file.name !== 'image.png') ? file.name : ('pasted-' + Date.now() + '.' + ext), { type: file.type });
                     const dt = new DataTransfer(); dt.items.add(named); fileInput.files = dt.files;
@@ -595,13 +632,13 @@
         const editBanner = document.getElementById('chat-edit-banner');
         function startEdit(id, html) {
             editingId = id;
-            input.value = htmlToText(html || '');
+            setHtml(html || '');
             editBanner.classList.remove('hidden'); editBanner.classList.add('flex');
-            input.focus(); autoGrow();
+            input.focus();
         }
         function cancelEdit() {
             editingId = null;
-            input.value = ''; autoGrow();
+            clearInput();
             editBanner.classList.add('hidden'); editBanner.classList.remove('flex');
         }
         document.getElementById('chat-edit-cancel').addEventListener('click', cancelEdit);
@@ -622,7 +659,7 @@
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            const hasText = input.value.trim().length > 0;
+            const hasText = getText().length > 0;
 
             // Editing an existing message → PATCH (text only, within the 1-hour window).
             if (editingId) {
@@ -631,7 +668,7 @@
                 fetch(DEL_BASE + '/' + id, {
                     method: 'PATCH',
                     headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ body: textToHtml(input.value) }),
+                    body: JSON.stringify({ body: getHtml() }),
                 }).then(r => r.json()).then(d => {
                     if (d.error) { window.Razin.toast(d.error); return; }
                     updateBody(id, d.body);
@@ -642,17 +679,17 @@
 
             const hasFile = fileInput.files.length > 0;
             if (!hasText && !hasFile) return;
-            const sentPreview = input.value.trim() || (hasFile ? '📎 ' + (fileInput.files[0]?.name || 'Attachment') : '');
+            const sentPreview = getText() || (hasFile ? '📎 ' + (fileInput.files[0]?.name || 'Attachment') : '');
             const fd = new FormData();
             fd.append('_token', CSRF);
-            fd.append('body', hasText ? textToHtml(input.value) : '');
+            fd.append('body', hasText ? getHtml() : '');
             if (hasFile) fd.append('attachment', fileInput.files[0]);
             if (replyToId) fd.append('reply_to_id', replyToId);
             fetch(STORE_URL, { method: 'POST', headers: { 'Accept': 'application/json' }, body: fd })
                 .then(r => r.json())
                 .then(d => {
                     if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at, quoted: d.quoted, reactions: d.reactions });
-                    input.value = ''; autoGrow(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
+                    clearInput(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
                     cancelReply();
                     // My own message → bump this conversation to the top of the left list (no unread).
                     if (window.Razin.bumpConversation) window.Razin.bumpConversation({

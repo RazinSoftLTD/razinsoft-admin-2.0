@@ -161,8 +161,33 @@
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
                 <input type="file" id="chat-file" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv">
             </label>
-            <textarea id="chat-input" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
-                      class="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-sm leading-5 text-gray-800 shadow-sm outline-none ring-1 ring-gray-200 transition focus:ring-2 focus:ring-[var(--color-primary)]"></textarea>
+            <div class="chat-input-wrap flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-200">
+                {{-- Formatting toolbar --}}
+                <div class="flex flex-wrap items-center gap-0.5 border-b border-gray-100 px-2 py-1">
+                    @php
+                        $tools = [
+                            ['bold', 'Bold', 'M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z'],
+                            ['italic', 'Italic', 'M14 4h-4M14 20h-4M15 4 9 20'],
+                            ['underline', 'Underline', 'M7 4v7a5 5 0 0 0 10 0V4M5 21h14'],
+                            ['strikeThrough', 'Strikethrough', 'M4 12h16M8 7a4 4 0 0 1 8 0M8 17a4 4 0 0 0 8 0'],
+                            ['insertUnorderedList', 'Bulleted list', 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01'],
+                            ['insertOrderedList', 'Numbered list', 'M10 6h10M10 12h10M10 18h10M4 6h2m-2 6h2m-2 6h2'],
+                            ['blockquote', 'Quote', 'M7 7h4v6H7zM13 7h4v6h-4zM7 13c0 2 1 3 3 4M13 13c0 2 1 3 3 4'],
+                        ];
+                    @endphp
+                    @foreach ($tools as [$cmd, $label, $icon])
+                        <button type="button" data-fmt="{{ $cmd }}" title="{{ $label }}" tabindex="-1"
+                                class="grid h-7 w-7 place-items-center rounded text-gray-500 transition hover:bg-gray-100 hover:text-gray-800">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
+                        </button>
+                    @endforeach
+                    <button type="button" data-fmt="createLink" title="Add link" tabindex="-1" class="grid h-7 w-7 place-items-center rounded text-gray-500 transition hover:bg-gray-100 hover:text-gray-800">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+                    </button>
+                </div>
+                <div id="chat-input" contenteditable="true" data-placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
+                     class="chat-composer overflow-y-auto px-4 py-3 text-sm leading-5 text-gray-800 outline-none" style="max-height:10rem;min-height:2.75rem"></div>
+            </div>
             <button type="submit" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
             </button>
