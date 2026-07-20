@@ -47,17 +47,11 @@
                     Only the <strong>“View and search Envato sites”</strong> permission is needed. Stored encrypted.
                 </p>
 
-                <label class="mt-4 flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-gray-200 p-4">
-                    <span>
-                        <span class="block text-sm font-semibold text-[var(--color-heading)]">Daily auto-sync</span>
-                        <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Runs at 04:00 and records the daily numbers — this is what builds the sales trend.</span>
-                    </span>
-                    <span class="relative mt-0.5 inline-flex shrink-0">
-                        <input type="checkbox" name="auto_sync" value="1" x-model="sync" class="peer sr-only">
-                        <span class="h-6 w-11 rounded-full bg-gray-200 transition peer-checked:bg-[var(--color-primary)]"></span>
-                        <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition" :class="sync ? 'translate-x-5' : ''"></span>
-                    </span>
-                </label>
+                <div class="mt-4">
+                    <x-admin.toggle name="auto_sync" :checked="(bool) $settings->auto_sync"
+                                    label="Daily auto-sync"
+                                    hint="Runs at 04:00 and records the daily numbers — this is what builds the sales trend." />
+                </div>
 
                 <button class="mt-4 rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save &amp; verify</button>
             </form>

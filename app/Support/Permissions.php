@@ -113,7 +113,7 @@ class Permissions
         // Product & installation-plan operations.
         'clone' => 'Duplicate product', 'relations' => 'Manage related content', 'copy' => 'Copy from another product',
         // Project & task sections.
-        'members' => 'Members', 'milestones' => 'Milestones', 'files' => 'Files', 'prd' => 'PRD / Requirements',
+        'members' => 'Members', 'milestones' => 'Milestones', 'files' => 'Files', 'prd' => 'PDR (Project Development Requirements)',
         'columns' => 'Board columns', 'status' => 'Move on board', 'comments' => 'Comments',
         'attachments' => 'Attachments', 'time' => 'Time tracking', 'subtasks' => 'Subtasks',
         // Activity log pages.

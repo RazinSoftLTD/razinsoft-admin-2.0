@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $project->name }} — Project Requirements</title>
+    <title>{{ $project->name }} — Project Development Requirements</title>
     <meta name="robots" content="noindex, nofollow">
     @vite(['resources/css/app.css'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
@@ -13,7 +13,7 @@
 
     {{-- Header --}}
     <div class="mb-6">
-        <p class="text-sm font-semibold text-[var(--color-primary)]">Project Requirements</p>
+        <p class="text-sm font-semibold text-[var(--color-primary)]" title="Project Development Requirements">Project Development Requirements</p>
         <h1 class="mt-1 text-2xl font-bold text-[var(--color-heading)]">{{ $project->name }}</h1>
         <p class="mt-1 text-sm text-[var(--color-muted)]">
             Please provide the information below. You can upload files or type the details — our team reviews each item after you submit.

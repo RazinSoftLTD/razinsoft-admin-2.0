@@ -127,6 +127,8 @@ class ProjectController extends Controller
         $tab = in_array($tab, $allowed, true) ? $tab : 'overview';
         // Newest task first — the manual sort_order still wins when it has been set.
         $tasks = $project->tasks()->with(['assignee:id,name,photo', 'milestone:id,title', 'subtasks.assignee:id,name,photo'])
+            // "My Tasks" on the Tasks tab narrows the list to the current user.
+            ->when($tab === 'tasks' && $request->boolean('mine'), fn ($q) => $q->where('assigned_to', $user->id))
             ->reorder()->orderBy('sort_order')->orderByDesc('id')->get();
 
         return view('admin.projects.show', [
@@ -350,7 +352,10 @@ class ProjectController extends Controller
     public function milestoneStore(Request $request, Project $project)
     {
         $data = $this->milestoneValidated($request);
-        $project->milestones()->create($data);
+        $taskIds = $data['task_ids'] ?? null;
+        unset($data['task_ids']);
+        $milestone = $project->milestones()->create($data);
+        $this->syncMilestoneTasks($project, $milestone, $taskIds);
         $project->log('milestone', 'Milestone “'.$data['title'].'” added.');
 
         return back()->with('status', 'Milestone added.');
@@ -361,7 +366,11 @@ class ProjectController extends Controller
         abort_if($milestone->project_id !== $project->id, 404);
         // A bare status flip comes from the list's toggle; a full payload from the edit modal.
         if ($request->has('title')) {
-            $milestone->update($this->milestoneValidated($request));
+            $data = $this->milestoneValidated($request);
+            $taskIds = $data['task_ids'] ?? null;
+            unset($data['task_ids']);
+            $milestone->update($data);
+            $this->syncMilestoneTasks($project, $milestone, $taskIds);
         } else {
             $milestone->update($request->validate(['status' => ['required', Rule::in(array_keys(ProjectMilestone::STATUSES))]]));
         }
@@ -728,6 +737,24 @@ class ProjectController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'cost' => ['nullable', 'numeric', 'min:0'],
+            'priority' => ['nullable', Rule::in(array_keys(ProjectMilestone::PRIORITIES))],
+            'color' => ['nullable', 'string', 'max:20'],
+            'icon' => ['nullable', Rule::in(array_keys(ProjectMilestone::ICONS))],
+            'task_ids' => ['nullable', 'array'],
+            'task_ids.*' => ['integer'],
         ]);
+    }
+
+    /** Point the chosen tasks at this milestone (and release the ones unticked). */
+    private function syncMilestoneTasks(Project $project, ProjectMilestone $milestone, ?array $ids): void
+    {
+        if ($ids === null) {
+            return;
+        }
+        $ids = array_filter(array_map('intval', $ids));
+        $project->allTasks()->where('milestone_id', $milestone->id)->whereNotIn('id', $ids)->update(['milestone_id' => null]);
+        if ($ids) {
+            $project->allTasks()->whereIn('id', $ids)->update(['milestone_id' => $milestone->id]);
+        }
     }
 }

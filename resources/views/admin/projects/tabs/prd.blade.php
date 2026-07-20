@@ -10,10 +10,10 @@
         <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-gray-50 text-gray-400">
             <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2M9 12h6M9 16h4"/></svg>
         </div>
-        <h3 class="mt-4 text-base font-semibold text-[var(--color-heading)]">No PRD sections yet</h3>
+        <h3 class="mt-4 text-base font-semibold text-[var(--color-heading)]">No PDR sections yet</h3>
         <p class="mx-auto mt-1 max-w-md text-sm text-[var(--color-muted)]">
             @if ($canEditProject)
-                Pick what this project needs under <a href="{{ route('admin.projects.show', $project) }}?tab=settings" class="font-semibold text-[var(--color-primary)] hover:underline">Settings → PRD / Requirements</a>.
+                Pick what this project needs under <a href="{{ route('admin.projects.show', $project) }}?tab=settings" class="font-semibold text-[var(--color-primary)] hover:underline">Settings → PDR</a>.
             @else
                 A project manager has not set up the requirement sections for this project.
             @endif

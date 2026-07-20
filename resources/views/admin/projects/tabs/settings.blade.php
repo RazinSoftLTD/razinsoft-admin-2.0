@@ -208,7 +208,7 @@
              x-data="{ on: {{ $project->time_tracking ? 'true' : 'false' }} }">
         <form method="POST" action="{{ route('admin.projects.settings.update', $project) }}">
             @csrf @method('PUT')
-            {{-- keep the PRD choices intact when saving from this card --}}
+            {{-- keep the PDR choices intact when saving from this card --}}
             <input type="hidden" name="needs_requirements" value="{{ $project->needs_requirements ? 1 : 0 }}">
             @foreach ($project->prdSectionKeys() as $k)
                 <input type="hidden" name="prd_sections[]" value="{{ $k }}">
@@ -228,17 +228,9 @@
             </div>
 
             <div class="p-6">
-                <label class="flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-gray-200 p-4">
-                    <span>
-                        <span class="block text-sm font-semibold text-[var(--color-heading)]">Enable time tracking</span>
-                        <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Members can log time on each task; totals show per task and for the whole project.</span>
-                    </span>
-                    <span class="relative mt-0.5 inline-flex shrink-0">
-                        <input type="checkbox" name="time_tracking" value="1" x-model="on" class="peer sr-only">
-                        <span class="h-6 w-11 rounded-full bg-gray-200 transition peer-checked:bg-[var(--color-primary)]"></span>
-                        <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition" :class="on ? 'translate-x-5' : ''"></span>
-                    </span>
-                </label>
+                <x-admin.toggle name="time_tracking" :checked="(bool) $project->time_tracking" x-model="on"
+                                label="Enable time tracking"
+                                hint="Members can log time on each task; totals show per task and for the whole project." />
 
                 @if ($project->time_tracking)
                     @php $logged = $project->totalMinutes(); @endphp
@@ -253,7 +245,7 @@
         </form>
     </section>
 
-    {{-- ===== PRD sections ===== --}}
+    {{-- ===== PDR sections ===== --}}
     @php $picked = $project->prdSectionKeys(); @endphp
     <section class="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2"
              x-data="{
@@ -275,24 +267,16 @@
             {{-- Header + Save --}}
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
                 <div>
-                    <h2 class="text-sm font-bold text-[var(--color-heading)]">PRD / Requirements</h2>
-                    <p class="text-xs text-[var(--color-muted)]">Tick what this project needs — only ticked items show on the PRD tab for upload.</p>
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]" title="Project Development Requirements">PDR <span class="font-normal text-[var(--color-muted)]">— Project Development Requirements</span></h2>
+                    <p class="text-xs text-[var(--color-muted)]">Tick what this project needs — only ticked items show on the PDR tab for upload.</p>
                 </div>
                 <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save</button>
             </div>
 
             <div class="p-6">
-                <label class="flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-gray-200 p-4">
-                    <span>
-                        <span class="block text-sm font-semibold text-[var(--color-heading)]">Collect a PRD for this project</span>
-                        <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Turn off to hide the PRD tab content entirely.</span>
-                    </span>
-                    <span class="relative mt-0.5 inline-flex shrink-0">
-                        <input type="checkbox" name="needs_requirements" value="1" x-model="on" class="peer sr-only">
-                        <span class="h-6 w-11 rounded-full bg-gray-200 transition peer-checked:bg-[var(--color-primary)]"></span>
-                        <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition" :class="on ? 'translate-x-5' : ''"></span>
-                    </span>
-                </label>
+                <x-admin.toggle name="needs_requirements" :checked="(bool) $project->needs_requirements" x-model="on"
+                                label="Collect a PDR for this project"
+                                hint="Turn off to hide the PDR tab content entirely." />
 
                 <div x-show="on" x-cloak>
                     {{-- Select all --}}

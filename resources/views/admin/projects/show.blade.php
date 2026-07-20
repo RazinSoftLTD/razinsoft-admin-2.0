@@ -30,7 +30,7 @@
         'milestones' => ['Milestones', 'M5 21V4m0 0h11l-1.5 3.5L16 11H5', $project->milestones->count()],
         'members'    => ['Members',    'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', $project->members->count()],
     ];
-    // PRD sits after Tasks, but only when Settings says this project collects one.
+    // PDR sits after Tasks, but only when Settings says this project collects one.
     // Time sits right after Tasks, only when the project tracks time.
     if ($project->time_tracking && $can['taskTime']) {
         $tabs = array_slice($tabs, 0, 3, true)
@@ -39,7 +39,7 @@
     }
     if ($project->needs_requirements && $can['prd']) {
         $tabs = array_slice($tabs, 0, 3, true)
-            + ['prd' => ['PRD', 'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2M9 12h6M9 16h4', null]]
+            + ['prd' => ['PDR', 'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM8 6H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-2M9 12h6M9 16h4', null]]
             + array_slice($tabs, 3, null, true);
     }
     if ($can['settings']) {
@@ -51,7 +51,7 @@
 @endphp
 
 @section('content')
-    <div @if ($tab === 'board') x-data="taskBoard(@js($project->columns->pluck('key')), '{{ $project->id }}')" x-init="init()" @elseif ($tab === 'tasks') x-data="{ addOpen: false }" @endif>
+    <div @if ($tab === 'board') x-data="taskBoard(@js($project->columns->pluck('key')), '{{ $project->id }}')" x-init="init()" @elseif (in_array($tab, ['tasks', 'milestones', 'members'], true)) x-data="{ addOpen: false }" @endif>
     {{-- Breadcrumb --}}
     <nav class="mb-2 flex items-center gap-2 text-sm text-[var(--color-muted)]">
         <a href="{{ route('admin.projects.index') }}" class="hover:text-[var(--color-heading)]">Projects</a>
@@ -86,10 +86,34 @@
             </form>
         </div>
 
-        @if ($tab === 'tasks' && $can['taskCreate'])
+        @if ($tab === 'tasks')
+            <div class="flex flex-wrap items-center gap-2">
+                {{-- Only the tasks assigned to me in this project --}}
+                <a href="{{ route('admin.projects.show', $project) }}?tab=tasks{{ request()->boolean('mine') ? '' : '&mine=1' }}"
+                   class="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition {{ request()->boolean('mine') ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50' }}">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M4.5 19.5a7.5 7.5 0 0 1 15 0"/></svg>
+                    My Tasks
+                </a>
+                @if ($can['taskCreate'])
+                    <button type="button" @click="addOpen = true"
+                            class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Task
+                    </button>
+                @endif
+            </div>
+        @endif
+
+        @if ($tab === 'milestones' && $can['milestones'])
             <button type="button" @click="addOpen = true"
                     class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Task
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Milestone
+            </button>
+        @endif
+
+        @if ($tab === 'members' && $can['members'])
+            <button type="button" @click="addOpen = true"
+                    class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Member
             </button>
         @endif
 
@@ -127,6 +151,7 @@
             @foreach ($tabs as $key => [$label, $icon, $count])
                 @php $on = $tab === $key; @endphp
                 <a href="{{ route('admin.projects.show', $project) }}?tab={{ $key }}"
+                   @if ($key === 'prd') title="Project Development Requirements" @endif
                    class="-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 pb-3 text-sm font-semibold transition {{ $on ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
                     <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
                     {{ $label }}

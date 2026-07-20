@@ -31,11 +31,16 @@ class TaskController extends Controller
         $status = $request->query('status', 'hide_completed');
         if ($status === 'hide_completed') {
             $q->whereNotIn('status', $closedKeys);
+        } elseif ($status === 'overdue') {
+            // Still open and past its due date — matches the Overdue stat card.
+            $q->whereNotIn('status', $closedKeys)->whereDate('due_date', '<', now());
         } elseif ($status !== '' && $status !== 'all') {
             $q->where('status', $status);
         }
 
-        if ($request->boolean('mine')) {
+        // Fresh visits land on "My Tasks"; the other cards pass mine=0 explicitly.
+        $mine = $request->has('mine') ? $request->boolean('mine') : true;
+        if ($mine) {
             $q->where('assigned_to', $user->id);
         }
         if ($projectId = $request->query('project')) {
@@ -69,6 +74,7 @@ class TaskController extends Controller
         return view('admin.tasks.index', [
             'tasks' => $q->orderByRaw('due_date IS NULL')->orderBy('due_date')->orderByDesc('id')->paginate(25)->withQueryString(),
             'stats' => $stats,
+            'mine' => $mine,
             'projects' => $visibleProjects = Project::query()->visibleTo($user)->orderBy('name')->get(['id', 'code', 'name']),
             // Board columns / milestones / parent tasks per project — the Add Task modal
             // swaps these when a different project is picked.

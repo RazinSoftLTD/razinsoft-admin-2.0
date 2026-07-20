@@ -18,64 +18,136 @@
                 <p class="mt-1 text-sm text-[var(--color-muted)]">Workspace &rsaquo; Tasks</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ request()->fullUrlWithQuery(['mine' => request()->boolean('mine') ? null : 1]) }}"
-                   class="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold {{ request()->boolean('mine') ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50' }}">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M4.5 19.5a7.5 7.5 0 0 1 15 0"/></svg>
-                    My Tasks
-                </a>
+                @php $hasFilters = request()->hasAny(['search', 'project', 'assignee', 'priority', 'from', 'to']) || request()->filled('status'); @endphp
                 @if ($canCreate)
                     <button type="button" @click="addOpen = true" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Task
                     </button>
                 @endif
+                <button type="button" @click="window.dispatchEvent(new CustomEvent('open-task-filters'))" title="Filters"
+                        class="relative grid h-11 w-11 place-items-center rounded-lg border border-gray-200 text-[var(--color-primary)] transition hover:bg-indigo-50">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M7 12h10M10 19h4"/></svg>
+                    @if ($hasFilters)<span class="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-[var(--color-primary)]"></span>@endif
+                </button>
             </div>
         </div>
 
-        {{-- Stats --}}
+        {{-- Stats — each card is a filter --}}
+        @php
+            $st = request('status', 'hide_completed');
+            $cards = [
+                ['My Tasks', $stats['mine'], 'text-emerald-700', ['mine' => 1, 'status' => 'hide_completed'], $mine && $st !== 'overdue'],
+                ['Open Task', $stats['open'], 'text-blue-700', ['mine' => 0, 'status' => 'hide_completed'], ! $mine && $st === 'hide_completed'],
+                ['Overdue', $stats['overdue'], 'text-red-600', ['mine' => 0, 'status' => 'overdue'], ! $mine && $st === 'overdue'],
+                ['Total Tasks', $stats['total'], 'text-[var(--color-heading)]', ['mine' => 0, 'status' => 'all'], ! $mine && $st === 'all'],
+            ];
+        @endphp
         <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            @foreach ([['Total Tasks', $stats['total'], 'text-[var(--color-heading)]'], ['Open', $stats['open'], 'text-blue-700'], ['Overdue', $stats['overdue'], 'text-red-600'], ['My Open Tasks', $stats['mine'], 'text-emerald-700']] as [$label, $value, $tone])
-                <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            @foreach ($cards as [$label, $value, $tone, $params, $active])
+                <a href="{{ route('admin.tasks.index') }}?{{ http_build_query($params) }}"
+                   class="rounded-xl border bg-white p-4 shadow-sm transition hover:shadow {{ $active ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]' : 'border-gray-100 hover:border-gray-200' }}">
                     <p class="text-xs font-medium text-[var(--color-muted)]">{{ $label }}</p>
                     <p class="mt-1 text-2xl font-bold {{ $tone }}">{{ $value }}</p>
-                </div>
+                </a>
             @endforeach
         </div>
 
-        {{-- Filters --}}
-        <form method="GET" class="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-            @if (request()->boolean('mine'))<input type="hidden" name="mine" value="1">@endif
-            <div class="flex items-center gap-1.5 text-sm">
-                <span class="text-xs font-semibold text-[var(--color-muted)]">Due</span>
-                <input type="date" name="from" value="{{ request('from') }}" class="h-10 rounded-lg border-gray-200 text-sm">
-                <span class="text-gray-300">→</span>
-                <input type="date" name="to" value="{{ request('to') }}" class="h-10 rounded-lg border-gray-200 text-sm">
+        {{-- ===== Filters drawer (right side) ===== --}}
+        <div x-data="{ open: false }" x-cloak @open-task-filters.window="open = true" @keydown.escape.window="open = false">
+            <div class="fixed inset-0 z-50" :class="open ? '' : 'pointer-events-none'">
+                <div class="absolute inset-0 bg-black/30" style="transition:opacity .4s ease, backdrop-filter .4s ease"
+                     :style="open ? 'opacity:1; backdrop-filter:blur(2px)' : 'opacity:0; backdrop-filter:blur(0)'" @click="open = false"></div>
+                <div class="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col bg-white shadow-2xl"
+                     style="transition:transform .42s cubic-bezier(.32,.72,0,1)" :style="open ? 'transform:translateX(0)' : 'transform:translateX(100%)'">
+                    <div class="flex items-start justify-between border-b border-gray-100 px-6 py-5">
+                        <div>
+                            <h2 class="text-lg font-bold text-[var(--color-heading)]">Filters</h2>
+                            <p class="mt-0.5 text-sm text-[var(--color-muted)]">Refine your task list</p>
+                        </div>
+                        <button type="button" @click="open = false" class="grid h-9 w-9 place-items-center rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                        </button>
+                    </div>
+
+                    <form method="GET" action="{{ route('admin.tasks.index') }}" class="flex flex-1 flex-col overflow-y-auto px-6 py-5">
+                        <input type="hidden" name="mine" value="{{ $mine ? 1 : 0 }}">
+                        @php
+                            $pillOn = 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-sm';
+                            $pillOff = 'border-gray-200 bg-white text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]';
+                            $pillBase = 'rounded-full border px-3 py-1.5 text-xs font-semibold transition';
+                            $statusOpts = array_merge(['hide_completed' => 'Hide Completed', 'all' => 'All Status'], $statusFilter);
+                        @endphp
+
+                        <div class="space-y-5">
+                            {{-- Search --}}
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-[var(--color-heading)]">Search</label>
+                                <div class="relative">
+                                    <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/></svg>
+                                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Task or project name…"
+                                           class="h-11 w-full rounded-lg border-gray-200 pl-9 text-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                                </div>
+                            </div>
+
+                            {{-- Status --}}
+                            <div x-data="{ val: @js(request('status', 'hide_completed')) }">
+                                <label class="mb-2 block text-sm font-semibold text-[var(--color-heading)]">Status</label>
+                                <input type="hidden" name="status" :value="val">
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach ($statusOpts as $k => $v)
+                                        <button type="button" @click="val = @js((string) $k)" :class="val === @js((string) $k) ? '{{ $pillOn }}' : '{{ $pillOff }}'" class="{{ $pillBase }}">{{ $v }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- Priority --}}
+                            <div x-data="{ val: @js(request('priority', '')) }">
+                                <label class="mb-2 block text-sm font-semibold text-[var(--color-heading)]">Priority</label>
+                                <input type="hidden" name="priority" :value="val">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" @click="val = ''" :class="val === '' ? '{{ $pillOn }}' : '{{ $pillOff }}'" class="{{ $pillBase }}">Any</button>
+                                    @foreach (\App\Models\ProjectTask::PRIORITIES as $k => $v)
+                                        <button type="button" @click="val = @js((string) $k)" :class="val === @js((string) $k) ? '{{ $pillOn }}' : '{{ $pillOff }}'" class="{{ $pillBase }}">{{ $v }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- Project --}}
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-[var(--color-heading)]">Project</label>
+                                <x-admin.searchable-select name="project"
+                                    :options="$projects->map(fn ($p) => ['id' => $p->id, 'label' => $p->name])"
+                                    :selected="request('project')" placeholder="Search project…" clear-label="All projects" />
+                            </div>
+
+                            {{-- Assignee --}}
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-[var(--color-heading)]">Assignee</label>
+                                <x-admin.searchable-select name="assignee"
+                                    :options="$assignees->map(fn ($a) => ['id' => $a->id, 'label' => $a->name])"
+                                    :selected="request('assignee')" placeholder="Search staff…" clear-label="Anyone" />
+                            </div>
+
+                            {{-- Due date range --}}
+                            <div>
+                                <label class="mb-2 block text-sm font-semibold text-[var(--color-heading)]">Due date</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="date" name="from" value="{{ request('from') }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
+                                    <span class="shrink-0 text-gray-300">to</span>
+                                    <input type="date" name="to" value="{{ request('to') }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex gap-3 border-t border-gray-100 pt-5">
+                            <a href="{{ route('admin.tasks.index') }}" class="flex-1 rounded-lg border border-gray-200 px-4 py-3 text-center text-sm font-bold text-[var(--color-heading)] hover:bg-gray-50">Clear Filters</a>
+                            <button class="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-bold text-white hover:bg-[var(--color-primary-hover)]">Apply Filters</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <select name="status" class="h-10 rounded-lg border-gray-200 text-sm">
-                <option value="hide_completed" @selected(request('status', 'hide_completed') === 'hide_completed')>Hide Completed</option>
-                <option value="all" @selected(request('status') === 'all')>All Status</option>
-                @foreach ($statusFilter as $k => $v)<option value="{{ $k }}" @selected(request('status') === $k)>{{ $v }}</option>@endforeach
-            </select>
-            <select name="project" class="h-10  rounded-lg border-gray-200 text-sm">
-                <option value="">All Projects</option>
-                @foreach ($projects as $p)<option value="{{ $p->id }}" @selected(request('project') == $p->id)>{{ $p->name }}</option>@endforeach
-            </select>
-            <select name="assignee" class="h-10 rounded-lg border-gray-200 text-sm">
-                <option value="">Any Assignee</option>
-                @foreach ($assignees as $a)<option value="{{ $a->id }}" @selected(request('assignee') == $a->id)>{{ $a->name }}</option>@endforeach
-            </select>
-            <select name="priority" class="h-10 rounded-lg border-gray-200 text-sm">
-                <option value="">Any Priority</option>
-                @foreach (\App\Models\ProjectTask::PRIORITIES as $k => $v)<option value="{{ $k }}" @selected(request('priority') === $k)>{{ $v }}</option>@endforeach
-            </select>
-            <div class="relative">
-                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3.5-3.5"/></svg>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Start typing to search…" class="h-10 w-52 rounded-lg border-gray-200 pl-9 text-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]">
-            </div>
-            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Filter</button>
-            @if (request()->hasAny(['search', 'status', 'project', 'assignee', 'priority', 'from', 'to']))
-                <a href="{{ route('admin.tasks.index') }}" class="text-xs font-semibold text-gray-400 hover:text-red-500">Clear</a>
-            @endif
-        </form>
+        </div>
+
 
         @if ($tasks->isEmpty())
             <div class="rounded-xl border border-dashed border-gray-200 py-16 text-center">
@@ -84,7 +156,7 @@
             </div>
         @else
             <div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-                <table class="w-full min-w-[1000px] text-sm">
+                <table class="w-full text-sm" style="min-width:1000px">
                     <thead>
                         <tr class="border-b border-gray-100 bg-gray-50/70 text-left text-[11px] uppercase tracking-wide text-gray-400">
                             <th class="px-4 py-3 font-semibold">Code</th>
