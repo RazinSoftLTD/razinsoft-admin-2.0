@@ -405,10 +405,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::prefix('installation-plans')->name('installation-plans.')->group(function () use ($ip) {
             Route::middleware('permission:installation_plans.create')->group(function () use ($ip) {
+                Route::post('products', [$ip, 'productStore'])->name('products.store');
                 Route::post('{product}/features', [$ip, 'featureStore'])->whereNumber('product')->name('features.store');
                 Route::post('{product}/plans', [$ip, 'planStore'])->whereNumber('product')->name('plans.store');
             });
+            Route::middleware('permission:installation_plans.view')->group(function () use ($ip) {
+                Route::get('{product}/preview', [$ip, 'preview'])->whereNumber('product')->name('preview');
+            });
             Route::middleware('permission:installation_plans.edit')->group(function () use ($ip) {
+                Route::post('{product}/status', [$ip, 'status'])->whereNumber('product')->name('status');
                 Route::put('{product}/features/{feature}', [$ip, 'featureUpdate'])->whereNumber(['product', 'feature'])->name('features.update');
                 Route::put('{product}/plans/{plan}', [$ip, 'planUpdate'])->whereNumber(['product', 'plan'])->name('plans.update');
                 Route::post('{product}/plans/{plan}/toggle', [$ip, 'toggle'])->whereNumber(['product', 'plan'])->name('toggle');

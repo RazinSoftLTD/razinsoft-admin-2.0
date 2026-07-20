@@ -12,6 +12,7 @@ class InstallationPlanController extends Controller
     public function index()
     {
         $products = Product::query()
+            ->where('installation_status', \App\Models\InstallationPlan::STATUS_PUBLISHED)
             ->whereHas('installationPlans')
             ->with(['installationFeatures', 'installationPlans.features:id'])
             ->orderBy('sort_order')->orderBy('name')

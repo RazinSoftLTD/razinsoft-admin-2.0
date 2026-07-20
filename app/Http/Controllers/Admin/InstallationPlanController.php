@@ -15,7 +15,7 @@ class InstallationPlanController extends Controller
     {
         $products = Product::query()->orderBy('name')
             ->withCount(['installationPlans', 'installationFeatures'])
-            ->get(['id', 'name', 'slug', 'thumbnail']);
+            ->get(['id', 'name', 'slug', 'thumbnail', 'installation_status']);
 
         // Manage the picked product (or the first one).
         $productId = (int) $request->query('product', $products->first()->id ?? 0);
@@ -89,6 +89,62 @@ class InstallationPlanController extends Controller
         return back()->with('status', 'Plan removed.');
     }
 
+    /** Publish state for the product's whole plan block. */
+    public function status(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'installation_status' => ['required', \Illuminate\Validation\Rule::in(array_keys(InstallationPlan::STATUSES))],
+        ]);
+        $product->update($data);
+
+        return back()->with('status', 'Installation plans are now '.strtolower(InstallationPlan::STATUSES[$data['installation_status']]).'.');
+    }
+
+    /** Add a product straight from this page, then build its plans here. */
+    public function productStore(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'currency' => ['nullable', 'string', 'max:8'],
+        ]);
+
+        $slug = \Illuminate\Support\Str::slug($data['name']);
+        $base = $slug;
+        $i = 2;
+        while (Product::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$i++;
+        }
+
+        $product = Product::create([
+            'name' => $data['name'],
+            'slug' => $slug,
+            'currency' => $data['currency'] ?? 'USD',
+            'status' => 'draft',                    // the product itself stays a draft
+            'installation_status' => InstallationPlan::STATUS_DRAFT,
+        ]);
+
+        return redirect()->route('admin.installation-plans', ['product' => $product->id])
+            ->with('status', 'Product added — now add its plans.');
+    }
+
+    /** Preview a product's plans exactly as the website renders them (drafts included). */
+    public function preview(Request $request, Product $product)
+    {
+        $product->load(['installationFeatures', 'installationPlans.features']);
+        // "live" shows only what the public API returns; otherwise everything, flagged.
+        $live = $request->boolean('live');
+        // Live view mirrors the API: the whole block is hidden unless the product is published.
+        $plans = ($live && $product->installation_status !== InstallationPlan::STATUS_PUBLISHED)
+            ? collect()
+            : $product->installationPlans;
+
+        return view('admin.installation-plans.preview', [
+            'product' => $product,
+            'plans' => $plans->values(),
+            'live' => $live,
+        ]);
+    }
+
     /** Toggle a single feature on/off for a plan (the comparison-matrix checkbox). */
     public function toggle(Request $request, Product $product, InstallationPlan $plan)
     {
@@ -147,8 +203,10 @@ class InstallationPlanController extends Controller
             'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:price'],
             'note' => ['nullable', 'string', 'max:150'],
             'is_popular' => ['nullable', 'boolean'],
+            'status' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(InstallationPlan::STATUSES))],
         ]);
         $data['is_popular'] = $request->boolean('is_popular');
+        $data['status'] = $data['status'] ?? InstallationPlan::STATUS_DRAFT;
 
         return $data;
     }

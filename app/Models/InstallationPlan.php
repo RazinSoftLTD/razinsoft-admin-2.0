@@ -8,6 +8,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class InstallationPlan extends Model
 {
+    /** Only published plans reach the website. */
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_UNPUBLISHED = 'unpublished';
+
+    public const STATUSES = [
+        self::STATUS_DRAFT => 'Draft',
+        self::STATUS_PUBLISHED => 'Published',
+        self::STATUS_UNPUBLISHED => 'Unpublished',
+    ];
+
+    public function scopePublished($q)
+    {
+        return $q->where('status', self::STATUS_PUBLISHED);
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED;
+    }
+
     protected $guarded = [];
 
     protected $casts = ['price' => 'decimal:2', 'sale_price' => 'decimal:2', 'is_popular' => 'boolean'];
