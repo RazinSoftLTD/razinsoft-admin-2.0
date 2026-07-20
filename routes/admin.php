@@ -443,6 +443,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Gallery, features, FAQs … everything on the product's "manage" screens.
         Route::middleware('permission:products.relations')->group(function () {
             Route::get('products/{product}/manage/{relation}', [ProductRelationController::class, 'edit'])->whereNumber('product')->name('products.relation.edit');
+            Route::put('products/{product}/try-it-live-bg', [ProductController::class, 'tryItLiveBg'])->whereNumber('product')->name('products.try-it-live-bg');
             Route::post('products/{product}/gallery-images/{image}/move', [ProductRelationController::class, 'moveGalleryImage'])->name('products.gallery.move');
             Route::post('products/{product}/{relation}', [ProductRelationController::class, 'store'])->name('products.relation.store');
             Route::put('products/{product}/{relation}/{id}', [ProductRelationController::class, 'update'])->name('products.relation.update');

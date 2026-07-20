@@ -142,6 +142,27 @@
         @case('demos')
             <div class="max-w-3xl space-y-4">
                 <p class="text-sm text-[var(--color-muted)]">Add any number of live demos, app downloads or links. They appear on the product page under <strong>Try It Live</strong>, in the order below.</p>
+
+                {{-- Background colour for the whole "Try It Live" section on the website --}}
+                <form method="POST" action="{{ route('admin.products.try-it-live-bg', $product) }}"
+                      class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
+                      x-data="{ color: @js($product->try_it_live_bg ?: '') }">
+                    @csrf @method('PUT')
+                    <p class="text-sm font-bold text-[var(--color-heading)]">“Try It Live” background</p>
+                    <p class="mt-0.5 text-xs text-[var(--color-muted)]">Colour behind the cards on the product page. Blank = website default.</p>
+                    <div class="mt-3 flex flex-wrap items-center gap-3">
+                        <input type="color" :value="color || '#f8fafc'" @input="color = $event.target.value"
+                               class="h-10 w-14 cursor-pointer rounded-lg border border-gray-200 p-1">
+                        <input type="text" name="try_it_live_bg" x-model="color" maxlength="20"
+                               placeholder="#f8fafc"
+                               class="h-10 w-40 rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                        <button type="button" @click="color = ''" x-show="color" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">Reset</button>
+                        <span class="inline-flex items-center gap-2 text-xs text-[var(--color-muted)]">
+                            Preview <span class="h-6 w-20 rounded border border-gray-100" :style="`background: ${color || '#f8fafc'}`"></span>
+                        </span>
+                        <button class="ml-auto rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save colour</button>
+                    </div>
+                </form>
                 @forelse ($product->demos as $d)
                     <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm" x-data="{ edit: false }">
                         <div class="flex items-start justify-between gap-3">
