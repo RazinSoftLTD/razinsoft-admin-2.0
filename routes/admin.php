@@ -302,7 +302,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         // ===== Settings : Project Config (categories + default board columns) =====
-        Route::middleware('permission:projects.edit')->group(function () {
+        Route::middleware('permission:projects.settings')->group(function () {
             Route::get('project-config', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'index'])->name('project-config');
             Route::post('project-config/categories', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryStore'])->name('project-config.categories.store');
             Route::put('project-config/categories/{category}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryUpdate'])->whereNumber('category')->name('project-config.categories.update');

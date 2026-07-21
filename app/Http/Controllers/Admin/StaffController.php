@@ -18,6 +18,10 @@ class StaffController extends Controller
 
     public function index(Request $request)
     {
+        // The staff directory lists everyone — it needs the "view all employees" scope.
+        // Staff with only self-scope (e.g. the Employee role) reach their own profile via show().
+        abort_unless($request->user()->hasPermission('employees.view_all'), 403);
+
         $q = User::assignable()
             ->with('assignedRole', 'designation', 'department', 'reportsTo')
             ->withCount('assignedLeads')
