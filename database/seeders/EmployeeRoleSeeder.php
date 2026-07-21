@@ -29,12 +29,10 @@ class EmployeeRoleSeeder extends Seeder
         'tickets.create' => 'all',
         'tickets.edit' => 'owned',
         'tickets.reply' => 'all',
-        'meetings.view' => 'owned',
-        'meetings.edit' => 'owned',
         'leave.view' => 'owned',
         'leave.create' => 'all',
 
-        // Explicitly NOT granted: leads, deals, clients, invoices.
+        // Explicitly NOT granted: leads, deals, clients, invoices, meetings (booking inbox — grant per-user if needed).
     ];
 
     public function run(): void
