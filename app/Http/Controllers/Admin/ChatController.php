@@ -396,15 +396,15 @@ class ChatController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Delete a message — its author (within 1 hour) or an admin (anytime). Removes any file. */
+    /** Delete a message — its author (within 15 minutes) or an admin (anytime). Removes any file. */
     public function destroyMessage(ChatMessage $message)
     {
         $me = auth()->user();
         $isAuthor = $message->user_id === $me->id;
         abort_unless($isAuthor || $me->isAdmin(), 403);
-        // Authors lose the ability to delete after the 1-hour window; admins may always remove.
+        // Authors lose the ability to delete after the 15-minute window; admins may always remove.
         if ($isAuthor && ! $me->isAdmin() && ! $message->withinMutateWindow()) {
-            return response()->json(['error' => 'The 1-hour window to delete this message has passed.'], 422);
+            return response()->json(['error' => 'The 15-minute window to delete this message has passed.'], 422);
         }
 
         if ($message->attachment) {
@@ -418,13 +418,13 @@ class ChatController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Edit a message — its author only, within the 1-hour window. Text only. */
+    /** Edit a message — its author within the 15-minute window (admins are exempt). Text only. */
     public function editMessage(Request $request, ChatMessage $message)
     {
         $me = auth()->user();
         abort_unless($message->user_id === $me->id, 403);
-        if (! $message->withinMutateWindow()) {
-            return response()->json(['error' => 'The 1-hour window to edit this message has passed.'], 422);
+        if (! $me->isAdmin() && ! $message->withinMutateWindow()) {
+            return response()->json(['error' => 'The 15-minute window to edit this message has passed.'], 422);
         }
 
         $request->validate(['body' => ['required', 'string', 'max:20000']]);

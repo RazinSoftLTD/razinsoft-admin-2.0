@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ChatMessage extends Model
 {
-    /** How long after posting a message may still be edited or deleted (minutes). */
-    public const MUTATE_WINDOW_MINUTES = 60;
+    /** How long after posting a message may still be edited or deleted by its author (minutes). Admins are exempt. */
+    public const MUTATE_WINDOW_MINUTES = 15;
 
     protected $fillable = ['conversation_id', 'user_id', 'reply_to_id', 'body', 'checklist', 'checklist_title', 'edited_at', 'attachment', 'attachment_name', 'reactions'];
 

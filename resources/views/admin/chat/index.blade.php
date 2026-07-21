@@ -789,7 +789,7 @@
         });
 
         window.Razin.msgBase = DEL_BASE;   // used by the forward modal (outer scope)
-        const WINDOW_SECS = 60 * 60;       // 1-hour edit/delete window
+        const WINDOW_SECS = 15 * 60;       // 15-minute author edit/delete window (admins exempt)
         const toEpoch = (v) => { if (!v) return 0; if (typeof v === 'number') return v > 1e11 ? Math.floor(v / 1000) : v; const t = Date.parse(v); return isNaN(t) ? 0 : Math.floor(t / 1000); };
 
         // Per-message actions menu (kebab): Copy · Edit · Forward · Delete.
@@ -815,7 +815,7 @@
             const item = (act, label, danger, gated) => '<button type="button" data-act="' + act + '" data-mid="' + id + '"' + (gated ? ' data-gated="1"' : '') + ' class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs font-medium ' + (danger ? 'text-red-600' : 'text-[var(--color-heading)]') + ' hover:bg-gray-50">' + ICON[act] + '<span>' + label + '</span></button>';
             // Kebab menu holds the less-common actions.
             let items = '';
-            if (mine) items += item('edit', 'Edit', false, true);            // author only, within window
+            if (mine) items += item('edit', 'Edit', false, mine && !IS_ADMIN);  // author within window; admins exempt
             items += item('forward', 'Forward');
             if (mine || IS_ADMIN) items += item('delete', 'Delete', true, mine && !IS_ADMIN); // author gated; admin anytime
             const wrap = document.createElement('div');
