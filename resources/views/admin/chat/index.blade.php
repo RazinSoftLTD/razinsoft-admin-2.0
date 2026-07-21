@@ -60,10 +60,9 @@
         [data-conv-link]:hover { background: #f9fafb; }
         [data-conv-link].active-conv, [data-conv-link].active-conv:hover { background: var(--color-primary-soft); }
         [data-conv-link].active-conv .conv-name { color: var(--color-primary); }
-        /* Sidebar tabs */
-        .chat-tab-underline { opacity: 0; transition: opacity .15s ease; }
-        .chat-tab.is-active { color: var(--color-primary); }
-        .chat-tab.is-active .chat-tab-underline { opacity: 1; }
+        /* Sidebar tabs — pill style */
+        .chat-tab.is-active { background: var(--color-primary-soft); color: var(--color-primary); }
+        .chat-tab.is-active:hover { background: var(--color-primary-soft); }
         /* Pin button: show on row hover, keep visible + accented when pinned */
         .pin-btn { display: none; }
         .chat-row:hover .pin-btn { display: block; }
@@ -114,7 +113,7 @@
             </div>
 
             {{-- Tabs (JS-filtered) --}}
-            <div class="flex items-center gap-4 border-b border-gray-100 px-4 pt-3" data-chat-tabs>
+            <div class="flex items-center justify-between gap-0.5 border-b border-gray-100 px-3 py-2.5" data-chat-tabs>
                 @php
                     $tabs = ['team' => 'Team', 'unread' => 'Unread', 'groups' => 'Groups'];
                     if ($canClients) $tabs['clients'] = 'Clients';
@@ -122,10 +121,7 @@
                 @endphp
                 @foreach ($tabs as $key => $label)
                     <button type="button" data-tab="{{ $key }}"
-                            class="chat-tab relative pb-2 text-sm font-medium text-gray-500 transition hover:text-[var(--color-heading)] {{ $key === 'all' ? 'is-active' : '' }}">
-                        {{ $label }}
-                        <span class="chat-tab-underline absolute inset-x-0 rounded-full bg-[var(--color-primary)]" style="bottom:-1px;height:2px"></span>
-                    </button>
+                            class="chat-tab rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-[var(--color-heading)] {{ $key === 'all' ? 'is-active' : '' }}">{{ $label }}</button>
                 @endforeach
             </div>
 
@@ -133,7 +129,7 @@
             <div class="min-h-0 flex-1 overflow-y-auto px-2 py-3" data-chat-list>
                 {{-- Pinned (JS moves matching rows here from localStorage) --}}
                 <div data-pinned-section class="mb-2 hidden">
-                    <p class="flex items-center gap-1.5 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                    <p class="flex items-center gap-1.5 px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">
                         <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 4 3H6l4-3-1-6Z"/><rect x="11" y="13" width="2" height="7" rx="1"/></svg>
                         Pinned
                     </p>
@@ -141,12 +137,12 @@
                 </div>
 
                 {{-- Team Chats (channels/groups) --}}
-                <p id="ch-header" data-group-head="group" class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Team Chats</p>
+                <p id="ch-header" data-group-head="group" class="px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Team Chats</p>
                 @forelse ($groups as $g)
                     @php $un = $g->unreadCountFor($me); $on = $active && $active->id === $g->id; $glast = $g->latestMessage; @endphp
                     <a href="{{ route('admin.chat.show', $g) }}" data-turbo="false" data-conv-link data-conv="{{ $g->id }}"
                        data-pin-key="conv:{{ $g->id }}" data-kind="group" data-unread-count="{{ $un }}" data-chat-row="{{ strtolower($g->name) }}"
-                       class="chat-row group relative flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                       class="chat-row group relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 {{ $on ? 'active-conv' : '' }}">
                         <span class="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-gray-100 text-gray-500">
                             @if ($g->photo_url)
                                 <img src="{{ $g->photo_url }}" class="h-full w-full object-cover" alt="">
@@ -156,10 +152,7 @@
                         </span>
                         <span class="min-w-0 flex-1">
                             <span class="flex items-center justify-between gap-2">
-                                <span class="flex min-w-0 items-center gap-1.5">
-                                    <span class="conv-name truncate text-sm font-semibold text-[var(--color-heading)]">{{ $g->name }}</span>
-                                    <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold" style="background:hsl(220 85% 95%);color:hsl(220 55% 42%)">Team</span>
-                                </span>
+                                <span class="conv-name truncate text-sm font-semibold text-[var(--color-heading)]">{{ $g->name }}</span>
                                 <span data-row-time class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $glast ? $chatTime($glast->created_at) : '' }}</span>
                             </span>
                             <span class="mt-0.5 flex items-center justify-between gap-2">
@@ -174,7 +167,7 @@
                 @endforelse
 
                 {{-- Direct Messages --}}
-                <p id="dm-header" data-group-head="direct" class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
+                <p id="dm-header" data-group-head="direct" class="mt-4 px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
                 @forelse ($people as $p)
                     @php
                         $c = $directByUser[$p->id] ?? null;
@@ -186,17 +179,14 @@
                     @endphp
                     <a href="{{ route('admin.chat.direct', $p) }}" data-turbo="false" data-conv-link data-user="{{ $p->id }}"
                        data-pin-key="user:{{ $p->id }}" data-kind="direct" data-unread-count="{{ $un }}" data-chat-row="{{ strtolower($p->name.' '.$role) }}"
-                       class="chat-row group relative flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                       class="chat-row group relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 {{ $on ? 'active-conv' : '' }}">
                         <span class="relative shrink-0">
                             {!! $avatar($p) !!}
                             <span data-online="{{ $p->id }}" class="{{ $p->isOnline() ? '' : 'hidden' }} absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white"></span>
                         </span>
                         <span class="min-w-0 flex-1">
                             <span class="flex items-center justify-between gap-2">
-                                <span class="flex min-w-0 items-center gap-1.5">
-                                    <span class="conv-name truncate text-sm font-semibold text-[var(--color-heading)]">{{ $p->name }}</span>
-                                    {!! $roleBadge($role) !!}
-                                </span>
+                                <span class="conv-name truncate text-sm font-semibold text-[var(--color-heading)]">{{ $p->name }}</span>
                                 <span data-row-time class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $last ? $chatTime($last->created_at) : '' }}</span>
                             </span>
                             <span class="mt-0.5 flex items-center justify-between gap-2">
@@ -212,7 +202,7 @@
 
                 {{-- Client Messages --}}
                 @if ($canClients)
-                    <p id="cl-header" data-group-head="client" class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Client Messages</p>
+                    <p id="cl-header" data-group-head="client" class="mt-4 px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Client Messages</p>
                     @forelse ($clientConversations as $c)
                         @php
                             $client = $c->clientMember() ?? $c->members->first();
@@ -222,7 +212,7 @@
                         @endphp
                         <a href="{{ route('admin.chat.show', $c) }}" data-turbo="false" data-conv-link data-conv="{{ $c->id }}"
                            data-pin-key="conv:{{ $c->id }}" data-kind="client" data-unread-count="{{ $un }}" data-chat-row="{{ strtolower($client->name ?? 'client') }}"
-                           class="chat-row group relative flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                           class="chat-row group relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 {{ $on ? 'active-conv' : '' }}">
                             <span class="relative shrink-0">
                                 {!! $avatar($client) !!}
                                 <span class="absolute -bottom-0.5 -right-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-sky-500 ring-2 ring-white" title="Client"><svg class="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0Z"/></svg></span>
