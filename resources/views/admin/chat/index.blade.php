@@ -255,9 +255,9 @@
 
             {{-- Footer --}}
             <a href="{{ route('admin.chat.index') }}" data-turbo="false"
-               class="flex shrink-0 items-center justify-between border-t border-gray-100 px-4 py-3 text-sm font-semibold text-[var(--color-heading)] transition hover:bg-gray-50">
+               class="flex shrink-0 items-center justify-between border-t border-gray-100 px-4 py-2 text-[11px] font-medium text-[var(--color-muted)] transition hover:bg-gray-50 hover:text-[var(--color-heading)]">
                 View all conversations
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 6 6 6-6 6"/></svg>
+                <svg class="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 6 6 6-6 6"/></svg>
             </a>
         </aside>
 
