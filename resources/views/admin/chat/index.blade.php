@@ -105,30 +105,16 @@
         @endphp
         <aside id="chat-aside" class="flex w-72 shrink-0 flex-col border-r border-gray-100">
             {{-- Header --}}
-            <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
+            <div class="flex items-center px-4 py-3 border-b border-gray-100">
                 <h1 class="text-base font-bold text-[var(--color-heading)]">Messages</h1>
-                <div class="flex items-center gap-1.5">
-                    @if ($me->hasPermission('chat.create_group'))
-                        <a href="{{ route('admin.chat.groups.create') }}" title="New group chat"
-                           class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-                            New Chat
-                        </a>
-                    @endif
-                    <button type="button" data-chat-filter title="Toggle unread-only" aria-pressed="false"
-                            class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M6 12h12M10 19h4"/></svg>
-                    </button>
-                </div>
             </div>
 
             {{-- Search --}}
             <div class="px-3 pt-3">
                 <div class="relative">
                     <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-4.3-4.3"/></svg>
-                    <input type="text" data-chat-search placeholder="Search people or messages…" style="padding-right:3rem"
-                           class="h-9 w-full rounded-lg border border-gray-200 pl-9 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
-                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">⌘K</span>
+                    <input type="text" data-chat-search placeholder="Search people or messages…"
+                           class="h-9 w-full rounded-lg border border-gray-200 pl-9 pr-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
                 </div>
             </div>
 
