@@ -306,28 +306,28 @@
                 {{-- Borderless bar: quick icons + input --}}
                 <div class="chat-input-wrap min-w-0 flex-1">
                     {{-- Quick icon row (hidden until the + button reveals it) --}}
-                    <div id="chat-quickbar" class="mb-1 hidden items-center gap-0.5">
-                        <button type="button" id="chat-format-btn" data-quick="format" title="Formatting" tabindex="-1" class="chat-quick flex h-8 items-center rounded-md px-1.5 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-gray-100">
+                    <div id="chat-quickbar" class="mb-1.5 hidden items-center gap-1">
+                        <button type="button" id="chat-format-btn" data-quick="format" title="Formatting" tabindex="-1" class="chat-quick flex h-7 items-center rounded-md px-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-gray-100">
                             <span style="text-decoration:underline">Aa</span>
                         </button>
-                        <label class="chat-quick grid h-8 w-8 cursor-pointer place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" title="Attach a file">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
+                        <label class="chat-quick grid h-7 w-7 cursor-pointer place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" title="Attach a file">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
                             <input type="file" id="chat-file" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv">
                         </label>
-                        <button type="button" data-quick="emoji" title="Emoji" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
+                        <button type="button" data-quick="emoji" title="Emoji" tabindex="-1" class="chat-quick grid h-7 w-7 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
                         </button>
-                        <button type="button" id="chat-mention-btn" data-quick="mention" title="Mention a teammate" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
+                        <button type="button" id="chat-mention-btn" data-quick="mention" title="Mention a teammate" tabindex="-1" class="chat-quick grid h-7 w-7 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
                         </button>
-                        <button type="button" data-quick="channel" title="Channel" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 9h12M6 15h12M9 4 7 20M17 4l-2 16"/></svg>
+                        <button type="button" data-quick="channel" title="Channel" tabindex="-1" class="chat-quick grid h-7 w-7 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 9h12M6 15h12M9 4 7 20M17 4l-2 16"/></svg>
                         </button>
-                        <button type="button" id="chat-checklist-btn" data-quick="checklist" title="Checklist" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path stroke-linecap="round" stroke-linejoin="round" d="m8.5 12 2.2 2.2L15.5 9.5"/></svg>
+                        <button type="button" id="chat-checklist-btn" data-quick="checklist" title="Checklist" tabindex="-1" class="chat-quick grid h-7 w-7 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path stroke-linecap="round" stroke-linejoin="round" d="m8.5 12 2.2 2.2L15.5 9.5"/></svg>
                         </button>
-                        <button type="button" data-quick="code" title="Code" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6c-1.5 0-2 1-2 2v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 1 .5 2 2 2M16 6c1.5 0 2 1 2 2v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 1-.5 2-2 2"/></svg>
+                        <button type="button" data-quick="code" title="Code" tabindex="-1" class="chat-quick grid h-7 w-7 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6c-1.5 0-2 1-2 2v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 1 .5 2 2 2M16 6c1.5 0 2 1 2 2v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 1-.5 2-2 2"/></svg>
                         </button>
                     </div>
                     {{-- Input row --}}
