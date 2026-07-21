@@ -42,6 +42,25 @@ class InstallationPlanController extends Controller
         return back()->with('status', 'Feature added.');
     }
 
+    /** Persist a new feature order from drag-and-drop (array of feature ids, top → bottom). */
+    public function featureReorder(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['integer'],
+        ]);
+
+        $ownIds = $product->installationFeatures()->pluck('id')->all();
+        $pos = 1;
+        foreach ($data['order'] as $id) {
+            if (in_array((int) $id, $ownIds, true)) {
+                InstallationFeature::where('id', $id)->where('product_id', $product->id)->update(['position' => $pos++]);
+            }
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     public function featureUpdate(Request $request, Product $product, InstallationFeature $feature)
     {
         abort_if($feature->product_id !== $product->id, 404);

@@ -228,10 +228,16 @@
                                         <th></th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-50">
+                                <tbody id="feature-rows" class="divide-y divide-gray-50" @if ($canEdit) data-reorder-url="{{ route('admin.installation-plans.features.reorder', $product) }}" @endif>
                                     @foreach ($features as $feature)
-                                        <tr>
+                                        <tr class="feature-row" data-feature-id="{{ $feature->id }}">
                                             <td class="py-2.5 pr-4">
+                                                <span class="flex items-center gap-2">
+                                                    @if ($canEdit)
+                                                        <span data-drag-handle class="shrink-0 cursor-move text-gray-300 hover:text-gray-500" title="Drag to reorder">
+                                                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>
+                                                        </span>
+                                                    @endif
                                                 <span x-data="{ e: false }">
                                                     <span x-show="!e" class="flex items-center gap-1.5">
                                                         <span class="text-[var(--color-heading)]">{{ $feature->label }}</span>
@@ -244,6 +250,7 @@
                                                             <button class="rounded bg-[var(--color-primary)] px-2 py-1 text-xs font-semibold text-white">Save</button>
                                                         </form>
                                                     @endif
+                                                </span>
                                                 </span>
                                             </td>
                                             @foreach ($plans as $plan)
@@ -283,6 +290,52 @@
                     body: JSON.stringify({ feature_id: cb.dataset.feature, included: cb.checked ? 1 : 0 }),
                 }).catch(() => { cb.checked = !cb.checked; alert('Could not save — try again.'); });
             });
+
+            // Drag-and-drop reordering of feature rows (drag by the grip handle).
+            (function () {
+                const tbody = document.getElementById('feature-rows');
+                if (!tbody || !tbody.dataset.reorderUrl) return;
+                const csrf = document.querySelector('meta[name=csrf-token]').content;
+                let dragRow = null;
+
+                // Only start a drag when the grip handle is the origin.
+                tbody.querySelectorAll('tr.feature-row').forEach((row) => {
+                    const handle = row.querySelector('[data-drag-handle]');
+                    if (!handle) return;
+                    handle.addEventListener('mousedown', () => { row.setAttribute('draggable', 'true'); });
+                    row.addEventListener('dragstart', (e) => { dragRow = row; row.classList.add('opacity-40'); e.dataTransfer.effectAllowed = 'move'; });
+                    row.addEventListener('dragend', () => {
+                        row.classList.remove('opacity-40'); row.removeAttribute('draggable');
+                        if (dragRow) { dragRow = null; persist(); }
+                    });
+                });
+
+                tbody.addEventListener('dragover', (e) => {
+                    if (!dragRow) return;
+                    e.preventDefault();
+                    const after = rowAfter(e.clientY);
+                    if (after == null) tbody.appendChild(dragRow);
+                    else tbody.insertBefore(dragRow, after);
+                });
+
+                function rowAfter(y) {
+                    const rows = [...tbody.querySelectorAll('tr.feature-row:not(.opacity-40)')];
+                    return rows.reduce((closest, child) => {
+                        const box = child.getBoundingClientRect();
+                        const offset = y - box.top - box.height / 2;
+                        return (offset < 0 && offset > closest.offset) ? { offset, element: child } : closest;
+                    }, { offset: -Infinity }).element;
+                }
+
+                function persist() {
+                    const order = [...tbody.querySelectorAll('tr.feature-row')].map((r) => r.dataset.featureId);
+                    fetch(tbody.dataset.reorderUrl, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ order }),
+                    }).catch(() => alert('Could not save the new order — refresh and try again.'));
+                }
+            })();
         </script>
     @endif
 @endsection

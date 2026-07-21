@@ -415,6 +415,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             });
             Route::middleware('permission:installation_plans.edit')->group(function () use ($ip) {
                 Route::post('{product}/status', [$ip, 'status'])->whereNumber('product')->name('status');
+                Route::post('{product}/features/reorder', [$ip, 'featureReorder'])->whereNumber('product')->name('features.reorder');
                 Route::put('{product}/features/{feature}', [$ip, 'featureUpdate'])->whereNumber(['product', 'feature'])->name('features.update');
                 Route::put('{product}/plans/{plan}', [$ip, 'planUpdate'])->whereNumber(['product', 'plan'])->name('plans.update');
                 Route::post('{product}/plans/{plan}/toggle', [$ip, 'toggle'])->whereNumber(['product', 'plan'])->name('toggle');
