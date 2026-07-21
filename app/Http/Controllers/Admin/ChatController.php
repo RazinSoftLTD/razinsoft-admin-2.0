@@ -56,6 +56,8 @@ class ChatController extends Controller
             // (so a fresh load / refresh lands on the latest chat, like WhatsApp).
             $default = $conversations->concat($clientConversations)
                 ->filter(fn ($c) => $c->last_message_at !== null)
+                // Skip a direct chat whose counterpart no longer exists — the thread view needs them.
+                ->filter(fn ($c) => $c->type !== 'direct' || $c->counterpart($me))
                 ->sortByDesc(fn ($c) => $c->last_message_at->getTimestamp())
                 ->first();
             if ($default) {
