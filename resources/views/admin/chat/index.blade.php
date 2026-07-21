@@ -51,6 +51,8 @@
         .chat-composer ol { list-style: decimal; }
         .chat-composer blockquote { border-left: 3px solid #e5e7eb; padding-left: .6rem; color: #6b7280; }
         .chat-composer a { color: var(--color-primary); text-decoration: underline; }
+        .chat-composer code, .chat-html code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; background: rgba(0,0,0,.06); padding: .1em .35em; border-radius: .3rem; }
+        .chat-html.break-words code, [data-mine="1"] .chat-html code { background: rgba(255,255,255,.2); }
         .chat-html ul, .chat-html ol { margin: .25rem 0; padding-left: 1.25rem; }
         .chat-html ul { list-style: disc; }
         .chat-html ol { list-style: decimal; }
@@ -58,6 +60,16 @@
         [data-conv-link]:hover { background: #f9fafb; }
         [data-conv-link].active-conv, [data-conv-link].active-conv:hover { background: var(--color-primary-soft); }
         [data-conv-link].active-conv .conv-name { color: var(--color-primary); }
+        /* Sidebar tabs */
+        .chat-tab-underline { opacity: 0; transition: opacity .15s ease; }
+        .chat-tab.is-active { color: var(--color-primary); }
+        .chat-tab.is-active .chat-tab-underline { opacity: 1; }
+        /* Pin button: show on row hover, keep visible + accented when pinned */
+        .pin-btn { display: none; }
+        .chat-row:hover .pin-btn { display: block; }
+        .chat-row.is-pinned .pin-btn { display: block; color: var(--color-primary); }
+        /* Toggled header/sidebar icon-buttons (filter, mute) — avoids uncompiled arbitrary classes */
+        .chat-btn-on { border-color: var(--color-primary) !important; color: var(--color-primary) !important; background: var(--color-primary-soft) !important; }
         @keyframes chatFadeIn { from { opacity: 0; } to { opacity: 1; } }
         #thread-root { animation: chatFadeIn .18s ease; }
         /* Full-bleed like WhatsApp — break out of the page padding, fill below the top bar. */
@@ -82,38 +94,78 @@
     <div class="chat-shell flex overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
 
         {{-- ───────── Left rail ───────── --}}
-        <aside x-data="{ tab: '{{ $tab }}' }" class="flex w-72 shrink-0 flex-col border-r border-gray-100">
-            <div class="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
-                <h1 class="text-sm font-bold text-[var(--color-heading)]">Messages</h1>
-                @if ($me->hasPermission('chat.create_group'))
-                    <a href="{{ route('admin.chat.groups.create') }}" title="New group" x-show="tab === 'team'"
-                       class="grid h-8 w-8 place-items-center rounded-lg border border-gray-200 text-[var(--color-heading)] hover:bg-gray-50">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-                    </a>
-                @endif
-            </div>
-
-            {{-- Team / Client tabs (Client tab only for staff who hold chat.clients) --}}
-            @if ($canClients)
-                @php $clientUnread = $clientConversations->sum(fn ($c) => $c->unreadCountFor($me)); @endphp
-                <div class="flex gap-1 border-b border-gray-100 px-2 py-2">
-                    <button type="button" @click="tab = 'team'" :class="tab === 'team' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-muted)] hover:bg-gray-50'" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition">Team Connect</button>
-                    <button type="button" @click="tab = 'client'" :class="tab === 'client' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-muted)] hover:bg-gray-50'" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
-                        Client @if ($clientUnread)<span class="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ $clientUnread }}</span>@endif
+        @php
+            // A small, deterministic badge colour per role label (safe inline HSL — no Tailwind dependency).
+            $roleBadge = function ($label) {
+                if (! $label) return '';
+                $h = crc32($label) % 360;
+                return '<span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold" style="background:hsl('.$h.' 85% 95%);color:hsl('.$h.' 55% 42%)">'.e($label).'</span>';
+            };
+            $pinBtn = '<button type="button" data-pin-toggle title="Pin conversation" class="pin-btn absolute right-1.5 top-1.5 hidden rounded p-1 text-gray-300 hover:bg-white hover:text-[var(--color-primary)]"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4h6l-1 6 4 3H6l4-3-1-6Z"/><path stroke-linecap="round" d="M12 13v7"/></svg></button>';
+        @endphp
+        <aside id="chat-aside" class="flex w-72 shrink-0 flex-col border-r border-gray-100">
+            {{-- Header --}}
+            <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
+                <h1 class="text-base font-bold text-[var(--color-heading)]">Messages</h1>
+                <div class="flex items-center gap-1.5">
+                    @if ($me->hasPermission('chat.create_group'))
+                        <a href="{{ route('admin.chat.groups.create') }}" title="New group chat"
+                           class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                            New Chat
+                        </a>
+                    @endif
+                    <button type="button" data-chat-filter title="Toggle unread-only" aria-pressed="false"
+                            class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M6 12h12M10 19h4"/></svg>
                     </button>
                 </div>
-            @endif
+            </div>
 
-            {{-- Team panel --}}
-            <div x-show="tab === 'team'" class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-                <input type="text" data-chat-search placeholder="Search people…"
-                       class="mb-3 h-9 w-full rounded-lg border border-gray-200 px-3 text-sm">
+            {{-- Search --}}
+            <div class="px-3 pt-3">
+                <div class="relative">
+                    <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-4.3-4.3"/></svg>
+                    <input type="text" data-chat-search placeholder="Search people or messages…" style="padding-right:3rem"
+                           class="h-9 w-full rounded-lg border border-gray-200 pl-9 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">⌘K</span>
+                </div>
+            </div>
 
-                <p id="ch-header" class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Channels</p>
+            {{-- Tabs (JS-filtered) --}}
+            <div class="flex items-center gap-4 border-b border-gray-100 px-4 pt-3" data-chat-tabs>
+                @php
+                    $tabs = ['all' => 'All', 'team' => 'Team'];
+                    if ($canClients) $tabs['clients'] = 'Clients';
+                    $tabs += ['groups' => 'Groups', 'unread' => 'Unread'];
+                @endphp
+                @foreach ($tabs as $key => $label)
+                    <button type="button" data-tab="{{ $key }}"
+                            class="chat-tab relative pb-2 text-sm font-medium text-gray-500 transition hover:text-[var(--color-heading)] {{ $key === 'all' ? 'is-active' : '' }}">
+                        {{ $label }}
+                        <span class="chat-tab-underline absolute inset-x-0 rounded-full bg-[var(--color-primary)]" style="bottom:-1px;height:2px"></span>
+                    </button>
+                @endforeach
+            </div>
+
+            {{-- Conversation list --}}
+            <div class="min-h-0 flex-1 overflow-y-auto px-2 py-3" data-chat-list>
+                {{-- Pinned (JS moves matching rows here from localStorage) --}}
+                <div data-pinned-section class="mb-2 hidden">
+                    <p class="flex items-center gap-1.5 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                        <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 4 3H6l4-3-1-6Z"/><rect x="11" y="13" width="2" height="7" rx="1"/></svg>
+                        Pinned
+                    </p>
+                    <div data-pinned-items></div>
+                </div>
+
+                {{-- Team Chats (channels/groups) --}}
+                <p id="ch-header" data-group-head="group" class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Team Chats</p>
                 @forelse ($groups as $g)
                     @php $un = $g->unreadCountFor($me); $on = $active && $active->id === $g->id; $glast = $g->latestMessage; @endphp
-                    <a href="{{ route('admin.chat.show', $g) }}" data-turbo="false" data-conv-link data-conv="{{ $g->id }}" data-chat-row="{{ strtolower($g->name) }}"
-                       class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                    <a href="{{ route('admin.chat.show', $g) }}" data-turbo="false" data-conv-link data-conv="{{ $g->id }}"
+                       data-pin-key="conv:{{ $g->id }}" data-kind="group" data-unread-count="{{ $un }}" data-chat-row="{{ strtolower($g->name) }}"
+                       class="chat-row group relative flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
                         <span class="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-gray-100 text-gray-500">
                             @if ($g->photo_url)
                                 <img src="{{ $g->photo_url }}" class="h-full w-full object-cover" alt="">
@@ -122,21 +174,26 @@
                             @endif
                         </span>
                         <span class="min-w-0 flex-1">
-                            <span class="flex items-baseline justify-between gap-2">
-                                <span class="conv-name truncate text-sm font-medium text-[var(--color-heading)]">{{ $g->name }}</span>
+                            <span class="flex items-center justify-between gap-2">
+                                <span class="flex min-w-0 items-center gap-1.5">
+                                    <span class="conv-name truncate text-sm font-semibold text-[var(--color-heading)]">{{ $g->name }}</span>
+                                    <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold" style="background:hsl(220 85% 95%);color:hsl(220 55% 42%)">Team</span>
+                                </span>
                                 <span data-row-time class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $glast ? $chatTime($glast->created_at) : '' }}</span>
                             </span>
                             <span class="mt-0.5 flex items-center justify-between gap-2">
                                 <span data-row-preview class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $glast?->preview ?: 'No messages yet' }}</span>
-                                @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                                @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-[var(--color-primary)] px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
                             </span>
                         </span>
+                        {!! $pinBtn !!}
                     </a>
                 @empty
-                    <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No channels yet.</p>
+                    <p data-empty="group" class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No channels yet.</p>
                 @endforelse
 
-                <p id="dm-header" class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
+                {{-- Direct Messages --}}
+                <p id="dm-header" data-group-head="direct" class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Direct Messages</p>
                 @forelse ($people as $p)
                     @php
                         $c = $directByUser[$p->id] ?? null;
@@ -144,60 +201,83 @@
                         $on = $active && $c && $active->id === $c->id;
                         $last = $c?->latestMessage;
                         $preview = $last?->preview;
+                        $role = $p->designation->name ?? null;
                     @endphp
-                    <a href="{{ route('admin.chat.direct', $p) }}" data-turbo="false" data-conv-link data-user="{{ $p->id }}" data-chat-row="{{ strtolower($p->name) }}"
-                       class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                    <a href="{{ route('admin.chat.direct', $p) }}" data-turbo="false" data-conv-link data-user="{{ $p->id }}"
+                       data-pin-key="user:{{ $p->id }}" data-kind="direct" data-unread-count="{{ $un }}" data-chat-row="{{ strtolower($p->name.' '.$role) }}"
+                       class="chat-row group relative flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
                         <span class="relative shrink-0">
                             {!! $avatar($p) !!}
                             <span data-online="{{ $p->id }}" class="{{ $p->isOnline() ? '' : 'hidden' }} absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white"></span>
                         </span>
                         <span class="min-w-0 flex-1">
-                            <span class="flex items-baseline justify-between gap-2">
-                                <span class="conv-name truncate text-sm font-medium text-[var(--color-heading)]">{{ $p->name }}</span>
+                            <span class="flex items-center justify-between gap-2">
+                                <span class="flex min-w-0 items-center gap-1.5">
+                                    <span class="conv-name truncate text-sm font-semibold text-[var(--color-heading)]">{{ $p->name }}</span>
+                                    {!! $roleBadge($role) !!}
+                                </span>
                                 <span data-row-time class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $last ? $chatTime($last->created_at) : '' }}</span>
                             </span>
                             <span class="mt-0.5 flex items-center justify-between gap-2">
-                                <span data-row-preview class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $preview !== null && $preview !== '' ? $preview : ($p->designation->name ?? 'Team member') }}</span>
-                                @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                                <span data-row-preview class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $preview !== null && $preview !== '' ? $preview : ($role ?? 'Team member') }}</span>
+                                @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-[var(--color-primary)] px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
                             </span>
                         </span>
+                        {!! $pinBtn !!}
                     </a>
                 @empty
-                    <p class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No teammates yet.</p>
+                    <p data-empty="direct" class="px-2 py-1.5 text-xs text-[var(--color-muted)]">No teammates yet.</p>
                 @endforelse
-            </div>
 
-            {{-- Client panel — shared inbox of customer conversations --}}
-            @if ($canClients)
-                <div x-show="tab === 'client'" x-cloak class="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-                    <input type="text" data-chat-search placeholder="Search clients…" class="mb-3 h-9 w-full rounded-lg border border-gray-200 px-3 text-sm">
-                    <p id="cl-header" class="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Client Messages</p>
+                {{-- Client Messages --}}
+                @if ($canClients)
+                    <p id="cl-header" data-group-head="client" class="mt-4 px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Client Messages</p>
                     @forelse ($clientConversations as $c)
                         @php
                             $client = $c->clientMember() ?? $c->members->first();
                             $un = $c->unreadCountFor($me);
                             $on = $active && $active->id === $c->id;
+                            $clast = $c->latestMessage;
                         @endphp
-                        <a href="{{ route('admin.chat.show', $c) }}" data-turbo="false" data-conv-link data-conv="{{ $c->id }}" data-chat-row="{{ strtolower($client->name ?? 'client') }}"
-                           class="flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
+                        <a href="{{ route('admin.chat.show', $c) }}" data-turbo="false" data-conv-link data-conv="{{ $c->id }}"
+                           data-pin-key="conv:{{ $c->id }}" data-kind="client" data-unread-count="{{ $un }}" data-chat-row="{{ strtolower($client->name ?? 'client') }}"
+                           class="chat-row group relative flex items-center gap-2.5 rounded-lg px-2 py-2 {{ $on ? 'active-conv' : '' }}">
                             <span class="relative shrink-0">
                                 {!! $avatar($client) !!}
                                 <span class="absolute -bottom-0.5 -right-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-sky-500 ring-2 ring-white" title="Client"><svg class="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0Z"/></svg></span>
                             </span>
                             <span class="min-w-0 flex-1">
-                                <span class="conv-name block truncate text-sm font-medium text-[var(--color-heading)]">{{ $client->name ?? 'Client' }}</span>
-                                <span class="block truncate text-xs text-[var(--color-muted)]">{{ $c->latestMessage?->preview ?: 'New conversation' }}</span>
+                                <span class="flex items-center justify-between gap-2">
+                                    <span class="flex min-w-0 items-center gap-1.5">
+                                        <span class="conv-name truncate text-sm font-semibold text-[var(--color-heading)]">{{ $client->name ?? 'Client' }}</span>
+                                        <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold" style="background:hsl(200 85% 94%);color:hsl(200 60% 40%)">Client</span>
+                                    </span>
+                                    <span data-row-time class="shrink-0 text-[10px] {{ $un ? 'font-semibold text-[var(--color-primary)]' : 'text-gray-400' }}">{{ $clast ? $chatTime($clast->created_at) : '' }}</span>
+                                </span>
+                                <span class="mt-0.5 flex items-center justify-between gap-2">
+                                    <span data-row-preview class="truncate text-xs {{ $un ? 'font-medium text-[var(--color-heading)]' : 'text-[var(--color-muted)]' }}">{{ $clast?->preview ?: 'New conversation' }}</span>
+                                    @if ($un)<span data-unread class="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-[var(--color-primary)] px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                                </span>
                             </span>
-                            @if ($un)<span data-unread class="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ $un }}</span>@endif
+                            {!! $pinBtn !!}
                         </a>
                     @empty
-                        <div class="px-2 py-10 text-center text-xs text-[var(--color-muted)]">
+                        <div data-empty="client" class="px-2 py-10 text-center text-xs text-[var(--color-muted)]">
                             <svg class="mx-auto mb-2 h-8 w-8 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10Z"/></svg>
                             No client messages yet.
                         </div>
                     @endforelse
-                </div>
-            @endif
+                @endif
+
+                <p data-list-empty class="hidden px-2 py-10 text-center text-xs text-[var(--color-muted)]">Nothing here.</p>
+            </div>
+
+            {{-- Footer --}}
+            <a href="{{ route('admin.chat.index') }}" data-turbo="false"
+               class="flex shrink-0 items-center justify-between border-t border-gray-100 px-4 py-3 text-sm font-semibold text-[var(--color-heading)] transition hover:bg-gray-50">
+                View all conversations
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 6 6 6-6 6"/></svg>
+            </a>
         </aside>
 
         {{-- ───────── Right: thread (Turbo Frame — only this swaps on conversation switch) ───────── --}}
@@ -267,7 +347,7 @@
         document.querySelectorAll('[data-conv-link].active-conv').forEach(el => el.classList.remove('active-conv'));
         const cp = root.dataset.counterpartId;
         const activeRow = document.querySelector('[data-conv="' + CONV + '"]') || (cp ? document.querySelector('[data-user="' + cp + '"]') : null);
-        if (activeRow) { activeRow.classList.add('active-conv'); const b = activeRow.querySelector('[data-unread]'); if (b) b.remove(); }
+        if (activeRow) { activeRow.classList.add('active-conv'); activeRow.dataset.unreadCount = '0'; const b = activeRow.querySelector('[data-unread]'); if (b) b.remove(); if (window.Razin.refreshChatFilter) window.Razin.refreshChatFilter(); }
 
         const esc = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -306,7 +386,7 @@
         // Move a conversation's left-list row to the top of its section and refresh its
         // preview/time/unread — the live WhatsApp-style reorder (no reload needed).
         window.Razin.bumpConversation = function (o) {
-            const aside = document.querySelector('aside');
+            const aside = document.getElementById('chat-aside');
             if (!aside) return;
             let row, headerId;
             if (o.type === 'direct') { row = aside.querySelector('a[data-user="' + o.userId + '"]'); headerId = 'dm-header'; }
@@ -326,9 +406,11 @@
                     (pv ? pv.parentElement : row).appendChild(b);
                 }
                 b.textContent = String((parseInt(b.textContent, 10) || 0) + 1);
+                row.dataset.unreadCount = b.textContent;
                 if (pv) { pv.classList.add('font-medium', 'text-[var(--color-heading)]'); pv.classList.remove('text-[var(--color-muted)]'); }
                 if (tm) { tm.classList.add('font-semibold', 'text-[var(--color-primary)]'); tm.classList.remove('text-gray-400'); }
             }
+            if (window.Razin.refreshChatFilter) window.Razin.refreshChatFilter();
             const header = document.getElementById(headerId);
             if (header && header.parentElement === row.parentElement) header.after(row);   // → top of its section
             row.classList.remove('conv-bump'); void row.offsetWidth; row.classList.add('conv-bump');
@@ -346,7 +428,7 @@
                 + '<span class="block font-semibold ' + nameCol + '">' + esc(q.author || '') + '</span>'
                 + '<span class="block truncate ' + txtCol + '">' + esc(snippet) + '</span></div>';
         }
-        const playSound = () => { if (typeof window.Razin.playMessageSound === 'function') window.Razin.playMessageSound(); };
+        const playSound = () => { if (window.Razin.isConvMuted && window.Razin.isConvMuted()) return; if (typeof window.Razin.playMessageSound === 'function') window.Razin.playMessageSound(); };
         const toBottom = () => { scroll.scrollTop = scroll.scrollHeight; };
         toBottom();
 
@@ -355,6 +437,93 @@
             const now = Date.now(); if (now - lastReadPing < 1200) return; lastReadPing = now;
             fetch(READ_URL, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } }).catch(() => {});
         }
+
+        // ── Header controls: Files · Search-in-chat · Mute · More ──
+        (function initHeaderControls() {
+            // Mute (per-conversation, localStorage). playSound() respects window.Razin.isConvMuted.
+            const bell = document.getElementById('chat-mute-btn');
+            const bellOn = bell && bell.querySelector('[data-bell-on]');
+            const bellOff = bell && bell.querySelector('[data-bell-off]');
+            const MUTE_KEY = 'razin_chat_mute_' + CONV;
+            const isMuted = () => { try { return localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { return false; } };
+            const paintMute = () => {
+                const m = isMuted();
+                if (bellOn) bellOn.classList.toggle('hidden', m);
+                if (bellOff) bellOff.classList.toggle('hidden', !m);
+                if (bell && window.Razin.paintToggleBtn) window.Razin.paintToggleBtn(bell, m);
+            };
+            window.Razin.isConvMuted = isMuted;
+            paintMute();
+            bell && bell.addEventListener('click', function () {
+                try { localStorage.setItem(MUTE_KEY, isMuted() ? '0' : '1'); } catch (e) {}
+                paintMute();
+                window.Razin.toast(isMuted() ? 'Notifications muted' : 'Notifications on');
+            });
+
+            // Shared-files dropdown — built from the loaded messages.
+            const filesBtn = document.getElementById('chat-files-btn');
+            const filesPanel = document.getElementById('chat-files-panel');
+            const filesList = document.getElementById('chat-files-list');
+            const fileIcon = '<span class="grid h-9 w-9 shrink-0 place-items-center rounded bg-gray-100 text-gray-400"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7zM14 3v5h5"/></svg></span>';
+            function buildFiles() {
+                const links = [...scroll.querySelectorAll('[data-bubble-wrap] a[href]')]
+                    .filter(a => a.querySelector('img') || /\.(pdf|docx?|xlsx?|pptx?|zip|rar|csv|txt|png|jpe?g|gif|webp|svg)(\?|$)/i.test(a.getAttribute('href') || ''));
+                if (!links.length) { filesList.innerHTML = '<p class="px-2 py-3 text-center text-xs text-gray-400">No files shared yet.</p>'; return; }
+                filesList.innerHTML = links.slice().reverse().map(a => {
+                    const img = a.querySelector('img');
+                    const name = img ? 'Photo' : (a.textContent.trim() || 'File');
+                    const thumb = img ? '<img src="' + img.src + '" class="h-9 w-9 shrink-0 rounded object-cover">' : fileIcon;
+                    return '<a href="' + a.href + '" target="_blank" rel="noopener" class="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50">' + thumb + '<span class="truncate text-xs font-medium text-[var(--color-heading)]">' + esc(name) + '</span></a>';
+                }).join('');
+            }
+            function toggleFiles(force) {
+                if (!filesPanel) return;
+                const willShow = force === true ? true : filesPanel.classList.contains('hidden');
+                if (willShow) buildFiles();
+                filesPanel.classList.toggle('hidden', !willShow);
+            }
+            filesBtn && filesBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleFiles(); });
+
+            // Search within this conversation (filters loaded messages).
+            const inSearchBtn = document.getElementById('chat-insearch-btn');
+            const searchBar = document.getElementById('chat-search-bar');
+            const searchInput = document.getElementById('chat-search-input');
+            const searchCount = document.getElementById('chat-search-count');
+            const searchClose = document.getElementById('chat-search-close');
+            function runInSearch() {
+                const q = (searchInput.value || '').trim().toLowerCase();
+                let n = 0;
+                scroll.querySelectorAll('[data-msg-id]').forEach(row => {
+                    if (!q) { row.style.display = ''; return; }
+                    const hit = (row.innerText || '').toLowerCase().includes(q);
+                    row.style.display = hit ? '' : 'none';
+                    if (hit) n++;
+                });
+                searchCount.textContent = q ? (n + ' found') : '';
+            }
+            function openInSearch() { searchBar.classList.remove('hidden'); searchBar.classList.add('flex'); searchInput.focus(); }
+            function closeInSearch() { searchBar.classList.add('hidden'); searchBar.classList.remove('flex'); searchInput.value = ''; runInSearch(); }
+            inSearchBtn && inSearchBtn.addEventListener('click', openInSearch);
+            searchInput && searchInput.addEventListener('input', runInSearch);
+            searchClose && searchClose.addEventListener('click', closeInSearch);
+
+            // More menu.
+            const moreBtn = document.getElementById('chat-more-btn');
+            const moreMenu = document.getElementById('chat-more-menu');
+            moreBtn && moreBtn.addEventListener('click', function (e) { e.stopPropagation(); moreMenu.classList.toggle('hidden'); });
+            moreMenu && moreMenu.addEventListener('click', function (e) {
+                const b = e.target.closest('[data-more]'); if (!b) return;
+                moreMenu.classList.add('hidden');
+                if (b.dataset.more === 'mark-read') { fetch(READ_URL, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } }).then(() => window.Razin.toast('Marked as read')).catch(() => {}); }
+                else if (b.dataset.more === 'files') toggleFiles(true);
+                else if (b.dataset.more === 'search') openInSearch();
+            });
+
+            document.addEventListener('click', function (e) {
+                if (filesPanel && !filesPanel.classList.contains('hidden') && !filesPanel.contains(e.target) && !(filesBtn && filesBtn.contains(e.target))) filesPanel.classList.add('hidden');
+                if (moreMenu && !moreMenu.classList.contains('hidden') && !moreMenu.contains(e.target) && !(moreBtn && moreBtn.contains(e.target))) moreMenu.classList.add('hidden');
+            });
+        })();
 
         // ── Reply state (composer banner) ──
         let replyToId = null;
@@ -405,8 +574,8 @@
         const getText = () => (input.textContent || '').trim();
         const setHtml = (h) => { input.innerHTML = h || ''; };
         const clearInput = () => { input.innerHTML = ''; };
-        // Toolbar buttons.
-        const toolbar = input.closest('.flex-1')?.querySelector('[data-fmt]')?.parentElement;
+        // Toolbar buttons (scoped to this composer's formatting row).
+        const toolbar = input.closest('.chat-input-wrap')?.querySelector('[data-fmt]')?.parentElement;
         if (toolbar) toolbar.addEventListener('mousedown', function (e) {
             const btn = e.target.closest('[data-fmt]'); if (!btn) return;
             e.preventDefault();                                       // keep the caret in the editor
@@ -427,6 +596,11 @@
                 }
             } else if (cmd === 'blockquote') {
                 document.execCommand('formatBlock', false, 'blockquote');
+            } else if (cmd === 'code') {
+                const sel = window.getSelection();
+                const picked = sel ? sel.toString() : '';
+                const safe = (picked || 'code').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+                document.execCommand('insertHTML', false, '<code>' + safe + '</code>&nbsp;');
             } else {
                 document.execCommand(cmd, false, null);
             }
@@ -491,6 +665,48 @@
             });
         });
         document.addEventListener('click', function (e) { if (composerEmojiPop && !composerEmojiPop.contains(e.target) && e.target !== emojiBtn && !emojiBtn.contains(e.target)) closeComposerEmoji(); });
+
+        // ── @mention picker: insert @Name at the caret ──
+        const mentionBtn = document.getElementById('chat-mention-btn');
+        let mentionPop = null;
+        const closeMention = () => { if (mentionPop) { mentionPop.remove(); mentionPop = null; } };
+        function renderMentionList(pop, q) {
+            const team = window.__chatTeam || [];
+            const needle = (q || '').trim().toLowerCase();
+            const box = pop.querySelector('[data-mention-list]');
+            box.innerHTML = team.filter(p => !needle || p.name.toLowerCase().includes(needle)).slice(0, 30).map(p => {
+                const av = p.avatar
+                    ? '<img src="' + p.avatar + '" class="h-6 w-6 rounded-full object-cover">'
+                    : '<span class="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[11px] font-bold text-[var(--color-primary)]">' + esc(p.initial) + '</span>';
+                return '<button type="button" data-mention="' + esc(p.name) + '" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-gray-50">' + av + '<span class="truncate text-sm text-[var(--color-heading)]">' + esc(p.name) + '</span></button>';
+            }).join('') || '<p class="px-2 py-3 text-center text-xs text-gray-400">No teammates.</p>';
+        }
+        mentionBtn?.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            if (mentionPop) { closeMention(); return; }
+            const pop = document.createElement('div');
+            pop.className = 'z-50 max-h-72 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white p-1.5 shadow-lg';
+            pop.style.position = 'fixed';
+            pop.innerHTML = '<input type="text" data-mention-search placeholder="Mention…" class="mb-1 h-8 w-full rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none"><div data-mention-list class="max-h-56 overflow-y-auto"></div>';
+            document.body.appendChild(pop);
+            renderMentionList(pop, '');
+            const r = mentionBtn.getBoundingClientRect();
+            pop.style.top = Math.max(8, r.top - pop.offsetHeight - 8) + 'px';
+            pop.style.left = Math.min(window.innerWidth - pop.offsetWidth - 8, r.left) + 'px';
+            mentionPop = pop;
+            const si = pop.querySelector('[data-mention-search]');
+            si.addEventListener('input', () => renderMentionList(pop, si.value));
+            si.addEventListener('mousedown', ev => ev.stopPropagation());
+            setTimeout(() => si.focus(), 0);
+            pop.addEventListener('mousedown', function (ev) {
+                const b = ev.target.closest('[data-mention]'); if (!b) return;
+                ev.preventDefault();
+                input.focus();
+                document.execCommand('insertText', false, '@' + b.dataset.mention + ' ');
+                closeMention();
+            });
+        });
+        document.addEventListener('click', function (e) { if (mentionPop && !mentionPop.contains(e.target) && e.target !== mentionBtn && !mentionBtn.contains(e.target)) closeMention(); });
 
         // Paste as plain text so foreign markup never enters the composer.
         input.addEventListener('paste', function (e) {
@@ -965,10 +1181,11 @@
         if (!window.__chatClickBound) {
             window.__chatClickBound = true;
             document.addEventListener('click', function (e) {
+                if (e.target.closest('[data-pin-toggle]')) return;   // pin button handled separately
                 const a = e.target.closest && e.target.closest('a[data-conv-link]');
                 if (!a) return;
                 const pane = document.getElementById('thread-pane');
-                const aside = document.querySelector('aside');
+                const aside = document.getElementById('chat-aside');
                 if (!pane || !aside) return;
                 e.preventDefault();
                 e.stopPropagation();
@@ -976,7 +1193,9 @@
                 // Instant feedback: highlight + clear this row's unread.
                 aside.querySelectorAll('[data-conv-link].active-conv').forEach(el => el.classList.remove('active-conv'));
                 a.classList.add('active-conv');
+                a.dataset.unreadCount = '0';
                 const badge = a.querySelector('[data-unread]'); if (badge) badge.remove();
+                if (window.Razin.refreshChatFilter) window.Razin.refreshChatFilter();
 
                 const seq = ++window.__chatLoadSeq;
                 fetch(a.href, { headers: { 'X-Chat-Partial': '1', 'Accept': 'text/html' } })
@@ -995,16 +1214,122 @@
             }, true);   // capture
         }
 
-        // Left-list search (re-bound per render; the input element is fresh each load).
-        const search = document.querySelector('[data-chat-search]');
-        if (search && !search.dataset.bound) {
-            search.dataset.bound = '1';
-            search.addEventListener('input', function () {
-                const q = this.value.trim().toLowerCase();
-                document.querySelectorAll('[data-chat-row]').forEach(function (row) {
-                    row.style.display = row.dataset.chatRow.includes(q) ? '' : 'none';
+        // ── Sidebar: search + tabs + unread-filter + pin (bound once; the aside survives thread swaps) ──
+        if (!window.__chatSidebarBound) {
+            window.__chatSidebarBound = true;
+            const aside = document.getElementById('chat-aside');
+            const listEl = aside && aside.querySelector('[data-chat-list]');
+            if (aside && listEl) {
+                const searchEl = aside.querySelector('[data-chat-search]');
+                const tabsEl = aside.querySelector('[data-chat-tabs]');
+                const filterBtn = aside.querySelector('[data-chat-filter]');
+                const pinnedSection = aside.querySelector('[data-pinned-section]');
+                const pinnedItems = aside.querySelector('[data-pinned-items]');
+                const emptyEl = aside.querySelector('[data-list-empty]');
+                const ME_SIDE = Number((document.querySelector('#thread-root') || {}).dataset ? document.querySelector('#thread-root').dataset.me : 0) || 0;
+                const PIN_KEY = 'razin_chat_pins_' + ME_SIDE;
+                let currentTab = 'all';
+                let unreadOnly = false;
+
+                const getPins = () => { try { return JSON.parse(localStorage.getItem(PIN_KEY) || '[]'); } catch (e) { return []; } };
+                const setPins = (arr) => { try { localStorage.setItem(PIN_KEY, JSON.stringify(arr)); } catch (e) {} };
+                const rowByKey = (key) => [...listEl.querySelectorAll('.chat-row')].find(r => r.dataset.pinKey === key);
+
+                // Put a row back under its home section header (top of that section).
+                function restoreRow(row) {
+                    row.classList.remove('is-pinned');
+                    const headId = row.dataset.kind === 'group' ? 'ch-header' : (row.dataset.kind === 'client' ? 'cl-header' : 'dm-header');
+                    const head = document.getElementById(headId);
+                    if (head) head.after(row); else listEl.insertBefore(row, emptyEl);
+                }
+                // Reflect the stored pin set into the DOM (move rows in/out of the Pinned box).
+                function applyPins() {
+                    const pins = getPins();
+                    [...pinnedItems.querySelectorAll('.chat-row')].forEach(row => { if (!pins.includes(row.dataset.pinKey)) restoreRow(row); });
+                    pins.forEach(key => {
+                        const row = rowByKey(key) || [...pinnedItems.querySelectorAll('.chat-row')].find(r => r.dataset.pinKey === key);
+                        if (row) { row.classList.add('is-pinned'); pinnedItems.appendChild(row); }
+                    });
+                    aside.querySelectorAll('.chat-row').forEach(r => r.classList.toggle('is-pinned', pins.includes(r.dataset.pinKey)));
+                }
+
+                function rowMatchesTab(row) {
+                    const k = row.dataset.kind;
+                    switch (currentTab) {
+                        case 'team': return k === 'direct' || k === 'group';
+                        case 'clients': return k === 'client';
+                        case 'groups': return k === 'group';
+                        case 'unread': return Number(row.dataset.unreadCount) > 0;
+                        default: return true;                       // 'all'
+                    }
+                }
+                function applyFilter() {
+                    const q = (searchEl && searchEl.value || '').trim().toLowerCase();
+                    const byKind = {};
+                    aside.querySelectorAll('.chat-row').forEach(row => {
+                        const show = rowMatchesTab(row)
+                            && (!q || (row.dataset.chatRow || '').includes(q))
+                            && (!unreadOnly || Number(row.dataset.unreadCount) > 0);
+                        row.style.display = show ? '' : 'none';
+                        if (show && row.dataset.kind && !row.classList.contains('is-pinned')) byKind[row.dataset.kind] = true;
+                    });
+                    document.querySelectorAll('[data-group-head]').forEach(h => { h.style.display = byKind[h.dataset.groupHead] ? '' : 'none'; });
+                    const pinnedVisible = [...pinnedItems.querySelectorAll('.chat-row')].some(r => r.style.display !== 'none');
+                    pinnedSection.classList.toggle('hidden', !pinnedVisible);
+                    const anyVisible = pinnedVisible || Object.keys(byKind).length > 0;
+                    if (emptyEl) emptyEl.classList.toggle('hidden', anyVisible);
+                }
+                window.Razin.refreshChatFilter = applyFilter;      // let bump/read updates re-run the filter
+
+                applyPins();
+                applyFilter();
+
+                searchEl && searchEl.addEventListener('input', applyFilter);
+                tabsEl && tabsEl.addEventListener('click', function (e) {
+                    const b = e.target.closest('[data-tab]'); if (!b) return;
+                    currentTab = b.dataset.tab;
+                    aside.querySelectorAll('.chat-tab').forEach(t => t.classList.toggle('is-active', t === b));
+                    applyFilter();
                 });
-            });
+                // The admin theme fights button background/colour changes, so mark the active
+                // state with a small primary corner dot (a child span renders reliably).
+                const paintToggleBtn = (btn, on) => {
+                    let dot = btn.querySelector('[data-on-dot]');
+                    if (on && !dot) {
+                        dot = document.createElement('span');
+                        dot.setAttribute('data-on-dot', '');
+                        dot.style.cssText = 'position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:9999px;background:var(--color-primary);box-shadow:0 0 0 2px #fff';
+                        btn.style.position = 'relative';
+                        btn.appendChild(dot);
+                    } else if (!on && dot) {
+                        dot.remove();
+                    }
+                };
+                window.Razin.paintToggleBtn = paintToggleBtn;
+                filterBtn && filterBtn.addEventListener('click', function () {
+                    unreadOnly = !unreadOnly;
+                    filterBtn.setAttribute('aria-pressed', unreadOnly ? 'true' : 'false');
+                    paintToggleBtn(filterBtn, unreadOnly);
+                    applyFilter();
+                });
+                // Pin / unpin (bubbles; the conv-link capture handler bails on pin clicks).
+                aside.addEventListener('click', function (e) {
+                    const pin = e.target.closest('[data-pin-toggle]'); if (!pin) return;
+                    e.preventDefault(); e.stopPropagation();
+                    const row = pin.closest('.chat-row'); if (!row) return;
+                    const key = row.dataset.pinKey;
+                    let pins = getPins();
+                    pins = pins.includes(key) ? pins.filter(k => k !== key) : [...pins, key];
+                    setPins(pins);
+                    applyPins();
+                    applyFilter();
+                });
+
+                // ⌘K / Ctrl-K focuses the search.
+                document.addEventListener('keydown', function (e) {
+                    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); searchEl && searchEl.focus(); }
+                });
+            }
         }
 
         // Init whatever conversation is open on first load.

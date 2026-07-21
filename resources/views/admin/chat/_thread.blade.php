@@ -53,21 +53,65 @@
                 </p>
             @endif
         </div>
-        @if ($isGroup)
-            <div class="ml-auto flex items-center gap-3">
-                <div class="hidden -space-x-2 sm:flex">
-                    @foreach ($active->members->take(5) as $mem)
-                        <span title="{{ $mem->name }}" class="ring-2 ring-white rounded-full">{!! $avatar($mem, 'h-7 w-7') !!}</span>
+        <div class="ml-auto flex items-center gap-2">
+            @if ($isGroup)
+                <div class="mr-1 hidden -space-x-2 xl:flex">
+                    @foreach ($active->members->take(4) as $mem)
+                        <span title="{{ $mem->name }}" class="rounded-full ring-2 ring-white">{!! $avatar($mem, 'h-7 w-7') !!}</span>
                     @endforeach
                 </div>
-                @if ($active->isManagedBy($me))
-                    <a href="{{ route('admin.chat.groups.edit', $active) }}" title="Channel settings"
-                       class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-2.9-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.1-2.9H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.1-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.1V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 2.9 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9Z"/></svg>
-                    </a>
-                @endif
+            @endif
+            {{-- Files --}}
+            <button type="button" id="chat-files-btn" title="Shared files"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
+                Files
+            </button>
+            {{-- Search in conversation --}}
+            <button type="button" id="chat-insearch-btn" title="Search in conversation"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-4.3-4.3"/></svg>
+                Search
+            </button>
+            {{-- Mute --}}
+            <button type="button" id="chat-mute-btn" title="Mute notifications"
+                    class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50">
+                <svg data-bell-on class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                <svg data-bell-off class="hidden h-4 w-4 text-[var(--color-primary)]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 0 0-9.3-5M6 8c0 7-3 9-3 9h13M13.7 21a2 2 0 0 1-3.4 0M3 3l18 18"/></svg>
+            </button>
+            {{-- More --}}
+            <div class="relative">
+                <button type="button" id="chat-more-btn" title="More"
+                        class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-50">
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+                    <span class="hidden sm:inline">More</span>
+                </button>
+                <div id="chat-more-menu" style="top:2.75rem" class="absolute right-0 z-30 hidden min-w-[12rem] overflow-hidden rounded-xl border border-gray-100 bg-white py-1 text-sm shadow-lg">
+                    <button type="button" data-more="mark-read" class="flex w-full items-center gap-2.5 px-3 py-2 text-left font-medium text-[var(--color-heading)] hover:bg-gray-50">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>Mark all as read
+                    </button>
+                    @if ($isGroup && $active->isManagedBy($me))
+                        <a href="{{ route('admin.chat.groups.edit', $active) }}" class="flex w-full items-center gap-2.5 px-3 py-2 text-left font-medium text-[var(--color-heading)] hover:bg-gray-50">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-2.9-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.1-2.9H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.1-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.1V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 2.9 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9Z"/></svg>Channel settings
+                        </a>
+                    @endif
+                </div>
             </div>
-        @endif
+        </div>
+    </div>
+
+    {{-- In-conversation search bar (toggled from the header) --}}
+    <div id="chat-search-bar" class="hidden shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-5 py-2">
+        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="chat-search-input" placeholder="Search in this conversation…" class="h-8 flex-1 border-0 bg-transparent text-sm focus:outline-none focus:ring-0">
+        <span id="chat-search-count" class="text-xs text-gray-400"></span>
+        <button type="button" id="chat-search-close" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-gray-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+
+    {{-- Shared-files dropdown --}}
+    <div id="chat-files-panel" style="right:1rem" class="absolute top-16 z-30 hidden max-h-80 w-72 overflow-y-auto rounded-xl border border-gray-100 bg-white p-2 shadow-lg">
+        <p class="px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Shared files</p>
+        <div id="chat-files-list" class="space-y-0.5"></div>
     </div>
 
     {{-- Drag & drop overlay --}}
@@ -179,13 +223,9 @@
             <span id="chat-file-name" class="truncate font-medium text-[var(--color-heading)]"></span>
             <button type="button" id="chat-file-remove" class="ml-1 text-red-500 hover:underline">Remove</button>
         </div>
-        {{-- WhatsApp-style composer: attach + auto-grow pill + round send --}}
-        <div class="flex items-end gap-2 px-3 py-3" style="background:#f0f2f5">
-            <label class="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-full text-gray-500 transition hover:bg-gray-200" title="Attach a file">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-                <input type="file" id="chat-file" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv">
-            </label>
-            <div class="chat-input-wrap flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-200">
+        {{-- Composer: formatting toolbar on top, input row (attach · text · emoji · mention · send) below --}}
+        <div class="bg-white px-4 py-3">
+            <div class="chat-input-wrap overflow-hidden rounded-2xl border border-gray-200 bg-white">
                 {{-- Formatting toolbar --}}
                 <div class="flex items-center gap-1.5 border-b border-gray-100 px-2.5 py-1.5">
                     @php
@@ -201,6 +241,7 @@
                             null,
                             ['blockquote', 'Quote', 'M6 17h3l2-4V7H5v6h3zM14 17h3l2-4V7h-6v6h3z'],
                             ['createLink', 'Add link', 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],
+                            ['code', 'Code', 'M8 8l-4 4 4 4M16 8l4 4-4 4'],
                         ];
                     @endphp
                     @foreach ($tools as $tool)
@@ -217,9 +258,6 @@
                     <button type="button" id="chat-checklist-btn" title="Add a checklist" tabindex="-1" class="grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
                         <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
                     </button>
-                    <button type="button" id="chat-emoji-btn" title="Insert emoji" tabindex="-1" class="relative grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
-                    </button>
                 </div>
                 {{-- Checklist builder (hidden until the button is clicked) --}}
                 <div id="chat-checklist" class="hidden border-b border-gray-100 px-3 py-2">
@@ -231,12 +269,25 @@
                         <button type="button" id="chat-checklist-add" class="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">Add</button>
                     </div>
                 </div>
-                <div id="chat-input" contenteditable="true" data-placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
-                     class="chat-composer overflow-y-auto px-4 py-3 text-sm leading-5 text-gray-800 outline-none" style="max-height:10rem;min-height:2.75rem"></div>
+                {{-- Input row --}}
+                <div class="flex items-end gap-1 px-2 py-1.5">
+                    <label class="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg text-gray-500 transition hover:bg-gray-100" title="Attach a file">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
+                        <input type="file" id="chat-file" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv">
+                    </label>
+                    <div id="chat-input" contenteditable="true" data-placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
+                         class="chat-composer flex-1 self-center overflow-y-auto px-2 py-2 text-sm leading-5 text-gray-800 outline-none" style="min-height:1.75rem;max-height:10rem"></div>
+                    <button type="button" id="chat-emoji-btn" title="Insert emoji" tabindex="-1" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
+                    </button>
+                    <button type="button" id="chat-mention-btn" title="Mention a teammate" tabindex="-1" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
+                    </button>
+                    <button type="submit" title="Send" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--color-primary)] text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
+                    </button>
+                </div>
             </div>
-            <button type="submit" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
-            </button>
         </div>
     </form>
 </div>
