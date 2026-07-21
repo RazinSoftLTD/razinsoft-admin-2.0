@@ -629,11 +629,15 @@
         clInput?.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { e.preventDefault(); addChecklistItem(); }
         });
+        document.getElementById('chat-checklist-title')?.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); clInput?.focus(); }   // Enter on the title jumps to items, never sends
+        });
         clItemsEl?.addEventListener('click', function (e) {
             const b = e.target.closest('[data-cl-rm]'); if (!b) return;
             checklistItems.splice(Number(b.dataset.clRm), 1); renderChecklistBuilder();
         });
-        const clearChecklist = () => { checklistItems = []; clItemsEl.innerHTML = ''; clWrap.classList.add('hidden'); };
+        const clTitleEl = document.getElementById('chat-checklist-title');
+        const clearChecklist = () => { checklistItems = []; clItemsEl.innerHTML = ''; if (clTitleEl) clTitleEl.value = ''; clWrap.classList.add('hidden'); };
 
         // ── Emoji picker for the composer (insert at the caret) ──
         const COMPOSER_EMOJIS = ['😀','😁','😂','🤣','😊','😍','😎','😉','🙂','🤔','😅','😭','😴','😡','👍','👎','🙏','👏','🙌','💪','🔥','✅','❌','⭐','💯','🎉','❤️','💙','💚','🚀','👀','☕','⏰','📌','📎','💡'];
@@ -878,7 +882,7 @@
             const name = (isGroup && !mine) ? '<p class="mb-0.5 px-1 text-xs font-semibold text-[var(--color-heading)]">' + esc(d.author) + '</p>' : '';
             const bubble = mine ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-white text-[var(--color-heading)] border border-gray-100 rounded-bl-sm';
             const bodyHtml = d.body ? '<div class="chat-html break-words">' + d.body + '</div>' : '';
-            const checklistHtml = checklistToHtml(d.id, d.checklist, mine);
+            const checklistHtml = checklistToHtml(d.id, d.checklist, mine, d.checklist_title);
             const row = document.createElement('div');
             row.className = 'group flex items-end gap-2 ' + (mine ? 'flex-row-reverse' : '');
             row.dataset.msgId = d.id;
@@ -895,15 +899,16 @@
             return row;
         }
         // Build the interactive checklist markup for a message (mirrors the Blade render).
-        function checklistToHtml(msgId, list, mine) {
+        function checklistToHtml(msgId, list, mine, title) {
             if (!Array.isArray(list) || !list.length) return '';
+            const head = title ? '<p class="mt-1 mb-0.5 text-sm font-bold ' + (mine ? 'text-white' : 'text-[var(--color-heading)]') + '">' + esc(title) + '</p>' : '';
             const rows = list.map((it, i) => {
                 const on = !!it.checked;
                 const box = on ? 'border-emerald-500 bg-emerald-500 text-white' : (mine ? 'border-white/40' : 'border-gray-300');
                 const tick = on ? '<svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>' : '';
                 return '<li class="flex items-start gap-2 text-sm"><button type="button" data-check-toggle data-msg="' + msgId + '" data-idx="' + i + '" class="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border ' + box + '">' + tick + '</button><span class="' + (on ? 'line-through opacity-60' : '') + '">' + esc(it.text) + '</span></li>';
             }).join('');
-            return '<ul class="chat-checklist mt-1 space-y-1" data-msg-checklist="' + msgId + '">' + rows + '</ul>';
+            return head + '<ul class="chat-checklist mt-1 space-y-1" data-msg-checklist="' + msgId + '">' + rows + '</ul>';
         }
         // Tick / untick — persist and update the button, then let the broadcast update everyone else.
         function applyChecklistToggle(msgId, idx, checked) {
@@ -1120,12 +1125,14 @@
             fd.append('_token', CSRF);
             fd.append('body', hasText ? getHtml() : '');
             checklistItems.forEach(t => fd.append('checklist[]', t));
+            const checklistTitle = (clTitleEl && clTitleEl.value.trim()) || '';
+            if (hasChecklist && checklistTitle) fd.append('checklist_title', checklistTitle);
             if (hasFile) fd.append('attachment', fileInput.files[0]);
             if (replyToId) fd.append('reply_to_id', replyToId);
             fetch(STORE_URL, { method: 'POST', headers: { 'Accept': 'application/json' }, body: fd })
                 .then(r => r.json())
                 .then(d => {
-                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, checklist: d.checklist, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at, quoted: d.quoted, reactions: d.reactions });
+                    if (d && d.id) append({ id: d.id, user_id: ME, author: 'You', body: d.body, checklist: d.checklist, checklist_title: d.checklist_title, attachment: d.attachment, attachment_name: d.attachment_name, is_image: d.is_image, time: d.time, created_at: d.created_at, quoted: d.quoted, reactions: d.reactions });
                     clearInput(); clearChecklist(); fileInput.value = ''; fileChip.classList.add('hidden'); fileChip.classList.remove('flex');
                     cancelReply();
                     // My own message → bump this conversation to the top of the left list (no unread).

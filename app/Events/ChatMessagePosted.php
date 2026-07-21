@@ -51,6 +51,8 @@ class ChatMessagePosted implements ShouldBroadcastNow
             'attachment' => $m->attachment_url,
             'attachment_name' => $m->attachment_name,
             'is_image' => $m->is_image,
+            'checklist' => $m->checklist,
+            'checklist_title' => $m->checklist_title,
             'created_at' => $m->created_at?->toIso8601String(),
             'time' => $m->created_at?->format('g:i A'),
             'quoted' => $m->quoted(),

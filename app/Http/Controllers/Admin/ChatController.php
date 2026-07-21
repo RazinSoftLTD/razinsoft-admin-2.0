@@ -304,6 +304,7 @@ class ChatController extends Controller
             'reply_to_id' => ['nullable', 'integer'],
             'checklist' => ['nullable', 'array', 'max:50'],
             'checklist.*' => ['string', 'max:500'],
+            'checklist_title' => ['nullable', 'string', 'max:200'],
         ]);
 
         // Shared to-do items — each starts unchecked.
@@ -311,6 +312,8 @@ class ChatController extends Controller
             ->map(fn ($t) => trim((string) $t))->filter()->take(50)
             ->map(fn ($t) => ['text' => mb_substr($t, 0, 500), 'checked' => false])->values()->all();
         $checklist = $checklist ?: null;
+        // Optional heading for the checklist (only meaningful when there are items).
+        $checklistTitle = $checklist ? (trim((string) $request->input('checklist_title')) ?: null) : null;
 
         // A reply must point at a message that lives in THIS conversation.
         $replyToId = null;
@@ -342,6 +345,7 @@ class ChatController extends Controller
             'reply_to_id' => $replyToId,
             'body' => $body,
             'checklist' => $checklist,
+            'checklist_title' => $checklistTitle,
             'attachment' => $path,
             'attachment_name' => $name,
         ]);
@@ -360,6 +364,7 @@ class ChatController extends Controller
                 'attachment_name' => $message->attachment_name,
                 'is_image' => $message->is_image,
                 'checklist' => $message->checklist,
+                'checklist_title' => $message->checklist_title,
                 'created_at' => $message->created_at->timestamp,
                 'time' => $message->created_at->format('g:i A'),
                 'quoted' => $message->quoted(),

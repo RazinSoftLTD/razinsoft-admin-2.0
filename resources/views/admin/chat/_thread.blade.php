@@ -158,6 +158,9 @@
                         @endif
                         @if ($msg->body)<div class="chat-html break-words">{!! $msg->body !!}</div>@endif
                         @if (!empty($msg->checklist))
+                            @if (!empty($msg->checklist_title))
+                                <p class="mt-1 mb-0.5 text-sm font-bold {{ $mine ? 'text-white' : 'text-[var(--color-heading)]' }}">{{ $msg->checklist_title }}</p>
+                            @endif
                             <ul class="chat-checklist mt-1 space-y-1" data-msg-checklist="{{ $msg->id }}">
                                 @foreach ($msg->checklist as $ci => $item)
                                     <li class="flex items-start gap-2 text-sm">
@@ -288,6 +291,8 @@
             {{-- Checklist builder (hidden until opened) --}}
             <div id="chat-checklist" class="mb-2 hidden rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
                 <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Checklist</p>
+                <input id="chat-checklist-title" type="text" maxlength="200" placeholder="Checklist title (optional)"
+                       class="mb-1.5 h-8 w-full rounded-lg border border-gray-200 px-2.5 text-sm font-semibold text-[var(--color-heading)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
                 <div id="chat-checklist-items" class="space-y-1"></div>
                 <div class="mt-1.5 flex items-center gap-2">
                     <input id="chat-checklist-input" type="text" maxlength="500" placeholder="Add an item, press Enter"
