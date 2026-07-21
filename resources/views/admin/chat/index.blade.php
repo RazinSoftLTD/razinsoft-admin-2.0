@@ -461,6 +461,37 @@
         });
         const clearChecklist = () => { checklistItems = []; clItemsEl.innerHTML = ''; clWrap.classList.add('hidden'); };
 
+        // ── Emoji picker for the composer (insert at the caret) ──
+        const COMPOSER_EMOJIS = ['😀','😁','😂','🤣','😊','😍','😎','😉','🙂','🤔','😅','😭','😴','😡','👍','👎','🙏','👏','🙌','💪','🔥','✅','❌','⭐','💯','🎉','❤️','💙','💚','🚀','👀','☕','⏰','📌','📎','💡'];
+        let composerEmojiPop = null;
+        const closeComposerEmoji = () => { if (composerEmojiPop) { composerEmojiPop.remove(); composerEmojiPop = null; } };
+        const emojiBtn = document.getElementById('chat-emoji-btn');
+        emojiBtn?.addEventListener('mousedown', function (e) {
+            e.preventDefault();                                   // keep the caret in the editor
+            if (composerEmojiPop) { closeComposerEmoji(); return; }
+            const pop = document.createElement('div');
+            pop.className = 'z-50 rounded-xl border border-gray-100 bg-white p-2 shadow-lg';
+            pop.style.position = 'fixed';
+            pop.style.display = 'grid';
+            pop.style.gridTemplateColumns = 'repeat(8, minmax(0, 1fr))';
+            pop.style.gap = '2px';
+            pop.style.width = '15.5rem';
+            pop.innerHTML = COMPOSER_EMOJIS.map(em => '<button type="button" tabindex="-1" data-emoji="' + em + '" class="grid h-7 w-7 place-items-center rounded-lg text-lg hover:bg-gray-100">' + em + '</button>').join('');
+            document.body.appendChild(pop);
+            const r = emojiBtn.getBoundingClientRect();
+            pop.style.top = Math.max(8, r.top - pop.offsetHeight - 8) + 'px';
+            pop.style.left = Math.min(window.innerWidth - pop.offsetWidth - 8, r.left) + 'px';
+            composerEmojiPop = pop;
+            pop.addEventListener('mousedown', function (ev) {
+                const b = ev.target.closest('[data-emoji]'); if (!b) return;
+                ev.preventDefault();
+                input.focus();
+                document.execCommand('insertText', false, b.dataset.emoji);
+                closeComposerEmoji();
+            });
+        });
+        document.addEventListener('click', function (e) { if (composerEmojiPop && !composerEmojiPop.contains(e.target) && e.target !== emojiBtn && !emojiBtn.contains(e.target)) closeComposerEmoji(); });
+
         // Paste as plain text so foreign markup never enters the composer.
         input.addEventListener('paste', function (e) {
             const items = (e.clipboardData && e.clipboardData.items) ? e.clipboardData.items : [];
@@ -617,9 +648,41 @@
             }).then(r => { if (!r.ok) applyChecklistToggle(msgId, idx, !checked); }).catch(() => applyChecklistToggle(msgId, idx, !checked));
         });
 
+        // ── Day separators ("Today" / "Yesterday" / "July 19, 2026") ──
+        // Compared message-to-message in the browser's local time so it stays
+        // consistent with itself (never against a server-tz string).
+        function sameLocalDay(a, b) {
+            if (!a || !b) return false;
+            const da = new Date(a * 1000), db = new Date(b * 1000);
+            return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+        }
+        function dayLabel(epoch) {
+            const d = new Date(epoch * 1000), now = new Date();
+            const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            const diff = Math.round((t - dd) / 86400000);
+            if (diff === 0) return 'Today';
+            if (diff === 1) return 'Yesterday';
+            return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+        }
+        function daySepEl(epoch) {
+            const sep = document.createElement('div');
+            sep.className = 'flex justify-center py-1';
+            sep.setAttribute('data-date-sep', '');
+            sep.innerHTML = '<span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-gray-500 shadow-sm ring-1 ring-gray-100">' + esc(dayLabel(epoch)) + '</span>';
+            return sep;
+        }
+        function lastRowEpoch() {
+            const rows = scroll.querySelectorAll('[data-msg-id]');
+            const last = rows[rows.length - 1];
+            return last ? Number(last.dataset.created || 0) : 0;
+        }
+
         function append(d) {
             if (seen.has(Number(d.id))) return;
             seen.add(Number(d.id));
+            const epoch = toEpoch(d.created_at) || Math.floor(Date.now() / 1000);
+            if (!sameLocalDay(lastRowEpoch(), epoch)) scroll.appendChild(daySepEl(epoch));
             const row = makeRow(d);
             row.classList.add('msg-in');
             scroll.appendChild(row);

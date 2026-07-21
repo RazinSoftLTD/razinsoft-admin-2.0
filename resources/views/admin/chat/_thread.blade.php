@@ -84,8 +84,19 @@
         <div id="chat-load-earlier" class="{{ ($hasMore ?? false) ? 'flex' : 'hidden' }} justify-center pb-1">
             <button type="button" id="chat-load-earlier-btn" class="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-gray-600 shadow-sm hover:bg-gray-50">Load earlier messages</button>
         </div>
+        @php $lastDate = null; @endphp
         @foreach ($messages as $msg)
-            @php $mine = $msg->user_id === $me->id; $q = $msg->quoted(); @endphp
+            @php
+                $mine = $msg->user_id === $me->id; $q = $msg->quoted();
+                $day = $msg->created_at->toDateString();
+                $showSep = $day !== $lastDate; $lastDate = $day;
+                $dayLabel = $msg->created_at->isToday() ? 'Today' : ($msg->created_at->isYesterday() ? 'Yesterday' : $msg->created_at->format('F j, Y'));
+            @endphp
+            @if ($showSep)
+                <div class="flex justify-center py-1" data-date-sep="{{ $day }}">
+                    <span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-gray-500 shadow-sm ring-1 ring-gray-100">{{ $dayLabel }}</span>
+                </div>
+            @endif
             <div class="group flex items-end gap-2 {{ $mine ? 'flex-row-reverse' : '' }}"
                  data-msg-id="{{ $msg->id }}" data-mine="{{ $mine ? '1' : '0' }}"
                  data-author="{{ $msg->author->name ?? '—' }}"
@@ -205,6 +216,9 @@
                     <span class="mx-0.5 h-5 w-px shrink-0 bg-gray-200"></span>
                     <button type="button" id="chat-checklist-btn" title="Add a checklist" tabindex="-1" class="grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
                         <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
+                    </button>
+                    <button type="button" id="chat-emoji-btn" title="Insert emoji" tabindex="-1" class="relative grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
                     </button>
                 </div>
                 {{-- Checklist builder (hidden until the button is clicked) --}}

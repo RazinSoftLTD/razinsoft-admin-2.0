@@ -249,6 +249,22 @@ class ChatController extends Controller
         return redirect()->route('admin.chat.show', $conversation)->with('status', 'Channel updated.');
     }
 
+    /**
+     * Broadcast an event without ever letting a transport failure (Reverb down,
+     * wrong host, capacity) turn into a 500. Realtime is best-effort — the message
+     * is already persisted, so the sender must still get a clean success response.
+     * The PendingBroadcast temporary is destroyed at the `;` inside the closure, so
+     * its dispatch (and any exception) happens within this try/catch.
+     */
+    private function broadcastSafe(\Closure $fn): void
+    {
+        try {
+            $fn();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /** Tick / untick a shared checklist item on a message (anyone in the conversation). */
     public function toggleChecklist(Request $request, ChatMessage $message)
     {
@@ -267,7 +283,7 @@ class ChatController extends Controller
         $list[$data['index']]['checked'] = $request->boolean('checked');
         $message->update(['checklist' => $list]);
 
-        broadcast(new \App\Events\ChatChecklistToggled($message->conversation_id, $message->id, $data['index'], $request->boolean('checked')))->toOthers();
+        $this->broadcastSafe(fn () => broadcast(new \App\Events\ChatChecklistToggled($message->conversation_id, $message->id, $data['index'], $request->boolean('checked')))->toOthers());
 
         return response()->json(['ok' => true]);
     }
@@ -333,7 +349,7 @@ class ChatController extends Controller
         $this->markRead($conversation, $me);
 
         $memberIds = $conversation->members->pluck('id')->all();
-        broadcast(new ChatMessagePosted($message, $memberIds))->toOthers();
+        $this->broadcastSafe(fn () => broadcast(new ChatMessagePosted($message, $memberIds))->toOthers());
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -360,7 +376,7 @@ class ChatController extends Controller
         $me = auth()->user();
         abort_unless($this->canAccess($me, $conversation), 403);
 
-        broadcast(new \App\Events\ChatTyping($conversation->id, $me->id, $me->name))->toOthers();
+        $this->broadcastSafe(fn () => broadcast(new \App\Events\ChatTyping($conversation->id, $me->id, $me->name))->toOthers());
 
         return response()->json(['ok' => true]);
     }
@@ -392,7 +408,7 @@ class ChatController extends Controller
         $conversationId = $message->conversation_id;
         $message->delete();
 
-        broadcast(new \App\Events\ChatMessageDeleted($conversationId, $message->id));
+        $this->broadcastSafe(fn () => broadcast(new \App\Events\ChatMessageDeleted($conversationId, $message->id)));
 
         return response()->json(['ok' => true]);
     }
@@ -415,7 +431,7 @@ class ChatController extends Controller
 
         $message->update(['body' => $body, 'edited_at' => now()]);
 
-        broadcast(new \App\Events\ChatMessageEdited($message->conversation_id, $message->id, $body))->toOthers();
+        $this->broadcastSafe(fn () => broadcast(new \App\Events\ChatMessageEdited($message->conversation_id, $message->id, $body))->toOthers());
 
         return response()->json(['ok' => true, 'id' => $message->id, 'body' => $body, 'edited' => true]);
     }
@@ -438,7 +454,7 @@ class ChatController extends Controller
         }
         $message->update(['reactions' => $map ?: null]);
 
-        broadcast(new \App\Events\ChatMessageReacted($message->conversation_id, $message->id, $map));
+        $this->broadcastSafe(fn () => broadcast(new \App\Events\ChatMessageReacted($message->conversation_id, $message->id, $map)));
 
         return response()->json(['ok' => true, 'id' => $message->id, 'reactions' => (object) $map]);
     }
@@ -480,7 +496,7 @@ class ChatController extends Controller
         $conversation->update(['last_message_at' => $forwarded->created_at]);
         $this->markRead($conversation, $me);
 
-        broadcast(new ChatMessagePosted($forwarded, $conversation->members->pluck('id')->all()))->toOthers();
+        $this->broadcastSafe(fn () => broadcast(new ChatMessagePosted($forwarded, $conversation->members->pluck('id')->all()))->toOthers());
 
         return response()->json([
             'ok' => true,
