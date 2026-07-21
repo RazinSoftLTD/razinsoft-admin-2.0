@@ -305,8 +305,8 @@
 
                 {{-- Borderless bar: quick icons + input --}}
                 <div class="chat-input-wrap min-w-0 flex-1">
-                    {{-- Quick icon row --}}
-                    <div class="mb-1 flex items-center gap-0.5">
+                    {{-- Quick icon row (hidden until the + button reveals it) --}}
+                    <div id="chat-quickbar" class="mb-1 hidden items-center gap-0.5">
                         <button type="button" id="chat-format-btn" data-quick="format" title="Formatting" tabindex="-1" class="chat-quick flex h-8 items-center rounded-md px-1.5 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-gray-100">
                             <span style="text-decoration:underline">Aa</span>
                         </button>

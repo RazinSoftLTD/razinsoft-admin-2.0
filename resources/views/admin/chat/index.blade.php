@@ -45,7 +45,7 @@
         .chat-html s, .chat-html strike { text-decoration: line-through; }
         /* Rich composer */
         .chat-composer:empty:before { content: attr(data-placeholder); color: #9ca3af; pointer-events: none; }
-        .chat-input-wrap:focus-within { --tw-ring-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary); }
+        .chat-composer:focus, .chat-composer:focus-visible { outline: none; box-shadow: none; }
         .chat-composer ul, .chat-composer ol { margin: .25rem 0; padding-left: 1.25rem; }
         .chat-composer ul { list-style: disc; }
         .chat-composer ol { list-style: decimal; }
@@ -719,7 +719,21 @@
             const fire = (id) => { const el = document.getElementById(id); el && el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); };
             const insertAtCaret = (t) => { input.focus(); document.execCommand('insertText', false, t); };
 
-            plusBtn && plusBtn.addEventListener('click', function (e) { e.stopPropagation(); togglePanel(); });
+            // "+" reveals/hides the quick icon bar (clean & minimal by default).
+            const quickbar = document.getElementById('chat-quickbar');
+            plusBtn && plusBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (!quickbar) return;
+                const show = quickbar.classList.contains('hidden');
+                quickbar.classList.toggle('hidden', !show);
+                quickbar.classList.toggle('flex', show);
+                plusBtn.classList.toggle('bg-[var(--color-primary)]', show);
+                plusBtn.classList.toggle('text-white', show);
+                plusBtn.classList.toggle('bg-[var(--color-primary-soft)]', !show);
+                plusBtn.classList.toggle('text-[var(--color-primary)]', !show);
+                if (!show) closePanel();                    // hiding the bar also closes the panel
+            });
+            // "Aa" opens the full Format / Insert / Shortcuts panel.
             fmtBtn && fmtBtn.addEventListener('mousedown', function (e) { e.preventDefault(); togglePanel(); });
 
             // Quick-bar: emoji / channel / code proxy to the canonical controls
