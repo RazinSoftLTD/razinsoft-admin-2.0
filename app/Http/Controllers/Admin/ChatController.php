@@ -51,6 +51,23 @@ class ChatController extends Controller
             $tab = $conversation->type === 'client' ? 'client' : 'team';
             [$messages, $hasMore] = $this->recentMessages($conversation);
             $this->markRead($conversation, $me);
+        } else {
+            // No conversation in the URL → open the one with the most recent message
+            // (so a fresh load / refresh lands on the latest chat, like WhatsApp).
+            $default = $conversations->concat($clientConversations)
+                ->filter(fn ($c) => $c->last_message_at !== null)
+                ->sortByDesc(fn ($c) => $c->last_message_at->getTimestamp())
+                ->first();
+            if ($default) {
+                if ($default->type === 'client' && ! $default->members->contains($me->id)) {
+                    $default->members()->attach($me->id);
+                    $default->load('members');
+                }
+                $active = $default;
+                $tab = $default->type === 'client' ? 'client' : 'team';
+                [$messages, $hasMore] = $this->recentMessages($default);
+                $this->markRead($default, $me);
+            }
         }
 
         return view('admin.chat.index', compact('conversations', 'clientConversations', 'people', 'active', 'messages', 'hasMore', 'tab', 'canClients'));
