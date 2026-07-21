@@ -104,13 +104,8 @@
             $pinBtn = '<button type="button" data-pin-toggle title="Pin conversation" class="pin-btn absolute right-1.5 top-1.5 hidden rounded p-1 text-gray-300 hover:bg-white hover:text-[var(--color-primary)]"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4h6l-1 6 4 3H6l4-3-1-6Z"/><path stroke-linecap="round" d="M12 13v7"/></svg></button>';
         @endphp
         <aside id="chat-aside" class="flex w-72 shrink-0 flex-col border-r border-gray-100">
-            {{-- Header --}}
-            <div class="flex items-center px-4 py-3 border-b border-gray-100">
-                <h1 class="text-base font-bold text-[var(--color-heading)]">Messages</h1>
-            </div>
-
             {{-- Search --}}
-            <div class="px-3 pt-3">
+            <div class="px-3 pt-4">
                 <div class="relative">
                     <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-4.3-4.3"/></svg>
                     <input type="text" data-chat-search placeholder="Search people or messages…"
