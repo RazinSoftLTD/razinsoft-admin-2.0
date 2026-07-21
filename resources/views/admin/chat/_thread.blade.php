@@ -223,69 +223,124 @@
             <span id="chat-file-name" class="truncate font-medium text-[var(--color-heading)]"></span>
             <button type="button" id="chat-file-remove" class="ml-1 text-red-500 hover:underline">Remove</button>
         </div>
-        {{-- Composer: formatting toolbar on top, input row (attach · text · emoji · mention · send) below --}}
-        <div class="bg-white px-4 py-3">
-            <div class="chat-input-wrap overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                {{-- Formatting toolbar --}}
-                <div class="flex items-center gap-1.5 border-b border-gray-100 px-2.5 py-1.5">
-                    @php
-                        // Grouped Lucide-style icons; `null` marks a divider between groups.
-                        $tools = [
-                            ['bold', 'Bold', 'M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8'],
-                            ['italic', 'Italic', 'M19 4h-9M14 20H5M15 4 9 20'],
-                            ['underline', 'Underline', 'M6 4v6a6 6 0 0 0 12 0V4M4 20h16'],
-                            ['strikeThrough', 'Strikethrough', 'M16 4H9a3 3 0 0 0-2.83 4M14 12a4 4 0 0 1 0 8H6M4 12h16'],
-                            null,
-                            ['insertUnorderedList', 'Bulleted list', 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'],
-                            ['insertOrderedList', 'Numbered list', 'M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.4-2-1'],
-                            null,
-                            ['blockquote', 'Quote', 'M6 17h3l2-4V7H5v6h3zM14 17h3l2-4V7h-6v6h3z'],
-                            ['createLink', 'Add link', 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],
-                            ['code', 'Code', 'M8 8l-4 4 4 4M16 8l4 4-4 4'],
-                        ];
-                    @endphp
-                    @foreach ($tools as $tool)
-                        @if ($tool === null)
-                            <span class="mx-0.5 h-5 w-px shrink-0 bg-gray-200"></span>
-                        @else
-                            <button type="button" data-fmt="{{ $tool[0] }}" title="{{ $tool[1] }}" tabindex="-1"
-                                    class="grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                                <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $tool[2] }}"/></svg>
-                            </button>
-                        @endif
+        {{-- Composer: clean borderless bar + rich FORMAT / INSERT / SHORTCUTS panel --}}
+        @php
+            $fmtTools = [
+                ['bold', 'Bold', 'M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8'],
+                ['italic', 'Italic', 'M19 4h-9M14 20H5M15 4 9 20'],
+                ['underline', 'Underline', 'M6 4v6a6 6 0 0 0 12 0V4M4 20h16'],
+                ['strikeThrough', 'Strikethrough', 'M16 4H9a3 3 0 0 0-2.83 4M14 12a4 4 0 0 1 0 8H6M4 12h16'],
+                ['code', 'Code', 'M8 8l-4 4 4 4M16 8l4 4-4 4'],
+                ['blockquote', 'Quote', 'M6 17h3l2-4V7H5v6h3zM14 17h3l2-4V7h-6v6h3z'],
+                ['createLink', 'Link', 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],
+                ['insertUnorderedList', 'Bulleted list', 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'],
+                ['insertOrderedList', 'Numbered list', 'M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.4-2-1'],
+            ];
+            $insertTools = [
+                ['file', 'File', 'M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8'],
+                ['image', 'Image', 'M4 5h16v14H4zM4 16l4-4 3 3 4-4 5 5M9.5 9.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0'],
+                ['emoji', 'Emoji', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5'],
+                ['mention', 'Mention', 'M16 12a4 4 0 1 0-8 0 4 4 0 0 0 8 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-4 7.5'],
+                ['channel', 'Channel', 'M6 9h12M6 15h12M9 4 7 20M17 4l-2 16'],
+                ['flag', 'Flag', 'M5 21V4h13l-2 4 2 4H5'],
+                ['task', 'Task', 'M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'],
+                ['template', 'Template', 'M4 5h16v5H4zM4 14h9v5H4zM16 14h4v5h-4z'],
+            ];
+            $shortcuts = [
+                ['*bold*', '*Bold*'], ['_italic_', '_Italic_'], ['-strike-', '- Strikethrough -'],
+                ['`code`', '`Code`'], ['> quote ', '> Quote'], ['[Link](url)', '[Link](url)'],
+                ['• ', '• List'], ['1. ', '1. List'],
+            ];
+        @endphp
+        <div class="relative bg-white px-4 py-3">
+            {{-- Rich panel (opens above on the "Aa" / "+" trigger) --}}
+            <div id="chat-format-panel" style="left:1rem;right:1rem;bottom:100%" class="absolute z-30 mb-2 hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-xl">
+                <p class="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">Format</p>
+                <div class="mb-5 flex flex-wrap gap-2">
+                    @foreach ($fmtTools as [$cmd, $label, $icon])
+                        <button type="button" data-fmt="{{ $cmd }}" tabindex="-1" title="{{ $label }}" class="group flex w-16 flex-col items-center gap-1.5">
+                            <span class="grid h-11 w-11 place-items-center rounded-xl border border-gray-200 text-gray-600 transition group-hover:border-[var(--color-primary)] group-hover:text-[var(--color-primary)]">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
+                            </span>
+                            <span class="text-[11px] text-gray-500">{{ $label }}</span>
+                        </button>
                     @endforeach
-                    <span class="mx-0.5 h-5 w-px shrink-0 bg-gray-200"></span>
-                    <button type="button" id="chat-checklist-btn" title="Add a checklist" tabindex="-1" class="grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                        <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
-                    </button>
                 </div>
-                {{-- Checklist builder (hidden until the button is clicked) --}}
-                <div id="chat-checklist" class="hidden border-b border-gray-100 px-3 py-2">
-                    <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Checklist</p>
-                    <div id="chat-checklist-items" class="space-y-1"></div>
-                    <div class="mt-1.5 flex items-center gap-2">
-                        <input id="chat-checklist-input" type="text" maxlength="500" placeholder="Add an item, press Enter"
-                               class="h-8 flex-1 rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
-                        <button type="button" id="chat-checklist-add" class="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">Add</button>
+                <p class="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">Insert</p>
+                <div class="mb-5 flex flex-wrap gap-2">
+                    @foreach ($insertTools as [$key, $label, $icon])
+                        <button type="button" data-insert="{{ $key }}" tabindex="-1" title="{{ $label }}" class="group flex w-16 flex-col items-center gap-1.5">
+                            <span class="grid h-11 w-11 place-items-center rounded-xl border border-gray-200 text-gray-600 transition group-hover:border-[var(--color-primary)] group-hover:text-[var(--color-primary)]">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
+                            </span>
+                            <span class="text-[11px] text-gray-500">{{ $label }}</span>
+                        </button>
+                    @endforeach
+                </div>
+                <p class="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">Shortcuts</p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($shortcuts as [$insert, $label])
+                        <button type="button" data-shortcut="{{ $insert }}" tabindex="-1" class="rounded-full bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-medium text-[var(--color-primary)]">{{ $label }}</button>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Checklist builder (hidden until opened) --}}
+            <div id="chat-checklist" class="mb-2 hidden rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Checklist</p>
+                <div id="chat-checklist-items" class="space-y-1"></div>
+                <div class="mt-1.5 flex items-center gap-2">
+                    <input id="chat-checklist-input" type="text" maxlength="500" placeholder="Add an item, press Enter"
+                           class="h-8 flex-1 rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                    <button type="button" id="chat-checklist-add" class="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">Add</button>
+                </div>
+            </div>
+
+            <div class="flex items-end gap-3">
+                {{-- + trigger (opens the panel) --}}
+                <button type="button" id="chat-plus" title="Format &amp; insert"
+                        class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                </button>
+
+                {{-- Borderless bar: quick icons + input --}}
+                <div class="chat-input-wrap min-w-0 flex-1">
+                    {{-- Quick icon row --}}
+                    <div class="mb-1 flex items-center gap-0.5">
+                        <button type="button" id="chat-format-btn" data-quick="format" title="Formatting" tabindex="-1" class="chat-quick flex h-8 items-center rounded-md px-1.5 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-gray-100">
+                            <span style="text-decoration:underline">Aa</span>
+                        </button>
+                        <label class="chat-quick grid h-8 w-8 cursor-pointer place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" title="Attach a file">
+                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
+                            <input type="file" id="chat-file" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv">
+                        </label>
+                        <button type="button" data-quick="emoji" title="Emoji" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
+                        </button>
+                        <button type="button" id="chat-mention-btn" data-quick="mention" title="Mention a teammate" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
+                        </button>
+                        <button type="button" data-quick="channel" title="Channel" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 9h12M6 15h12M9 4 7 20M17 4l-2 16"/></svg>
+                        </button>
+                        <button type="button" id="chat-checklist-btn" data-quick="checklist" title="Checklist" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path stroke-linecap="round" stroke-linejoin="round" d="m8.5 12 2.2 2.2L15.5 9.5"/></svg>
+                        </button>
+                        <button type="button" data-quick="code" title="Code" tabindex="-1" class="chat-quick grid h-8 w-8 place-items-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 6c-1.5 0-2 1-2 2v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 1 .5 2 2 2M16 6c1.5 0 2 1 2 2v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 1-.5 2-2 2"/></svg>
+                        </button>
                     </div>
-                </div>
-                {{-- Input row --}}
-                <div class="flex items-end gap-1 px-2 py-1.5">
-                    <label class="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg text-gray-500 transition hover:bg-gray-100" title="Attach a file">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.44 11.05 12 20.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>
-                        <input type="file" id="chat-file" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv">
-                    </label>
-                    <div id="chat-input" contenteditable="true" data-placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
-                         class="chat-composer flex-1 self-center overflow-y-auto px-2 py-2 text-sm leading-5 text-gray-800 outline-none" style="min-height:1.75rem;max-height:10rem"></div>
-                    <button type="button" id="chat-emoji-btn" title="Insert emoji" tabindex="-1" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
-                    </button>
-                    <button type="button" id="chat-mention-btn" title="Mention a teammate" tabindex="-1" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
-                    </button>
-                    <button type="submit" title="Send" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--color-primary)] text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
-                    </button>
+                    {{-- Input row --}}
+                    <div class="flex items-end gap-2">
+                        <div id="chat-input" contenteditable="true" data-placeholder="Type a message… (Enter to send, Shift+Enter for a new line)"
+                             class="chat-composer min-w-0 flex-1 self-center overflow-y-auto py-2 text-sm leading-5 text-gray-800 outline-none" style="min-height:1.75rem;max-height:10rem"></div>
+                        <button type="button" id="chat-emoji-btn" title="Insert emoji" tabindex="-1" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9 10h.01M15 10h.01M8.5 14.5c.8.9 2 1.5 3.5 1.5s2.7-.6 3.5-1.5"/></svg>
+                        </button>
+                        <button type="submit" title="Send" class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-primary)] text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

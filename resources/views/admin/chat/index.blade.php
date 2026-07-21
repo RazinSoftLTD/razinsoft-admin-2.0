@@ -135,9 +135,9 @@
             {{-- Tabs (JS-filtered) --}}
             <div class="flex items-center gap-4 border-b border-gray-100 px-4 pt-3" data-chat-tabs>
                 @php
-                    $tabs = ['all' => 'All', 'team' => 'Team'];
+                    $tabs = ['team' => 'Team', 'unread' => 'Unread', 'groups' => 'Groups'];
                     if ($canClients) $tabs['clients'] = 'Clients';
-                    $tabs += ['groups' => 'Groups', 'unread' => 'Unread'];
+                    $tabs['all'] = 'All';
                 @endphp
                 @foreach ($tabs as $key => $label)
                     <button type="button" data-tab="{{ $key }}"
@@ -574,8 +574,8 @@
         const getText = () => (input.textContent || '').trim();
         const setHtml = (h) => { input.innerHTML = h || ''; };
         const clearInput = () => { input.innerHTML = ''; };
-        // Toolbar buttons (scoped to this composer's formatting row).
-        const toolbar = input.closest('.chat-input-wrap')?.querySelector('[data-fmt]')?.parentElement;
+        // Formatting buttons live in the rich panel; delegate from the panel itself.
+        const toolbar = document.getElementById('chat-format-panel');
         if (toolbar) toolbar.addEventListener('mousedown', function (e) {
             const btn = e.target.closest('[data-fmt]'); if (!btn) return;
             e.preventDefault();                                       // keep the caret in the editor
@@ -664,7 +664,7 @@
                 closeComposerEmoji();
             });
         });
-        document.addEventListener('click', function (e) { if (composerEmojiPop && !composerEmojiPop.contains(e.target) && e.target !== emojiBtn && !emojiBtn.contains(e.target)) closeComposerEmoji(); });
+        document.addEventListener('click', function (e) { if (composerEmojiPop && !composerEmojiPop.contains(e.target) && e.target !== emojiBtn && !emojiBtn.contains(e.target) && !e.target.closest('[data-quick="emoji"],[data-insert="emoji"]')) closeComposerEmoji(); });
 
         // ── @mention picker: insert @Name at the caret ──
         const mentionBtn = document.getElementById('chat-mention-btn');
@@ -706,7 +706,60 @@
                 closeMention();
             });
         });
-        document.addEventListener('click', function (e) { if (mentionPop && !mentionPop.contains(e.target) && e.target !== mentionBtn && !mentionBtn.contains(e.target)) closeMention(); });
+        document.addEventListener('click', function (e) { if (mentionPop && !mentionPop.contains(e.target) && e.target !== mentionBtn && !mentionBtn.contains(e.target) && !e.target.closest('[data-insert="mention"]')) closeMention(); });
+
+        // ── Rich FORMAT / INSERT / SHORTCUTS panel + quick-bar proxies ──
+        (function initComposerPanel() {
+            const panel = document.getElementById('chat-format-panel');
+            const plusBtn = document.getElementById('chat-plus');
+            const fmtBtn = document.getElementById('chat-format-btn');
+            if (!panel) return;
+            const closePanel = () => panel.classList.add('hidden');
+            const togglePanel = () => panel.classList.toggle('hidden');
+            const fire = (id) => { const el = document.getElementById(id); el && el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); };
+            const insertAtCaret = (t) => { input.focus(); document.execCommand('insertText', false, t); };
+
+            plusBtn && plusBtn.addEventListener('click', function (e) { e.stopPropagation(); togglePanel(); });
+            fmtBtn && fmtBtn.addEventListener('mousedown', function (e) { e.preventDefault(); togglePanel(); });
+
+            // Quick-bar: emoji / channel / code proxy to the canonical controls
+            // (format, mention, checklist and the file <label> keep their own handlers).
+            const quickRow = fmtBtn && fmtBtn.parentElement;
+            quickRow && quickRow.addEventListener('mousedown', function (e) {
+                const b = e.target.closest('[data-quick]'); if (!b) return;
+                const act = b.dataset.quick;
+                if (act === 'format' || act === 'mention' || act === 'checklist') return;
+                e.preventDefault();
+                if (act === 'emoji') fire('chat-emoji-btn');
+                else if (act === 'channel') insertAtCaret('#');
+                else if (act === 'code') { const cb = panel.querySelector('[data-fmt="code"]'); cb && cb.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); }
+            });
+
+            // INSERT + SHORTCUTS (formatting [data-fmt] buttons are handled by the toolbar listener).
+            panel.addEventListener('mousedown', function (e) {
+                const ins = e.target.closest('[data-insert]');
+                if (ins) {
+                    e.preventDefault();
+                    const k = ins.dataset.insert;
+                    if (k === 'file' || k === 'image') fileInput.click();
+                    else if (k === 'emoji') fire('chat-emoji-btn');
+                    else if (k === 'mention') fire('chat-mention-btn');
+                    else if (k === 'channel') insertAtCaret('#');
+                    else if (k === 'flag') insertAtCaret('🚩 ');
+                    else if (k === 'task') { const c = document.getElementById('chat-checklist-btn'); c && c.click(); }
+                    else if (k === 'template') window.Razin.toast('No templates yet');
+                    closePanel();
+                    return;
+                }
+                const sc = e.target.closest('[data-shortcut]');
+                if (sc) { e.preventDefault(); insertAtCaret(sc.dataset.shortcut); closePanel(); }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (panel.classList.contains('hidden')) return;
+                if (!panel.contains(e.target) && e.target !== plusBtn && !(plusBtn && plusBtn.contains(e.target)) && e.target !== fmtBtn && !(fmtBtn && fmtBtn.contains(e.target))) closePanel();
+            });
+        })();
 
         // Paste as plain text so foreign markup never enters the composer.
         input.addEventListener('paste', function (e) {
