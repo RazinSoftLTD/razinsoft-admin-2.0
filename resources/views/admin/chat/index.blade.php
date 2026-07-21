@@ -395,7 +395,20 @@
         }
         const playSound = () => { if (window.Razin.isConvMuted && window.Razin.isConvMuted()) return; if (typeof window.Razin.playMessageSound === 'function') window.Razin.playMessageSound(); };
         const toBottom = () => { scroll.scrollTop = scroll.scrollHeight; };
+        const nearBottom = () => (scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight) < 140;
+        // Stay pinned to the newest message while images (which have no height until they
+        // load) settle. Once the user scrolls up, stop auto-pinning.
+        let pinBottom = true;
+        const watchImages = (container) => {
+            (container || scroll).querySelectorAll('img').forEach(img => {
+                if (img.complete) return;
+                img.addEventListener('load', () => { if (pinBottom) toBottom(); }, { once: true });
+                img.addEventListener('error', () => { if (pinBottom) toBottom(); }, { once: true });
+            });
+        };
         toBottom();
+        watchImages();                       // re-pin as the initial images finish loading
+        scroll.addEventListener('scroll', () => { pinBottom = nearBottom(); });
 
         let lastReadPing = 0;
         function markReadPing() {
@@ -938,8 +951,9 @@
             if (!sameLocalDay(lastRowEpoch(), epoch)) scroll.appendChild(daySepEl(epoch));
             const row = makeRow(d);
             row.classList.add('msg-in');
+            const wasNear = nearBottom();
             scroll.appendChild(row);
-            toBottom();
+            if (wasNear || Number(d.user_id) === ME) { pinBottom = true; toBottom(); watchImages(row); }
         }
 
         // ── Load earlier messages (pagination) + drag-and-drop ──
