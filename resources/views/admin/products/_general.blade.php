@@ -51,8 +51,5 @@
             </div>
             <x-admin.field label="Overview" name="overview" type="textarea" :rows="5" :value="$product->overview" />
         </div>
-                <p class="mt-1 text-xs text-[var(--color-muted)]">Colour behind the product page’s “Try It Live” cards. Blank = website default.</p>
-            </div>
-        </div>
     </div>
 </div>
