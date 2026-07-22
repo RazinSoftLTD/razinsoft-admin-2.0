@@ -45,8 +45,8 @@
                                         class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Actions">
                                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
                                 </button>
-                                <div x-show="open" x-cloak x-transition.opacity
-                                     class="absolute right-0 top-10 z-20 min-w-[11rem] overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
+                                <div x-show="open" x-cloak x-transition.opacity style="min-width:11rem"
+                                     class="absolute right-0 top-10 z-20 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
                                     <a href="{{ route('admin.products.show', $p) }}" class="{{ $menuItem }} text-[var(--color-heading)]">
                                         <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7.5 10-7.5S22 12 22 12s-3.6 7.5-10 7.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>View &amp; manage
                                     </a>
