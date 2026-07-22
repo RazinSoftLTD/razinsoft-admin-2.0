@@ -12,12 +12,37 @@ class ProductController extends Controller
 {
     public function index()
     {
-        // Same order the storefront uses: serial (sort_order) first, then featured, then newest.
+        // Full list (no pagination) so the whole catalogue can be drag-reordered.
         $products = Product::with('firstPlan')->withMin('plans', 'price')
-            ->orderBy('sort_order')->orderByDesc('is_featured')->latest('updated_at')
-            ->paginate(15);
+            ->orderBy('sort_order')->orderBy('id')->get();
 
-        return view('admin.products.index', compact('products'));
+        // Homepage tab: only products flagged for_home, in their own drag order.
+        $homeProducts = Product::with('firstPlan')->withMin('plans', 'price')
+            ->where('for_home', true)->orderBy('home_order')->orderBy('id')->get();
+
+        return view('admin.products.index', compact('products', 'homeProducts'));
+    }
+
+    /** Persist the All-Products drag order into sort_order (array of ids, top → bottom). */
+    public function reorder(Request $request)
+    {
+        $data = $request->validate(['order' => ['required', 'array'], 'order.*' => ['integer']]);
+        $pos = 1;
+        foreach ($data['order'] as $id) {
+            Product::where('id', $id)->update(['sort_order' => $pos++]);
+        }
+        return response()->json(['ok' => true]);
+    }
+
+    /** Persist the Homepage-featured drag order into home_order. */
+    public function reorderHome(Request $request)
+    {
+        $data = $request->validate(['order' => ['required', 'array'], 'order.*' => ['integer']]);
+        $pos = 1;
+        foreach ($data['order'] as $id) {
+            Product::where('id', $id)->where('for_home', true)->update(['home_order' => $pos++]);
+        }
+        return response()->json(['ok' => true]);
     }
 
     public function create()

@@ -439,6 +439,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('products/{product}/publish', [ProductController::class, 'togglePublish'])->name('products.publish');
         });
         Route::middleware('permission:products.edit')->group(function () {
+            Route::post('products/reorder', [ProductController::class, 'reorder'])->name('products.reorder');
+            Route::post('products/reorder-home', [ProductController::class, 'reorderHome'])->name('products.reorder-home');
             Route::get('products/{product}/edit', [ProductController::class, 'edit'])->whereNumber('product')->name('products.edit');
             Route::put('products/{product}', [ProductController::class, 'update'])->whereNumber('product')->name('products.update');
         });

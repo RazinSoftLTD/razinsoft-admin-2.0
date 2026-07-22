@@ -25,7 +25,8 @@ class ProductController extends Controller
 
         // Homepage picks: only products the admin flagged for_home. Fall back to the normal
         // list when none are flagged yet, so the homepage is never empty.
-        if ($request->boolean('for_home') && Product::published()->where('for_home', true)->exists()) {
+        $homeMode = $request->boolean('for_home') && Product::published()->where('for_home', true)->exists();
+        if ($homeMode) {
             $q->where('for_home', true);
         }
 
@@ -34,7 +35,10 @@ class ProductController extends Controller
             'rated' => $q->orderByDesc('rating'),
             'price' => $q->orderBy('plans_min_price'),
             'free' => $q->whereHas('plans', fn ($p) => $p->where('price', 0)),
-            default => $q->orderBy('sort_order')->orderByDesc('is_featured'),
+            // Homepage uses its own drag order (home_order); the catalogue uses sort_order.
+            default => $homeMode
+                ? $q->orderBy('home_order')->orderByDesc('is_featured')
+                : $q->orderBy('sort_order')->orderByDesc('is_featured'),
         };
 
         $perPage = min((int) $request->query('per_page', 12), 48);
