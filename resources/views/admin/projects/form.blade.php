@@ -165,6 +165,28 @@
                     </div>
                 </section>
 
+                {{-- Privacy — only visible to roles with the "Make Private" permission --}}
+                @if (auth()->user()->allows('projects', 'private'))
+                    <section class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                        <div class="border-b border-gray-100 px-6 py-4">
+                            <h2 class="text-sm font-bold text-[var(--color-heading)]">Privacy</h2>
+                        </div>
+                        <div class="p-6">
+                            <label class="flex cursor-pointer items-start gap-3">
+                                <input type="checkbox" name="is_private" value="1" @checked($val('is_private', false))
+                                       class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                                <span>
+                                    <span class="block text-sm font-semibold text-[var(--color-heading)]">Make this project private</span>
+                                    <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Only the super admin, you, and the Project Members selected above will be able to see it.</span>
+                                </span>
+                            </label>
+                            @if ($project->exists && $project->is_private && $project->made_private_by)
+                                <p class="mt-2 text-xs text-gray-400">Made private by <strong class="text-[var(--color-heading)]">{{ $project->madePrivateBy?->name ?? '—' }}</strong>.</p>
+                            @endif
+                        </div>
+                    </section>
+                @endif
+
                 {{-- Progress --}}
                 <section class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                     <div class="border-b border-gray-100 px-6 py-4">

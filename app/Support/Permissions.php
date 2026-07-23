@@ -63,24 +63,27 @@ class Permissions
         // clients: view/create/edit/delete are the base CRUD (scoped via account_manager_id
         // = owned / created_by = added). Profile rides on view; the other section actions each
         // gate the matching detail-page tab and are individually scopable (owned/added/all).
-        'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'import_export', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
+        'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'import_export', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets', 'private'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
         'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
         // Activity logs — each page is its own toggle (Employee actions, Client visits, Blogs & Products reports).
         'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products']],
         // CodeCanyon market analysis (Activity → CodeCanyon) + its API config.
         'codecanyon' => ['label' => 'CodeCanyon', 'group' => 'Activity', 'actions' => ['view', 'manage', 'settings']],
-        'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'members', 'milestones', 'files', 'prd', 'settings', 'columns'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
+        'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'members', 'milestones', 'files', 'prd', 'settings', 'columns', 'private'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
         // Tasks live inside projects but each part of a task is its own toggle.
         'tasks' => ['label' => 'Tasks', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'status', 'comments', 'attachments', 'time', 'subtasks'], 'owner' => 'assigned_to', 'creator' => 'created_by'],
         // invoices: base CRUD scoped via created_by (= added). The extra ops (payments/send/
         // cancel/duplicate) are individually scopable; configuration + bin are global none/all.
-        'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance', 'send', 'cancel', 'duplicate', 'configure', 'bin'], 'owner' => 'owner_id', 'creator' => 'created_by'],
+        'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance', 'send', 'cancel', 'duplicate', 'configure', 'bin', 'private'], 'owner' => 'owner_id', 'creator' => 'created_by'],
         'products' => ['label' => 'Products', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'publish', 'clone', 'relations']],
         // Installation Plans has its own screens (features, plans, copy-from), so it gets its own toggles.
         'installation_plans' => ['label' => 'Installation Plans', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'copy']],
         'orders' => ['label' => 'Orders', 'group' => 'Sales', 'actions' => ['view', 'create']],
         'coupons' => ['label' => 'Coupons', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
         'blog' => ['label' => 'Blog', 'group' => 'Content', 'actions' => ['view', 'create', 'edit', 'delete']],
+        // The site-wide promo banner shown above the nav — draft → publish workflow, same shape as careers.
+        // Group 'Content' matches blog/searches/subscribers, which is where this sits in the sidebar's "Marketing" section.
+        'promotion' => ['label' => 'Promotion', 'group' => 'Content', 'actions' => ['view', 'create', 'edit', 'delete', 'publish']],
         'subscribers' => ['label' => 'Subscribers', 'group' => 'Content', 'actions' => ['view', 'create', 'delete']],
         'reviews' => ['label' => 'Reviews', 'group' => 'Content', 'actions' => ['view', 'edit', 'delete']],
         'questions' => ['label' => 'Questions', 'group' => 'Content', 'actions' => ['view', 'answer', 'delete']],
@@ -121,6 +124,8 @@ class Permissions
         // Client detail-page sections (Profile rides on view — no separate action).
         'projects' => 'Projects', 'invoices' => 'Invoices',
         'payments' => 'Payments', 'documents' => 'Documents', 'notes' => 'Notes', 'tickets' => 'Tickets',
+        // Privacy — who may mark a project/client/invoice private (shared action name across modules).
+        'private' => 'Make Private',
     ];
 
     /** A brand-new staff/role starts with owned read access to the CRM basics. */

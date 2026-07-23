@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPrivacy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClientInvoice extends Model
 {
-    use SoftDeletes;
+    use HasPrivacy, SoftDeletes;
 
     protected $guarded = [];
 
@@ -22,6 +23,7 @@ class ClientInvoice extends Model
         'total' => 'decimal:2',
         'amount_paid' => 'decimal:2',
         'pay_methods' => 'array',
+        'is_private' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -118,6 +120,45 @@ class ClientInvoice extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');
+    }
+
+    /**
+     * Invoices visible to $actor for a given action (view/edit): the normal
+     * owned/added/all permission scope for module 'invoices', PLUS — for private
+     * invoices — an override so the super admin, whoever made the invoice private,
+     * and anyone explicitly granted access can always see it regardless of scope.
+     * Non-private invoices still only show up if the normal scope allows it.
+     */
+    public function scopeVisibleTo($q, User $actor, string $action = 'view')
+    {
+        if ($actor->isAdmin()) {
+            return $q;
+        }
+
+        $scope = $actor->permissionScope('invoices', $action);
+
+        return $q->where(function ($outer) use ($actor, $scope) {
+            $outer->where('made_private_by', $actor->id)
+                ->orWhereHas('privacyGrants', fn ($g) => $g->where('user_id', $actor->id));
+
+            if ($scope === 'none') {
+                return;
+            }
+
+            $outer->orWhere(function ($w) use ($actor, $scope) {
+                $w->where('is_private', false);
+                if ($scope !== 'all') {
+                    $w->where(function ($inner) use ($actor, $scope) {
+                        if (in_array($scope, ['owned', 'both'], true)) {
+                            $inner->orWhere('owner_id', $actor->id);
+                        }
+                        if (in_array($scope, ['added', 'both'], true)) {
+                            $inner->orWhere('created_by', $actor->id);
+                        }
+                    });
+                }
+            });
+        });
     }
 
     public function items(): HasMany

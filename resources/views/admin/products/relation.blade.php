@@ -23,7 +23,7 @@
                 @foreach ($product->plans as $pl)
                     <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm" x-data="{ edit: false }">
                         <div class="flex items-start justify-between gap-3">
-                            <div x-show="!edit"><p class="font-bold">{{ $pl->name }} — ${{ number_format($pl->price,2) }} @if($pl->is_popular)<span class="ml-1 rounded bg-[var(--color-primary-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">Popular</span>@endif</p><p class="mt-1 text-xs text-gray-400">{{ collect($pl->perks)->implode(', ') }}</p></div>
+                            <div x-show="!edit"><p class="font-bold">{{ $pl->name }} — ${{ number_format($pl->price,2) }} @if($pl->is_popular)<span class="ml-1 rounded bg-[var(--color-primary-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">Popular</span>@endif @if($pl->hasActiveOffer())<span class="ml-1 rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-600">{{ $pl->offerPercentOff($pl->price) }}% OFF — ${{ number_format($pl->discountedPrice($pl->price),2) }}</span>@endif</p><p class="mt-1 text-xs text-gray-400">{{ collect($pl->perks)->implode(', ') }}</p></div>
                             <p x-show="edit" class="font-bold">Edit plan</p>
                             <div class="flex shrink-0 items-center gap-2">
                                 <button type="button" @click="edit=!edit" class="text-xs font-semibold text-[var(--color-primary)] hover:underline" x-text="edit ? 'Close' : 'Edit'"></button>
@@ -40,6 +40,20 @@
                             <x-admin.field label="Blurb" name="blurb" :value="$pl->blurb" />
                             <x-admin.field label="Perks (one per line)" name="perks" type="textarea" :value="collect($pl->perks)->implode(PHP_EOL)" />
                             <x-admin.field name="is_popular" type="checkbox" label="Most popular" :value="$pl->is_popular" />
+
+                            <div class="rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+                                <p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Offer</p>
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <x-admin.field label="Offer type" name="offer_type" type="select" :value="$pl->offer_type"
+                                        :options="['' => 'No offer', 'percent' => 'Percentage (%)', 'flat' => 'Flat amount ($)']" />
+                                    <x-admin.field label="Offer value" name="offer_value" type="number" step="0.01" min="0" :value="$pl->offer_value" placeholder="e.g. 50" />
+                                </div>
+                                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                    <x-admin.field label="Starts at" name="offer_starts_at" type="date" :value="optional($pl->offer_starts_at)->format('Y-m-d')" />
+                                    <x-admin.field label="Ends at" name="offer_ends_at" type="date" :value="optional($pl->offer_ends_at)->format('Y-m-d')" />
+                                </div>
+                            </div>
+
                             <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save plan</button>
                         </form>
                     </div>
@@ -53,6 +67,18 @@
                     <x-admin.field label="Blurb" name="blurb" />
                     <x-admin.field label="Perks (one per line)" name="perks" type="textarea" />
                     <x-admin.field name="is_popular" type="checkbox" label="Most popular" />
+
+                    <div class="rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+                        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Offer</p>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <x-admin.field label="Offer type" name="offer_type" type="select" :options="['' => 'No offer', 'percent' => 'Percentage (%)', 'flat' => 'Flat amount ($)']" />
+                            <x-admin.field label="Offer value" name="offer_value" type="number" step="0.01" min="0" placeholder="e.g. 50" />
+                        </div>
+                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                            <x-admin.field label="Starts at" name="offer_starts_at" type="date" />
+                            <x-admin.field label="Ends at" name="offer_ends_at" type="date" />
+                        </div>
+                    </div>
                 </x-admin.add-form>
             </div>
             @break

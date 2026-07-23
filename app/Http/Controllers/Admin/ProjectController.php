@@ -89,6 +89,10 @@ class ProjectController extends Controller
         $memberIds = $data['member_ids'] ?? [];
         unset($data['member_ids']);
         $data['created_by'] = $request->user()->id;
+        if ($request->user()->allows('projects', 'private')) {
+            $data['is_private'] = $request->boolean('is_private');
+            $data['made_private_by'] = $data['is_private'] ? $request->user()->id : null;
+        }
 
         $project = Project::create($data);
         foreach (array_unique($memberIds) as $id) {
@@ -269,6 +273,16 @@ class ProjectController extends Controller
         $data = $this->validated($request, $project);
         $memberIds = $data['member_ids'] ?? [];
         unset($data['member_ids']);
+
+        if ($request->user()->allows('projects', 'private')) {
+            $isPrivate = $request->boolean('is_private');
+            $data['is_private'] = $isPrivate;
+            $data['made_private_by'] = match (true) {
+                $isPrivate && ! $project->is_private => $request->user()->id,
+                ! $isPrivate => null,
+                default => $project->made_private_by,
+            };
+        }
 
         $project->update($data);
         $project->members()->whereNotIn('user_id', $memberIds)->delete();

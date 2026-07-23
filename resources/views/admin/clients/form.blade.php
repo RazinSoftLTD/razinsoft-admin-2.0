@@ -11,6 +11,7 @@
     // Whether the company section holds any data (so it opens expanded when editing a filled client).
     $companyFilled = collect(['company', 'website', 'tax_name', 'gst_number', 'office_phone', 'city', 'state', 'zip', 'address', 'shipping_address'])
         ->contains(fn ($k) => filled($client->$k ?? null));
+    $grantIds = collect(old('privacy_grant_ids', $grantedUserIds ?? []))->map(fn ($v) => (int) $v)->all();
 @endphp
 
 @section('content')
@@ -305,6 +306,40 @@
                         </table>
                     </div>
                 @endif
+            </div>
+        @endif
+
+        {{-- ===== Privacy (bottom of the form, only for roles with the "Make Private" permission) ===== --}}
+        @if (auth()->user()->allows('clients', 'private'))
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm" x-data="{ priv: {{ $val('is_private', false) ? 'true' : 'false' }}, grants: {{ Illuminate\Support\Js::from($grantIds) }} }">
+                <h2 class="mb-4 text-base font-bold text-[var(--color-heading)]">Privacy</h2>
+                <label class="flex cursor-pointer items-start gap-3">
+                    <input type="checkbox" name="is_private" value="1" x-model="priv"
+                           class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                    <span>
+                        <span class="block text-sm font-semibold text-[var(--color-heading)]">Make this client private</span>
+                        <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Only the super admin, you, and the staff you grant access to below will be able to see this client.</span>
+                    </span>
+                </label>
+                @if ($client->exists && $client->is_private && $client->made_private_by)
+                    <p class="mt-2 text-xs text-gray-400">Made private by <strong class="text-[var(--color-heading)]">{{ $client->madePrivateBy?->name ?? '—' }}</strong>.</p>
+                @endif
+
+                <div x-show="priv" x-cloak class="mt-4">
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Grant access to</label>
+                    <div class="flex flex-wrap gap-2 rounded-lg border border-gray-200 p-3">
+                        @forelse ($managers as $m)
+                            <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                                   :class="grants.includes({{ $m->id }}) ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50'">
+                                <input type="checkbox" name="privacy_grant_ids[]" value="{{ $m->id }}" class="hidden" :checked="grants.includes({{ $m->id }})"
+                                       @change="grants.includes({{ $m->id }}) ? grants = grants.filter(id => id !== {{ $m->id }}) : grants.push({{ $m->id }})">
+                                {{ $m->name }}
+                            </label>
+                        @empty
+                            <span class="text-sm text-gray-300">No staff available.</span>
+                        @endforelse
+                    </div>
+                </div>
             </div>
         @endif
 

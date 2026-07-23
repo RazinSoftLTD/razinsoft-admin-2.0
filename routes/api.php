@@ -25,6 +25,7 @@ Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 
 Route::get('/jobs', [\App\Http\Controllers\Api\JobController::class, 'index']);
+Route::get('/promotion/active', [\App\Http\Controllers\Api\PromotionController::class, 'active']);
 
 // ---- Contact form (public) ----
 Route::post('/contact', [\App\Http\Controllers\Api\ContactController::class, 'store']);

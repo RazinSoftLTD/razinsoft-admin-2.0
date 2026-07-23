@@ -23,6 +23,7 @@ class Project extends Model
         'needs_requirements' => 'boolean',
         'time_tracking' => 'boolean',
         'prd_sections' => 'array',
+        'is_private' => 'boolean',
     ];
 
     /**
@@ -143,6 +144,11 @@ class Project extends Model
         return $this->belongsTo(User::class, 'project_manager_id');
     }
 
+    public function madePrivateBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'made_private_by');
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
@@ -226,26 +232,45 @@ class Project extends Model
 
     // ---------------------------------------------------------------- scopes
 
-    /** Permission scope: all, or only the projects I manage / created / belong to. */
+    /**
+     * Permission scope: all, or only the projects I manage / created / belong to.
+     * Private projects are additionally restricted to the super admin, whoever
+     * made the project private, and explicitly added members — regardless of
+     * the general permission scope (e.g. the maker keeps access even if their
+     * scope wouldn't otherwise surface the project).
+     */
     public function scopeVisibleTo($q, User $user)
     {
-        $scope = $user->permissionScope('projects', 'view');
-        if ($scope === 'none') {
-            return $q->whereRaw('1 = 0');
-        }
-        if ($scope !== 'all') {
-            $q->where(function ($w) use ($user, $scope) {
-                if (in_array($scope, ['owned', 'both'], true)) {
-                    $w->orWhere('project_manager_id', $user->id);
-                }
-                if (in_array($scope, ['added', 'both'], true)) {
-                    $w->orWhere('created_by', $user->id);
-                }
-                $w->orWhereHas('members', fn ($m) => $m->where('user_id', $user->id));
-            });
+        if ($user->isAdmin()) {
+            return $q;
         }
 
-        return $q;
+        $scope = $user->permissionScope('projects', 'view');
+
+        return $q->where(function ($outer) use ($user, $scope) {
+            // Always visible: you made it private, or you're an explicit member.
+            $outer->where('made_private_by', $user->id)
+                ->orWhereHas('members', fn ($m) => $m->where('user_id', $user->id));
+
+            if ($scope === 'none') {
+                return;
+            }
+
+            $outer->orWhere(function ($w) use ($user, $scope) {
+                $w->where('is_private', false);
+                if ($scope !== 'all') {
+                    $w->where(function ($inner) use ($user, $scope) {
+                        if (in_array($scope, ['owned', 'both'], true)) {
+                            $inner->orWhere('project_manager_id', $user->id);
+                        }
+                        if (in_array($scope, ['added', 'both'], true)) {
+                            $inner->orWhere('created_by', $user->id);
+                        }
+                        $inner->orWhereHas('members', fn ($m) => $m->where('user_id', $user->id));
+                    });
+                }
+            });
+        });
     }
 
     // ---------------------------------------------------------------- helpers

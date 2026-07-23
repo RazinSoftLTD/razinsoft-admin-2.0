@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\HasPrivacy;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,12 +13,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'dial_code', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'note', 'password', 'status', 'role', 'role_id', 'permissions', 'employee_code', 'salutation', 'designation_id', 'department_id', 'reporting_to', 'account_manager_id', 'created_by', 'language', 'joining_date', 'date_of_birth', 'about', 'employment_type', 'probation_end_date', 'notice_start_date', 'notice_end_date', 'receive_email_notifications', 'last_seen_at', 'gender', 'website', 'tax_name', 'gst_number', 'office_phone', 'client_category', 'client_sub_category', 'shipping_address', 'import_batch', 'client_label'])]
+#[Fillable(['name', 'email', 'phone', 'dial_code', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'note', 'password', 'status', 'role', 'role_id', 'permissions', 'employee_code', 'salutation', 'designation_id', 'department_id', 'reporting_to', 'account_manager_id', 'created_by', 'is_private', 'made_private_by', 'language', 'joining_date', 'date_of_birth', 'about', 'employment_type', 'probation_end_date', 'notice_start_date', 'notice_end_date', 'receive_email_notifications', 'last_seen_at', 'gender', 'website', 'tax_name', 'gst_number', 'office_phone', 'client_category', 'client_sub_category', 'shipping_address', 'import_batch', 'client_label'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasPrivacy, Notifiable, SoftDeletes;
 
     /** Roles: admin (full panel), staff (limited panel — own leads), customer (= public client). */
     public const ROLE_ADMIN = 'admin';
@@ -61,6 +62,7 @@ class User extends Authenticatable
             'notice_start_date' => 'date',
             'notice_end_date' => 'date',
             'receive_email_notifications' => 'boolean',
+            'is_private' => 'boolean',
         ];
     }
 
@@ -242,6 +244,45 @@ class User extends Authenticatable
     public function scopeClients($q)
     {
         return $q->where('role', self::ROLE_CUSTOMER);
+    }
+
+    /**
+     * Clients visible to $actor for a given action (view/edit): the normal
+     * owned/added/all permission scope for module 'clients', PLUS — for private
+     * clients — an override so the super admin, whoever made the client private,
+     * and anyone explicitly granted access can always see it regardless of scope.
+     * Non-private clients still only show up if the normal scope allows it.
+     */
+    public function scopeClientVisibleTo($q, self $actor, string $action = 'view')
+    {
+        if ($actor->isAdmin()) {
+            return $q;
+        }
+
+        $scope = $actor->permissionScope('clients', $action);
+
+        return $q->where(function ($outer) use ($actor, $scope) {
+            $outer->where('made_private_by', $actor->id)
+                ->orWhereHas('privacyGrants', fn ($g) => $g->where('user_id', $actor->id));
+
+            if ($scope === 'none') {
+                return;
+            }
+
+            $outer->orWhere(function ($w) use ($actor, $scope) {
+                $w->where('is_private', false);
+                if ($scope !== 'all') {
+                    $w->where(function ($inner) use ($actor, $scope) {
+                        if (in_array($scope, ['owned', 'both'], true)) {
+                            $inner->orWhere('account_manager_id', $actor->id);
+                        }
+                        if (in_array($scope, ['added', 'both'], true)) {
+                            $inner->orWhere('created_by', $actor->id);
+                        }
+                    });
+                }
+            });
+        });
     }
 
     /** Human-friendly client id, e.g. CUS-1248. */

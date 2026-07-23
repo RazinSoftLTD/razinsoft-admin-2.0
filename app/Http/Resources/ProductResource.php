@@ -27,6 +27,8 @@ class ProductResource extends JsonResource
             'thumbnail_alt' => $this->thumbnail_alt ?: $this->name,
             'from_plan' => $this->fromPlan(),
             'from_price' => $this->fromPlan()['price'] ?? null,
+            'sale_from_price' => $this->saleFromPrice(),
+            'percent_off' => $this->percentOff(),
         ];
 
         if (! $this->wantsDetail()) {
@@ -96,14 +98,36 @@ class ProductResource extends JsonResource
         ]);
     }
 
+    /** First plan (by sort order) — the underlying model, so its own offer can be checked/applied. */
+    private function fromPlanModel(): ?\App\Models\Plan
+    {
+        return $this->relationLoaded('firstPlan')
+            ? $this->firstPlan
+            : ($this->relationLoaded('plans') ? $this->plans->first() : null);
+    }
+
     /** First plan (by sort order) → the card's "from" price. Works for both list and detail. */
     private function fromPlan(): ?array
     {
-        $plan = $this->relationLoaded('firstPlan')
-            ? $this->firstPlan
-            : ($this->relationLoaded('plans') ? $this->plans->first() : null);
+        $plan = $this->fromPlanModel();
 
         return $plan ? ['id' => $plan->id, 'name' => $plan->name, 'price' => (float) $plan->price] : null;
+    }
+
+    /** Discounted "from" price if the first plan has its own active offer right now, else null. */
+    private function saleFromPrice(): ?float
+    {
+        $plan = $this->fromPlanModel();
+
+        return $plan?->hasActiveOffer() ? $plan->discountedPrice((float) $plan->price) : null;
+    }
+
+    /** Percent-off badge text (e.g. "50" for 50% OFF) for the "from" price, or null if no active offer. */
+    private function percentOff(): ?int
+    {
+        $plan = $this->fromPlanModel();
+
+        return $plan ? $plan->offerPercentOff((float) $plan->price) : null;
     }
 
     private function wantsDetail(): bool

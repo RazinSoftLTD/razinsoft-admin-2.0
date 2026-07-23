@@ -631,6 +631,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('jobs/{job}', [\App\Http\Controllers\Admin\JobController::class, 'destroy'])->whereNumber('job')->name('jobs.destroy');
     });
 
+    // ---- Promotion (site-wide promo banner, draft → publish workflow) ----
+    Route::middleware('permission:promotion.view')->group(function () {
+        Route::get('promotions', [\App\Http\Controllers\Admin\PromotionController::class, 'index'])->name('promotions.index');
+    });
+    Route::middleware('permission:promotion.create')->group(function () {
+        Route::get('promotions/create', [\App\Http\Controllers\Admin\PromotionController::class, 'create'])->name('promotions.create');
+        Route::post('promotions', [\App\Http\Controllers\Admin\PromotionController::class, 'store'])->name('promotions.store');
+    });
+    Route::middleware('permission:promotion.edit')->group(function () {
+        Route::get('promotions/{promotion}/edit', [\App\Http\Controllers\Admin\PromotionController::class, 'edit'])->whereNumber('promotion')->name('promotions.edit');
+        Route::put('promotions/{promotion}', [\App\Http\Controllers\Admin\PromotionController::class, 'update'])->whereNumber('promotion')->name('promotions.update');
+    });
+    Route::middleware('permission:promotion.publish')->group(function () {
+        Route::post('promotions/{promotion}/publish', [\App\Http\Controllers\Admin\PromotionController::class, 'togglePublish'])->whereNumber('promotion')->name('promotions.publish');
+    });
+    Route::middleware('permission:promotion.delete')->group(function () {
+        Route::delete('promotions/{promotion}', [\App\Http\Controllers\Admin\PromotionController::class, 'destroy'])->whereNumber('promotion')->name('promotions.destroy');
+    });
+
     // ---- Super admin only (role=admin): per-user permission overrides, roles, admin users ----
     Route::middleware('admin')->group(function () {
         Route::patch('staff/{staff}/role', [StaffController::class, 'updateRole'])->whereNumber('staff')->name('staff.role');

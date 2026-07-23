@@ -20,7 +20,8 @@ class ClientController extends Controller
         $q = User::clients();
 
         // Scope: Owned = my clients (account_manager_id), Added = clients I created (created_by).
-        $request->user()->applyScope($q, 'clients', 'view');
+        // Also enforces client privacy — see User::scopeClientVisibleTo().
+        $q->clientVisibleTo($request->user());
 
         if ($search = trim((string) $request->query('search'))) {
             $q->where(fn ($w) => $w
@@ -112,7 +113,7 @@ class ClientController extends Controller
     public function show(User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
-        abort_unless(auth()->user()->canAct('clients', 'view', $client), 403);
+        $this->authorizeClient(auth()->user(), $client, 'view');
 
         $invoices = ClientInvoice::where('client_id', $client->id)
             ->withCount('items')->latest('id')->get();
@@ -211,7 +212,7 @@ class ClientController extends Controller
     public function create()
     {
         return view('admin.clients.form', array_merge(
-            ['client' => new User(['role' => User::ROLE_CUSTOMER])],
+            ['client' => new User(['role' => User::ROLE_CUSTOMER]), 'grantedUserIds' => []],
             $this->formOptions(),
         ));
     }
@@ -243,7 +244,15 @@ class ClientController extends Controller
         $data['password'] = $plain;
         $this->handlePhoto($request, $data);
 
+        if ($request->user()->allows('clients', 'private')) {
+            $data['is_private'] = $request->boolean('is_private');
+            $data['made_private_by'] = $data['is_private'] ? $request->user()->id : null;
+        }
+
         $client = User::create($data);
+        if ($request->user()->allows('clients', 'private')) {
+            $this->syncPrivacyGrants($client, $request);
+        }
         $this->recordPassword($client, $plain, $request->user()->id);
 
         return redirect()->route('admin.clients.index')->with('status', 'Client created.');
@@ -252,13 +261,14 @@ class ClientController extends Controller
     public function edit(User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
-        abort_unless(auth()->user()->canAct('clients', 'edit', $client), 403);
+        $this->authorizeClient(auth()->user(), $client, 'edit');
 
         return view('admin.clients.form', array_merge(
             [
                 'client' => $client,
                 // Only a super admin may review the credentials set for a client.
                 'passwordHistory' => auth()->user()->isSuperAdmin() ? $client->passwordHistories()->with('setter')->get() : collect(),
+                'grantedUserIds' => $client->privacyGrants()->pluck('user_id')->all(),
             ],
             $this->formOptions(),
         ));
@@ -267,7 +277,7 @@ class ClientController extends Controller
     public function update(Request $request, User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
-        abort_unless($request->user()->canAct('clients', 'edit', $client), 403);
+        $this->authorizeClient($request->user(), $client, 'edit');
 
         $data = $this->validated($request, $client);
         if ($request->filled('password')) {
@@ -275,13 +285,43 @@ class ClientController extends Controller
         }
         $this->handlePhoto($request, $data, $client);
 
+        if ($request->user()->allows('clients', 'private')) {
+            $isPrivate = $request->boolean('is_private');
+            $data['is_private'] = $isPrivate;
+            $data['made_private_by'] = match (true) {
+                $isPrivate && ! $client->is_private => $request->user()->id,
+                ! $isPrivate => null,
+                default => $client->made_private_by,
+            };
+        }
+
         $client->update($data);
+        if ($request->user()->allows('clients', 'private')) {
+            $this->syncPrivacyGrants($client, $request);
+        }
 
         if ($request->filled('password')) {
             $this->recordPassword($client, $request->input('password'), $request->user()->id);
         }
 
         return redirect()->route('admin.clients.index')->with('status', 'Client updated.');
+    }
+
+    /** Row-level check: can $actor {$action} this specific client? Mirrors the list-scope logic
+     *  in User::scopeClientVisibleTo() (including client privacy) for a single record. */
+    private function authorizeClient(User $actor, User $client, string $action): void
+    {
+        abort_unless(User::clients()->clientVisibleTo($actor, $action)->whereKey($client->id)->exists(), 403);
+    }
+
+    /** Sync the explicit "who else can see this while it's private" grant list. */
+    private function syncPrivacyGrants(User $client, Request $request): void
+    {
+        $ids = array_values(array_unique(array_filter((array) $request->input('privacy_grant_ids', []))));
+        $client->privacyGrants()->whereNotIn('user_id', $ids)->delete();
+        foreach ($ids as $id) {
+            $client->privacyGrants()->firstOrCreate(['user_id' => $id]);
+        }
     }
 
     /** Log the plaintext password (encrypted at rest) so a super admin can review it later. */

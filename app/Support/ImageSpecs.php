@@ -19,6 +19,11 @@ class ImageSpecs
         'article' => ['ratio' => '16/9', 'min_width' => 1200, 'min_height' => 675, 'recommended' => '1200×675', 'label' => '16:9 widescreen'],
         'article_inline' => ['min_width' => 600, 'recommended' => '≥ 600px wide', 'label' => 'at least 600px wide'],
         'avatar' => ['ratio' => '1/1', 'min_width' => 400, 'min_height' => 400, 'recommended' => '400×400', 'label' => 'square (1:1)'],
+        // Top Banner — full-width strip shown above the site's nav menu. GIFs allowed (Laravel's
+        // `image` rule already accepts gif/jpg/png/webp/bmp/svg).
+        'banner' => ['ratio' => '16/1', 'min_width' => 1920, 'min_height' => 120, 'recommended' => '1920×120', 'label' => '16:1 wide banner'],
+        // Popup — a modal promo graphic shown once per page load. GIFs allowed too.
+        'popup_banner' => ['ratio' => '1/1', 'min_width' => 600, 'min_height' => 600, 'recommended' => '800×800', 'label' => 'square (1:1)'],
     ];
 
     /** Laravel `dimensions:` rule string for a spec key. */

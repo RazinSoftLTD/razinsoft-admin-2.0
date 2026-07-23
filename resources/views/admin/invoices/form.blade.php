@@ -237,6 +237,42 @@
                         </div>
                     </div>
                 </section>
+
+                {{-- 4. Privacy — only visible to roles with the "Make Private" permission --}}
+                @if (auth()->user()->allows('invoices', 'private'))
+                @php $grantIds = collect(old('privacy_grant_ids', $grantedUserIds ?? []))->map(fn ($v) => (int) $v)->all(); @endphp
+                <section class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
+                         x-data="{ priv: {{ old('is_private', $invoice->is_private) ? 'true' : 'false' }}, grants: {{ Illuminate\Support\Js::from($grantIds) }} }">
+                    <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">4. Privacy</h2>
+                    <label class="flex cursor-pointer items-start gap-3">
+                        <input type="checkbox" name="is_private" value="1" x-model="priv"
+                               class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                        <span>
+                            <span class="block text-sm font-semibold text-[var(--color-heading)]">Make this invoice private</span>
+                            <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Only the super admin, you, and the staff you grant access to below will be able to see this invoice.</span>
+                        </span>
+                    </label>
+                    @if ($invoice->exists && $invoice->is_private && $invoice->made_private_by)
+                        <p class="mt-2 text-xs text-gray-400">Made private by <strong class="text-[var(--color-heading)]">{{ $invoice->madePrivateBy?->name ?? '—' }}</strong>.</p>
+                    @endif
+
+                    <div x-show="priv" x-cloak class="mt-4">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Grant access to</label>
+                        <div class="flex flex-wrap gap-2 rounded-lg border border-gray-200 p-3">
+                            @forelse ($staff as $s)
+                                <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                                       :class="grants.includes({{ $s->id }}) ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50'">
+                                    <input type="checkbox" name="privacy_grant_ids[]" value="{{ $s->id }}" class="hidden" :checked="grants.includes({{ $s->id }})"
+                                           @change="grants.includes({{ $s->id }}) ? grants = grants.filter(id => id !== {{ $s->id }}) : grants.push({{ $s->id }})">
+                                    {{ $s->name }}
+                                </label>
+                            @empty
+                                <span class="text-sm text-gray-300">No staff available.</span>
+                            @endforelse
+                        </div>
+                    </div>
+                </section>
+                @endif
             </div>
 
             {{-- ============ RIGHT: live preview ============ --}}

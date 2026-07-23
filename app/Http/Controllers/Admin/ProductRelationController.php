@@ -40,7 +40,12 @@ class ProductRelationController extends Controller
     private function config(): array
     {
         return [
-            'plans' => ['rel' => 'plans', 'rules' => ['name' => 'required|string|max:255', 'blurb' => 'nullable|string', 'price' => 'required|numeric|min:0', 'perks' => 'nullable|string', 'is_popular' => 'boolean', 'sort_order' => 'nullable|integer']],
+            'plans' => ['rel' => 'plans', 'rules' => [
+                'name' => 'required|string|max:255', 'blurb' => 'nullable|string', 'price' => 'required|numeric|min:0',
+                'perks' => 'nullable|string', 'is_popular' => 'boolean', 'sort_order' => 'nullable|integer',
+                'offer_type' => 'nullable|in:percent,flat', 'offer_value' => 'nullable|numeric|min:0|required_with:offer_type',
+                'offer_starts_at' => 'nullable|date|required_with:offer_type', 'offer_ends_at' => 'nullable|date|required_with:offer_type|after_or_equal:offer_starts_at',
+            ]],
             'features' => ['rel' => 'features', 'rules' => ['title' => 'required|string|max:255', 'subtitle' => 'nullable|string|max:255', 'description' => 'nullable|string', 'icon' => 'nullable|string', 'color' => 'nullable|string', 'sort_order' => 'nullable|integer']],
             'tech' => ['rel' => 'tech', 'rules' => ['name' => 'required|string|max:255', 'color' => 'nullable|string|max:50', 'sort_order' => 'nullable|integer']],
             'suitable' => ['rel' => 'suitableFor', 'rules' => ['label' => 'required|string|max:255', 'sort_order' => 'nullable|integer']],
@@ -142,6 +147,14 @@ class ProductRelationController extends Controller
         if ($relation === 'plans') {
             $data['is_popular'] = $request->boolean('is_popular');
             $data['perks'] = collect(preg_split('/\r\n|\r|\n/', (string) $request->input('perks')))->map(fn ($l) => trim($l))->filter()->values()->all();
+
+            // No offer type selected → clear the whole offer rather than leaving stale value/dates.
+            $data['offer_type'] = ($data['offer_type'] ?? '') ?: null;
+            if (! $data['offer_type']) {
+                $data['offer_value'] = null;
+                $data['offer_starts_at'] = null;
+                $data['offer_ends_at'] = null;
+            }
         }
 
         // Demo icon: store the uploaded image (keeps original filename); leave untouched when none.

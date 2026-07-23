@@ -17,7 +17,8 @@ class ClientInvoiceController extends Controller
         $q = ClientInvoice::query()->with('client:id,name')->latest('id');
 
         // Apply the Owned / Added / Added & Owned / All view scope from the user's role.
-        $request->user()->applyScope($q, 'invoices', 'view');
+        // Also enforces invoice privacy — see ClientInvoice::scopeVisibleTo().
+        $q->visibleTo($request->user());
 
         if ($search = trim((string) $request->query('search'))) {
             $q->where(fn ($w) => $w
@@ -57,6 +58,8 @@ class ClientInvoiceController extends Controller
                 'unit_price' => (float) ($i['unit_price'] ?? 0),
                 'discount_percent' => (float) ($i['discount_percent'] ?? 0), 'taxIds' => [],
             ])->all() : [],
+            'staff' => User::assignable()->orderBy('name')->get(['id', 'name']),
+            'grantedUserIds' => [],
         ] + $this->configData());
     }
 
@@ -86,8 +89,8 @@ class ClientInvoiceController extends Controller
 
     public function show(ClientInvoice $invoice)
     {
-        // Honour the Owned / Added / Added & Owned / All view scope.
-        abort_unless(request()->user()->canAct('invoices', 'view', $invoice), 403);
+        // Honour the Owned / Added / Added & Owned / All view scope (+ privacy).
+        $this->authorizeInvoice(request()->user(), $invoice, 'view');
 
         $invoice->load('items', 'client', 'payments.recorder', 'payments.project', 'activities.user');
 
@@ -100,7 +103,7 @@ class ClientInvoiceController extends Controller
 
     public function edit(ClientInvoice $invoice)
     {
-        abort_unless(auth()->user()->canAct('invoices', 'edit', $invoice), 403);
+        $this->authorizeInvoice(auth()->user(), $invoice, 'edit');
         $invoice->load('items');
 
         return view('admin.invoices.form', [
@@ -113,17 +116,36 @@ class ClientInvoiceController extends Controller
                 'taxIds' => collect($i->taxes ?? [])->pluck('id')->filter()->values()->all(),
                 'attachment' => $i->attachment,
             ])->all(),
+            'staff' => User::assignable()->orderBy('name')->get(['id', 'name']),
+            'grantedUserIds' => $invoice->privacyGrants()->pluck('user_id')->all(),
         ] + $this->configData());
     }
 
     public function update(Request $request, ClientInvoice $invoice)
     {
-        abort_unless($request->user()->canAct('invoices', 'edit', $invoice), 403);
+        $this->authorizeInvoice($request->user(), $invoice, 'edit');
         $data = $this->validated($request);
         DB::transaction(fn () => $this->persist($invoice, $data, $request));
         $invoice->logActivity('updated', 'Invoice details updated.');
 
         return redirect()->route('admin.invoices.show', $invoice)->with('status', "Invoice {$invoice->invoice_number} updated.");
+    }
+
+    /** Row-level check: can $actor {$action} this specific invoice? Mirrors the list-scope
+     *  logic in ClientInvoice::scopeVisibleTo() (including invoice privacy) for a single record. */
+    private function authorizeInvoice(User $actor, ClientInvoice $invoice, string $action): void
+    {
+        abort_unless(ClientInvoice::query()->visibleTo($actor, $action)->whereKey($invoice->id)->exists(), 403);
+    }
+
+    /** Sync the explicit "who else can see this while it's private" grant list. */
+    private function syncPrivacyGrants(ClientInvoice $invoice, Request $request): void
+    {
+        $ids = array_values(array_unique(array_filter((array) $request->input('privacy_grant_ids', []))));
+        $invoice->privacyGrants()->whereNotIn('user_id', $ids)->delete();
+        foreach ($ids as $id) {
+            $invoice->privacyGrants()->firstOrCreate(['user_id' => $id]);
+        }
     }
 
     public function destroy(ClientInvoice $invoice)
@@ -316,7 +338,20 @@ class ClientInvoiceController extends Controller
     {
         $client = $data['client_id'] ? User::find($data['client_id']) : null;
 
-        $invoice->fill([
+        $privacy = [];
+        if ($request->user()->allows('invoices', 'private')) {
+            $isPrivate = $request->boolean('is_private');
+            $privacy = [
+                'is_private' => $isPrivate,
+                'made_private_by' => match (true) {
+                    $isPrivate && ! $invoice->is_private => $request->user()->id,
+                    ! $isPrivate => null,
+                    default => $invoice->made_private_by,
+                },
+            ];
+        }
+
+        $invoice->fill($privacy + [
             'client_id' => $client?->id,
             // Owner = the staff managing the invoice's client (falls back to the creator) →
             // powers the "Owned" permission scope. Set once; kept stable on later edits.
@@ -399,6 +434,9 @@ class ClientInvoiceController extends Controller
         $invoice->tax_total = round($taxTotal, 2);
         $invoice->total = round($subtotal - $discountTotal + $taxTotal, 2);
         $invoice->save();
+        if ($request->user()->allows('invoices', 'private')) {
+            $this->syncPrivacyGrants($invoice, $request);
+        }
 
         $invoice->items()->delete();
         $invoice->items()->createMany($lines);
