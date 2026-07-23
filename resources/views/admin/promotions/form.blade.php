@@ -57,7 +57,7 @@
                         </span>
                     </label>
                     <div class="mt-3">
-                        <x-admin.field label="Countdown title" name="countdown_label" :value="old('countdown_label', $promotion->countdown_label)" :placeholder="\App\Models\Promotion::DEFAULT_COUNTDOWN_LABEL" hint='Shown above the timer boxes, overlaid on the left side of the banner image. Leave blank to hide just the title — the countdown boxes still show.' />
+                        <x-admin.field label="Countdown title" name="countdown_label" :value="old('countdown_label', $promotion->countdown_label)" :placeholder="\App\Models\Promotion::DEFAULT_COUNTDOWN_LABEL" hint='Shown above the timer boxes, overlaid on the right side of the banner image. Leave blank to hide just the title — the countdown boxes still show.' />
                     </div>
                     <div class="mt-3 grid gap-4 sm:grid-cols-2">
                         <div>

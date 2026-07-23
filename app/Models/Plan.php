@@ -40,7 +40,11 @@ class Plan extends Model
         return true;
     }
 
-    /** Apply this plan's active offer to its price. Unchanged if no active offer. */
+    /**
+     * Apply this plan's active offer to its price. Unchanged if no active offer.
+     * Always floors to a whole number — a discount price should never show cents/decimals,
+     * and a customer-facing price should round down (never charge more than the exact discount).
+     */
     public function discountedPrice(float $price): float
     {
         if (! $this->hasActiveOffer()) {
@@ -51,7 +55,7 @@ class Plan extends Model
             ? $price * ((float) $this->offer_value) / 100
             : (float) $this->offer_value;
 
-        return max(0, round($price - $discount, 2));
+        return max(0, floor($price - $discount));
     }
 
     /** Percent-off for display (works for both percent and flat offer types), or null if inactive. */
@@ -59,6 +63,12 @@ class Plan extends Model
     {
         if (! $this->hasActiveOffer() || $price <= 0) {
             return null;
+        }
+
+        // Percent offers: report the exact configured value — deriving it back from the floored
+        // price would drift (e.g. 50% off $99 floors to $49, which is actually ~50.5% off).
+        if ($this->offer_type === 'percent') {
+            return (int) round((float) $this->offer_value);
         }
 
         return (int) round((($price - $this->discountedPrice($price)) / $price) * 100);
