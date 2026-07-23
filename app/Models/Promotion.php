@@ -20,11 +20,19 @@ class Promotion extends Model
         self::TYPE_POPUP => 'Popup',
     ];
 
-    protected $fillable = ['image', 'type', 'status', 'starts_at', 'ends_at', 'published_at', 'created_by'];
+    /** Default title shown above the countdown boxes when no custom label is set. */
+    public const DEFAULT_COUNTDOWN_LABEL = 'Offer Ends In';
+
+    protected $fillable = [
+        'image', 'type', 'status', 'starts_at', 'ends_at',
+        'countdown_enabled', 'countdown_label', 'countdown_title_color', 'countdown_value_color',
+        'published_at', 'created_by',
+    ];
 
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'countdown_enabled' => 'boolean',
         'published_at' => 'datetime',
     ];
 

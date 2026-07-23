@@ -47,6 +47,31 @@
                 <x-admin.field label="Ends at" name="ends_at" type="date" :value="optional($promotion->ends_at)->format('Y-m-d')" required :hint="$isPopup ? null : 'Also drives the countdown timer on the banner.'" />
             </div>
 
+            @unless ($isPopup)
+                <div class="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+                    <label class="flex cursor-pointer items-start gap-3">
+                        <input type="checkbox" name="countdown_enabled" value="1" @checked(old('countdown_enabled', $promotion->exists ? $promotion->countdown_enabled : true)) class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                        <span>
+                            <span class="block text-sm font-semibold text-[var(--color-heading)]">Show countdown timer</span>
+                            <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Counts down to the "Ends at" date above. Turn off to show just the banner image with no timer.</span>
+                        </span>
+                    </label>
+                    <div class="mt-3">
+                        <x-admin.field label="Countdown title" name="countdown_label" :value="old('countdown_label', $promotion->countdown_label)" :placeholder="\App\Models\Promotion::DEFAULT_COUNTDOWN_LABEL" hint='Shown above the timer boxes, overlaid on the left side of the banner image. Leave blank to hide just the title — the countdown boxes still show.' />
+                    </div>
+                    <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Title color</label>
+                            <input type="color" name="countdown_title_color" value="{{ old('countdown_title_color', $promotion->countdown_title_color ?? '#4f46e5') }}" class="h-10 w-16 cursor-pointer rounded-lg border border-gray-200 p-1">
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Timer number color</label>
+                            <input type="color" name="countdown_value_color" value="{{ old('countdown_value_color', $promotion->countdown_value_color ?? '#4f46e5') }}" class="h-10 w-16 cursor-pointer rounded-lg border border-gray-200 p-1">
+                        </div>
+                    </div>
+                </div>
+            @endunless
+
             {{-- Publish control — only users with the publish permission see the live option. --}}
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Visibility</label>

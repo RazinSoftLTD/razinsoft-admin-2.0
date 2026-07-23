@@ -19,6 +19,11 @@ class PromotionController extends Controller
                 'top_banner' => $topBanner ? [
                     'image' => ProductResource::media($topBanner->image),
                     'ends_at' => $topBanner->ends_at?->toIso8601String(),
+                    'countdown_enabled' => (bool) $topBanner->countdown_enabled,
+                    // null/blank means the admin deliberately cleared it — hide the title, not fall back to a default.
+                    'countdown_label' => $topBanner->countdown_label,
+                    'countdown_title_color' => $topBanner->countdown_title_color,
+                    'countdown_value_color' => $topBanner->countdown_value_color,
                 ] : null,
                 'popup' => $popup ? [
                     'image' => ProductResource::media($popup->image),

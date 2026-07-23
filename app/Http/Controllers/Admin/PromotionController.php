@@ -29,6 +29,7 @@ class PromotionController extends Controller
         return view('admin.promotions.form', ['promotion' => new Promotion([
             'status' => 'draft',
             'type' => $request->query('type', Promotion::TYPE_TOP_BANNER),
+            'countdown_enabled' => true,
         ])]);
     }
 
@@ -37,6 +38,11 @@ class PromotionController extends Controller
         abort_unless($request->user()->hasPermission('promotion.create'), 403);
         $data = $this->validated($request);
         $data['created_by'] = $request->user()->id;
+        // Give a brand-new Top Banner a real default title in the DB (not just a
+        // display fallback), so clearing it later is a genuine, distinguishable "hide the title".
+        if (($data['type'] ?? null) === Promotion::TYPE_TOP_BANNER && empty($data['countdown_label'])) {
+            $data['countdown_label'] = Promotion::DEFAULT_COUNTDOWN_LABEL;
+        }
         $this->handleImage($request, $data);
         $this->applyStatus($request, $data);
 
@@ -101,9 +107,17 @@ class PromotionController extends Controller
             'image' => [$promotion?->exists ? 'nullable' : 'required', 'image', 'max:4096', \App\Support\ImageSpecs::rule($specKey)],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after_or_equal:starts_at'],
+            'countdown_label' => ['nullable', 'string', 'max:60'],
+            'countdown_title_color' => ['nullable', 'string', 'max:7', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'countdown_value_color' => ['nullable', 'string', 'max:7', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
         ], [
             'image.dimensions' => \App\Support\ImageSpecs::message($specKey, 'image'),
         ]);
+
+        // Countdown is a Top Banner–only feature; irrelevant (and unused) for a Popup.
+        if ($type === Promotion::TYPE_TOP_BANNER) {
+            $data['countdown_enabled'] = $request->boolean('countdown_enabled');
+        }
 
         return $data;
     }
