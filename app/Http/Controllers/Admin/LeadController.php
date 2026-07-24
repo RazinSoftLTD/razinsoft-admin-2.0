@@ -17,7 +17,9 @@ class LeadController extends Controller
     /** All Leads — stat cards + filterable, paginated list (and CSV export of the same filters). */
     public function index(Request $request)
     {
-        $q = Lead::query()->with('assignee:id,name')->latest('id');
+        $q = Lead::query()
+            ->with('assignee:id,name', 'nextFollowUp', 'lastCompletedFollowUp')
+            ->latest('id');
 
         // Constrain to the rows this user's "view" scope allows (owned / added / both / all).
         $request->user()->applyScope($q, 'leads', 'view');
@@ -402,11 +404,18 @@ class LeadController extends Controller
     public function show(Request $request, Lead $lead)
     {
         $this->authorizeLead($request, $lead);
-        $lead->load('assignee:id,name', 'convertedClient:id,name,email', 'deals');
+        $lead->load([
+            'assignee:id,name', 'convertedClient:id,name,email', 'deals',
+            'followUps.assignee:id,name', 'followUps.completedBy:id,name',
+        ]);
         // A WhatsApp conversation linked to this lead (if it was converted from WhatsApp).
         $whatsappChat = \App\Models\WhatsappChat::where('lead_id', $lead->id)->first();
 
-        return view('admin.leads.show', compact('lead', 'whatsappChat'));
+        return view('admin.leads.show', [
+            'lead' => $lead,
+            'whatsappChat' => $whatsappChat,
+            'fuUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /** Convert a lead into a Client (customer user), reusing an existing client with the same email. */

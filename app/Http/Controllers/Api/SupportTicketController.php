@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
+use App\Models\TicketType;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class SupportTicketController extends Controller
 {
@@ -27,7 +27,8 @@ class SupportTicketController extends Controller
                 'closed' => $request->user()->tickets()->where('status', 'closed')->count(),
             ],
             'unread' => $request->user()->tickets()->where('unread_by_customer', true)->count(),
-            'categories' => Ticket::CATEGORIES,
+            // Dynamic — sourced from the admin's Ticket Types instead of a hardcoded list.
+            'types' => TicketType::orderBy('name')->pluck('name', 'id'),
         ]);
     }
 
@@ -35,15 +36,18 @@ class SupportTicketController extends Controller
     {
         $data = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
-            'category' => ['required', Rule::in(array_keys(Ticket::CATEGORIES))],
+            'type_id' => ['required', 'exists:ticket_types,id'],
             'message' => ['required', 'string', 'max:10000'],
             'attachment' => ['nullable', 'file', 'max:10240'],
         ]);
 
+        $type = TicketType::find($data['type_id']);
+
         $ticket = $request->user()->tickets()->create([
             'ticket_number' => Ticket::nextNumber(),
             'subject' => $data['subject'],
-            'category' => $data['category'],
+            'category' => $type->name, // kept for legacy CSV export / label display
+            'type_id' => $type->id,
             'message' => clean($data['message']), // sanitize customer HTML (XSS-safe for the admin panel)
             'status' => 'open',
             'last_reply_at' => now(),

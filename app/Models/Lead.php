@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Lead extends Model
 {
@@ -89,6 +91,51 @@ class Lead extends Model
     public function deals(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Deal::class);
+    }
+
+    /** Complete follow-up history, newest scheduled first. */
+    public function followUps(): HasMany
+    {
+        return $this->hasMany(LeadFollowUp::class)->orderByDesc('scheduled_at')->orderByDesc('id');
+    }
+
+    /** The earliest still-pending follow-up — drives the "Next Follow-up" column. */
+    public function nextFollowUp(): HasOne
+    {
+        return $this->hasOne(LeadFollowUp::class)->ofMany(
+            ['scheduled_at' => 'min'],
+            fn ($q) => $q->where('status', LeadFollowUp::STATUS_PENDING),
+        );
+    }
+
+    /** The most recently completed follow-up — drives the "Last Follow-up" column. */
+    public function lastCompletedFollowUp(): HasOne
+    {
+        return $this->hasOne(LeadFollowUp::class)->ofMany(
+            ['completed_at' => 'max'],
+            fn ($q) => $q->where('status', LeadFollowUp::STATUS_DONE),
+        );
+    }
+
+    /**
+     * Re-point the cached follow-up columns used by the lead list / filters:
+     * next_follow_up_at = earliest pending follow-up; last_contacted_at = latest completed one.
+     */
+    public function syncFollowUpCache(): void
+    {
+        $next = $this->followUps()->where('status', LeadFollowUp::STATUS_PENDING)->reorder('scheduled_at')->first();
+        $lastDone = $this->followUps()->where('status', LeadFollowUp::STATUS_DONE)->reorder()->orderByDesc('completed_at')->first();
+
+        $this->forceFill([
+            'next_follow_up_at' => $next?->scheduled_at?->toDateString(),
+            'last_contacted_at' => $lastDone?->completed_at,
+        ])->save();
+    }
+
+    /** Label for the lead list "Follow-up Status" column (pending/overdue/done or none). */
+    public function followUpStatus(): ?LeadFollowUp
+    {
+        return $this->nextFollowUp ?: $this->lastCompletedFollowUp;
     }
 
     public function isConverted(): bool

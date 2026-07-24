@@ -96,16 +96,25 @@
                     <div class="flex items-center justify-between"><span class="text-gray-400">Created</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->created_at->format('d M Y') }}</span></div>
                 </div>
 
-                {{-- Set the next follow-up date right here --}}
+                {{-- Next follow-up summary + quick add --}}
+                @php $nextFu = $lead->followUps->where('status', 'pending')->sortBy('scheduled_at')->first(); @endphp
                 <div class="mt-4 border-t border-gray-100 pt-4">
-                    <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Next Follow-up</p>
-                    <form method="POST" action="{{ route('admin.leads.schedule-follow-up', $lead) }}" class="flex items-center gap-2">
-                        @csrf
-                        <input type="date" name="next_follow_up_at" value="{{ optional($lead->next_follow_up_at)->toDateString() }}"
-                               class="h-9 flex-1 rounded-lg border border-gray-200 px-2 text-sm {{ $lead->next_follow_up_at && $lead->next_follow_up_at->isPast() ? 'text-red-600' : '' }}">
-                        <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save</button>
-                    </form>
-                    <p class="mt-1.5 text-xs text-[var(--color-muted)]">Puts this lead on the Follow-up page. Clear the date to remove it.</p>
+                    <div class="mb-2 flex items-center justify-between">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Next Follow-up</p>
+                        @if (auth()->user()->hasPermission('follow_ups.create'))
+                            <button type="button" @click="$dispatch('open-schedule', { action: '{{ route('admin.leads.follow-ups.store', $lead) }}', leadName: @js($lead->full_name) })" class="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-primary)] hover:underline">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add
+                            </button>
+                        @endif
+                    </div>
+                    @if ($nextFu)
+                        <div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                            <p class="text-sm font-semibold {{ $nextFu->isOverdue() ? 'text-red-600' : 'text-[var(--color-heading)]' }}">{{ $nextFu->scheduled_at->format('d M Y, h:i A') }}</p>
+                            <p class="mt-1 flex items-center gap-1.5 text-xs text-[var(--color-muted)]">{{ $nextFu->typeLabel() }}<span class="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 {{ $nextFu->statusBadge() }}">{{ $nextFu->statusLabel() }}</span></p>
+                        </div>
+                    @else
+                        <p class="text-sm text-[var(--color-muted)]">No pending follow-up scheduled.</p>
+                    @endif
                 </div>
             </div>
 
@@ -133,4 +142,97 @@
             </div>
         </div>
     </div>
+
+    {{-- ===== Follow-up Timeline ===== --}}
+    @php
+        $me = auth()->user();
+        $canComplete = $me->hasPermission('follow_ups.complete');
+        $canEdit = $me->hasPermission('follow_ups.edit');
+        $canDelete = $me->hasPermission('follow_ups.delete');
+        $timeline = $lead->followUps->sortBy('scheduled_at')->values();
+        $typeDot = ['call' => 'bg-blue-500', 'whatsapp' => 'bg-emerald-500', 'meeting' => 'bg-indigo-500', 'email' => 'bg-amber-500', 'sms' => 'bg-purple-500', 'other' => 'bg-gray-400'];
+    @endphp
+    <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div class="mb-5 flex items-center justify-between">
+            <div>
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">Follow-up Timeline</h2>
+                <p class="mt-0.5 text-xs text-[var(--color-muted)]">Complete history — nothing is ever deleted.</p>
+            </div>
+            @if ($me->hasPermission('follow_ups.create'))
+                <button type="button" @click="$dispatch('open-schedule', { action: '{{ route('admin.leads.follow-ups.store', $lead) }}', leadName: @js($lead->full_name) })" class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:opacity-80">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Follow-up
+                </button>
+            @endif
+        </div>
+
+        <ol class="relative space-y-5 border-l-2 border-gray-100 pl-6">
+            {{-- Lead created anchor --}}
+            <li class="relative">
+                <span class="absolute -left-[31px] grid h-5 w-5 place-items-center rounded-full bg-[var(--color-primary)] ring-4 ring-white">
+                    <svg class="h-3 w-3 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                </span>
+                <p class="text-sm font-semibold text-[var(--color-heading)]">Lead Created</p>
+                <p class="text-xs text-[var(--color-muted)]">{{ $lead->created_at->format('d M Y, h:i A') }}</p>
+            </li>
+
+            @foreach ($timeline as $fu)
+                <li class="relative">
+                    <span class="absolute -left-[31px] h-5 w-5 rounded-full ring-4 ring-white {{ $typeDot[$fu->type] ?? 'bg-gray-400' }}"></span>
+                    <div class="rounded-xl border border-gray-100 p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)] {{ $fu->isCancelled() ? 'line-through opacity-60' : '' }}">
+                                    {{ $fu->typeLabel() }}
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 {{ $fu->statusBadge() }}">{{ $fu->statusLabel() }}</span>
+                                </p>
+                                <p class="mt-0.5 text-xs text-[var(--color-muted)]">{{ $fu->scheduled_at->format('d M Y, h:i A') }} · {{ $fu->priorityLabel() }} priority @if ($fu->assignee) · {{ $fu->assignee->name }} @endif</p>
+                            </div>
+                            @if ($canComplete && $fu->isPending())
+                                <button type="button"
+                                        @click="$dispatch('open-done', { action: '{{ route('admin.leads.follow-ups.complete', [$lead, $fu]) }}', leadName: @js($lead->full_name), followUpTitle: @js($fu->typeLabel().' · '.$fu->scheduled_at->format('d M Y')) })"
+                                        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg> Mark Done
+                                </button>
+                            @endif
+                        </div>
+                        @if ($fu->note)
+                            <p class="mt-2 text-sm text-[var(--color-muted)]">{{ $fu->note }}</p>
+                        @endif
+                        @if ($fu->isDone() && $fu->completion_note)
+                            <div class="mt-2 rounded-lg bg-emerald-50/70 px-3 py-2 text-xs text-emerald-800">
+                                <span class="font-semibold">Outcome:</span> {{ $fu->completion_note }}
+                                <span class="mt-0.5 block text-emerald-600/80">Completed {{ $fu->completed_at?->format('d M Y, h:i A') }}@if ($fu->completedBy) by {{ $fu->completedBy->name }}@endif</span>
+                            </div>
+                        @endif
+                        @if (($canEdit || $canDelete) && $fu->isPending())
+                            <div class="mt-2 flex items-center gap-3 border-t border-gray-50 pt-2">
+                                @if ($canEdit)
+                                    <form method="POST" action="{{ route('admin.leads.follow-ups.cancel', [$lead, $fu]) }}" onsubmit="return confirm('Cancel this follow-up?')" data-turbo="false">
+                                        @csrf
+                                        <button class="text-xs font-semibold text-gray-500 hover:text-[var(--color-heading)]">Cancel</button>
+                                    </form>
+                                @endif
+                                @if ($canDelete)
+                                    <form method="POST" action="{{ route('admin.leads.follow-ups.destroy', [$lead, $fu]) }}" onsubmit="return confirm('Delete this pending follow-up?')" data-turbo="false">
+                                        @csrf @method('DELETE')
+                                        <button class="text-xs font-semibold text-red-600 hover:underline">Delete</button>
+                                    </form>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                </li>
+            @endforeach
+
+            @if ($timeline->isEmpty())
+                <li class="relative">
+                    <span class="absolute -left-[31px] h-5 w-5 rounded-full bg-gray-200 ring-4 ring-white"></span>
+                    <p class="text-sm text-[var(--color-muted)]">No follow-ups yet — use “Add Follow-up” to schedule the first one.</p>
+                </li>
+            @endif
+        </ol>
+    </div>
+
+    @include('admin.follow-ups._schedule-modal')
+    @include('admin.follow-ups._done-modal')
 @endsection

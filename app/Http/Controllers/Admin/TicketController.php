@@ -35,15 +35,53 @@ class TicketController extends Controller
     private function scopedCount(Request $request, ?string $status = null): int
     {
         $q = Ticket::query();
-        $request->user()->applyScope($q, 'tickets', 'view');
+        $this->applyVisibility($q, $request->user());
 
         return $q->when($status, fn ($x) => $x->where('status', $status))->count();
     }
 
-    /** Row-level access: the user's ticket view scope must cover this ticket. */
+    /**
+     * Constrain a ticket query by both the user's base "tickets" permission scope AND
+     * per-type agent assignment: a type with one or more assigned agents becomes exclusive
+     * to admin + those agents (regardless of the base scope), while a type with no agents
+     * assigned (or a ticket with no type at all) falls back to the base scope unchanged.
+     */
+    private function applyVisibility($query, \App\Models\User $user)
+    {
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        return $query
+            ->where(function ($outer) use ($user) {
+                $outer->where(fn ($base) => $user->applyScope($base, 'tickets', 'view'))
+                    ->orWhereHas('type.agents', fn ($a) => $a->where('user_id', $user->id));
+            })
+            ->where(function ($gate) use ($user) {
+                $gate->whereDoesntHave('type.agents')
+                    ->orWhereHas('type.agents', fn ($a) => $a->where('user_id', $user->id));
+            });
+    }
+
+    /** Row-level access: the user's ticket view scope must cover this ticket, unless its type is agent-restricted. */
     private function authorizeTicket(Request $request, Ticket $ticket, string $action = 'view'): void
     {
-        abort_unless($request->user()->canAct('tickets', $action, $ticket), 403);
+        $user = $request->user();
+        if ($user->isAdmin()) {
+            return;
+        }
+
+        if ($ticket->type_id) {
+            $agentUserIds = $ticket->type?->agents()->pluck('user_id') ?? collect();
+            if ($agentUserIds->isNotEmpty()) {
+                // Type is agent-restricted: only its assigned agents (+ admin, handled above) may act on it.
+                abort_unless($agentUserIds->contains($user->id), 403);
+
+                return;
+            }
+        }
+
+        abort_unless($user->canAct('tickets', $action, $ticket), 403);
     }
 
     /** Shared list query with status / priority / search / date-range filters. */
@@ -54,8 +92,9 @@ class TicketController extends Controller
             ->withCount(['replies as admin_replies_count' => fn ($r) => $r->where('is_admin', true)])
             ->latest('last_reply_at')->latest('id');
 
-        // "Owned" ticket scope = tickets the user raised (client_id = them).
-        $request->user()->applyScope($q, 'tickets', 'view');
+        // "Owned" ticket scope = tickets the user raised (client_id = them), further
+        // gated/expanded by per-type agent assignment — see applyVisibility().
+        $this->applyVisibility($q, $request->user());
 
         if (array_key_exists($request->query('status'), Ticket::STATUSES)) {
             $q->where('status', $request->query('status'));

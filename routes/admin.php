@@ -12,6 +12,8 @@ use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DealController;
+use App\Http\Controllers\Admin\FollowUpController;
+use App\Http\Controllers\Admin\LeadFollowUpController;
 use App\Http\Controllers\Admin\InvoicePaymentController;
 use App\Http\Controllers\Admin\InvoiceTemplateController;
 use App\Http\Controllers\Admin\LeadController;
@@ -185,6 +187,28 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::middleware('permission:leads.delete')->group(function () {
             Route::delete('leads/{lead}', [LeadController::class, 'destroy'])->whereNumber('lead')->name('leads.destroy');
+        });
+
+        // ===== Follow-ups =====
+        // Aggregated, read-only views across every lead (list · calendar). Follow-up records
+        // themselves are always created/managed from the Lead (routes nested under leads/{lead}).
+        Route::middleware('permission:follow_ups.view')->group(function () {
+            Route::get('follow-ups', [FollowUpController::class, 'index'])->name('follow-ups.index');
+            Route::get('follow-ups/calendar', [FollowUpController::class, 'calendar'])->name('follow-ups.calendar');
+        });
+        Route::middleware('permission:follow_ups.create')->group(function () {
+            Route::post('leads/{lead}/follow-ups', [LeadFollowUpController::class, 'store'])->whereNumber('lead')->name('leads.follow-ups.store');
+        });
+        // Mark Done (+ optionally schedule the next one in the same request).
+        Route::middleware('permission:follow_ups.complete')->group(function () {
+            Route::post('leads/{lead}/follow-ups/{followUp}/complete', [LeadFollowUpController::class, 'complete'])->whereNumber(['lead', 'followUp'])->name('leads.follow-ups.complete');
+        });
+        Route::middleware('permission:follow_ups.edit')->group(function () {
+            Route::put('leads/{lead}/follow-ups/{followUp}', [LeadFollowUpController::class, 'update'])->whereNumber(['lead', 'followUp'])->name('leads.follow-ups.update');
+            Route::post('leads/{lead}/follow-ups/{followUp}/cancel', [LeadFollowUpController::class, 'cancel'])->whereNumber(['lead', 'followUp'])->name('leads.follow-ups.cancel');
+        });
+        Route::middleware('permission:follow_ups.delete')->group(function () {
+            Route::delete('leads/{lead}/follow-ups/{followUp}', [LeadFollowUpController::class, 'destroy'])->whereNumber(['lead', 'followUp'])->name('leads.follow-ups.destroy');
         });
 
         // ===== Deals =====
@@ -387,6 +411,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('ticket-settings/agents/{agent}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateAgent'])->name('tickets.settings.agents.update');
             Route::delete('ticket-settings/agents/{agent}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyAgent'])->name('tickets.settings.agents.destroy');
             Route::post('ticket-settings/types', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeType'])->name('tickets.settings.types.store');
+            Route::patch('ticket-settings/types/{type}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateType'])->name('tickets.settings.types.update');
             Route::delete('ticket-settings/types/{type}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyType'])->name('tickets.settings.types.destroy');
             Route::post('ticket-settings/templates', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeTemplate'])->name('tickets.settings.templates.store');
             Route::patch('ticket-settings/templates/{template}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateTemplate'])->name('tickets.settings.templates.update');

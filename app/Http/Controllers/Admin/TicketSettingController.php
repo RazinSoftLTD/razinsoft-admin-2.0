@@ -21,7 +21,7 @@ class TicketSettingController extends Controller
             'tab' => $request->query('tab', 'agents'),
             'agents' => TicketAgent::with('user.designation', 'groups')->get(),
             'groups' => TicketGroup::orderBy('name')->get(),
-            'types' => TicketType::orderBy('name')->withCount([])->get(),
+            'types' => TicketType::with('agents.user')->orderBy('name')->get(),
             'templates' => ReplyTemplate::latest()->get(),
             'addableEmployees' => User::assignable()->whereNotIn('id', $agentUserIds)->orderBy('name')->get(['id', 'name']),
         ]);
@@ -46,7 +46,9 @@ class TicketSettingController extends Controller
         if (isset($data['status'])) {
             $agent->update(['status' => $data['status']]);
         }
-        if ($request->has('group_ids')) {
+        // sync_groups marks a submit from the group picker, so unchecking the last group
+        // (no group_ids key at all) still syncs to an empty set instead of being ignored.
+        if ($request->has('group_ids') || $request->boolean('sync_groups')) {
             $agent->groups()->sync($data['group_ids'] ?? []);
         }
 
@@ -67,6 +69,25 @@ class TicketSettingController extends Controller
         TicketType::create($data);
 
         return back()->with('status', 'Ticket type added.');
+    }
+
+    public function updateType(Request $request, TicketType $type)
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:120', Rule::unique('ticket_types', 'name')->ignore($type->id)],
+            'agent_ids' => ['sometimes', 'array'],
+            'agent_ids.*' => ['exists:ticket_agents,id'],
+        ]);
+        if (array_key_exists('name', $data)) {
+            $type->update(['name' => $data['name']]);
+        }
+        // sync_agents marks a submit from the agent picker, so unchecking the last agent
+        // (no agent_ids key at all) still syncs to an empty set instead of being ignored.
+        if ($request->has('agent_ids') || $request->boolean('sync_agents')) {
+            $type->agents()->sync($data['agent_ids'] ?? []);
+        }
+
+        return back()->with('status', 'Ticket type updated.');
     }
 
     public function destroyType(TicketType $type)

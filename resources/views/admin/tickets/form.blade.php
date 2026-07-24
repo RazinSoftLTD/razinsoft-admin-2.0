@@ -54,7 +54,7 @@
                 </div>
                 @endif
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Type</label>
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Category</label>
                     <div class="flex gap-2">
                         <select name="type_id" x-ref="typeSelect" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                             <option value="">--</option>
@@ -118,7 +118,7 @@
         {{-- Quick add group/type modal --}}
         <div x-show="quick.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="quick.open = false">
             <div class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-                <h3 class="text-base font-bold text-[var(--color-heading)]">Add <span x-text="quick.type === 'group' ? 'Assign Group' : 'Type'"></span></h3>
+                <h3 class="text-base font-bold text-[var(--color-heading)]">Add <span x-text="quick.type === 'group' ? 'Assign Group' : 'Category'"></span></h3>
                 <input x-model="quick.name" placeholder="Name" class="mt-4 h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none" @keydown.enter.prevent="saveQuick">
                 <p x-show="quick.error" x-cloak class="mt-1 text-xs text-red-600" x-text="quick.error"></p>
                 <div class="mt-4 flex justify-end gap-2">

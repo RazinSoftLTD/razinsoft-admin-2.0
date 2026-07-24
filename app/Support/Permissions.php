@@ -59,6 +59,9 @@ class Permissions
      */
     public const MODULES = [
         'leads' => ['label' => 'Leads', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to', 'creator' => 'added_by'],
+        // Follow-ups: view scope = owned (assigned sales exec) vs all (manager/admin). `complete`
+        // covers Mark Done + Schedule Next; edit/delete apply to pending follow-ups only.
+        'follow_ups' => ['label' => 'Follow-ups', 'group' => 'CRM', 'actions' => ['view', 'create', 'complete', 'edit', 'delete'], 'owner' => 'user_id', 'creator' => 'created_by'],
         'deals' => ['label' => 'Deals', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'assigned_to'],
         // clients: view/create/edit/delete are the base CRUD (scoped via account_manager_id
         // = owned / created_by = added). Profile rides on view; the other section actions each

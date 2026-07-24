@@ -2,7 +2,7 @@
 @section('title', 'Ticket Settings')
 
 @php
-    $tabs = ['agents' => 'Ticket Agents', 'types' => 'Ticket Types', 'templates' => 'Reply Templates'];
+    $tabs = ['agents' => 'Ticket Agents', 'types' => 'Ticket Category', 'templates' => 'Reply Templates'];
     $me = auth()->id();
 @endphp
 
@@ -59,12 +59,15 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-3">
-                                    <form method="POST" action="{{ route('admin.tickets.settings.agents.update', $agent) }}" id="agent-{{ $agent->id }}">
-                                        @csrf @method('PATCH')
-                                        <select name="group_ids[]" multiple onchange="this.form.submit()" class="w-72 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                                            @foreach ($groups as $g)<option value="{{ $g->id }}" @selected($agent->groups->contains($g->id))>{{ $g->name }}</option>@endforeach
-                                        </select>
-                                    </form>
+                                    @include('admin.tickets._checkbox-select', [
+                                        'action' => route('admin.tickets.settings.agents.update', $agent),
+                                        'name' => 'group_ids',
+                                        'syncFlag' => 'sync_groups',
+                                        'placeholder' => 'Select groups…',
+                                        'summary' => $agent->groups->pluck('name')->join(', '),
+                                        'empty' => 'No groups yet.',
+                                        'options' => $groups->map(fn ($g) => ['value' => $g->id, 'label' => $g->name, 'checked' => $agent->groups->contains($g->id)]),
+                                    ])
                                 </td>
                                 <td class="px-5 py-3">
                                     <form method="POST" action="{{ route('admin.tickets.settings.agents.update', $agent) }}">
@@ -89,24 +92,40 @@
                         @endforelse
                     </tbody>
                 </table>
-                <p class="px-5 py-3 text-xs text-gray-400">Tip: hold Ctrl/Cmd to select multiple groups.</p>
+                <p class="px-5 py-3 text-xs text-gray-400">Tip: click the Group box and check as many as you need — it saves when you click away.</p>
             </div>
 
-            {{-- ===== Ticket Types ===== --}}
+            {{-- ===== Ticket Category ===== --}}
             <div x-show="tab === 'types'" x-cloak class="p-5">
                 <form method="POST" action="{{ route('admin.tickets.settings.types.store') }}" class="mb-4 flex max-w-md gap-2">
                     @csrf
-                    <input name="name" required placeholder="e.g. Bug Report" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                    <input name="name" required placeholder="e.g. Technical Support" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                     <button class="shrink-0 rounded-lg bg-[var(--color-primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Add</button>
                 </form>
                 @error('name')<p class="mb-2 text-xs text-red-600">{{ $message }}</p>@enderror
                 <div class="overflow-hidden rounded-lg border border-gray-100">
                     <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400"><tr><th class="px-5 py-3 font-semibold">Type</th><th class="px-5 py-3 text-right font-semibold">Action</th></tr></thead>
+                        <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400"><tr><th class="px-5 py-3 font-semibold">Category</th><th class="px-5 py-3 font-semibold">Ticket Agents</th><th class="px-5 py-3 text-right font-semibold">Action</th></tr></thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($types as $t)
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-5 py-3 font-medium text-[var(--color-heading)]">{{ $t->name }}</td>
+                                    <td class="px-5 py-3">
+                                        <form method="POST" action="{{ route('admin.tickets.settings.types.update', $t) }}">
+                                            @csrf @method('PATCH')
+                                            <input name="name" value="{{ $t->name }}" onblur="this.value !== this.defaultValue && this.value.trim() && this.form.submit()" class="w-48 rounded-lg border border-transparent bg-transparent px-2 py-1 font-medium text-[var(--color-heading)] hover:border-gray-200 focus:border-[var(--color-primary)] focus:bg-white focus:outline-none">
+                                        </form>
+                                    </td>
+                                    <td class="px-5 py-3">
+                                        @include('admin.tickets._checkbox-select', [
+                                            'action' => route('admin.tickets.settings.types.update', $t),
+                                            'name' => 'agent_ids',
+                                            'syncFlag' => 'sync_agents',
+                                            'placeholder' => 'Select agents…',
+                                            'summary' => $t->agents->map(fn ($a) => $a->user->name)->join(', '),
+                                            'empty' => 'No agents yet — add one in the Ticket Agents tab.',
+                                            'options' => $agents->map(fn ($a) => ['value' => $a->id, 'label' => $a->user->name, 'checked' => $t->agents->contains($a->id)]),
+                                        ])
+                                    </td>
                                     <td class="px-5 py-3 text-right">
                                         <form method="POST" action="{{ route('admin.tickets.settings.types.destroy', $t) }}" onsubmit="return confirm('Delete?')">
                                             @csrf @method('DELETE')<button class="text-sm font-semibold text-red-600 hover:underline">Delete</button>
@@ -114,11 +133,12 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="2" class="px-5 py-8 text-center text-gray-400">No types yet.</td></tr>
+                                <tr><td colspan="3" class="px-5 py-8 text-center text-gray-400">No categories yet.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+                <p class="px-1 py-3 text-xs text-gray-400">Only agents assigned to a category can see its tickets. A category with no agents assigned follows the normal Tickets permission instead.</p>
             </div>
 
             {{-- ===== Reply Templates ===== --}}

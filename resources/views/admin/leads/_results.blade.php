@@ -22,9 +22,11 @@
                     <th class="px-4 py-3 font-semibold">Lead ID</th>
                     <th class="px-4 py-3 font-semibold">Lead</th>
                     <th class="px-4 py-3 font-semibold">Phone</th>
-                    <th class="px-4 py-3 font-semibold">Lead Quality</th>
                     <th class="px-4 py-3 font-semibold">Assigned To</th>
-                    <th class="px-4 py-3 font-semibold">Created</th>
+                    <th class="px-4 py-3 font-semibold">Last Follow-up</th>
+                    <th class="px-4 py-3 font-semibold">Next Follow-up</th>
+                    <th class="px-4 py-3 font-semibold">Follow-up</th>
+                    <th class="px-4 py-3 font-semibold">Lead Quality</th>
                     <th class="px-4 py-3 text-right font-semibold">Action</th>
                 </tr>
             </thead>
@@ -69,16 +71,6 @@
                             @endif
                         </td>
                         <td class="px-4 py-3">
-                            <form method="POST" action="{{ route('admin.leads.status', $lead) }}">
-                                @csrf
-                                <select name="lead_status" onchange="this.form.submit()" title="Change status"
-                                        class="cursor-pointer appearance-none rounded-full border-0 py-1 pl-2.5 pr-6 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] {{ $statusBadge[$lead->lead_status] ?? 'bg-gray-100 text-gray-600' }}"
-                                        style="background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%223%22 viewBox=%220 0 24 24%22><path d=%22m6 9 6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 0.4rem center;background-size:0.7em;">
-                                    @foreach (\App\Models\Lead::STATUSES as $sk => $sl)<option value="{{ $sk }}" @selected($lead->lead_status === $sk)>{{ $sl }}</option>@endforeach
-                                </select>
-                            </form>
-                        </td>
-                        <td class="px-4 py-3">
                             @if ($lead->assignee)
                                 <div class="flex items-center gap-2">
                                     <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[11px] font-bold text-[var(--color-primary)]">{{ strtoupper(substr($lead->assignee->name, 0, 1)) }}</span>
@@ -88,9 +80,43 @@
                                 <span class="text-gray-400">—</span>
                             @endif
                         </td>
+                        {{-- Last completed follow-up --}}
                         <td class="px-4 py-3 text-[var(--color-muted)]">
-                            <p>{{ $lead->created_at->format('d M Y') }}</p>
-                            <p class="text-xs">{{ $lead->created_at->format('h:i A') }}</p>
+                            @if ($lead->lastCompletedFollowUp)
+                                <p class="font-medium text-[var(--color-heading)]">{{ $lead->lastCompletedFollowUp->completed_at?->format('d M Y') }}</p>
+                                <p class="text-xs">{{ $lead->lastCompletedFollowUp->typeLabel() }}</p>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </td>
+                        {{-- Next pending follow-up --}}
+                        <td class="px-4 py-3">
+                            @if ($lead->nextFollowUp)
+                                <p class="font-medium {{ $lead->nextFollowUp->isOverdue() ? 'text-red-600' : 'text-[var(--color-heading)]' }}">{{ $lead->nextFollowUp->scheduled_at->format('d M Y') }}</p>
+                                <p class="text-xs text-[var(--color-muted)]">{{ $lead->nextFollowUp->scheduled_at->format('h:i A') }}</p>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </td>
+                        {{-- Latest follow-up status --}}
+                        <td class="px-4 py-3">
+                            @php $fuStatus = $lead->followUpStatus(); @endphp
+                            @if ($fuStatus)
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 {{ $fuStatus->statusBadge() }}">{{ $fuStatus->statusLabel() }}</span>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </td>
+                        {{-- Lead status/quality --}}
+                        <td class="px-4 py-3">
+                            <form method="POST" action="{{ route('admin.leads.status', $lead) }}">
+                                @csrf
+                                <select name="lead_status" onchange="this.form.submit()" title="Change status"
+                                        class="cursor-pointer appearance-none rounded-full border-0 py-1 pl-2.5 pr-6 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] {{ $statusBadge[$lead->lead_status] ?? 'bg-gray-100 text-gray-600' }}"
+                                        style="background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%223%22 viewBox=%220 0 24 24%22><path d=%22m6 9 6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 0.4rem center;background-size:0.7em;">
+                                    @foreach (\App\Models\Lead::STATUSES as $sk => $sl)<option value="{{ $sk }}" @selected($lead->lead_status === $sk)>{{ $sl }}</option>@endforeach
+                                </select>
+                            </form>
                         </td>
                         <td class="px-4 py-3 text-right">
                             @php $me = auth()->user(); @endphp
@@ -143,7 +169,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="9" class="px-4 py-12 text-center text-gray-400">
                             @if ($q !== '')
                                 No leads match “<span class="font-semibold text-[var(--color-heading)]">{{ $q }}</span>”. Try a different search.
                             @else
