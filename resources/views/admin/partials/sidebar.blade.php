@@ -120,11 +120,19 @@
         ]],
 
         ['type' => 'group', 'label' => 'Finance', 'icon' => $ic['finance'], 'items' => [
-            ['label' => 'Proposal', 'soon' => true, 'icon' => $ic['proposal']],
-            ['label' => 'Estimation', 'soon' => true, 'icon' => $ic['estimation']],
+            ['label' => 'Dashboard', 'route' => 'admin.finance.dashboard', 'active' => 'admin.finance.dashboard', 'perm' => 'finance.view', 'icon' => $ic['dashboard']],
+            ['label' => 'Wallets', 'route' => 'admin.finance.wallets', 'active' => 'admin.finance.wallets', 'perm' => 'finance.view', 'icon' => $ic['currency']],
+            ['label' => 'Bank Accounts', 'route' => 'admin.finance.banks', 'active' => 'admin.finance.banks', 'perm' => 'finance.view', 'icon' => $ic['bank']],
+            ['label' => 'Transactions', 'route' => 'admin.finance.transactions', 'active' => 'admin.finance.transactions', 'perm' => 'finance.view', 'icon' => $ic['reports']],
+            ['label' => 'Income', 'route' => 'admin.finance.income', 'active' => 'admin.finance.income', 'perm' => 'finance.view', 'icon' => $ic['finance']],
+            ['label' => 'Expenses', 'route' => 'admin.finance.expenses', 'active' => 'admin.finance.expenses', 'perm' => 'finance.view', 'icon' => $ic['expense']],
+            ['label' => 'Transfers', 'route' => 'admin.finance.transfers', 'active' => 'admin.finance.transfers', 'perm' => 'finance.view', 'icon' => $ic['separation']],
+            ['label' => 'Currency Conversion', 'route' => 'admin.finance.conversions', 'active' => 'admin.finance.conversions', 'perm' => 'finance.view', 'icon' => $ic['currency']],
+            ['label' => 'Receivables', 'route' => 'admin.finance.receivables', 'active' => 'admin.finance.receivables', 'perm' => 'finance.view', 'icon' => $ic['invoice']],
+            ['label' => 'Payables', 'route' => 'admin.finance.payables', 'active' => 'admin.finance.payables', 'perm' => 'finance.view', 'icon' => $ic['estimation']],
+            ['label' => 'VAT & Tax', 'route' => 'admin.finance.taxes', 'active' => 'admin.finance.taxes', 'perm' => 'finance.view', 'icon' => $ic['proposal']],
+            ['label' => 'Reports', 'route' => 'admin.finance.reports', 'active' => 'admin.finance.reports', 'perm' => 'finance.reports', 'icon' => $ic['reports']],
             ['label' => 'Invoices', 'route' => 'admin.invoices.index', 'active' => ['admin.invoices.*', 'admin.recurring.*', 'admin.invoice-templates.*'], 'perm' => 'invoices.view', 'icon' => $ic['invoice']],
-            ['label' => 'Expense', 'soon' => true, 'icon' => $ic['expense']],
-            ['label' => 'Bank', 'soon' => true, 'icon' => $ic['bank']],
         ]],
 
         ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [

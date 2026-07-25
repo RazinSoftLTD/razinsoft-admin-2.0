@@ -31,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
             // DB not ready (e.g. during install) — fall back to .env mail config.
         }
 
+        // Mirror invoice payments into the Finance module's income, whichever screen recorded them.
+        \App\Models\InvoicePayment::observe(\App\Observers\InvoicePaymentObserver::class);
+
         // Password-reset emails link to the website's reset page (not the API host).
         ResetPassword::createUrlUsing(function ($user, string $token) {
             $frontend = rtrim(config('app.frontend_url', config('services.frontend_url', 'http://localhost:3000')), '/');

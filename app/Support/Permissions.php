@@ -78,6 +78,9 @@ class Permissions
         // invoices: base CRUD scoped via created_by (= added). The extra ops (payments/send/
         // cancel/duplicate) are individually scopable; configuration + bin are global none/all.
         'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance', 'send', 'cancel', 'duplicate', 'configure', 'bin', 'private'], 'owner' => 'owner_id', 'creator' => 'created_by'],
+        // Finance = the company's own money (wallets, banks, expenses, payables, tax). Client
+        // billing stays under `invoices`; `settings` covers the account & category setup pages.
+        'finance' => ['label' => 'Finance', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'reports', 'settings']],
         'products' => ['label' => 'Products', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'publish', 'clone', 'relations']],
         // Installation Plans has its own screens (features, plans, copy-from), so it gets its own toggles.
         'installation_plans' => ['label' => 'Installation Plans', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'copy']],

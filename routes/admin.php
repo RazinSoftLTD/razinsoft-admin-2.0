@@ -426,6 +426,42 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::delete('tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'destroy'])->whereNumber('ticket')->name('tickets.destroy');
 
+        // ===== Finance (internal money: wallets, banks, income, expenses, tax) =====
+        $fin = \App\Http\Controllers\Admin\FinanceController::class;
+        Route::prefix('finance')->name('finance.')->group(function () use ($fin) {
+            Route::get('/', [$fin, 'dashboard'])->name('dashboard');
+            Route::get('wallets', [$fin, 'accounts'])->defaults('type', 'wallet')->name('wallets');
+            Route::get('bank-accounts', [$fin, 'accounts'])->defaults('type', 'bank')->name('banks');
+            Route::post('accounts', [$fin, 'accountStore'])->name('accounts.store');
+            Route::put('accounts/{account}', [$fin, 'accountUpdate'])->whereNumber('account')->name('accounts.update');
+            Route::delete('accounts/{account}', [$fin, 'accountDestroy'])->whereNumber('account')->name('accounts.destroy');
+
+            Route::get('transactions', [$fin, 'transactions'])->name('transactions');
+            Route::get('income', [$fin, 'transactions'])->defaults('only', 'income')->name('income');
+            Route::get('expenses', [$fin, 'transactions'])->defaults('only', 'expense')->name('expenses');
+            Route::post('transactions', [$fin, 'transactionStore'])->name('transactions.store');
+            Route::put('transactions/{transaction}', [$fin, 'transactionUpdate'])->whereNumber('transaction')->name('transactions.update');
+            Route::delete('transactions/{transaction}', [$fin, 'transactionDestroy'])->whereNumber('transaction')->name('transactions.destroy');
+
+            Route::get('transfers', [$fin, 'transfers'])->name('transfers');
+            Route::get('currency-conversion', [$fin, 'conversions'])->name('conversions');
+            Route::post('transfers', [$fin, 'transferStore'])->name('transfers.store');
+
+            Route::get('receivables', [$fin, 'receivables'])->name('receivables');
+            Route::get('payables', [$fin, 'payables'])->name('payables');
+            Route::post('payables', [$fin, 'payableStore'])->name('payables.store');
+            Route::put('payables/{payable}', [$fin, 'payableUpdate'])->whereNumber('payable')->name('payables.update');
+            Route::post('payables/{payable}/pay', [$fin, 'payablePay'])->whereNumber('payable')->name('payables.pay');
+            Route::delete('payables/{payable}', [$fin, 'payableDestroy'])->whereNumber('payable')->name('payables.destroy');
+
+            Route::get('vat-tax', [$fin, 'taxes'])->name('taxes');
+            Route::post('vat-tax', [$fin, 'taxStore'])->name('taxes.store');
+            Route::put('vat-tax/{tax}', [$fin, 'taxUpdate'])->whereNumber('tax')->name('taxes.update');
+            Route::delete('vat-tax/{tax}', [$fin, 'taxDestroy'])->whereNumber('tax')->name('taxes.destroy');
+
+            Route::get('reports', [$fin, 'reports'])->name('reports');
+        });
+
         // ===== Products =====
         Route::middleware('permission:products.view')->group(function () {
             Route::get('products', [ProductController::class, 'index'])->name('products.index');
