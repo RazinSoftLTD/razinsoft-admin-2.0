@@ -83,7 +83,19 @@
                 @foreach ($rows as $label => $value)
                     <div class="flex justify-between gap-4 border-b border-gray-50 pb-3">
                         <dt class="text-sm text-[var(--color-muted)]">{{ $label }}</dt>
-                        <dd class="text-right text-sm font-medium text-[var(--color-heading)]">{{ filled($value) ? $value : '--' }}</dd>
+                        @if ($label === 'Mobile' && $client->contactNumbers->isNotEmpty())
+                            {{-- A client often gives several numbers — list them all, not just the primary. --}}
+                            <dd class="flex flex-wrap justify-end gap-1.5 text-right">
+                                @foreach ($client->contactNumbers as $num)
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-[var(--color-heading)]">
+                                        {{ $num->display() }}
+                                        <span class="font-normal text-[var(--color-muted)]">{{ \App\Models\ContactNumber::LABELS[$num->label] ?? $num->label }}</span>
+                                    </span>
+                                @endforeach
+                            </dd>
+                        @else
+                            <dd class="text-right text-sm font-medium text-[var(--color-heading)]">{{ filled($value) ? $value : '--' }}</dd>
+                        @endif
                     </div>
                 @endforeach
             </dl>

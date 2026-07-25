@@ -432,7 +432,7 @@ class LeadController extends Controller
     {
         $this->authorizeLead($request, $lead);
         $lead->load([
-            'assignee:id,name', 'convertedClient:id,name,email', 'deals',
+            'assignee:id,name', 'convertedClient:id,name,email', 'deals', 'contactNumbers',
             'followUps.assignee:id,name', 'followUps.completedBy:id,name',
         ]);
         // A WhatsApp conversation linked to this lead (if it was converted from WhatsApp).

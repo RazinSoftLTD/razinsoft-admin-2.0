@@ -114,6 +114,7 @@ class ClientController extends Controller
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
         $this->authorizeClient(auth()->user(), $client, 'view');
+        $client->load('contactNumbers');     // profile lists every number, not just the primary
 
         $invoices = ClientInvoice::where('client_id', $client->id)
             ->withCount('items')->latest('id')->get();

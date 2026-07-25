@@ -26,8 +26,14 @@
             @endif
             <a href="{{ route('admin.leads.edit', $lead) }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Edit</a>
             <a href="{{ route('admin.deals.create', ['lead' => $lead->id]) }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Create Deal</a>
+            @php $alreadyClient = ! empty($matchedClients) && count($matchedClients) === 1 ? $matchedClients[0] : null; @endphp
             @if ($lead->isConverted())
                 <a href="{{ route('admin.clients.edit', $lead->converted_client_id) }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg> View Client
+                </a>
+            {{-- Already a client (matched on a shared number/email) — converting again would duplicate them. --}}
+            @elseif ($alreadyClient)
+                <a href="{{ route('admin.clients.show', $alreadyClient->id) }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg> View Client
                 </a>
             @else
@@ -54,26 +60,49 @@
 
     {{-- Not formally converted, but a client already shares this lead's phone number or email. --}}
     @if (! empty($matchedClients) && count($matchedClients))
-        <div class="mb-5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-            <p class="flex flex-wrap items-center gap-2">
+        <div class="mb-5 overflow-hidden rounded-xl border border-sky-200 bg-sky-50">
+            <div class="flex items-center gap-2 border-b border-sky-200 px-4 py-2.5 text-sm font-semibold text-sky-900">
                 <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M5 20a7 7 0 0 1 14 0"/></svg>
                 @if (count($matchedClients) === 1)
-                    Already a client — <strong>{{ $matchedClients[0]->name }}</strong>@if ($matchedClients[0]->company) ({{ $matchedClients[0]->company }})@endif.
-                    <a href="{{ route('admin.clients.show', $matchedClients[0]->id) }}" class="font-semibold underline hover:no-underline">Open client</a>
+                    This lead is already a client
                 @else
-                    This contact matches <strong>{{ count($matchedClients) }} clients</strong> — pick the right one:
+                    This contact matches {{ count($matchedClients) }} clients — pick the right one
                 @endif
-            </p>
-            @if (count($matchedClients) > 1)
-                <div class="mt-2 flex flex-wrap gap-2">
-                    @foreach ($matchedClients as $mc)
+            </div>
+
+            <div class="divide-y divide-sky-100">
+                @foreach ($matchedClients as $mc)
+                    <div class="flex flex-wrap items-start justify-between gap-3 bg-white px-4 py-3">
+                        <div class="min-w-0">
+                            <p class="flex flex-wrap items-center gap-2">
+                                <span class="font-bold text-[var(--color-heading)]">{{ $mc->name }}</span>
+                                @if ($mc->client_code)<span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-500">{{ $mc->client_code }}</span>@endif
+                                @if ($mc->company)<span class="text-xs text-[var(--color-muted)]">{{ $mc->company }}</span>@endif
+                            </p>
+                            @if ($mc->email)
+                                <p class="mt-0.5 truncate text-xs text-[var(--color-muted)]">{{ $mc->email }}</p>
+                            @endif
+                            {{-- Every number this client holds, so you can tell which one matched. --}}
+                            @php $leadKeys = $lead->contactNumbers->pluck('e164')->filter()->all(); @endphp
+                            @if ($mc->contactNumbers->isNotEmpty())
+                                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($mc->contactNumbers as $num)
+                                        @php $isMatch = $num->e164 && in_array($num->e164, $leadKeys, true); @endphp
+                                        <span title="{{ $isMatch ? 'This number matches the lead' : \App\Models\ContactNumber::LABELS[$num->label] ?? $num->label }}"
+                                              class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $isMatch ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-gray-100 text-gray-600' }}">
+                                            @if ($isMatch)<svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>@endif
+                                            {{ $num->display() }}
+                                            <span class="font-normal opacity-60">{{ \App\Models\ContactNumber::LABELS[$num->label] ?? $num->label }}</span>
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
                         <a href="{{ route('admin.clients.show', $mc->id) }}"
-                           class="rounded-lg border border-sky-200 bg-white px-2.5 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100">
-                            {{ $mc->name }}@if ($mc->company) · {{ $mc->company }}@endif
-                        </a>
-                    @endforeach
-                </div>
-            @endif
+                           class="shrink-0 rounded-lg bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-sky-700">Open client</a>
+                    </div>
+                @endforeach
+            </div>
         </div>
     @endif
 
@@ -92,7 +121,19 @@
                 @foreach ($rows as $label => $value)
                     <div>
                         <dt class="text-xs uppercase tracking-wide text-gray-400">{{ $label }}</dt>
-                        <dd class="mt-0.5 text-sm text-[var(--color-heading)]">{{ $value ?: '—' }}</dd>
+                        @if ($label === 'Phone' && $lead->contactNumbers->isNotEmpty())
+                            {{-- Show every number this lead gave, not just the primary one. --}}
+                            <dd class="mt-1 flex flex-wrap gap-1.5">
+                                @foreach ($lead->contactNumbers as $num)
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-[var(--color-heading)]">
+                                        {{ $num->display() }}
+                                        <span class="font-normal text-[var(--color-muted)]">{{ \App\Models\ContactNumber::LABELS[$num->label] ?? $num->label }}</span>
+                                    </span>
+                                @endforeach
+                            </dd>
+                        @else
+                            <dd class="mt-0.5 text-sm text-[var(--color-heading)]">{{ $value ?: '—' }}</dd>
+                        @endif
                     </div>
                 @endforeach
             </dl>
@@ -117,7 +158,7 @@
                                 @foreach (\App\Models\Lead::STATUSES as $sk => $sl)<option value="{{ $sk }}" @selected($lead->lead_status === $sk)>{{ $sl }}</option>@endforeach
                             </select>
                         </form></div>
-                    <div class="flex items-center justify-between"><span class="text-gray-400">Priority</span><span class="font-medium capitalize text-[var(--color-heading)]">{{ \App\Models\Lead::PRIORITIES[$lead->priority] ?? $lead->priority }}</span></div>
+                    <div class="flex items-center justify-between"><span class="text-gray-400">Priority</span><span class="font-medium capitalize text-[var(--color-heading)]">{{ \App\Models\Lead::PRIORITIES[$lead->priority ?? ''] ?? ($lead->priority ?: '—') }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Assigned To</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->assignee?->name ?? '—' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Team</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->team ?? '—' }}</span></div>
                     <div class="flex items-center justify-between"><span class="text-gray-400">Last Contacted</span><span class="font-medium text-[var(--color-heading)]">{{ $lead->last_contacted_at?->format('d M Y') ?? '—' }}</span></div>

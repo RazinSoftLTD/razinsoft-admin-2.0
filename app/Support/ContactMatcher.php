@@ -50,7 +50,8 @@ class ContactMatcher
         // One fetch for every client we might link to (respecting the actor's scope).
         $ids = $clientNumbers->pluck('contactable_id')->merge($byEmail->values())->unique()->all();
         $clients = $ids
-            ? User::clients()->clientVisibleTo($actor)->whereIn('id', $ids)->get(['id', 'name', 'email', 'company'])->keyBy('id')
+            ? User::clients()->clientVisibleTo($actor)->with('contactNumbers')->whereIn('id', $ids)
+                ->get(['id', 'name', 'email', 'company', 'phone', 'dial_code', 'client_code'])->keyBy('id')
             : collect();
 
         $clientIdsByE164 = $clientNumbers->groupBy('e164')->map(fn ($rows) => $rows->pluck('contactable_id')->unique());
