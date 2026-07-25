@@ -125,6 +125,27 @@ class Deal extends Model
         return $this->hasMany(DealAttachment::class)->latest('id');
     }
 
+    /** Agreed payment/delivery steps, earliest due first (undated ones last). */
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(DealMilestone::class)->orderByRaw('due_date is null')->orderBy('due_date')->orderBy('position')->orderBy('id');
+    }
+
+    /** The soonest upcoming (or overdue) milestone — what the pipeline board shows. */
+    public function nextMilestone(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(DealMilestone::class)->ofMany(
+            ['due_date' => 'min'],
+            fn ($q) => $q->whereNotNull('due_date'),
+        );
+    }
+
+    /** Total value of the agreed milestones — compare against the deal value. */
+    public function milestonesTotal(): float
+    {
+        return (float) $this->milestones->sum('amount');
+    }
+
     /** Re-point the deal's cached "next follow-up" (used by the board/list highlight) at the earliest pending one. */
     public function syncNextFollowUp(): void
     {

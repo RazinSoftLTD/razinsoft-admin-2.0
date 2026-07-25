@@ -53,6 +53,17 @@
                                 @if ($deal->project_type)<span class="mt-1.5 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">{{ $deal->project_type }}</span>@endif
                                 @if ($deal->isOverdue())<span class="ml-1 inline-flex items-center gap-1 align-middle text-[10px] font-semibold text-red-600"><span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>Overdue</span>@endif
                                 <p class="mt-2 text-lg font-bold text-[var(--color-heading)]">{{ $cur[$deal->currency] ?? '' }}{{ number_format($deal->value, 0) }}</p>
+                                {{-- Next milestone due on this deal (amount + date). --}}
+                                @if ($deal->nextMilestone)
+                                    @php $ms = $deal->nextMilestone; @endphp
+                                    <div class="mt-2 flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold {{ $ms->isOverdue() ? 'bg-red-50 text-red-700' : 'bg-indigo-50 text-indigo-700' }}"
+                                         title="Milestone: {{ $ms->title }} · {{ $cur[$deal->currency] ?? '' }}{{ number_format((float) $ms->amount, 0) }}{{ $ms->due_date ? ' · due '.$ms->due_date->format('d M Y') : '' }}">
+                                        <svg class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v16M4 5h11l-1.5 3L15 11H4"/></svg>
+                                        <span class="truncate">{{ $ms->title }}</span>
+                                        @if ($ms->due_date)<span class="shrink-0 opacity-80">· {{ $ms->due_date->format('d M') }}</span>@endif
+                                        @if ($ms->amount > 0)<span class="shrink-0 opacity-80">· {{ $cur[$deal->currency] ?? '' }}{{ number_format((float) $ms->amount, 0) }}</span>@endif
+                                    </div>
+                                @endif
                                 @if ($deal->next_follow_up_at)
                                     <div class="mt-2 inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold {{ $deal->isFollowUpDue() ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500' }}" @if ($deal->follow_up_note) title="{{ $deal->follow_up_note }}" @endif>
                                         <svg class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>

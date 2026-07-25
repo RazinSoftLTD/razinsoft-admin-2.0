@@ -11,6 +11,19 @@
 
 <div x-data="{ editId: null }">
 
+    {{-- Optional one-time sync from the linked deal's milestones. --}}
+    @if ($project->deal_id && auth()->user()->allows('projects', 'milestones'))
+        <form method="POST" action="{{ route('admin.projects.milestones.import-deal', $project) }}"
+              class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+            @csrf
+            <p class="text-sm text-indigo-900">
+                Linked to deal <strong>{{ $project->deal?->title }}</strong> — copy its agreed milestones in here.
+                <span class="block text-xs text-indigo-700/80">One-time copy. Titles that already exist are skipped, and edits here never flow back to the deal.</span>
+            </p>
+            <button class="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Import from deal</button>
+        </form>
+    @endif
+
     @if ($ms->isEmpty())
         <div class="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
             <p class="text-sm text-gray-400">No milestones yet.</p>

@@ -184,6 +184,76 @@
                 </div>
             </div>
 
+            {{-- Milestones: what gets delivered/paid, when. Separate from project milestones. --}}
+            @php
+                $canEditDeal = auth()->user()->allows('deals', 'edit');
+                $msTotal = $deal->milestones->sum('amount');
+                $symbol = $cur;
+            @endphp
+            <div class="rounded-xl border border-gray-100 bg-white shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-6 py-4">
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Milestones</h2>
+                    <p class="text-xs text-[var(--color-muted)]">
+                        {{ $deal->milestones->count() }} milestone(s) · {{ $symbol }}{{ number_format((float) $msTotal, 0) }} of {{ $symbol }}{{ number_format((float) $deal->value, 0) }}
+                        @if ($msTotal > 0 && (float) $msTotal !== (float) $deal->value)
+                            <span class="ml-1 font-semibold text-amber-600">({{ $msTotal > $deal->value ? 'over' : 'short' }} by {{ $symbol }}{{ number_format(abs($deal->value - $msTotal), 0) }})</span>
+                        @endif
+                    </p>
+                </div>
+                <div class="divide-y divide-gray-50">
+                    @forelse ($deal->milestones as $ms)
+                        <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3" x-data="{ edit: false }">
+                            <div x-show="!edit" class="min-w-0">
+                                <p class="text-sm font-semibold text-[var(--color-heading)]">{{ $ms->title }}</p>
+                                <p class="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+                                    @if ($ms->due_date)
+                                        <span class="{{ $ms->isOverdue() ? 'font-semibold text-red-600' : 'text-[var(--color-muted)]' }}">
+                                            Due {{ $ms->due_date->format('d M Y') }}{{ $ms->isOverdue() ? ' · overdue' : '' }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400">No due date</span>
+                                    @endif
+                                    <span class="font-semibold text-[var(--color-heading)]">{{ $symbol }}{{ number_format((float) $ms->amount, 0) }}</span>
+                                </p>
+                            </div>
+                            @if ($canEditDeal)
+                                <div x-show="!edit" class="flex shrink-0 items-center gap-1">
+                                    <button type="button" @click="edit = true" title="Edit" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                    </button>
+                                    <form method="POST" action="{{ route('admin.deals.milestones.destroy', [$deal, $ms]) }}" onsubmit="return confirm('Remove “{{ $ms->title }}”?')">
+                                        @csrf @method('DELETE')
+                                        <button title="Remove" class="grid h-8 w-8 place-items-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m3 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                                <form x-show="edit" x-cloak method="POST" action="{{ route('admin.deals.milestones.update', [$deal, $ms]) }}" class="flex w-full flex-wrap items-end gap-2">
+                                    @csrf @method('PUT')
+                                    <input type="text" name="title" required maxlength="150" value="{{ $ms->title }}" class="h-9 min-w-[10rem] flex-1 rounded-lg border-gray-200 text-sm" placeholder="Title">
+                                    <input type="number" name="amount" step="0.01" min="0" value="{{ (float) $ms->amount }}" class="h-9 w-28 rounded-lg border-gray-200 text-sm" placeholder="Amount">
+                                    <input type="date" name="due_date" value="{{ $ms->due_date?->format('Y-m-d') }}" class="h-9 rounded-lg border-gray-200 text-sm">
+                                    <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white">Save</button>
+                                    <button type="button" @click="edit = false" class="px-2 text-xs text-gray-400">Cancel</button>
+                                </form>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="px-6 py-6 text-center text-sm text-gray-300">No milestones yet.</p>
+                    @endforelse
+
+                    @if ($canEditDeal)
+                        <form method="POST" action="{{ route('admin.deals.milestones.store', $deal) }}" class="flex flex-wrap items-end gap-2 bg-gray-50/60 px-6 py-3">
+                            @csrf
+                            <input type="text" name="title" required maxlength="150" class="h-9 min-w-[10rem] flex-1 rounded-lg border-gray-200 text-sm" placeholder="Milestone title (e.g. Advance payment)">
+                            <input type="number" name="amount" step="0.01" min="0" class="h-9 w-28 rounded-lg border-gray-200 text-sm" placeholder="Amount">
+                            <input type="date" name="due_date" class="h-9 rounded-lg border-gray-200 text-sm">
+                            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white">Add</button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+
             {{-- Follow-up history --}}
             <div class="rounded-xl border border-gray-100 bg-white shadow-sm">
                 <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">

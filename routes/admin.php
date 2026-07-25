@@ -232,6 +232,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('deals/{deal}/attachments/{attachment}', [DealController::class, 'attachmentDestroy'])->name('deals.attachments.destroy');
             Route::post('deals/{deal}/activity', [DealController::class, 'activity'])->name('deals.activity');
             Route::post('deals/{deal}/invoice', [DealController::class, 'invoice'])->name('deals.invoice');
+            Route::post('deals/{deal}/milestones', [DealController::class, 'milestoneStore'])->name('deals.milestones.store');
+            Route::put('deals/{deal}/milestones/{milestone}', [DealController::class, 'milestoneUpdate'])->whereNumber(['deal', 'milestone'])->name('deals.milestones.update');
+            Route::delete('deals/{deal}/milestones/{milestone}', [DealController::class, 'milestoneDestroy'])->whereNumber(['deal', 'milestone'])->name('deals.milestones.destroy');
         });
         Route::middleware('permission:deals.delete')->group(function () {
             Route::delete('deals/{deal}', [DealController::class, 'destroy'])->whereNumber('deal')->name('deals.destroy');
@@ -272,6 +275,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::middleware('permission:projects.milestones')->group(function () {
             Route::post('projects/{project}/milestones', [ProjectController::class, 'milestoneStore'])->whereNumber('project')->name('projects.milestones.store');
+            Route::post('projects/{project}/milestones/import-deal', [ProjectController::class, 'milestonesImportFromDeal'])->whereNumber('project')->name('projects.milestones.import-deal');
             Route::put('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneUpdate'])->whereNumber(['project', 'milestone'])->name('projects.milestones.update');
             Route::delete('projects/{project}/milestones/{milestone}', [ProjectController::class, 'milestoneDestroy'])->whereNumber(['project', 'milestone'])->name('projects.milestones.destroy');
         });

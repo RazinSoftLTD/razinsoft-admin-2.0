@@ -363,6 +363,28 @@ class ProjectController extends Controller
 
     // ---------------------------------------------------------------- milestones
 
+    /**
+     * Copy the linked deal's milestones in as project milestones — a one-time import, not a
+     * live link, so the project's plan can diverge from what was agreed during the sale.
+     */
+    public function milestonesImportFromDeal(Request $request, Project $project)
+    {
+        if (! $project->deal_id) {
+            return back()->with('status', 'This project is not linked to a deal.');
+        }
+
+        $project->load('deal.milestones', 'milestones');
+        $added = $project->importMilestonesFromDeal();
+
+        if ($added) {
+            $project->log('milestone', $added.' milestone(s) imported from deal “'.$project->deal->title.'”.');
+        }
+
+        return back()->with('status', $added
+            ? "Imported {$added} milestone(s) from the deal."
+            : 'Nothing to import — the deal has no new milestones.');
+    }
+
     public function milestoneStore(Request $request, Project $project)
     {
         $data = $this->milestoneValidated($request);
@@ -630,6 +652,8 @@ class ProjectController extends Controller
             'clients' => User::clients()->orderBy('name')->get(['id', 'name', 'company']),
             'staff' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'parents' => Project::whereNull('parent_id')->orderBy('name')->get(['id', 'code', 'name']),
+            // Won deals first — those are the ones that normally become projects.
+            'deals' => \App\Models\Deal::orderByRaw("stage = 'won' desc")->orderByDesc('id')->limit(200)->get(['id', 'title', 'stage']),
             'categories' => \App\Models\ProjectCategory::names(),
             'currencies' => \App\Models\Currency::query()->orderBy('code')->pluck('code')->all() ?: ['USD', 'BDT', 'EUR', 'GBP'],
         ];
@@ -716,6 +740,7 @@ class ProjectController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'parent_id' => ['nullable', 'exists:projects,id', Rule::notIn([$project?->id])],
             'client_id' => ['nullable', 'exists:users,id'],
+            'deal_id' => ['nullable', 'exists:deals,id'],
             'category' => ['nullable', 'string', 'max:120'],
             'status' => ['required', Rule::in(array_keys(Project::STATUSES))],
             'priority' => ['required', Rule::in(array_keys(Project::PRIORITIES))],

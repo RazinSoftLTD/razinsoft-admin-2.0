@@ -96,6 +96,18 @@
                             <x-admin.searchable-select name="client_id" :options="$clientsJson" :selected="$selectedClientId ?: null" placeholder="Search client…" clear-label="No client" />
                         </div>
 
+                        {{-- Linking a deal unlocks "Import milestones from deal" on the Milestones tab. --}}
+                        <div class="lg:col-span-1">
+                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Deal</label>
+                            <select name="deal_id" class="h-11 w-full rounded-lg border-gray-200 text-sm">
+                                <option value="">No deal</option>
+                                @foreach ($deals ?? [] as $d)
+                                    <option value="{{ $d->id }}" @selected((int) $val('deal_id') === $d->id)>{{ $d->title }}</option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-gray-400">Optional — lets you import the deal's milestones.</p>
+                        </div>
+
                         <div class="lg:col-span-3"><x-admin.field label="Project Summary" name="summary" type="textarea" rows="4" :value="$project->summary" placeholder="What is this project about?" /></div>
                         <div class="lg:col-span-3"><x-admin.field label="Notes" name="notes" type="textarea" rows="4" :value="$project->notes" placeholder="Internal notes only your team sees…" /></div>
                     </div>

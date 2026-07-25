@@ -19,7 +19,7 @@ class DealController extends Controller
 {
     public function index(Request $request)
     {
-        $base = fn () => Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name')
+        $base = fn () => Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name', 'nextMilestone')
             ->when(! $request->user()->seesAll('deals'), fn ($q) => $q->where('assigned_to', $request->user()->id));
 
         $view = $request->query('view') === 'list' ? 'list' : 'board';
@@ -35,7 +35,7 @@ class DealController extends Controller
     public function show(Request $request, Deal $deal)
     {
         $this->authorizeDeal($request, $deal);
-        $deal->load('client', 'lead', 'assignee', 'followUps.user:id,name', 'attachments.user:id,name');
+        $deal->load('client', 'lead', 'assignee', 'milestones', 'followUps.user:id,name', 'attachments.user:id,name');
 
         return view('admin.deals.show', ['deal' => $deal]);
     }
@@ -108,6 +108,50 @@ class DealController extends Controller
         }
 
         return back()->with('status', "Deal moved to {$deal->stage}.");
+    }
+
+    /** Add a payment/delivery milestone to a deal (title, amount, due date). */
+    public function milestoneStore(Request $request, Deal $deal)
+    {
+        $this->authorizeDeal($request, $deal);
+        $data = $this->validatedMilestone($request);
+        $data['position'] = (int) $deal->milestones()->max('position') + 1;
+
+        $deal->milestones()->create($data);
+
+        return back()->with('status', 'Milestone added.');
+    }
+
+    public function milestoneUpdate(Request $request, Deal $deal, \App\Models\DealMilestone $milestone)
+    {
+        $this->authorizeDeal($request, $deal);
+        abort_if($milestone->deal_id !== $deal->id, 404);
+
+        $milestone->update($this->validatedMilestone($request));
+
+        return back()->with('status', 'Milestone updated.');
+    }
+
+    public function milestoneDestroy(Request $request, Deal $deal, \App\Models\DealMilestone $milestone)
+    {
+        $this->authorizeDeal($request, $deal);
+        abort_if($milestone->deal_id !== $deal->id, 404);
+
+        $milestone->delete();
+
+        return back()->with('status', 'Milestone removed.');
+    }
+
+    private function validatedMilestone(Request $request): array
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'amount' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
+            'due_date' => ['nullable', 'date'],
+        ]);
+        $data['amount'] = $data['amount'] ?? 0;      // the column is NOT NULL, default 0
+
+        return $data;
     }
 
     /** Log a note / call / meeting / email on the deal timeline. */

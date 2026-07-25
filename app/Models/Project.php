@@ -139,6 +139,41 @@ class Project extends Model
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    /** The deal this project came out of, when one was linked. */
+    public function deal(): BelongsTo
+    {
+        return $this->belongsTo(Deal::class);
+    }
+
+    /**
+     * Copy the linked deal's milestones in as project milestones. Titles already present
+     * are skipped, so running it twice does not duplicate anything. Returns how many landed.
+     */
+    public function importMilestonesFromDeal(): int
+    {
+        if (! $this->deal) {
+            return 0;
+        }
+
+        $existing = $this->milestones()->pluck('title')->map(fn ($t) => mb_strtolower(trim($t)))->all();
+        $added = 0;
+
+        foreach ($this->deal->milestones as $m) {
+            if (in_array(mb_strtolower(trim($m->title)), $existing, true)) {
+                continue;
+            }
+            $this->milestones()->create([
+                'title' => $m->title,
+                'cost' => $m->amount,
+                'end_date' => $m->due_date,
+                'status' => 'incomplete',
+            ]);
+            $added++;
+        }
+
+        return $added;
+    }
+
     public function projectManager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'project_manager_id');
