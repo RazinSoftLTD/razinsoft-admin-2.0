@@ -2,7 +2,7 @@
 @section('title', 'All Leads')
 
 @section('content')
-    @php $activeFilters = count(array_filter(request()->only(['search', 'status', 'source', 'assigned', 'priority', 'date_range', 'from', 'to', 'country']), fn ($v) => $v !== null && $v !== '')); @endphp
+    @php $activeFilters = count(array_filter(request()->only(['search', 'status', 'source', 'assigned', 'priority', 'date_range', 'from', 'to', 'country', 'followup', 'fu_from', 'fu_to']), fn ($v) => $v !== null && $v !== '')); @endphp
     <div x-data="{ filtersOpen: false }" @keydown.escape.window="filtersOpen = false">
         {{-- Header: title + all actions (Export · Import · Filters · Add Lead) on one line --}}
         <div class="mb-6 flex flex-wrap items-center gap-3">
@@ -48,6 +48,15 @@
                         <a href="{{ route('admin.leads.import.form', ['format' => 'excel']) }}" class="block px-4 py-2 text-sm font-medium text-[var(--color-heading)] hover:bg-gray-50">Excel file</a>
                     </div>
                 </div>
+                {{-- Follow-ups: one click to the pending-follow-up worklist --}}
+                @php $fuOn = (bool) request('followup'); @endphp
+                <a href="{{ $fuOn ? route('admin.leads.index') : route('admin.leads.index', ['followup' => 'all']) }}"
+                   title="{{ $fuOn ? 'Back to all leads' : 'Show only leads with a pending follow-up' }}"
+                   class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition {{ $fuOn ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50' }}">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
+                    Follow-ups
+                </a>
+
                 {{-- Filters (opens drawer) --}}
                 <button type="button" @click="filtersOpen = true"
                         class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
@@ -144,6 +153,36 @@
                         <div>
                             <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Custom to</label>
                             <input type="date" name="to" value="{{ request('to') }}" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                        </div>
+                    </div>
+
+                    {{-- Follow-up worklist: only leads with a pending follow-up, sliced by when it is due --}}
+                    <div class="border-t border-gray-100 pt-4">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Follow-up due</label>
+                        <select name="followup" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                            @foreach ([
+                                '' => 'Not filtered (all leads)',
+                                'all' => 'Has a follow-up',
+                                'overdue' => 'Overdue',
+                                'today' => 'Today',
+                                'week' => 'This Week',
+                                'month' => 'This Month',
+                                'year' => 'This Year',
+                                'custom' => 'Custom range below',
+                            ] as $fk => $fl)
+                                <option value="{{ $fk }}" @selected(request('followup') === $fk)>{{ $fl }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-[var(--color-muted)]">Shows only leads with a pending follow-up, soonest first.</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Follow-up from</label>
+                            <input type="date" name="fu_from" value="{{ request('fu_from') }}" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Follow-up to</label>
+                            <input type="date" name="fu_to" value="{{ request('fu_to') }}" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
                         </div>
                     </div>
 

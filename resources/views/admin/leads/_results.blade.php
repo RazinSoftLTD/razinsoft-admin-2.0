@@ -40,7 +40,26 @@
                         </td>
                         <td class="px-4 py-3">
                             <a href="{{ route('admin.leads.show', $lead) }}" class="font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $lead->full_name }}</a>
-                            <p class="text-xs text-[var(--color-muted)]">{{ $lead->company_name ?: ($lead->email ?: '—') }}</p>
+                            @php $leadClient = $lead->email ? ($clientsByEmail[mb_strtolower(trim($lead->email))] ?? null) : null; @endphp
+                            @if ($lead->company_name)
+                                <p class="text-xs text-[var(--color-muted)]">{{ $lead->company_name }}</p>
+                            @endif
+                            @if ($lead->email)
+                                <p class="flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-muted)]">
+                                    <span class="truncate">{{ $lead->email }}</span>
+                                    {{-- This email already belongs to a client — jump straight to them. --}}
+                                    @if ($leadClient)
+                                        <a href="{{ route('admin.clients.show', $leadClient->id) }}"
+                                           title="Open client {{ $leadClient->name }}"
+                                           class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100">
+                                            <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M5 20a7 7 0 0 1 14 0"/></svg>
+                                            Client
+                                        </a>
+                                    @endif
+                                </p>
+                            @elseif (! $lead->company_name)
+                                <p class="text-xs text-[var(--color-muted)]">—</p>
+                            @endif
                         </td>
                         <td class="px-4 py-3">
                             @php

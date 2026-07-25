@@ -43,9 +43,21 @@
     </div>
 
     @if ($lead->isConverted())
-        <div class="mb-5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <div class="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
             Converted to client <strong>{{ $lead->convertedClient?->name }}</strong> ({{ $lead->convertedClient?->client_code }}) on {{ $lead->converted_at?->format('d M Y, h:i A') }}.
+            @if ($lead->converted_client_id)
+                <a href="{{ route('admin.clients.show', $lead->converted_client_id) }}" class="font-semibold underline hover:no-underline">Open client</a>
+            @endif
+        </div>
+    @endif
+
+    {{-- Not formally converted, but this email already belongs to a client. --}}
+    @if (! empty($emailClient))
+        <div class="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M5 20a7 7 0 0 1 14 0"/></svg>
+            This email is already a client — <strong>{{ $emailClient->name }}</strong>@if ($emailClient->company) ({{ $emailClient->company }})@endif.
+            <a href="{{ route('admin.clients.show', $emailClient->id) }}" class="font-semibold underline hover:no-underline">Open client</a>
         </div>
     @endif
 

@@ -67,6 +67,29 @@ class LeadController extends Controller
             $q->where('country', $country);
         }
 
+        // Follow-up view: only leads with a pending follow-up, narrowed by when it is due.
+        // `followup=all` is the plain worklist; the rest slice it by day / month / year / custom.
+        if ($followup = $request->query('followup')) {
+            $q->whereNotNull('next_follow_up_at');
+            match ($followup) {
+                'today' => $q->whereDate('next_follow_up_at', today()),
+                'week' => $q->whereBetween('next_follow_up_at', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()]),
+                'month' => $q->whereBetween('next_follow_up_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()]),
+                'year' => $q->whereBetween('next_follow_up_at', [now()->startOfYear()->toDateString(), now()->endOfYear()->toDateString()]),
+                'overdue' => $q->whereDate('next_follow_up_at', '<', today()),
+                'custom' => null,       // the fu_from / fu_to pair below does the narrowing
+                default => null,        // 'all'
+            };
+            if ($fuFrom = $request->query('fu_from')) {
+                $q->whereDate('next_follow_up_at', '>=', $fuFrom);
+            }
+            if ($fuTo = $request->query('fu_to')) {
+                $q->whereDate('next_follow_up_at', '<=', $fuTo);
+            }
+            // Soonest due first — this is a worklist, not a "newest lead" list.
+            $q->reorder('next_follow_up_at');
+        }
+
         if ($format = $request->query('export')) {
             return $this->export($q->get(), $format);
         }
@@ -74,9 +97,13 @@ class LeadController extends Controller
         $perPage = in_array((int) $request->query('per_page'), [10, 25, 50, 100]) ? (int) $request->query('per_page') : 10;
         $leads = $q->paginate($perPage)->withQueryString();
 
+        // Which of these leads are already clients (matched on email)? Only clients this
+        // user is allowed to open are linked, so the badge never leads to a 403.
+        $clientsByEmail = $this->clientsForEmails($request->user(), $leads->pluck('email'));
+
         // Live search / pagination fetches only the results fragment (keeps the search box focused).
         if ($request->ajax()) {
-            return view('admin.leads._results', compact('leads', 'perPage', 'search'));
+            return view('admin.leads._results', compact('leads', 'perPage', 'search', 'clientsByEmail'));
         }
 
         // Country list for the filter drawer (respects the staff view scope).
@@ -88,7 +115,25 @@ class LeadController extends Controller
             'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'perPage' => $perPage,
             'countries' => $countries,
+            'clientsByEmail' => $clientsByEmail,
         ]);
+    }
+
+    /**
+     * Map lowercased email => client (User) for the given emails, limited to clients the
+     * actor may view. Used to flag "this lead is already a client" and link to them.
+     */
+    private function clientsForEmails(User $actor, $emails)
+    {
+        $lower = collect($emails)->filter()->map(fn ($e) => mb_strtolower(trim($e)))->unique()->values();
+        if ($lower->isEmpty()) {
+            return collect();
+        }
+
+        return User::clients()->clientVisibleTo($actor)
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('lower(email)'), $lower->all())
+            ->get(['id', 'name', 'email', 'company'])
+            ->keyBy(fn ($u) => mb_strtolower(trim($u->email)));
     }
 
     /** Mark a lead contacted now and optionally schedule the next follow-up. */
@@ -411,9 +456,15 @@ class LeadController extends Controller
         // A WhatsApp conversation linked to this lead (if it was converted from WhatsApp).
         $whatsappChat = \App\Models\WhatsappChat::where('lead_id', $lead->id)->first();
 
+        // An existing client with the same email — the lead is already a customer even if it
+        // was never formally "converted". Skipped when it is the converted client already shown.
+        $emailClient = $this->clientsForEmails($request->user(), collect([$lead->email]))
+            ->first(fn ($c) => $c->id !== $lead->converted_client_id);
+
         return view('admin.leads.show', [
             'lead' => $lead,
             'whatsappChat' => $whatsappChat,
+            'emailClient' => $emailClient,
             'fuUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
         ]);
     }
