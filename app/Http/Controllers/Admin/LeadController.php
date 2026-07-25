@@ -564,6 +564,8 @@ class LeadController extends Controller
             'lead_source' => ['required', Rule::in(Lead::sourceOptions())],
             // "Product" — a RazinSoft product name (from the Products module). Stored on the industry column.
             'industry' => ['nullable', 'string', 'max:255'],
+            'product_category' => ['nullable', 'string', 'max:80'],
+            'product_sub_category' => ['nullable', 'string', 'max:80'],
             'lead_status' => ['required', Rule::in(array_keys(Lead::STATUSES))],
             'address' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:120'],

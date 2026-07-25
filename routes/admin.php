@@ -406,6 +406,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('crm-settings/client-labels', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeClientLabel'])->name('crm-settings.client-labels.store');
             Route::patch('crm-settings/client-labels/{clientLabel}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.update');
             Route::delete('crm-settings/client-labels/{clientLabel}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.destroy');
+            Route::post('crm-settings/product-categories', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeProductCategory'])->name('crm-settings.product-categories.store');
+            Route::patch('crm-settings/product-categories/{productCategory}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.update');
+            Route::delete('crm-settings/product-categories/{productCategory}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.destroy');
         });
 
         // Ticket settings (agents, types, reply templates) — separate, admin/manager-level gate.

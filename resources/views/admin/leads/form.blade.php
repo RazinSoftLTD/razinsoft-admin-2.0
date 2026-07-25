@@ -181,6 +181,7 @@
                             <x-admin.field label="Lead Department" name="team" type="select" :value="$lead->team" :options="['' => 'Select'] + array_combine(\App\Models\Lead::departmentOptions(), \App\Models\Lead::departmentOptions())" />
                             <x-admin.field label="Product" name="industry" type="select" :value="$lead->industry" :options="['' => 'Select'] + array_combine(\App\Models\Lead::productOptions(), \App\Models\Lead::productOptions())" />
                         </div>
+                        <x-admin.product-category-fields :category="old('product_category', $lead->product_category)" :sub-category="old('product_sub_category', $lead->product_sub_category)" />
                     </div>
                 </section>
 

@@ -66,32 +66,14 @@
                 <x-admin.field label="Client Name" name="name" :value="$val('name')" required placeholder="e.g. John Doe" class="flex-1" />
                 <x-admin.field label="Email Address" name="email" type="email" :value="$val('email')" required placeholder="e.g. johndoe@example.com" class="flex-1" />
 
-                {{-- Client Category (existing + add new) --}}
-                <div class="flex-1" x-data="{ adding: {{ ($curCat && ! in_array($curCat, $categories, true)) ? 'true' : 'false' }} }">
-                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client Category</label>
-                    <div class="flex gap-2">
-                        <select name="client_category" x-show="!adding" :disabled="adding" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                            <option value="">--</option>
-                            @foreach ($categories as $c)<option value="{{ $c }}" @selected($curCat === $c)>{{ $c }}</option>@endforeach
-                        </select>
-                        <input type="text" name="client_category" x-show="adding" x-cloak :disabled="!adding"
-                               value="{{ ($curCat && ! in_array($curCat, $categories, true)) ? $curCat : '' }}" placeholder="New" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                        <button type="button" @click="adding = !adding" class="h-11 shrink-0 rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold hover:bg-gray-50" x-text="adding ? '✕' : '+'"></button>
-                    </div>
-                </div>
-
-                {{-- Client Sub Category (existing + add new) --}}
-                <div class="flex-1" x-data="{ adding: {{ ($curSub && ! in_array($curSub, $subCategories, true)) ? 'true' : 'false' }} }">
-                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client Sub Category</label>
-                    <div class="flex gap-2">
-                        <select name="client_sub_category" x-show="!adding" :disabled="adding" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                            <option value="">--</option>
-                            @foreach ($subCategories as $c)<option value="{{ $c }}" @selected($curSub === $c)>{{ $c }}</option>@endforeach
-                        </select>
-                        <input type="text" name="client_sub_category" x-show="adding" x-cloak :disabled="!adding"
-                               value="{{ ($curSub && ! in_array($curSub, $subCategories, true)) ? $curSub : '' }}" placeholder="New" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                        <button type="button" @click="adding = !adding" class="h-11 shrink-0 rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold hover:bg-gray-50" x-text="adding ? '✕' : '+'"></button>
-                    </div>
+                {{-- Product Category + Sub-category — the shared list from Settings > CRM Settings --}}
+                <div class="flex-1">
+                    <x-admin.product-category-fields
+                        label="Client Category"
+                        category-name="client_category"
+                        sub-name="client_sub_category"
+                        :category="$curCat"
+                        :sub-category="$curSub" />
                 </div>
 
                 <x-admin.field label="Language" name="language" type="select" :value="$val('language', 'English')"

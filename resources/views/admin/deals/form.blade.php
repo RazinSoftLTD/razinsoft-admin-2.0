@@ -16,6 +16,7 @@
                 <div class="sm:col-span-2"><x-admin.field label="Deal Title" name="title" :value="$deal->title" required placeholder="e.g. Acme — Website Project" /></div>
                 <x-admin.field label="Project Type" name="project_type" type="select" :value="$deal->project_type" :options="['' => 'Select…'] + array_combine(\App\Models\Deal::PROJECT_TYPES, \App\Models\Deal::PROJECT_TYPES)" />
             </div>
+            <x-admin.product-category-fields :category="old('product_category', $deal->product_category)" :sub-category="old('product_sub_category', $deal->product_sub_category)" />
             <div class="grid gap-5 sm:grid-cols-2">
                 <x-admin.field label="Client" name="client_id" type="select" :value="$deal->client_id" :options="['' => 'No client yet'] + $clients->pluck('name', 'id')->all()" />
                 <x-admin.field label="Assigned To" name="assigned_to" type="select" :value="$deal->assigned_to" :options="['' => 'Unassigned'] + $staff->pluck('name', 'id')->all()" />

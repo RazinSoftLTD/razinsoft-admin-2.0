@@ -22,7 +22,87 @@ class CrmSettingController extends Controller
             'stages' => LeadOption::ofType('deal_stage')->get(),
             'clientLabels' => ClientLabel::ordered(),
             'labelColors' => array_keys(ClientLabel::COLORS),
+            'productCategories' => \App\Models\ProductCategory::tree(),
         ]);
+    }
+
+    // ===== Product categories / sub-categories (shared by Leads, Deals and Clients) =====
+
+    public function storeProductCategory(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'parent_id' => ['nullable', 'exists:product_categories,id'],
+        ]);
+
+        // A sub-category may only hang off a top-level category — no deeper nesting.
+        $parent = ! empty($data['parent_id']) ? \App\Models\ProductCategory::find($data['parent_id']) : null;
+        if ($parent && $parent->parent_id) {
+            return back()->with('error', 'Sub-categories cannot be nested further.');
+        }
+
+        if ($this->duplicateCategory($data['name'], $parent?->id)) {
+            return back()->with('error', 'That name already exists here.');
+        }
+
+        \App\Models\ProductCategory::create([
+            'parent_id' => $parent?->id,
+            'name' => trim($data['name']),
+            'sort_order' => (int) \App\Models\ProductCategory::where('parent_id', $parent?->id)->max('sort_order') + 1,
+        ]);
+
+        return back()->with('status', $parent ? 'Sub-category added.' : 'Product category added.');
+    }
+
+    public function updateProductCategory(Request $request, \App\Models\ProductCategory $productCategory)
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:80']]);
+        $name = trim($data['name']);
+
+        if ($this->duplicateCategory($name, $productCategory->parent_id, $productCategory->id)) {
+            return back()->with('error', 'Another entry here already has that name.');
+        }
+
+        // Records store the name, so a rename has to follow through everywhere it is used.
+        if ($productCategory->name !== $name) {
+            $column = $productCategory->parent_id ? 'sub' : 'cat';
+            $this->renameEverywhere($productCategory->name, $name, $column);
+        }
+
+        $productCategory->update(['name' => $name]);
+
+        return back()->with('status', 'Updated.');
+    }
+
+    public function destroyProductCategory(\App\Models\ProductCategory $productCategory)
+    {
+        if ($productCategory->children()->exists()) {
+            return back()->with('error', 'Remove its sub-categories first.');
+        }
+
+        $productCategory->delete();
+
+        return back()->with('status', 'Removed. Records already using it keep the old value.');
+    }
+
+    /** Keep leads / deals / clients pointing at a renamed category or sub-category. */
+    private function renameEverywhere(string $old, string $new, string $which): void
+    {
+        $map = $which === 'cat'
+            ? [\App\Models\Lead::class => 'product_category', Deal::class => 'product_category', \App\Models\User::class => 'client_category']
+            : [\App\Models\Lead::class => 'product_sub_category', Deal::class => 'product_sub_category', \App\Models\User::class => 'client_sub_category'];
+
+        foreach ($map as $model => $column) {
+            $model::where($column, $old)->update([$column => $new]);
+        }
+    }
+
+    private function duplicateCategory(string $name, ?int $parentId, ?int $ignoreId = null): bool
+    {
+        return \App\Models\ProductCategory::where('parent_id', $parentId)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
     }
 
     // ===== Client loyalty/priority labels =====

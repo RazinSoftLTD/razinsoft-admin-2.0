@@ -304,6 +304,8 @@ class DealController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'project_type' => ['nullable', Rule::in(Deal::PROJECT_TYPES)],
+            'product_category' => ['nullable', 'string', 'max:80'],
+            'product_sub_category' => ['nullable', 'string', 'max:80'],
             'client_id' => ['nullable', 'exists:users,id'],
             'lead_id' => ['nullable', 'exists:leads,id'],
             'stage' => ['required', Rule::in(array_keys(Deal::stages()))],
