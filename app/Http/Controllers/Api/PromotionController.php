@@ -18,6 +18,8 @@ class PromotionController extends Controller
             'data' => [
                 'top_banner' => $topBanner ? [
                     'image' => ProductResource::media($topBanner->image),
+                    // Optional 3:1 phone artwork; null means phones use the wide image.
+                    'mobile_image' => $topBanner->mobile_image ? ProductResource::media($topBanner->mobile_image) : null,
                     'ends_at' => $topBanner->ends_at?->toIso8601String(),
                     'countdown_enabled' => (bool) $topBanner->countdown_enabled,
                     // null/blank means the admin deliberately cleared it — hide the title, not fall back to a default.

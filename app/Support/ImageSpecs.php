@@ -22,6 +22,9 @@ class ImageSpecs
         // Top Banner — full-width strip shown above the site's nav menu. GIFs allowed (Laravel's
         // `image` rule already accepts gif/jpg/png/webp/bmp/svg).
         'banner' => ['ratio' => '16/1', 'min_width' => 1920, 'min_height' => 120, 'recommended' => '1920×120', 'label' => '16:1 wide banner'],
+        // Optional phone version of the Top Banner — the 16:1 artwork is unreadable at phone
+        // widths, so a squatter 3:1 crop is used below the `sm` breakpoint.
+        'banner_mobile' => ['ratio' => '3/1', 'min_width' => 900, 'min_height' => 300, 'recommended' => '1200×400', 'label' => '3:1 (phone banner)'],
         // Popup — a modal promo graphic shown once per page load. GIFs allowed too.
         'popup_banner' => ['ratio' => '1/1', 'min_width' => 600, 'min_height' => 600, 'recommended' => '800×800', 'label' => 'square (1:1)'],
     ];

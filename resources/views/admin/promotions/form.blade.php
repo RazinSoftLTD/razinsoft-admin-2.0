@@ -42,6 +42,27 @@
                 @error('image')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </div>
 
+            @unless ($isPopup)
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">
+                        Mobile image <span class="font-normal text-[var(--color-muted)]">(optional)</span>
+                    </label>
+                    @if ($promotion->mobile_image)
+                        <img src="{{ \App\Http\Resources\ProductResource::media($promotion->mobile_image) }}" class="mb-2 h-20 w-60 rounded-lg border border-gray-100 object-cover">
+                        <label class="mb-2 flex items-center gap-2 text-xs text-[var(--color-muted)]">
+                            <input type="checkbox" name="remove_mobile_image" value="1" class="h-4 w-4 rounded accent-[var(--color-primary)]">
+                            Remove the mobile image (phones fall back to the wide banner)
+                        </label>
+                    @endif
+                    <input type="file" name="mobile_image" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-soft)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)]">
+                    <p class="mt-1 text-xs text-[var(--color-muted)]">
+                        {{ \App\Support\ImageSpecs::hint('banner_mobile') }} Used on phones instead of the wide banner —
+                        the 16:1 artwork above has to be cropped to a fragment on a small screen. Leave blank to keep using the wide banner everywhere.
+                    </p>
+                    @error('mobile_image')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+            @endunless
+
             <div class="grid gap-5 sm:grid-cols-2">
                 <x-admin.field label="Starts at" name="starts_at" type="date" :value="optional($promotion->starts_at)->format('Y-m-d')" required />
                 <x-admin.field label="Ends at" name="ends_at" type="date" :value="optional($promotion->ends_at)->format('Y-m-d')" required :hint="$isPopup ? null : 'Also drives the countdown timer on the banner.'" />

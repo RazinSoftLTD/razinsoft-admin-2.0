@@ -89,8 +89,8 @@ class PromotionController extends Controller
     public function destroy(Request $request, Promotion $promotion)
     {
         abort_unless($request->user()->hasPermission('promotion.delete'), 403);
-        if ($promotion->image) {
-            Storage::disk('public')->delete($promotion->image);
+        foreach (array_filter([$promotion->image, $promotion->mobile_image]) as $path) {
+            Storage::disk('public')->delete($path);
         }
         $promotion->delete();
 
@@ -102,7 +102,7 @@ class PromotionController extends Controller
         $type = $request->input('type', $promotion?->type ?? Promotion::TYPE_TOP_BANNER);
         $specKey = $type === Promotion::TYPE_POPUP ? 'popup_banner' : 'banner';
 
-        $data = $request->validate([
+        $rules = [
             'type' => ['required', Rule::in(array_keys(Promotion::TYPES))],
             'image' => [$promotion?->exists ? 'nullable' : 'required', 'image', 'max:4096', \App\Support\ImageSpecs::rule($specKey)],
             'starts_at' => ['required', 'date'],
@@ -110,9 +110,16 @@ class PromotionController extends Controller
             'countdown_label' => ['nullable', 'string', 'max:60'],
             'countdown_title_color' => ['nullable', 'string', 'max:7', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
             'countdown_value_color' => ['nullable', 'string', 'max:7', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
-        ], [
-            'image.dimensions' => \App\Support\ImageSpecs::message($specKey, 'image'),
-        ]);
+        ];
+        $messages = ['image.dimensions' => \App\Support\ImageSpecs::message($specKey, 'image')];
+
+        // Phone artwork is a Top Banner–only extra (a Popup is already square).
+        if ($type === Promotion::TYPE_TOP_BANNER) {
+            $rules['mobile_image'] = ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('banner_mobile')];
+            $messages['mobile_image.dimensions'] = \App\Support\ImageSpecs::message('banner_mobile', 'mobile image');
+        }
+
+        $data = $request->validate($rules, $messages);
 
         // Countdown is a Top Banner–only feature; irrelevant (and unused) for a Popup.
         if ($type === Promotion::TYPE_TOP_BANNER) {
@@ -135,6 +142,21 @@ class PromotionController extends Controller
             $data['image'] = $request->file('image')->store($folder, 'public');
         } else {
             unset($data['image']);
+        }
+
+        // Optional phone artwork: replace, clear on request, or leave untouched.
+        if ($request->hasFile('mobile_image')) {
+            if ($promotion?->mobile_image) {
+                Storage::disk('public')->delete($promotion->mobile_image);
+            }
+            $data['mobile_image'] = $request->file('mobile_image')->store($folder, 'public');
+        } elseif ($request->boolean('remove_mobile_image')) {
+            if ($promotion?->mobile_image) {
+                Storage::disk('public')->delete($promotion->mobile_image);
+            }
+            $data['mobile_image'] = null;
+        } else {
+            unset($data['mobile_image']);
         }
     }
 

@@ -24,7 +24,7 @@ class Promotion extends Model
     public const DEFAULT_COUNTDOWN_LABEL = 'Offer Ends In';
 
     protected $fillable = [
-        'image', 'type', 'status', 'starts_at', 'ends_at',
+        'image', 'mobile_image', 'type', 'status', 'starts_at', 'ends_at',
         'countdown_enabled', 'countdown_label', 'countdown_title_color', 'countdown_value_color',
         'published_at', 'created_by',
     ];
