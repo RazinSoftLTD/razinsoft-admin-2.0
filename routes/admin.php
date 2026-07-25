@@ -437,6 +437,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             });
             Route::middleware('permission:installation_plans.view')->group(function () use ($ip) {
                 Route::get('{product}/preview', [$ip, 'preview'])->whereNumber('product')->name('preview');
+                Route::get('{product}', [$ip, 'show'])->whereNumber('product')->name('show');
+            });
+            Route::middleware('permission:installation_plans.edit')->group(function () use ($ip) {
+                Route::put('{product}/product', [$ip, 'productUpdate'])->whereNumber('product')->name('products.update');
+            });
+            Route::middleware('permission:installation_plans.delete')->group(function () use ($ip) {
+                Route::delete('{product}/product', [$ip, 'productDestroy'])->whereNumber('product')->name('products.destroy');
             });
             Route::middleware('permission:installation_plans.edit')->group(function () use ($ip) {
                 Route::post('{product}/status', [$ip, 'status'])->whereNumber('product')->name('status');

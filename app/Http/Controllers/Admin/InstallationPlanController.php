@@ -11,22 +11,74 @@ use Illuminate\Http\Request;
 /** Products › Installation Plans — manage per-product installation packages + comparison matrix. */
 class InstallationPlanController extends Controller
 {
+    /** The product list — add / edit / delete products and switch their publish state. */
     public function index(Request $request)
     {
         $products = Product::query()->orderBy('name')
             ->withCount(['installationPlans', 'installationFeatures'])
-            ->get(['id', 'name', 'slug', 'thumbnail', 'installation_status']);
+            ->get(['id', 'name', 'slug', 'thumbnail', 'installation_icon', 'installation_status', 'currency']);
 
-        // Manage the picked product (or the first one).
-        $productId = (int) $request->query('product', $products->first()->id ?? 0);
-        $product = $products->firstWhere('id', $productId) ? Product::find($productId) : null;
+        // Old links carried the product in a query string (?product=5) — send those to its page.
+        if ($request->filled('product') && $products->firstWhere('id', (int) $request->query('product'))) {
+            return redirect()->route('admin.installation-plans.show', (int) $request->query('product'));
+        }
 
-        $product?->load(['installationFeatures', 'installationPlans.features']);
+        return view('admin.installation-plans.index', ['products' => $products]);
+    }
 
-        return view('admin.installation-plans.index', [
-            'products' => $products,
-            'product' => $product,
+    /** One product's plans + the features/comparison matrix. */
+    public function show(Product $product)
+    {
+        $products = Product::query()->orderBy('name')
+            ->withCount('installationPlans')
+            ->get(['id', 'name', 'installation_status']);
+
+        $product->load(['installationFeatures', 'installationPlans.features']);
+
+        return view('admin.installation-plans.show', compact('products', 'product'));
+    }
+
+    /** Rename a product, set its currency, and upload/clear its Installation page icon. */
+    public function productUpdate(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'currency' => ['nullable', 'string', 'max:8'],
+            'installation_icon' => ['nullable', 'image', 'max:2048', \App\Support\ImageSpecs::rule('installation_icon')],
+        ], [
+            'installation_icon.dimensions' => \App\Support\ImageSpecs::message('installation_icon', 'icon'),
         ]);
+
+        if ($request->hasFile('installation_icon')) {
+            if ($product->installation_icon) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($product->installation_icon);
+            }
+            $data['installation_icon'] = $request->file('installation_icon')->store('products/installation-icons', 'public');
+        } elseif ($request->boolean('remove_installation_icon')) {
+            if ($product->installation_icon) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($product->installation_icon);
+            }
+            $data['installation_icon'] = null;
+        } else {
+            unset($data['installation_icon']);
+        }
+
+        $product->update($data);
+
+        return back()->with('status', 'Product updated.');
+    }
+
+    /**
+     * Remove a product. It is soft-deleted, so it can be restored — but it disappears from
+     * the whole site (catalogue included), not just this screen.
+     */
+    public function productDestroy(Request $request, Product $product)
+    {
+        abort_unless($request->user()->hasPermission('products.delete'), 403);
+
+        $product->delete();
+
+        return redirect()->route('admin.installation-plans')->with('status', "“{$product->name}” was removed.");
     }
 
     // ---- features ----
@@ -142,7 +194,7 @@ class InstallationPlanController extends Controller
             'installation_status' => InstallationPlan::STATUS_DRAFT,
         ]);
 
-        return redirect()->route('admin.installation-plans', ['product' => $product->id])
+        return redirect()->route('admin.installation-plans.show', $product)
             ->with('status', 'Product added — now add its plans.');
     }
 
@@ -207,7 +259,7 @@ class InstallationPlanController extends Controller
             }
         });
 
-        return redirect()->route('admin.installation-plans', ['product' => $product->id])
+        return redirect()->route('admin.installation-plans.show', $product)
             ->with('status', "Copied from {$source->name}. Now update prices & details as needed.");
     }
 

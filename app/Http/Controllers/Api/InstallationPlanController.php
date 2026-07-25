@@ -16,7 +16,7 @@ class InstallationPlanController extends Controller
             ->whereHas('installationPlans')
             ->with(['installationFeatures', 'installationPlans.features:id'])
             ->orderBy('sort_order')->orderBy('name')
-            ->get(['id', 'name', 'slug', 'thumbnail', 'currency']);
+            ->get(['id', 'name', 'slug', 'thumbnail', 'installation_icon', 'currency']);
 
         return response()->json([
             'products' => $products->map(function (Product $p) {
@@ -27,6 +27,8 @@ class InstallationPlanController extends Controller
                     'name' => $p->name,
                     'slug' => $p->slug,
                     'thumbnail' => ProductResource::media($p->thumbnail),
+                    // Square icon for the product chips; falls back to the 3:2 thumbnail.
+                    'icon' => ProductResource::media($p->installation_icon ?: $p->thumbnail),
                     'currency' => $p->currency ?: 'USD',
                     'features' => $features,
                     'plans' => $p->installationPlans->map(fn ($plan) => [

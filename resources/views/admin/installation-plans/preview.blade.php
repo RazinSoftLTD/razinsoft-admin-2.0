@@ -12,7 +12,7 @@
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
             <nav class="mb-1 flex items-center gap-2 text-sm text-[var(--color-muted)]">
-                <a href="{{ route('admin.installation-plans') }}?product={{ $product->id }}" class="hover:text-[var(--color-heading)]">Installation Plans</a>
+                <a href="{{ route('admin.installation-plans.show', $product) }}" class="hover:text-[var(--color-heading)]">Installation Plans</a>
                 <svg class="h-3.5 w-3.5 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 6 6 6-6 6"/></svg>
                 <span class="text-[var(--color-heading)]">Preview</span>
             </nav>
@@ -30,7 +30,7 @@
                class="rounded-lg border px-4 py-2.5 text-sm font-semibold transition {{ $live ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50' }}">
                 Live view
             </a>
-            <a href="{{ route('admin.installation-plans') }}?product={{ $product->id }}"
+            <a href="{{ route('admin.installation-plans.show', $product) }}"
                class="rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">Back to editing</a>
         </div>
     </div>
