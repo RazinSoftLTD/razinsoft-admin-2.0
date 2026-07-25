@@ -10,6 +10,9 @@
     ];
     $me = auth()->user();
     $canComplete = $me->hasPermission('follow_ups.complete');
+    $canCreate = $me->hasPermission('follow_ups.create');
+    $canEdit = $me->hasPermission('follow_ups.edit');
+    $canDelete = $me->hasPermission('follow_ups.delete');
 @endphp
 
 <div class="rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -63,28 +66,59 @@
                             <p class="text-xs text-[var(--color-muted)]">{{ $f->scheduled_at->format('h:i A') }}</p>
                         </td>
                         <td class="px-4 py-3">
-                            <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 {{ $f->statusBadge() }}">{{ $f->statusLabel() }}</span>
+                            @if ($canComplete && $f->isPending())
+                                <button type="button" x-data
+                                        @click="$dispatch('open-done', { action: '{{ route('admin.leads.follow-ups.complete', [$f->lead_id, $f->id]) }}', leadName: @js($f->lead?->full_name), followUpTitle: @js($f->typeLabel().' · '.$f->scheduled_at->format('d M Y')) })"
+                                        class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 transition hover:opacity-80 {{ $f->statusBadge() }}" title="Mark this follow-up done">
+                                    {{ $f->statusLabel() }}
+                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            @else
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 {{ $f->statusBadge() }}">{{ $f->statusLabel() }}</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $priorityBadge[$f->priority] ?? 'bg-gray-100 text-gray-500' }}">{{ $f->priorityLabel() }}</span>
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <div class="relative inline-block text-left" x-data="{ open: false }">
-                                <button type="button" @click="open = !open" class="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100" title="Actions">
+                            {{-- Teleported to <body> so the menu is never clipped by the table's overflow. --}}
+                            <div class="relative inline-block text-left" x-data="rowMenu()">
+                                <button type="button" @click="toggle($event)" class="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100" title="Actions">
                                     <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
                                 </button>
-                                <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 text-left shadow-lg">
-                                    <a href="{{ route('admin.leads.show', $f->lead_id) }}" class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-heading)] hover:bg-gray-50">
-                                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="2.5"/></svg> View Lead
-                                    </a>
-                                    @if ($canComplete && $f->isPending())
-                                        <button type="button"
-                                                @click="open = false; $dispatch('open-done', { action: '{{ route('admin.leads.follow-ups.complete', [$f->lead_id, $f->id]) }}', leadName: @js($f->lead?->full_name), followUpTitle: @js($f->typeLabel().' · '.$f->scheduled_at->format('d M Y')) })"
-                                                class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50">
-                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg> Mark as Done
-                                        </button>
-                                    @endif
-                                </div>
+                                <template x-teleport="body">
+                                    <div x-show="open" x-cloak>
+                                        <div class="fixed inset-0 z-50" @click="open = false"></div>
+                                        <div x-ref="menu" :style="`position:fixed; top:${y}px; left:${x}px`" class="z-[60] w-48 overflow-hidden rounded-lg border border-gray-100 bg-white py-1 text-left shadow-xl">
+                                            <a href="{{ route('admin.leads.show', $f->lead_id) }}" class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="2.5"/></svg> View Lead
+                                            </a>
+                                            @if ($canEdit && $f->isPending())
+                                                <button type="button"
+                                                        @click="open = false; $dispatch('open-schedule', { action: '{{ route('admin.leads.follow-ups.update', [$f->lead_id, $f->id]) }}', method: 'PUT', leadName: @js($f->lead?->full_name), type: @js($f->type), priority: @js($f->priority), user_id: {{ $f->user_id ?? 'null' }}, scheduled_at: @js($f->scheduled_at->format('Y-m-d H:i:s')), note: @js($f->note) })"
+                                                        class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                                                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg> Edit
+                                                </button>
+                                            @endif
+                                            @if ($canCreate)
+                                                <button type="button"
+                                                        @click="open = false; $dispatch('open-schedule', { action: '{{ route('admin.leads.follow-ups.store', $f->lead_id) }}', leadName: @js($f->lead?->full_name) })"
+                                                        class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                                                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path stroke-linecap="round" d="M12 13v4M10 15h4"/></svg> Add Follow-up
+                                                </button>
+                                            @endif
+                                            @if ($canDelete && $f->isPending())
+                                                <div class="my-1 border-t border-gray-100"></div>
+                                                <form method="POST" action="{{ route('admin.leads.follow-ups.destroy', [$f->lead_id, $f->id]) }}" onsubmit="return confirm('Delete this follow-up?')" data-turbo="false">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg> Delete
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </td>
                     </tr>

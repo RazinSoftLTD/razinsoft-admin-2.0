@@ -1,7 +1,7 @@
 {{-- Add Follow-up modal (create). Opened via window event `open-schedule` with { action, leadName }.
      Expects $fuUsers (assignable users) from the including view. --}}
 <div x-data="{
-        open: false, action: '', leadName: '',
+        open: false, action: '', leadName: '', title: 'Add Follow-up', method: '',
         type: 'call', priority: 'medium', assigned: '', note: '', date: '', time: '10:00',
         _p(n) { return String(n).padStart(2, '0'); },
         _ymd(d) { return `${d.getFullYear()}-${this._p(d.getMonth() + 1)}-${this._p(d.getDate())}`; },
@@ -18,9 +18,22 @@
             let h = d.getHours(); const m = this._p(d.getMinutes()); const ap = h < 12 ? 'AM' : 'PM'; h = h % 12 || 12;
             return `${dow}, ${d.getDate()} ${mon} ${d.getFullYear()} · ${h}:${m} ${ap}`;
         },
-        reset() { this.type = 'call'; this.priority = 'medium'; this.assigned = ''; this.note = ''; this.date = ''; this.time = '10:00'; }
+        reset() { this.type = 'call'; this.priority = 'medium'; this.assigned = ''; this.note = ''; this.date = ''; this.time = '10:00'; },
+        openFrom(d) {
+            this.open = true; this.action = d.action; this.leadName = d.leadName || '';
+            if (d.method === 'PUT') {
+                this.method = 'PUT'; this.title = 'Edit Follow-up';
+                this.type = d.type || 'call'; this.priority = d.priority || 'medium';
+                this.assigned = d.user_id ? String(d.user_id) : '';
+                this.note = d.note || '';
+                const s = String(d.scheduled_at || '').replace(' ', 'T');
+                this.date = s.slice(0, 10); this.time = s.slice(11, 16) || '10:00';
+            } else {
+                this.method = ''; this.title = 'Add Follow-up'; this.reset();
+            }
+        }
      }"
-     @open-schedule.window="open = true; action = $event.detail.action; leadName = $event.detail.leadName || ''; reset()"
+     @open-schedule.window="openFrom($event.detail)"
      @keydown.escape.window="open = false" x-cloak>
 
     <div x-show="open" x-transition.opacity class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm" @click="open = false"></div>
@@ -35,7 +48,7 @@
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>
                 </span>
                 <div class="min-w-0 flex-1">
-                    <h3 class="text-base font-bold">Add Follow-up</h3>
+                    <h3 class="text-base font-bold" x-text="title">Add Follow-up</h3>
                     <p class="mt-0.5 truncate text-xs text-white/80" x-text="leadName"></p>
                 </div>
                 <button type="button" @click="open = false" class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/80 transition hover:bg-white/20 hover:text-white">
@@ -45,6 +58,8 @@
 
             <form method="POST" :action="action" data-turbo="false" class="px-5 py-5">
                 @csrf
+                {{-- Only sent when editing (disabled inputs aren't submitted), so create stays a plain POST. --}}
+                <input type="hidden" name="_method" :value="method" :disabled="! method">
                 <div class="space-y-4">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -89,13 +104,13 @@
 
                     <div>
                         <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-400">Note</label>
-                        <textarea name="note" x-model="note" rows="2" maxlength="2000" placeholder="What is this follow-up about?" class="w-full rounded-xl border-gray-200 bg-gray-50 text-sm focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20"></textarea>
+                        <textarea name="note" x-model="note" rows="2" maxlength="2000" placeholder="What is this follow-up about?" class="w-full rounded-xl border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm leading-relaxed focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20"></textarea>
                     </div>
                 </div>
 
                 <div class="mt-6 flex items-center gap-2">
                     <button type="button" @click="open = false" class="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] transition hover:bg-gray-50">Cancel</button>
-                    <button type="submit" class="flex-1 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]">Save Follow-up</button>
+                    <button type="submit" class="flex-1 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]" x-text="method === 'PUT' ? 'Save Changes' : 'Save Follow-up'">Save Follow-up</button>
                 </div>
             </form>
         </div>

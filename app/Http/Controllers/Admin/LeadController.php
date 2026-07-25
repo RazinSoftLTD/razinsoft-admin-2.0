@@ -18,7 +18,7 @@ class LeadController extends Controller
     public function index(Request $request)
     {
         $q = Lead::query()
-            ->with('assignee:id,name', 'nextFollowUp', 'lastCompletedFollowUp')
+            ->with('assignee:id,name', 'nextFollowUp.assignee:id,name', 'lastCompletedFollowUp')
             ->latest('id');
 
         // Constrain to the rows this user's "view" scope allows (owned / added / both / all).
@@ -309,7 +309,7 @@ class LeadController extends Controller
     public function create()
     {
         return view('admin.leads.form', [
-            'lead' => new Lead(['lead_status' => 'new', 'priority' => 'high']),
+            'lead' => new Lead(['lead_status' => 'qualified', 'priority' => 'high']),
             'users' => $this->leadOwners(),
         ]);
     }
@@ -662,7 +662,7 @@ class LeadController extends Controller
             }
         }
 
-        return 'new';
+        return 'qualified';
     }
 
     /** Resolve a priority key or label ("high" / "High") to a valid key. */

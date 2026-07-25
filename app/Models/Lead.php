@@ -19,7 +19,7 @@ class Lead extends Model
     public const INDUSTRIES = ['Technology', 'eCommerce', 'Education', 'Healthcare', 'Retail', 'Real Estate', 'Finance', 'Logistics', 'Other'];
 
     /** A lead is just a quality signal — the full sales pipeline lives on Deals. */
-    public const STATUSES = ['new' => 'New', 'qualified' => 'Qualified', 'unqualified' => 'Unqualified'];
+    public const STATUSES = ['qualified' => 'Qualified', 'unqualified' => 'Unqualified'];
 
     public const TEAMS = ['Sales', 'Support', 'Development', 'Marketing'];
 

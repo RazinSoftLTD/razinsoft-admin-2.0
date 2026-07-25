@@ -5,6 +5,9 @@
         'unqualified' => 'bg-red-50 text-red-600',
     ];
     $q = trim((string) request('search'));
+    $me = auth()->user();
+    $canCompleteFu = $me->hasPermission('follow_ups.complete');
+    $canCreateFu = $me->hasPermission('follow_ups.create');
 @endphp
 
 @if ($q !== '')
@@ -22,8 +25,6 @@
                     <th class="px-4 py-3 font-semibold">Lead ID</th>
                     <th class="px-4 py-3 font-semibold">Lead</th>
                     <th class="px-4 py-3 font-semibold">Phone</th>
-                    <th class="px-4 py-3 font-semibold">Assigned To</th>
-                    <th class="px-4 py-3 font-semibold">Last Follow-up</th>
                     <th class="px-4 py-3 font-semibold">Next Follow-up</th>
                     <th class="px-4 py-3 font-semibold">Follow-up</th>
                     <th class="px-4 py-3 font-semibold">Lead Quality</th>
@@ -70,38 +71,50 @@
                                 <span class="text-[var(--color-muted)]">—</span>
                             @endif
                         </td>
+                        {{-- Next pending follow-up (with a details popover) --}}
                         <td class="px-4 py-3">
-                            @if ($lead->assignee)
-                                <div class="flex items-center gap-2">
-                                    <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[11px] font-bold text-[var(--color-primary)]">{{ strtoupper(substr($lead->assignee->name, 0, 1)) }}</span>
-                                    <span class="text-[var(--color-heading)]">{{ $lead->assignee->name }}</span>
+                            @if ($lead->nextFollowUp)
+                                @php $nfu = $lead->nextFollowUp; @endphp
+                                <div class="flex items-center gap-1.5">
+                                    <div>
+                                        <p class="font-medium {{ $nfu->isOverdue() ? 'text-red-600' : 'text-[var(--color-heading)]' }}">{{ $nfu->scheduled_at->format('d M Y') }}</p>
+                                        <p class="text-xs text-[var(--color-muted)]">{{ $nfu->scheduled_at->format('h:i A') }}</p>
+                                    </div>
+                                    <div class="relative" x-data="{ o: false }" @mouseenter="o = true" @mouseleave="o = false">
+                                        <button type="button" @click="o = !o" class="grid h-5 w-5 place-items-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Follow-up details">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5m0-8h.01"/></svg>
+                                        </button>
+                                        <div x-show="o" x-cloak @click.outside="o = false"
+                                             class="absolute left-1/2 top-full z-30 mt-1.5 w-60 -translate-x-1/2 rounded-xl border border-gray-100 bg-white p-3 text-left shadow-xl">
+                                            <p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Next Follow-up</p>
+                                            <dl class="space-y-1.5 text-xs">
+                                                <div class="flex justify-between gap-2"><dt class="text-gray-400">Type</dt><dd class="font-medium text-[var(--color-heading)]">{{ $nfu->typeLabel() }}</dd></div>
+                                                <div class="flex justify-between gap-2"><dt class="text-gray-400">When</dt><dd class="font-medium text-[var(--color-heading)]">{{ $nfu->scheduled_at->format('d M Y, h:i A') }}</dd></div>
+                                                <div class="flex justify-between gap-2"><dt class="text-gray-400">Priority</dt><dd class="font-medium text-[var(--color-heading)]">{{ $nfu->priorityLabel() }}</dd></div>
+                                                <div class="flex justify-between gap-2"><dt class="text-gray-400">Assigned</dt><dd class="font-medium text-[var(--color-heading)]">{{ $nfu->assignee?->name ?? 'Unassigned' }}</dd></div>
+                                                <div class="flex items-center justify-between gap-2"><dt class="text-gray-400">Status</dt><dd><span class="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 {{ $nfu->statusBadge() }}">{{ $nfu->statusLabel() }}</span></dd></div>
+                                            </dl>
+                                            @if ($nfu->note)
+                                                <p class="mt-2 border-t border-gray-50 pt-2 text-xs text-[var(--color-muted)]">{{ $nfu->note }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                             @else
                                 <span class="text-gray-400">—</span>
                             @endif
                         </td>
-                        {{-- Last completed follow-up --}}
-                        <td class="px-4 py-3 text-[var(--color-muted)]">
-                            @if ($lead->lastCompletedFollowUp)
-                                <p class="font-medium text-[var(--color-heading)]">{{ $lead->lastCompletedFollowUp->completed_at?->format('d M Y') }}</p>
-                                <p class="text-xs">{{ $lead->lastCompletedFollowUp->typeLabel() }}</p>
-                            @else
-                                <span class="text-gray-400">—</span>
-                            @endif
-                        </td>
-                        {{-- Next pending follow-up --}}
-                        <td class="px-4 py-3">
-                            @if ($lead->nextFollowUp)
-                                <p class="font-medium {{ $lead->nextFollowUp->isOverdue() ? 'text-red-600' : 'text-[var(--color-heading)]' }}">{{ $lead->nextFollowUp->scheduled_at->format('d M Y') }}</p>
-                                <p class="text-xs text-[var(--color-muted)]">{{ $lead->nextFollowUp->scheduled_at->format('h:i A') }}</p>
-                            @else
-                                <span class="text-gray-400">—</span>
-                            @endif
-                        </td>
-                        {{-- Latest follow-up status --}}
+                        {{-- Latest follow-up status — click a pending one to Mark Done right from the list --}}
                         <td class="px-4 py-3">
                             @php $fuStatus = $lead->followUpStatus(); @endphp
-                            @if ($fuStatus)
+                            @if ($lead->nextFollowUp && $canCompleteFu)
+                                <button type="button" x-data
+                                        @click="$dispatch('open-done', { action: '{{ route('admin.leads.follow-ups.complete', [$lead, $lead->nextFollowUp]) }}', leadName: @js($lead->full_name), followUpTitle: @js($lead->nextFollowUp->typeLabel().' · '.$lead->nextFollowUp->scheduled_at->format('d M Y')) })"
+                                        class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 transition hover:opacity-80 {{ $lead->nextFollowUp->statusBadge() }}" title="Mark this follow-up done">
+                                    {{ $lead->nextFollowUp->statusLabel() }}
+                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            @elseif ($fuStatus)
                                 <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 {{ $fuStatus->statusBadge() }}">{{ $fuStatus->statusLabel() }}</span>
                             @else
                                 <span class="text-gray-400">—</span>
@@ -133,6 +146,13 @@
                                         <a href="{{ route('admin.leads.edit', $lead) }}" class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-heading)] hover:bg-gray-50">
                                             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg> Edit
                                         </a>
+                                    @endif
+                                    @if ($canCreateFu)
+                                        <button type="button"
+                                                @click="open = false; $dispatch('open-schedule', { action: '{{ route('admin.leads.follow-ups.store', $lead) }}', leadName: @js($lead->full_name) })"
+                                                class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path stroke-linecap="round" d="M12 13v4M10 15h4"/></svg> Add Follow-up
+                                        </button>
                                     @endif
                                     @if ($me->allows('deals', 'create'))
                                         <form method="POST" action="{{ route('admin.leads.convert-deal', $lead) }}">
@@ -169,7 +189,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="px-4 py-12 text-center text-gray-400">
+                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
                             @if ($q !== '')
                                 No leads match “<span class="font-semibold text-[var(--color-heading)]">{{ $q }}</span>”. Try a different search.
                             @else

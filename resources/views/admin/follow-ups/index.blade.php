@@ -129,9 +129,36 @@
         @include('admin.follow-ups._results')
     </div>
 
-    {{-- Mark Done (+ schedule next) modal — shared, opened via the `open-done` window event. --}}
+    {{-- Shared follow-up modals — opened via window events from the list rows
+         (Mark Done on the status badge, Add Follow-up / Edit in the Action menu). --}}
     @include('admin.follow-ups._done-modal')
+    @include('admin.follow-ups._schedule-modal', ['fuUsers' => $users])
 
+    <script>
+        // Row action menu — teleported to <body> and fixed-positioned so the table's
+        // horizontal overflow never clips it; flips upward when there's no room below.
+        function rowMenu() {
+            return {
+                open: false, x: 0, y: 0,
+                toggle(e) {
+                    if (this.open) { this.open = false; return; }
+                    const r = e.currentTarget.getBoundingClientRect();
+                    this.x = Math.max(8, r.right - 192);   // 192 = w-48
+                    this.y = r.bottom + 4;
+                    this.open = true;
+                    this.$nextTick(() => {
+                        const m = this.$refs.menu;
+                        if (!m) return;
+                        const h = m.offsetHeight, vh = window.innerHeight;
+                        if (r.bottom + 4 + h > vh - 8) {
+                            const above = r.top - 4 - h;
+                            this.y = above >= 8 ? above : Math.max(8, vh - h - 8);
+                        }
+                    });
+                },
+            };
+        }
+    </script>
     <script>
         (function () {
             const form = document.querySelector('[data-search-form]');

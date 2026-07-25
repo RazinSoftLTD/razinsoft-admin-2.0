@@ -21,7 +21,7 @@
              x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-3 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
              class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
 
-            <div class="relative flex items-start gap-3 bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-4 text-white">
+            <div class="relative flex items-start gap-3 bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-hover)] px-5 py-4 text-white">
                 <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20 ring-1 ring-white/30">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
                 </span>
@@ -40,7 +40,7 @@
                     <div>
                         <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-400">Completion Notes <span class="text-red-500">*</span></label>
                         <textarea name="completion_note" x-model="note" rows="3" required maxlength="2000" placeholder="What was the outcome of this follow-up?"
-                                  class="w-full rounded-xl border-gray-200 bg-gray-50 text-sm transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"></textarea>
+                                  class="w-full rounded-xl border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm leading-relaxed transition focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-[var(--color-primary)]/20"></textarea>
                     </div>
 
                     {{-- Auto-captured completion meta --}}
@@ -89,7 +89,7 @@
                         </div>
                         <div>
                             <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-400">Note</label>
-                            <textarea name="note" x-model="fuNote" rows="2" maxlength="2000" placeholder="What is the next follow-up about?" class="w-full rounded-xl border-gray-200 bg-white text-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"></textarea>
+                            <textarea name="note" x-model="fuNote" rows="2" maxlength="2000" placeholder="What is the next follow-up about?" class="w-full rounded-xl border-gray-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"></textarea>
                         </div>
                         <input type="hidden" name="scheduled_at" :value="dt">
                     </div>
@@ -97,7 +97,7 @@
 
                 <div class="mt-6 flex items-center gap-2">
                     <button type="button" @click="open = false" class="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] transition hover:bg-gray-50">Cancel</button>
-                    <button type="submit" class="flex-1 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700" x-text="scheduleNext ? 'Save & Schedule Next' : 'Mark Done'"></button>
+                    <button type="submit" class="flex-1 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-primary-hover)]" x-text="scheduleNext ? 'Save & Schedule Next' : 'Mark Done'"></button>
                 </div>
             </form>
         </div>

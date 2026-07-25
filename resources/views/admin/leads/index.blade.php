@@ -204,4 +204,9 @@
         })();
     </script>
 
+    {{-- Follow-up modals — driven by window events dispatched from the list rows
+         (Add Follow-up in the Action menu, Mark Done on the Follow-up status). --}}
+    @include('admin.follow-ups._schedule-modal', ['fuUsers' => $users])
+    @include('admin.follow-ups._done-modal', ['fuUsers' => $users])
+
 @endsection
