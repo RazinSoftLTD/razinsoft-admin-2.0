@@ -36,6 +36,7 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3">
                             <a href="{{ route('admin.leads.show', $lead) }}" class="font-semibold text-[var(--color-primary)] hover:underline">{{ $lead->lead_code }}</a>
+                            <p class="mt-0.5 text-xs text-[var(--color-muted)]" title="Created {{ $lead->created_at->format('d M Y, h:i A') }}">{{ $lead->created_at->format('d M Y') }}</p>
                         </td>
                         <td class="px-4 py-3">
                             <a href="{{ route('admin.leads.show', $lead) }}" class="font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $lead->full_name }}</a>
@@ -69,6 +70,15 @@
                                 </span>
                             @else
                                 <span class="text-[var(--color-muted)]">—</span>
+                            @endif
+                            {{-- Country (from the stored country or parsed from the phone) + current local time there --}}
+                            @php $geo = \App\Support\CountryTime::forLead($lead->country, $lead->phone); @endphp
+                            @if ($geo && $geo['tz'])
+                                <p class="mt-1 flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
+                                    <svg class="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+                                    @if ($geo['country'])<span>{{ $geo['country'] }}</span><span class="text-gray-300">·</span>@endif
+                                    <span class="tabular-nums font-medium text-[var(--color-heading)]" data-country-tz="{{ $geo['tz'] }}" title="Current local time{{ $geo['country'] ? ' in '.$geo['country'] : '' }}">{{ now()->setTimezone($geo['tz'])->format('h:i A') }}</span>
+                                </p>
                             @endif
                         </td>
                         {{-- Next pending follow-up (with a details popover) --}}

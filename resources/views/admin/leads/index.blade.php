@@ -202,6 +202,19 @@
             form.addEventListener('submit', (e) => { e.preventDefault(); clearTimeout(timer); run(); });
             clearBtn.addEventListener('click', () => { input.value = ''; input.focus(); run(); });
         })();
+
+        // Keep each lead's country local-time live (re-queried each tick so AJAX-swapped rows update too).
+        (function () {
+            function tick() {
+                document.querySelectorAll('[data-country-tz]').forEach(function (el) {
+                    try {
+                        el.textContent = new Intl.DateTimeFormat('en-US', { timeZone: el.dataset.countryTz, hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date());
+                    } catch (e) { /* invalid tz — leave the server-rendered value */ }
+                });
+            }
+            tick();
+            setInterval(tick, 30000);
+        })();
     </script>
 
     {{-- Follow-up modals — driven by window events dispatched from the list rows
