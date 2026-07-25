@@ -52,12 +52,28 @@
         </div>
     @endif
 
-    {{-- Not formally converted, but this email already belongs to a client. --}}
-    @if (! empty($emailClient))
-        <div class="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M5 20a7 7 0 0 1 14 0"/></svg>
-            This email is already a client — <strong>{{ $emailClient->name }}</strong>@if ($emailClient->company) ({{ $emailClient->company }})@endif.
-            <a href="{{ route('admin.clients.show', $emailClient->id) }}" class="font-semibold underline hover:no-underline">Open client</a>
+    {{-- Not formally converted, but a client already shares this lead's phone number or email. --}}
+    @if (! empty($matchedClients) && count($matchedClients))
+        <div class="mb-5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+            <p class="flex flex-wrap items-center gap-2">
+                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path stroke-linecap="round" d="M5 20a7 7 0 0 1 14 0"/></svg>
+                @if (count($matchedClients) === 1)
+                    Already a client — <strong>{{ $matchedClients[0]->name }}</strong>@if ($matchedClients[0]->company) ({{ $matchedClients[0]->company }})@endif.
+                    <a href="{{ route('admin.clients.show', $matchedClients[0]->id) }}" class="font-semibold underline hover:no-underline">Open client</a>
+                @else
+                    This contact matches <strong>{{ count($matchedClients) }} clients</strong> — pick the right one:
+                @endif
+            </p>
+            @if (count($matchedClients) > 1)
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach ($matchedClients as $mc)
+                        <a href="{{ route('admin.clients.show', $mc->id) }}"
+                           class="rounded-lg border border-sky-200 bg-white px-2.5 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100">
+                            {{ $mc->name }}@if ($mc->company) · {{ $mc->company }}@endif
+                        </a>
+                    @endforeach
+                </div>
+            @endif
         </div>
     @endif
 

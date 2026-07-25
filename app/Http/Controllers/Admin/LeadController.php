@@ -97,13 +97,12 @@ class LeadController extends Controller
         $perPage = in_array((int) $request->query('per_page'), [10, 25, 50, 100]) ? (int) $request->query('per_page') : 10;
         $leads = $q->paginate($perPage)->withQueryString();
 
-        // Which of these leads are already clients (matched on email)? Only clients this
-        // user is allowed to open are linked, so the badge never leads to a 403.
-        $clientsByEmail = $this->clientsForEmails($request->user(), $leads->pluck('email'));
+        // Which of these leads are already clients? Matched on any shared phone number or email.
+        $leadClients = \App\Support\ContactMatcher::clientsForLeads($request->user(), $leads->getCollection());
 
         // Live search / pagination fetches only the results fragment (keeps the search box focused).
         if ($request->ajax()) {
-            return view('admin.leads._results', compact('leads', 'perPage', 'search', 'clientsByEmail'));
+            return view('admin.leads._results', compact('leads', 'perPage', 'search', 'leadClients'));
         }
 
         // Country list for the filter drawer (respects the staff view scope).
@@ -115,25 +114,8 @@ class LeadController extends Controller
             'users' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'perPage' => $perPage,
             'countries' => $countries,
-            'clientsByEmail' => $clientsByEmail,
+            'leadClients' => $leadClients,
         ]);
-    }
-
-    /**
-     * Map lowercased email => client (User) for the given emails, limited to clients the
-     * actor may view. Used to flag "this lead is already a client" and link to them.
-     */
-    private function clientsForEmails(User $actor, $emails)
-    {
-        $lower = collect($emails)->filter()->map(fn ($e) => mb_strtolower(trim($e)))->unique()->values();
-        if ($lower->isEmpty()) {
-            return collect();
-        }
-
-        return User::clients()->clientVisibleTo($actor)
-            ->whereIn(\Illuminate\Support\Facades\DB::raw('lower(email)'), $lower->all())
-            ->get(['id', 'name', 'email', 'company'])
-            ->keyBy(fn ($u) => mb_strtolower(trim($u->email)));
     }
 
     /** Mark a lead contacted now and optionally schedule the next follow-up. */
@@ -456,15 +438,16 @@ class LeadController extends Controller
         // A WhatsApp conversation linked to this lead (if it was converted from WhatsApp).
         $whatsappChat = \App\Models\WhatsappChat::where('lead_id', $lead->id)->first();
 
-        // An existing client with the same email — the lead is already a customer even if it
-        // was never formally "converted". Skipped when it is the converted client already shown.
-        $emailClient = $this->clientsForEmails($request->user(), collect([$lead->email]))
-            ->first(fn ($c) => $c->id !== $lead->converted_client_id);
+        // Existing clients sharing a phone number or email — this lead is already a customer
+        // even if it was never formally "converted". The converted one is shown separately.
+        $matchedClients = \App\Support\ContactMatcher::clientsForLead($request->user(), $lead)
+            ->reject(fn ($c) => $c->id === $lead->converted_client_id)
+            ->values();
 
         return view('admin.leads.show', [
             'lead' => $lead,
             'whatsappChat' => $whatsappChat,
-            'emailClient' => $emailClient,
+            'matchedClients' => $matchedClients,
             'fuUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
         ]);
     }

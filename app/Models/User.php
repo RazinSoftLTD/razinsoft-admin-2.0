@@ -17,6 +17,7 @@ use Laravel\Sanctum\HasApiTokens;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
+    use \App\Models\Concerns\SyncsContactNumbers;
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasPrivacy, Notifiable, SoftDeletes;
 
@@ -244,6 +245,12 @@ class User extends Authenticatable
     public function scopeClients($q)
     {
         return $q->where('role', self::ROLE_CUSTOMER);
+    }
+
+    /** Every phone number on this person (the built-in phone/office columns are mirrored here). */
+    public function contactNumbers(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(ContactNumber::class, 'contactable')->orderByDesc('is_primary')->orderBy('position')->orderBy('id');
     }
 
     /**

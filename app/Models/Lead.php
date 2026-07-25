@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Lead extends Model
 {
+    use \App\Models\Concerns\SyncsContactNumbers;
+
     protected $guarded = [];
 
     /** Dropdown option sets — single source of truth for the form + validation. */
@@ -91,6 +93,12 @@ class Lead extends Model
     public function deals(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Deal::class);
+    }
+
+    /** Every phone number on this lead (the built-in phone/mobile/office columns are mirrored here). */
+    public function contactNumbers(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(ContactNumber::class, 'contactable')->orderByDesc('is_primary')->orderBy('position')->orderBy('id');
     }
 
     /** Complete follow-up history, newest scheduled first. */
