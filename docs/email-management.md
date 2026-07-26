@@ -32,6 +32,14 @@ generated in SES rather than AWS access keys.
 Then **Test connection** (authenticates without sending) and **Send test** (queues a real
 message, which also proves the worker is running).
 
+Upgrading from the old single-account Email Settings screen? Bring that account across rather than
+retyping it — nothing sends until at least one account exists here, so an installation that was
+sending yesterday goes quiet the moment this module lands:
+
+```bash
+php artisan email:import-legacy-smtp
+```
+
 Several accounts can exist. The default sends; if it is inactive or has hit its hourly/daily cap
 the job falls back to the next by priority, so one provider rate-limiting does not stop mail.
 
