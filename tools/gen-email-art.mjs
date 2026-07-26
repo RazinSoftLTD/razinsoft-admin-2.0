@@ -56,12 +56,6 @@ console.log('line icons');
 await png('icon-user', stroke('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0'), 24, 24);
 await png('icon-mail', stroke('M3 6h18v12H3zM3 7l9 6 9-6'), 24, 24);
 await png('icon-calendar', stroke('M4 6h16v14H4zM4 10h16M8 3v4M16 3v4'), 24, 24);
-// Heart divider, on the pale disc it sits in
-await png('icon-heart',
-    `<circle cx="16" cy="16" r="15" fill="#ffffff" stroke="#e6edf7"/>` +
-    `<g transform="translate(8 8)"><path d="M8 14.2s-4.5-2.9-6.1-5.7C.7 6.2 1.7 3.7 4 3.1c1.3-.35 2.6.2 3.35 1.2C8.1 3.3 9.4 2.75 10.7 3.1c2.3.6 3.3 3.1 2.1 5.4C11.2 11.3 8 14.2 8 14.2Z" fill="${BLUE}"/></g>`,
-    32, 32);
-
 // Avatar tile beside "Your Account Details"
 await png('icon-avatar',
     `<circle cx="22" cy="22" r="22" fill="#e3edff"/>` +

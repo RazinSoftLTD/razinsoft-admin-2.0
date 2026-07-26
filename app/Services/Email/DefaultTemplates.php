@@ -268,7 +268,6 @@ class DefaultTemplates
         $imgHeroSrc = asset('images/email/hero-welcome.png');
         $imgSupport = $img('icon-support.png', 72, 72, '');
         $imgAvatar = $img('icon-avatar.png', 44, 44, '');
-        $imgHeart = $img('icon-heart.png', 32, 32, '', 'margin:0 auto');
 
         return <<<HTML
         <!-- hero -->
@@ -351,10 +350,6 @@ class DefaultTemplates
           </td></tr>
         </table>
 
-        <!-- hands the message over to the shared footer -->
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr><td align="center" style="padding:26px 0 0">{$imgHeart}</td></tr>
-        </table>
         HTML;
     }
 
@@ -446,14 +441,6 @@ class DefaultTemplates
 
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="shell"
                  style="width:600px;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden">
-
-            <!-- logo -->
-            <tr>
-              <td align="center" class="pad" style="padding:30px 40px 26px;border-bottom:1px solid #eef2f7">
-                <img src="{{company_logo}}" alt="{{company_name}}" width="196"
-                     style="display:block;width:196px;max-width:70%;height:auto;border:0">
-              </td>
-            </tr>
 
             <!-- message -->
             <tr><td style="padding:0">

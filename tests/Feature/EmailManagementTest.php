@@ -389,7 +389,7 @@ class EmailManagementTest extends TestCase
     {
         $html = \App\Services\Email\DefaultTemplates::wrap('<p>Hello</p>');
 
-        $this->assertStringContainsString('{{company_logo}}', $html, 'Every email leads with the logo.');
+        $this->assertStringContainsString('{{company_logo}}', $html, 'Every email is signed with the logo.');
         $this->assertStringContainsString('{{company_address}}', $html);
 
         foreach (config('brand.social') as $key => $network) {
