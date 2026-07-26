@@ -1,8 +1,13 @@
 @php $catTone = ['contract' => 'bg-indigo-50 text-indigo-700', 'nid' => 'bg-sky-50 text-sky-700', 'certificate' => 'bg-emerald-50 text-emerald-700', 'cv' => 'bg-amber-50 text-amber-700']; @endphp
 
 <div class="grid gap-6 lg:grid-cols-3">
-    <div class="lg:col-span-2 overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-        <table class="w-full text-left text-sm" style="min-width:640px">
+    <div class="lg:col-span-2 rounded-xl border border-gray-100 bg-white shadow-sm">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
+            <h2 class="text-sm font-bold text-[var(--color-heading)]">Documents</h2>
+            <span class="text-xs text-gray-400">{{ $documents->count() }} file(s)</span>
+        </header>
+        <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm" style="min-width:560px">
             <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
                 <tr>
                     <th class="px-5 py-3 font-semibold">Document</th>
@@ -36,34 +41,40 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-5 py-12 text-center text-gray-300">No documents uploaded.</td></tr>
+                    @include('admin.staff.tabs._empty', ['cols' => 5, 'icon' => 'M14 3v5h5M8 3h7l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z', 'title' => 'No documents uploaded', 'hint' => 'Contracts, NIDs and certificates can be attached here.'])
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     @if ($canEdit)
         <form method="POST" action="{{ route('admin.staff.documents.store', $staff) }}" enctype="multipart/form-data" class="space-y-3 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
             @csrf
-            <h3 class="text-sm font-bold text-[var(--color-heading)]">Upload document</h3>
+            <div class="flex items-center gap-2.5 border-b border-gray-100 pb-3">
+                <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                </span>
+                <h3 class="text-sm font-bold text-[var(--color-heading)]">Upload document</h3>
+            </div>
             <div>
                 <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">Title <span class="text-red-500">*</span></label>
-                <input name="title" required maxlength="150" class="h-10 w-full rounded-lg border-gray-200 text-sm" placeholder="e.g. Employment contract">
+                <input name="title" required maxlength="150" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none" placeholder="e.g. Employment contract">
             </div>
             <div>
                 <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">Category</label>
-                <select name="category" required class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                <select name="category" required class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                     @foreach (\App\Models\EmployeeDocument::CATEGORIES as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach
                 </select>
             </div>
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">Issued on</label>
-                    <input type="date" name="issued_on" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <input type="date" name="issued_on" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">Expires on</label>
-                    <input type="date" name="expires_on" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <input type="date" name="expires_on" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                 </div>
             </div>
             <div>

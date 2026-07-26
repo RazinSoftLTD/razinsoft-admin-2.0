@@ -10,7 +10,7 @@
 
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
     <div>
-        <p class="text-sm font-bold text-[var(--color-heading)]">Role: {{ $staff->assignedRole?->name ?? 'No role assigned' }}</p>
+        <p class="text-sm font-bold text-[var(--color-heading)]">Role: {{ $staff->isAdmin() ? 'Administrator' : ($staff->assignedRole?->name ?? 'No role assigned') }}</p>
         <p class="text-xs text-[var(--color-muted)]">
             {{ $staff->isAdmin() ? 'Admins hold every permission.' : 'Role grants plus any per-user overrides.' }}
         </p>

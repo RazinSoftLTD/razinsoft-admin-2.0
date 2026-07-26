@@ -1,12 +1,15 @@
 {{-- Same source as Activity > Employee, scoped to this person. --}}
-<div class="mb-3 flex items-center justify-between">
-    <p class="text-xs text-[var(--color-muted)]">Everything this employee did in the panel.</p>
-    @if (auth()->user()->hasPermission('activity.employee'))
-        <a href="{{ route('admin.activity-logs.show', $staff) }}" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">Open full activity log</a>
-    @endif
-</div>
-
-<div class="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
+<section class="rounded-xl border border-gray-100 bg-white shadow-sm">
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
+        <h2 class="text-sm font-bold text-[var(--color-heading)]">Panel activity</h2>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-400">{{ $logs->total() }} event(s)</span>
+            @if (auth()->user()->hasPermission('activity.employee'))
+                <a href="{{ route('admin.activity-logs.show', $staff) }}" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">Full log</a>
+            @endif
+        </div>
+    </header>
+    <div class="overflow-x-auto">
     <table class="w-full text-left text-sm" style="min-width:760px">
         <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
             <tr>
@@ -25,9 +28,12 @@
                     <td class="px-5 py-3 font-mono text-xs text-[var(--color-muted)]">{{ $log->ip ?? "—" }}</td>
                 </tr>
             @empty
-                <tr><td colspan="4" class="px-5 py-12 text-center text-gray-300">No activity recorded.</td></tr>
+                @include('admin.staff.tabs._empty', ['cols' => 4, 'icon' => 'M3 12h4l3 8 4-16 3 8h4', 'title' => 'No activity recorded', 'hint' => 'Every page this employee opens in the panel is logged here.'])
             @endforelse
         </tbody>
     </table>
-</div>
-<div class="mt-4">{{ $logs->links() }}</div>
+    </div>
+    @if ($logs->hasPages())
+        <div class="border-t border-gray-100 px-5 py-3">{{ $logs->links() }}</div>
+    @endif
+</section>

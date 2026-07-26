@@ -1,6 +1,11 @@
 <div class="grid gap-6 lg:grid-cols-3">
-    <div class="lg:col-span-2 overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-        <table class="w-full text-left text-sm" style="min-width:720px">
+    <div class="lg:col-span-2 rounded-xl border border-gray-100 bg-white shadow-sm">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
+            <h2 class="text-sm font-bold text-[var(--color-heading)]">Shift roster</h2>
+            <span class="text-xs text-gray-400">{{ $shifts->count() }} assignment(s)</span>
+        </header>
+        <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm" style="min-width:560px">
             <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
                 <tr>
                     <th class="px-5 py-3 font-semibold">Shift</th>
@@ -32,28 +37,34 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-5 py-12 text-center text-gray-300">No shift assigned — the office hours from HR Settings apply.</td></tr>
+                    @include('admin.staff.tabs._empty', ['cols' => 5, 'icon' => 'M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z', 'title' => 'No shift assigned', 'hint' => 'Without a shift, the office hours from HR Settings apply.'])
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     @if ($canEdit)
         <form method="POST" action="{{ route('admin.staff.shifts.store', $staff) }}" class="space-y-3 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
             @csrf
-            <h3 class="text-sm font-bold text-[var(--color-heading)]">Assign shift</h3>
+            <div class="flex items-center gap-2.5 border-b border-gray-100 pb-3">
+                <span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                </span>
+                <h3 class="text-sm font-bold text-[var(--color-heading)]">Assign shift</h3>
+            </div>
             <div>
                 <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">Shift name <span class="text-red-500">*</span></label>
-                <input name="name" required maxlength="60" value="General" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                <input name="name" required maxlength="60" value="General" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
             </div>
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">Starts</label>
-                    <input type="time" name="starts_at" required value="10:00" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <input type="time" name="starts_at" required value="10:00" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">Ends</label>
-                    <input type="time" name="ends_at" required value="19:00" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <input type="time" name="ends_at" required value="19:00" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                 </div>
             </div>
             <div>
@@ -69,11 +80,11 @@
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">From <span class="text-red-500">*</span></label>
-                    <input type="date" name="effective_from" required value="{{ today()->format('Y-m-d') }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <input type="date" name="effective_from" required value="{{ today()->format('Y-m-d') }}" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-[var(--color-muted)]">To</label>
-                    <input type="date" name="effective_to" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <input type="date" name="effective_to" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                 </div>
             </div>
             <button class="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Assign</button>
