@@ -34,7 +34,7 @@ class EmailSeedTemplates extends Command
                 continue;
             }
 
-            $html = DefaultTemplates::wrap($definition['body'], $definition['description']);
+            $html = DefaultTemplates::wrap($definition['body'], $definition['description'], $definition['full_bleed'] ?? false);
 
             $payload = [
                 'name' => $definition['name'],

@@ -45,6 +45,10 @@ class EmailBodyBuilder
             $text,
         ) ?? $text;
 
+        // Cells sit side by side, so they need a space between them, not a line break — without
+        // this a label and its value run together as "NameJohn Doe".
+        $text = preg_replace('/<\/t[dh]>/i', ' ', $text) ?? $text;
+
         $text = preg_replace('/<li\b[^>]*>/i', "\n  • ", $text) ?? $text;
         $text = preg_replace('/<br\s*\/?>/i', "\n", $text) ?? $text;
         $text = preg_replace('/<\/(p|div|tr|h[1-6]|ul|ol|li|table)>/i', "\n", $text) ?? $text;

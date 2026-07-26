@@ -384,4 +384,50 @@ class EmailManagementTest extends TestCase
 
         $this->assertFalse($config->withinLimits());
     }
+
+    public function test_the_shell_carries_the_brand_and_the_websites_social_links(): void
+    {
+        $html = \App\Services\Email\DefaultTemplates::wrap('<p>Hello</p>');
+
+        $this->assertStringContainsString('{{company_logo}}', $html, 'Every email leads with the logo.');
+        $this->assertStringContainsString('{{company_address}}', $html);
+
+        foreach (config('brand.social') as $key => $network) {
+            $this->assertStringContainsString($network['url'], $html, "The {$key} link is missing from the footer.");
+            $this->assertStringContainsString("images/email/social/{$key}.png", $html);
+        }
+    }
+
+    public function test_the_logo_falls_back_to_the_bundled_mark_when_none_is_uploaded(): void
+    {
+        \App\Models\InvoiceSetting::query()->delete();
+
+        $this->assertStringContainsString('razinsoft-logo.png', EmailTemplate::globalValues()['company_logo']);
+    }
+
+    public function test_the_welcome_email_writes_the_account_details_back(): void
+    {
+        $this->artisan('email:seed-templates', ['--force' => true]);
+
+        $out = EmailTemplate::where('key', 'welcome_client')->firstOrFail()->renderFor([
+            'customer_name' => 'Rahim Uddin',
+            'customer_email' => 'rahim@example.com',
+            'registration_date' => '26 May 2025',
+        ]);
+
+        foreach (['Rahim Uddin', 'rahim@example.com', '26 May 2025'] as $expected) {
+            $this->assertStringContainsString($expected, $out['html']);
+        }
+
+        // Images are blocked by default in most clients, so the message has to survive without them.
+        $this->assertStringContainsString('Your Account Details', $out['text']);
+        $this->assertStringContainsString('Rahim Uddin', $out['text']);
+    }
+
+    public function test_the_plain_text_part_keeps_table_cells_apart(): void
+    {
+        $text = \App\Services\Email\EmailBodyBuilder::toPlainText('<table><tr><td>Name</td><td>Rahim</td></tr></table>');
+
+        $this->assertStringContainsString('Name Rahim', $text, 'Cells must not run together.');
+    }
 }

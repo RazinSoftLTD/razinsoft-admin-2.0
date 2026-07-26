@@ -22,8 +22,11 @@ class EmailTemplate extends Model
      */
     public const GLOBAL_VARIABLES = [
         'company_name' => 'Your company name',
+        'company_logo' => 'Your logo, as an image address',
         'app_url' => 'Link to the site',
         'login_url' => 'Link to the customer login',
+        'website_url' => 'Link to the public website',
+        'company_address' => 'The postal address in the footer',
         'current_year' => 'The year, for the footer',
         'support_email' => 'The support address',
     ];
@@ -57,14 +60,22 @@ class EmailTemplate extends Model
     /** Values for the always-available variables. */
     public static function globalValues(): array
     {
+        $settings = InvoiceSetting::current();
+
         return [
-            // The brand set in Invoice Configuration — the name customers already see on
+            // The brand set in Invoice Configuration — the name and mark customers already see on
             // their invoices — rather than APP_NAME, which is a developer setting.
-            'company_name' => InvoiceSetting::current()->brand_name ?: config('app.name'),
+            'company_name' => $settings->brand_name ?: config('app.name'),
+            // Falls back to the bundled mark so an email is never sent with a hole where the
+            // logo should be, on an installation that has not uploaded one.
+            'company_logo' => $settings->logo_url ?: asset('images/razinsoft-logo.png'),
             'app_url' => config('app.url'),
             'login_url' => rtrim((string) config('app.url'), '/').'/login',
+            'website_url' => config('brand.website'),
+            'company_address' => config('brand.address'),
             'current_year' => now()->format('Y'),
-            'support_email' => config('mail.from.address'),
+            // The address customers should write to, not whatever the mailer happens to send as.
+            'support_email' => config('brand.support_email') ?: config('mail.from.address'),
         ];
     }
 

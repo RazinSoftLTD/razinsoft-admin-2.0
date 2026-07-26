@@ -23,12 +23,10 @@ class DefaultTemplates
             // ---- Account -------------------------------------------------
             self::make('welcome_client', 'Welcome Email', 'Account',
                 'Welcome to {{company_name}}',
-                'Sent when a client account is created.',
-                'customer_name, login_url',
-                '<p>Hi {{customer_name}},</p>
-                 <p>Your {{company_name}} account is ready. You can sign in any time to follow your projects, invoices and support tickets.</p>'
-                .self::button('{{login_url}}', 'Sign in')
-                .'<p>If you did not expect this email, you can ignore it.</p>'),
+                'Your account is ready — here are your details and a link to sign in.',
+                'customer_name, customer_email, registration_date, login_url',
+                self::welcomeBody(),
+                fullBleed: true),
 
             self::make('email_verification', 'Email Verification', 'Account',
                 'Confirm your email address',
@@ -217,20 +215,178 @@ class DefaultTemplates
             .'text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">'.$label.'</a></p>';
     }
 
-    private static function make(string $key, string $name, string $category, string $subject, string $description, string $variables, string $body): array
+    /**
+     * The welcome mail, which is the one message a customer is most likely to actually read, so it
+     * is the one that gets the full treatment: a tinted hero, their account details written back
+     * to them, what we do, and one obvious thing to click.
+     *
+     * Every graphic is a PNG on our own domain (see tools/gen-email-art.mjs) — no mail client
+     * renders SVG. Images are also blocked by default in most clients, so nothing here is only an
+     * image: the text reads completely on its own with every picture missing.
+     */
+    private static function welcomeBody(): string
     {
-        return compact('key', 'name', 'category', 'subject', 'description', 'variables') + ['body' => $body];
+        $img = fn (string $file, int $w, int $h, string $alt, string $extra = '') => '<img src="'
+            .asset("images/email/{$file}").'" alt="'.$alt.'" width="'.$w.'" height="'.$h
+            .'" style="display:block;width:'.$w.'px;height:'.$h.'px;border:0;'.$extra.'">';
+
+        // Account details, one row each. Written back so a customer can check them at a glance.
+        $rows = [
+            ['icon-user.png', 'Name', '{{customer_name}}'],
+            ['icon-mail.png', 'Email', '{{customer_email}}'],
+            ['icon-calendar.png', 'Registration Date', '{{registration_date}}'],
+        ];
+
+        $detailRows = '';
+        foreach ($rows as $i => [$icon, $label, $value]) {
+            $line = $i < count($rows) - 1 ? 'border-bottom:1px solid #eef2f7' : '';
+            $detailRows .= '<tr>'
+                .'<td width="34" valign="middle" style="padding:13px 0;'.$line.'">'.$img($icon, 20, 20, '').'</td>'
+                .'<td valign="middle" style="padding:13px 0;font-size:14px;font-weight:600;color:#0f172a;'.$line.'">'.$label.'</td>'
+                .'<td valign="middle" align="right" style="padding:13px 0;font-size:14px;color:#475569;'.$line.'">'.$value.'</td>'
+                .'</tr>';
+        }
+
+        // What we do, two cards side by side. The accent bar under each is the card's own colour.
+        $card = fn (string $icon, string $bg, string $accent, string $title, string $text) =>
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
+            .' style="background:'.$bg.';border-radius:12px;border-bottom:3px solid '.$accent.'"><tr>'
+            .'<td valign="top" width="66" style="padding:18px 0 18px 16px">'.$img($icon, 44, 44, '').'</td>'
+            .'<td valign="top" style="padding:18px 16px 18px 0">'
+            .'<p style="margin:0 0 5px;font-size:15px;font-weight:700;color:#0f172a">'.$title.'</p>'
+            .'<p style="margin:0;font-size:13px;line-height:1.6;color:#475569">'.$text.'</p>'
+            .'</td></tr></table>';
+
+        $cardLeft = $card('icon-box.png', '#f2f7ff', '#1a6dff', 'Ready-Made Solutions',
+            'Powerful, scalable software you can put to work straight away.');
+
+        $cardRight = $card('icon-code.png', '#f1fbf6', '#10a37f', 'Custom Development',
+            'Tailored software built around how your business actually runs.');
+
+        $imgHeroSrc = asset('images/email/hero-welcome.png');
+        $imgSupport = $img('icon-support.png', 72, 72, '');
+        $imgAvatar = $img('icon-avatar.png', 44, 44, '');
+        $imgHeart = $img('icon-heart.png', 32, 32, '', 'margin:0 auto');
+
+        return <<<HTML
+        <!-- hero -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f8ff">
+          <tr><td class="pad" style="padding:34px 40px 30px">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+              <td class="stack stack-pad" width="290" valign="top" style="width:290px;padding-right:16px">
+                <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:1.4px;color:#1a6dff">WELCOME ABOARD</p>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px"><tr>
+                  <td style="width:28px;height:3px;background:#1a6dff;font-size:0;line-height:0">&nbsp;</td>
+                </tr></table>
+                <h1 class="h1" style="margin:0 0 18px;font-size:34px;line-height:1.15;font-weight:800;color:#0f172a">
+                  Welcome to<br><span style="color:#1a6dff">{{company_name}}!</span>
+                </h1>
+                <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#0f172a">Hi {{customer_name}},</p>
+                <p style="margin:0;font-size:14px;line-height:1.7;color:#475569">
+                  Thank you for creating your account. We're glad to have you with us —
+                  let's build something worth being proud of.
+                </p>
+              </td>
+              <td class="stack hero-art" width="230" valign="middle" style="width:230px">
+                <img src="{$imgHeroSrc}" alt="" width="230"
+                     style="display:block;width:230px;max-width:100%;height:auto;border:0">
+              </td>
+            </tr></table>
+          </td></tr>
+        </table>
+
+        <!-- account details -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td class="pad" style="padding:26px 40px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border:1px solid #e6edf7;border-radius:14px">
+              <tr>
+                <td valign="top" width="70" style="padding:22px 0 22px 20px">{$imgAvatar}</td>
+                <td style="padding:22px 22px 6px 6px">
+                  <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#0f172a">Your Account Details</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {$detailRows}
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+
+        <!-- what we do -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td class="pad" style="padding:20px 40px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+              <td class="stack stack-pad" width="255" valign="top" style="width:255px;padding-right:10px">{$cardLeft}</td>
+              <td class="stack" width="255" valign="top" style="width:255px;padding-left:10px">{$cardRight}</td>
+            </tr></table>
+          </td></tr>
+        </table>
+
+        <!-- the one thing to click -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td align="center" class="pad" style="padding:28px 40px 0">
+            <a href="{{login_url}}" target="_blank"
+               style="display:inline-block;padding:15px 40px;background:#1a6dff;color:#ffffff;font-size:16px;
+                      font-weight:700;text-decoration:none;border-radius:10px">Go to Dashboard &rarr;</a>
+          </td></tr>
+        </table>
+
+        <!-- help -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td class="pad" style="padding:28px 40px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="background:#f4f8ff;border-radius:14px"><tr>
+              <td valign="middle" width="96" style="padding:20px 0 20px 20px">{$imgSupport}</td>
+              <td valign="middle" style="padding:20px 20px 20px 4px">
+                <p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#0f172a">Need help?</p>
+                <p style="margin:0 0 10px;font-size:13px;color:#475569">Our support team is always ready to assist you.</p>
+                <a href="mailto:{{support_email}}" style="font-size:13px;font-weight:600;color:#1a6dff;text-decoration:none">{{support_email}}</a>
+                <span style="color:#cbd5e1"> &nbsp;|&nbsp; </span>
+                <a href="{{website_url}}" target="_blank" style="font-size:13px;font-weight:600;color:#1a6dff;text-decoration:none">{{website_url}}</a>
+              </td>
+            </tr></table>
+          </td></tr>
+        </table>
+
+        <!-- hands the message over to the shared footer -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td align="center" style="padding:26px 0 0">{$imgHeart}</td></tr>
+        </table>
+        HTML;
+    }
+
+    private static function make(string $key, string $name, string $category, string $subject, string $description, string $variables, string $body, bool $fullBleed = false): array
+    {
+        return compact('key', 'name', 'category', 'subject', 'description', 'variables')
+            + ['body' => $body, 'full_bleed' => $fullBleed];
     }
 
     /**
-     * Wrap a body in the shared shell: a centred card, a preheader, and a footer.
+     * Wrap a body in the shared shell: the logo, the message, and the footer with the social
+     * links and address.
+     *
+     * Tables rather than divs, and inline styles rather than classes, because Outlook renders the
+     * former and strips the latter. The one <style> block only holds the mobile rules, which
+     * Outlook ignores anyway — the layout is readable at any width without them.
      *
      * The preheader is the grey line a mail client shows next to the subject. Left empty it picks
      * up whatever text comes first, which usually reads badly.
      */
-    public static function wrap(string $body, string $preheader = ''): string
+    public static function wrap(string $body, string $preheader = '', bool $fullBleed = false): string
     {
         $year = '{{current_year}}';
+        $social = self::socialRow();
+
+        // Most bodies are just a run of <p> tags and need the shell to space them off the edges.
+        // A body that lays itself out edge to edge — the welcome mail's tinted hero — says so and
+        // gets the cell bare.
+        $body = $fullBleed
+            ? $body
+            : '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+                .'<td class="pad" style="padding:30px 40px 8px;font-size:15px;line-height:1.7;color:#334155">'
+                .$body
+                .'</td></tr></table>';
 
         return <<<HTML
         <!doctype html>
@@ -238,24 +394,87 @@ class DefaultTemplates
         <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
+        <meta name="x-apple-disable-message-reformatting">
         <title>{{company_name}}</title>
+        <style>
+          @media only screen and (max-width:620px) {
+            .stack { display:block !important; width:100% !important; max-width:100% !important; }
+            .stack-pad { padding:0 0 20px 0 !important; }
+            .pad { padding-left:22px !important; padding-right:22px !important; }
+            .h1 { font-size:28px !important; }
+            .hero-art { text-align:center !important; }
+            .hero-art img { margin-left:auto !important; margin-right:auto !important; }
+          }
+        </style>
         </head>
-        <body style="margin:0;padding:0;background:#f5f6fa;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
-        <div style="display:none;max-height:0;overflow:hidden;opacity:0">{$preheader}</div>
-        <div style="padding:28px 16px">
-          <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:14px;padding:32px">
-            <h1 style="margin:0 0 20px;font-size:18px;font-weight:700;color:#111827">{{company_name}}</h1>
-            <div style="font-size:14px;line-height:1.7;color:#374151">
+        <body style="margin:0;padding:0;background:#eef2f8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#1e293b;-webkit-font-smoothing:antialiased">
+        <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">{$preheader}</div>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f8">
+        <tr><td align="center" style="padding:28px 12px">
+
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+                 style="width:600px;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden">
+
+            <!-- logo -->
+            <tr>
+              <td align="center" class="pad" style="padding:30px 40px 26px;border-bottom:1px solid #eef2f7">
+                <img src="{{company_logo}}" alt="{{company_name}}" width="196"
+                     style="display:block;width:196px;max-width:70%;height:auto;border:0">
+              </td>
+            </tr>
+
+            <!-- message -->
+            <tr><td style="padding:0">
         {$body}
-            </div>
-          </div>
-          <p style="max-width:560px;margin:16px auto 0;text-align:center;font-size:12px;line-height:1.6;color:#9ca3af">
-            &copy; {$year} {{company_name}}<br>
-            You are receiving this because you have an account with us.
-          </p>
-        </div>
+            </td></tr>
+
+            <!-- footer -->
+            <tr><td class="pad" style="padding:0 40px 34px">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td align="center" style="padding:26px 0 18px;border-top:1px solid #eef2f7">
+                  <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#0f172a">Thank you for choosing {{company_name}}.</p>
+                  <p style="margin:0;font-size:13px;color:#64748b">We look forward to helping you succeed.</p>
+                </td></tr>
+                <tr><td align="center" style="padding:4px 0 18px">{$social}</td></tr>
+                <tr><td align="center" style="padding-top:16px;border-top:1px solid #eef2f7">
+                  <p style="margin:0 0 4px;font-size:12px;color:#94a3b8">&copy; {$year} {{company_name}}. All rights reserved.</p>
+                  <p style="margin:0 0 4px;font-size:12px;color:#94a3b8">{{company_address}}</p>
+                  <p style="margin:0;font-size:12px;color:#94a3b8">You are receiving this because you have an account with us.</p>
+                </td></tr>
+              </table>
+            </td></tr>
+
+          </table>
+
+        </td></tr>
+        </table>
         </body>
         </html>
         HTML;
+    }
+
+    /**
+     * The row of social buttons, built from config/brand.php so it matches the public website.
+     *
+     * Laid out as table cells rather than inline-blocks: Outlook collapses the gaps between
+     * inline-blocks and the icons end up touching.
+     */
+    private static function socialRow(): string
+    {
+        $cells = '';
+
+        foreach (config('brand.social', []) as $key => $network) {
+            $icon = asset("images/email/social/{$key}.png");
+            $cells .= '<td style="padding:0 6px">'
+                .'<a href="'.e($network['url']).'" target="_blank" style="text-decoration:none">'
+                .'<img src="'.e($icon).'" alt="'.e($network['label']).'" width="34" height="34" '
+                .'style="display:block;width:34px;height:34px;border:0;border-radius:17px">'
+                .'</a></td>';
+        }
+
+        return $cells === ''
+            ? ''
+            : '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto"><tr>'.$cells.'</tr></table>';
     }
 }
