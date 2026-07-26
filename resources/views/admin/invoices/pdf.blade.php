@@ -15,6 +15,9 @@
   table.items th { text-align: left; background: #f3f4f6; color: #374151; padding: 8px 10px; font-size: 11px; border: 1px solid #d1d5db; }
   table.items td { padding: 8px 10px; border: 1px solid #e5e7eb; }
   table.items td.amount, table.items th.amount { background: #f9fafb; }
+  /* The description row belongs to the item above it: no top border between them, and indented
+     so it reads as detail rather than another line item. */
+  table.items td.subdesc { border-top: 0; padding-top: 0; padding-left: 22px; font-size: 11px; line-height: 1.7; color: #4b5563; }
   .totals { width: 280px; margin-left: auto; margin-top: 14px; }
   .totals td { padding: 5px 8px; }
   .due { background: #f3f4f6; color: #111827; font-weight: bold; font-size: 13px; }
@@ -107,6 +110,7 @@
       <th>Description</th><th style="text-align:center">Quantity</th><th class="right">Unit Price</th><th class="right">Tax</th><th class="right amount">Amount ({{ $invoice->currency }})</th>
     </tr></thead>
     <tbody>
+      {{-- Each item, then its own sub-description directly beneath it. --}}
       @foreach ($invoice->items as $item)
         <tr>
           <td><strong>{{ $item->description }}</strong></td>
@@ -115,11 +119,8 @@
           <td class="right">@if ($item->tax_percent > 0){{ rtrim(rtrim(number_format($item->tax_percent, 2), '0'), '.') }}%@endif</td>
           <td class="right amount"><strong>{{ number_format($item->amount, 2) }}</strong></td>
         </tr>
-      @endforeach
-      {{-- Sub-descriptions: full-width detail rows under the items, like the sample layout --}}
-      @foreach ($invoice->items as $item)
         @if ($item->sub_description)
-          <tr><td colspan="5" style="font-size:11px;line-height:1.7">{!! $item->formattedSubDescription() !!}</td></tr>
+          <tr><td colspan="5" class="subdesc">{!! $item->formattedSubDescription() !!}</td></tr>
         @endif
       @endforeach
     </tbody>

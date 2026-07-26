@@ -360,7 +360,7 @@ class ClientInvoiceController extends Controller
             'bill_to_company' => $client?->company,
             'bill_to_email' => $client?->email,
             'bill_to_phone' => $client?->phone,
-            'bill_to_address' => $client ? collect([$client->address, $client->city, $client->state, $client->country, $client->zip])->filter()->join(', ') : null,
+            'bill_to_address' => $this->billingAddress($data, $client, $request),
             'invoice_date' => $data['invoice_date'],
             'due_date' => $data['due_date'] ?? null,
             'currency' => $data['currency'],
@@ -444,6 +444,34 @@ class ClientInvoiceController extends Controller
         return $invoice;
     }
 
+    /**
+     * The address to bill. A per-invoice address entered on the form wins; otherwise the client's
+     * saved one. When the form asks, the entered address is also written back to the client so the
+     * next invoice already has it.
+     */
+    private function billingAddress(array $data, ?User $client, Request $request): ?string
+    {
+        $parts = [
+            'address' => $data['bill_address'] ?? null,
+            'city' => $data['bill_city'] ?? null,
+            'state' => $data['bill_state'] ?? null,
+            'country' => $data['bill_country'] ?? null,
+            'zip' => $data['bill_zip'] ?? null,
+        ];
+
+        if (filled($parts['address'])) {
+            if ($client && $request->boolean('save_billing_to_client')) {
+                $client->forceFill($parts)->save();
+            }
+
+            return collect($parts)->filter()->join(', ');
+        }
+
+        return $client
+            ? collect([$client->address, $client->city, $client->state, $client->country, $client->zip])->filter()->join(', ') ?: null
+            : null;
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -458,6 +486,12 @@ class ClientInvoiceController extends Controller
             'discount_type' => ['nullable', 'in:flat,percent'],
             'discount_value' => ['nullable', 'numeric', 'min:0', 'required_with:discount_type'],
             'attachment' => ['nullable', 'file', 'max:5120'],
+            // Billing address — Stripe will not take the payment without one.
+            'bill_address' => ['nullable', 'string', 'max:255'],
+            'bill_city' => ['nullable', 'string', 'max:120'],
+            'bill_state' => ['nullable', 'string', 'max:120'],
+            'bill_zip' => ['nullable', 'string', 'max:20'],
+            'bill_country' => ['nullable', 'string', 'max:120'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.sub_description' => ['nullable', 'string', 'max:5000'],

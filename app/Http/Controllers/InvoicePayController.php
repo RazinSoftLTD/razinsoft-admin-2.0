@@ -88,11 +88,20 @@ class InvoicePayController extends Controller
 
         if (config('services.stripe.secret')) {
             $stripe = new StripeClient(config('services.stripe.secret'));
-            $session = $stripe->checkout->sessions->create([
+
+            // Send the invoice's billing address to Stripe as a Customer, so the charge and its
+            // receipt carry the address we billed — card checks and tax rules rely on it. Without
+            // one we let Stripe collect it at checkout rather than charging with no address.
+            $customer = $this->stripeCustomer($stripe, $invoice);
+
+            $session = $stripe->checkout->sessions->create(array_filter([
                 'mode' => 'payment',
                 'payment_method_types' => ['card'],
                 'client_reference_id' => $invoice->invoice_number,
                 'metadata' => ['client_invoice_id' => $invoice->id],
+                'customer' => $customer?->id,
+                'customer_email' => $customer ? null : $invoice->bill_to_email,
+                'billing_address_collection' => $customer ? 'auto' : 'required',
                 'success_url' => route('pay.invoice.success', $token).'?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => $invoice->payUrl(),
                 'line_items' => [[
@@ -103,13 +112,52 @@ class InvoicePayController extends Controller
                         'product_data' => ['name' => "Invoice {$invoice->invoice_number}"],
                     ],
                 ]],
-            ]);
+            ]));
 
             return redirect()->away($session->url);
         }
 
         // Local dev fallback (no Stripe keys) — simulate a successful gateway return.
         return redirect()->route('pay.invoice.success', ['token' => $token, 'dev' => 1]);
+    }
+
+    /**
+     * A Stripe Customer carrying the invoice's billing address, reused across that client's
+     * invoices. Returns null when the invoice has no address — the caller then asks Stripe to
+     * collect one at checkout. A Stripe error here must not block the payment, so it degrades
+     * to the same path.
+     */
+    private function stripeCustomer(StripeClient $stripe, ClientInvoice $invoice): ?\Stripe\Customer
+    {
+        if (blank($invoice->bill_to_address)) {
+            return null;
+        }
+
+        $client = $invoice->client;
+
+        try {
+            if ($client?->stripe_customer_id) {
+                return $stripe->customers->update($client->stripe_customer_id, [
+                    'name' => $invoice->bill_to_name ?: $client->name,
+                    'address' => ['line1' => $invoice->bill_to_address],
+                ]);
+            }
+
+            $customer = $stripe->customers->create(array_filter([
+                'name' => $invoice->bill_to_name,
+                'email' => $invoice->bill_to_email,
+                'phone' => $invoice->bill_to_phone,
+                'address' => ['line1' => $invoice->bill_to_address],
+            ]));
+
+            $client?->forceFill(['stripe_customer_id' => $customer->id])->save();
+
+            return $customer;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /** Payment succeeded (Stripe return / dev) — record it, then send the client back to the frontend page. */

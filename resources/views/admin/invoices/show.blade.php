@@ -90,6 +90,9 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
+                            {{-- Each item, with its own sub-description on the row underneath. They used
+                                 to be collected into a second loop at the end of the table, which left
+                                 every description stacked together with nothing tying it to its item. --}}
                             @foreach ($invoice->items as $item)
                                 <tr>
                                     <td class="px-4 py-3 font-medium text-[var(--color-heading)]">{{ $item->description }}</td>
@@ -98,12 +101,9 @@
                                     <td class="border-l border-gray-200 px-4 py-3 text-right text-[var(--color-muted)]">@if ($item->tax_percent > 0){{ rtrim(rtrim(number_format($item->tax_percent, 2), '0'), '.') }}%@endif</td>
                                     <td class="border-l border-gray-200 px-4 py-3 text-right font-medium text-[var(--color-heading)]">{{ number_format($item->amount, 2) }}</td>
                                 </tr>
-                            @endforeach
-                            {{-- Sub-descriptions: full-width detail rows under the items, like the sample layout --}}
-                            @foreach ($invoice->items as $item)
                                 @if ($item->sub_description)
                                     <tr>
-                                        <td colspan="5" class="invoice-subdesc px-4 py-3 text-xs leading-relaxed text-[var(--color-heading)]">{!! $item->formattedSubDescription() !!}</td>
+                                        <td colspan="5" class="invoice-subdesc px-4 pb-3 pl-7 text-xs leading-relaxed text-[var(--color-muted)]">{!! $item->formattedSubDescription() !!}</td>
                                     </tr>
                                 @endif
                             @endforeach
