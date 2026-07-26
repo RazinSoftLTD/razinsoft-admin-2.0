@@ -177,11 +177,9 @@
                             <x-admin.field label="Lead Quality" name="lead_status" type="select" required :value="$lead->lead_status" :options="\App\Models\Lead::STATUSES" />
                             <x-admin.field label="Priority" name="priority" type="select" :value="$lead->priority" :options="['' => '--'] + \App\Models\Lead::PRIORITIES" />
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <x-admin.field label="Lead Department" name="team" type="select" :value="$lead->team" :options="['' => 'Select'] + array_combine(\App\Models\Lead::departmentOptions(), \App\Models\Lead::departmentOptions())" />
-                            <x-admin.field label="Product" name="industry" type="select" :value="$lead->industry" :options="['' => 'Select'] + array_combine(\App\Models\Lead::productOptions(), \App\Models\Lead::productOptions())" />
-                        </div>
-                        <x-admin.product-category-fields :category="old('product_category', $lead->product_category)" :sub-category="old('product_sub_category', $lead->product_sub_category)" />
+                        {{-- Product Category covers what the old free-text Product field said, so only the department stays here. --}}
+                        <x-admin.field label="Lead Department" name="team" type="select" :value="$lead->team" :options="['' => 'Select'] + array_combine(\App\Models\Lead::departmentOptions(), \App\Models\Lead::departmentOptions())" />
+                        <x-admin.product-category-fields stacked :category="old('product_category', $lead->product_category)" :sub-category="old('product_sub_category', $lead->product_sub_category)" />
                     </div>
                 </section>
 
