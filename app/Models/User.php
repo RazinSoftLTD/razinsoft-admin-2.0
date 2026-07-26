@@ -56,6 +56,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'welcomed_at' => 'datetime',
             'password' => 'hashed',
             'permissions' => 'array',
             'wa_number_order' => 'array',

@@ -153,6 +153,28 @@ Useful options: `config_id` (a specific SMTP account), `scheduled_at`, `priority
 
 ---
 
+## The welcome email
+
+Sent the first time a customer gets into their account on the website — `AuthController::welcomeOnce()`,
+which sits on the path both registering and signing in take. Signing in is the trigger rather than
+registering, because plenty of customers arrive through an account an admin or an import created
+for them and never register at all.
+
+`users.welcomed_at` records that it went, so it can only ever send once. It is stamped when the
+mail is accepted, not when it is refused, so switching the notification back on later still reaches
+everyone who has not had it.
+
+Every account that existed when the column was added was stamped as already welcomed. That was
+deliberate: without it, the next sign-in of every existing customer would have sent a "Welcome!" to
+someone who has been a customer for years. To include a group on purpose, clear the column for them:
+
+```php
+User::where('role', 'customer')->where('created_at', '>=', '2026-01-01')->update(['welcomed_at' => null]);
+```
+
+Two switches turn it off, both in the panel: the **account.welcome** notification rule, and the
+template's own **Active** toggle.
+
 ## What is refused, and why
 
 | Situation | What happens |

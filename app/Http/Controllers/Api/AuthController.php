@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Email\EmailDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -109,9 +110,50 @@ class AuthController extends Controller
     {
         $token = $user->createToken('web')->plainTextToken;
 
+        $this->welcomeOnce($user);
+
         return response()->json([
             'token' => $token,
             'user' => new UserResource($user),
         ], $status);
+    }
+
+    /**
+     * Send the welcome email the first time a customer gets into their account.
+     *
+     * Here rather than in register(), because customers also arrive through accounts an admin or
+     * an import created for them — those people have no registration to hang this off, and their
+     * first sign-in is the first time they see the portal.
+     *
+     * Sent once and only once: welcomed_at is stamped when the mail is accepted. It is not stamped
+     * when the dispatcher refuses, so turning the notification back on later still reaches
+     * everyone who has not had it. Whether it sends at all is the admin's call — the
+     * account.welcome rule and the template's own Active switch both gate it.
+     */
+    private function welcomeOnce(User $user): void
+    {
+        if ($user->role !== User::ROLE_CUSTOMER || $user->welcomed_at || ! $user->email) {
+            return;
+        }
+
+        try {
+            $log = app(EmailDispatcher::class)->sendTemplate('welcome_client', $user->email, [
+                'customer_name' => $user->name,
+                'customer_email' => $user->email,
+                'registration_date' => $user->created_at?->format('j M Y, g:i A'),
+            ], [
+                'event' => 'account.welcome',
+                'module' => 'account',
+                'related' => $user,
+                'user_id' => $user->id,
+            ]);
+
+            if ($log) {
+                $user->forceFill(['welcomed_at' => now()])->saveQuietly();
+            }
+        } catch (\Throwable $e) {
+            // Signing in must not depend on the mail system being reachable.
+            report($e);
+        }
     }
 }

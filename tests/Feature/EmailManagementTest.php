@@ -450,4 +450,67 @@ class EmailManagementTest extends TestCase
         $this->assertSame(config('brand.login_url'), $login);
         $this->assertStringNotContainsString('deskadmin', $login, 'Customers cannot sign in to the staff panel.');
     }
+
+    // ---------------------------------------------------------------- welcome on first sign-in
+
+    public function test_a_customer_is_welcomed_the_first_time_they_sign_in_and_never_again(): void
+    {
+        $this->artisan('email:seed-templates');
+        $this->config();
+
+        $user = \App\Models\User::create([
+            'name' => 'Rahim Uddin', 'email' => 'rahim@example.com',
+            'password' => bcrypt('secret123'), 'role' => 'customer', 'status' => 'active',
+        ]);
+        $user->forceFill(['welcomed_at' => null])->saveQuietly();
+
+        $credentials = ['email' => 'rahim@example.com', 'password' => 'secret123'];
+
+        $this->postJson('/api/auth/login', $credentials)->assertOk();
+        $this->assertSame(1, EmailLog::where('to_email', 'rahim@example.com')->count());
+        $this->assertNotNull($user->fresh()->welcomed_at);
+
+        // Signing in again must not send a second one.
+        $this->postJson('/api/auth/login', $credentials)->assertOk();
+        $this->assertSame(1, EmailLog::where('to_email', 'rahim@example.com')->count());
+    }
+
+    public function test_turning_the_welcome_rule_off_stops_it_without_burning_the_one_chance(): void
+    {
+        $this->artisan('email:seed-templates');
+        $this->artisan('email:seed-rules');
+        $this->config();
+
+        // Saved through the model, not the query builder — the cache is cleared by a model event.
+        \App\Models\EmailNotificationRule::where('key', 'account.welcome')->firstOrFail()
+            ->forceFill(['is_enabled' => false])->save();
+
+        $user = \App\Models\User::create([
+            'name' => 'Karim', 'email' => 'karim@example.com',
+            'password' => bcrypt('secret123'), 'role' => 'customer', 'status' => 'active',
+        ]);
+        $user->forceFill(['welcomed_at' => null])->saveQuietly();
+
+        $this->postJson('/api/auth/login', ['email' => 'karim@example.com', 'password' => 'secret123'])->assertOk();
+
+        $this->assertSame(0, EmailLog::where('to_email', 'karim@example.com')->count());
+        // Not stamped — switching the rule back on must still reach them.
+        $this->assertNull($user->fresh()->welcomed_at);
+    }
+
+    public function test_existing_customers_are_not_welcomed_retrospectively(): void
+    {
+        $user = \App\Models\User::create([
+            'name' => 'Old Client', 'email' => 'old@example.com',
+            'password' => bcrypt('secret123'), 'role' => 'customer', 'status' => 'active',
+        ]);
+
+        // The migration stamps every account that already exists; a new row gets the same
+        // treatment only because it was created after the column. Guard the intent instead:
+        $user->forceFill(['welcomed_at' => now()->subYear()])->saveQuietly();
+
+        $this->postJson('/api/auth/login', ['email' => 'old@example.com', 'password' => 'secret123'])->assertOk();
+
+        $this->assertSame(0, EmailLog::where('to_email', 'old@example.com')->count());
+    }
 }
