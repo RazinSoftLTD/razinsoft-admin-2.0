@@ -5,8 +5,8 @@
     $tabs = [
         ['label' => 'Configuration', 'route' => 'admin.email.configs', 'active' => 'admin.email.configs*', 'perm' => 'email.configure', 'ready' => true],
         ['label' => 'Templates', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.templates', 'ready' => true],
-        ['label' => 'Queue', 'route' => null, 'perm' => 'email.queue', 'ready' => false],
-        ['label' => 'Logs', 'route' => null, 'perm' => 'email.logs', 'ready' => false],
+        ['label' => 'Queue', 'route' => 'admin.email.queue', 'active' => 'admin.email.queue*', 'perm' => 'email.queue', 'ready' => true],
+        ['label' => 'Logs', 'route' => 'admin.email.logs', 'active' => 'admin.email.logs*', 'perm' => 'email.logs', 'ready' => true],
         ['label' => 'Analytics', 'route' => null, 'perm' => 'email.analytics', 'ready' => false],
         ['label' => 'Notification Rules', 'route' => null, 'perm' => 'email.rules', 'ready' => false],
     ];

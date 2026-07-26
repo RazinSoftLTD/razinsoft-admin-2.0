@@ -117,3 +117,7 @@ Route::middleware(['auth:sanctum', 'client.active'])->group(function () {
     Route::get('/account/products/{product}/source', [AccountController::class, 'downloadSource'])
         ->middleware('signed')->name('account.source.download');
 });
+
+// ---- Bounce / complaint reports from the sending provider. Public by necessity, so it is
+//      guarded by a shared secret (EMAIL_WEBHOOK_SECRET) rather than the session. ----
+Route::post('/email/webhook', \App\Http\Controllers\Api\EmailWebhookController::class)->name('email.webhook');

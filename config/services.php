@@ -49,4 +49,10 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
 
+
+    // Shared secret for the bounce/complaint webhook. Unset means the endpoint stays closed.
+    'email_webhook' => [
+        'secret' => env('EMAIL_WEBHOOK_SECRET'),
+    ],
+
 ];

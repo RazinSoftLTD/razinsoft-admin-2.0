@@ -801,6 +801,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('templates/{template}', [$et, 'destroy'])->whereNumber('template')->name('templates.destroy');
         Route::get('templates/{template}/preview', [$et, 'preview'])->whereNumber('template')->name('templates.preview');
         Route::post('templates/{template}/send-test', [$et, 'sendTest'])->whereNumber('template')->name('templates.send-test');
+
+        $el = \App\Http\Controllers\Admin\EmailLogController::class;
+        Route::get('queue', [$el, 'queue'])->name('queue');
+        Route::post('queue/retry-all', [$el, 'retryAll'])->name('queue.retry-all');
+        Route::get('logs', [$el, 'index'])->name('logs');
+        Route::get('logs/{log}', [$el, 'show'])->whereNumber('log')->name('logs.show');
+        Route::get('logs/{log}/body', [$el, 'body'])->whereNumber('log')->name('logs.body');
+        Route::post('logs/{log}/retry', [$el, 'retry'])->whereNumber('log')->name('logs.retry');
+        Route::post('logs/{log}/cancel', [$el, 'cancel'])->whereNumber('log')->name('logs.cancel');
+        Route::post('logs/{log}/resend', [$el, 'resend'])->whereNumber('log')->name('logs.resend');
+        Route::delete('logs/{log}', [$el, 'destroy'])->whereNumber('log')->name('logs.destroy');
+        Route::get('suppressions', [$el, 'suppressions'])->name('suppressions');
+        Route::post('suppressions', [$el, 'addSuppression'])->name('suppressions.store');
+        Route::delete('suppressions/{suppression}', [$el, 'removeSuppression'])->whereNumber('suppression')->name('suppressions.destroy');
     });
 
         Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');
