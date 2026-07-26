@@ -4,7 +4,7 @@
 @section('content')
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">Biometric Devices</h1>
+            <h1 class="text-xl font-bold text-[var(--color-heading)]">HR Settings &rsaquo; Biometric Devices</h1>
             <p class="mt-1 text-sm text-[var(--color-muted)]">ZKTeco readers, the employee IDs enrolled on them, and the punch logs they produced.</p>
         </div>
         <button type="button" @click="$dispatch('open-device')" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
@@ -12,7 +12,7 @@
         </button>
     </div>
 
-    @include('admin.attendance._nav')
+    @include('admin.attendance._settings-nav')
 
     @unless ($settings->biometric_enabled)
         <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

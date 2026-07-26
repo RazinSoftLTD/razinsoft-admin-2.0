@@ -3,11 +3,11 @@
 
 @section('content')
     <div class="mb-5">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">HR &rsaquo; Attendance Settings</h1>
+        <h1 class="text-xl font-bold text-[var(--color-heading)]">HR Settings &rsaquo; Attendance</h1>
         <p class="mt-1 text-sm text-[var(--color-muted)]">Turn methods on or off and set the office hours everything is measured against.</p>
     </div>
 
-    @include('admin.attendance._nav')
+    @include('admin.attendance._settings-nav')
 
     <form method="POST" action="{{ route('admin.attendance.settings.update') }}" class="max-w-3xl space-y-6">
         @csrf @method('PUT')

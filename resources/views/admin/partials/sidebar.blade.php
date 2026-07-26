@@ -149,6 +149,7 @@
             ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'active' => 'admin.roles.*', 'admin' => true, 'icon' => $ic['roles']],
             ['label' => 'CRM Settings', 'route' => 'admin.crm-settings', 'active' => 'admin.crm-settings*', 'perm' => 'leads.settings', 'icon' => $ic['crm']],
             ['label' => 'Project Config', 'route' => 'admin.project-config', 'active' => 'admin.project-config*', 'perm' => 'projects.settings', 'icon' => $ic['projects']],
+            ['label' => 'HR Settings', 'route' => 'admin.attendance.settings', 'active' => ['admin.attendance.settings', 'admin.attendance.devices'], 'perm' => 'attendance.settings', 'icon' => $ic['hr']],
             ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
