@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create('billing_addresses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('label')->nullable();            // "Home", "Office" — the customer's own name for it
+            $table->string('label', 20)->default('other');  // home | office | other
             $table->string('full_name')->nullable();
             $table->string('company')->nullable();
             $table->string('phone', 40)->nullable();
@@ -41,6 +41,8 @@ return new class extends Migration
         foreach ($customers as $c) {
             \Illuminate\Support\Facades\DB::table('billing_addresses')->insert([
                 'user_id' => $c->id,
+                // Nothing on the profile said what kind of address it is.
+                'label' => 'other',
                 'full_name' => $c->name,
                 'company' => $c->company,
                 'phone' => $c->phone,

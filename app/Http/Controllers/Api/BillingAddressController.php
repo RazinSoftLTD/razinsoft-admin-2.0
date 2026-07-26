@@ -57,12 +57,19 @@ class BillingAddressController extends Controller
 
     private function all(Request $request): array
     {
-        return BillingAddress::where('user_id', $request->user()->id)
+        $addresses = BillingAddress::where('user_id', $request->user()->id)
             ->orderByDesc('is_default')->orderBy('id')
-            ->get()
+            ->get();
+
+        // "Home 1"/"Home 2" once a type repeats — worked out over the whole set, so the dashboard
+        // and the checkout dropdown always show the same name for the same address.
+        $names = BillingAddress::displayNames($addresses);
+
+        return $addresses
             ->map(fn (BillingAddress $a) => [
                 'id' => $a->id,
                 'label' => $a->label,
+                'display_label' => $names[$a->id] ?? $a->labelName(),
                 'full_name' => $a->full_name,
                 'company' => $a->company,
                 'phone' => $a->phone,
@@ -80,7 +87,7 @@ class BillingAddressController extends Controller
     private function validated(Request $request): array
     {
         return $request->validate([
-            'label' => ['nullable', 'string', 'max:60'],
+            'label' => ['required', \Illuminate\Validation\Rule::in(array_keys(BillingAddress::LABELS))],
             'full_name' => ['nullable', 'string', 'max:150'],
             'company' => ['nullable', 'string', 'max:150'],
             'phone' => ['nullable', 'string', 'max:40'],

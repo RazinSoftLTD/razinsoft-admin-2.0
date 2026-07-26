@@ -8,13 +8,46 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** One saved billing address belonging to a customer. Exactly one of theirs is the default. */
 class BillingAddress extends Model
 {
+    /** The only labels a customer can pick. Free text let every address be named differently. */
+    public const LABELS = ['home' => 'Home', 'office' => 'Office', 'other' => 'Other'];
+
     protected $guarded = [];
 
     protected $casts = ['is_default' => 'boolean'];
 
+    public function labelName(): string
+    {
+        return self::LABELS[$this->label] ?? self::LABELS['other'];
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Display names for one customer's addresses, keyed by id: "Home", "Office" — and "Home 1",
+     * "Home 2" once a type repeats, so two homes are still tellable apart in a dropdown.
+     *
+     * Numbered by id, not by the display order, so a name does not change when another address
+     * is made the default.
+     *
+     * @param  \Illuminate\Support\Collection<int, self>  $addresses
+     * @return array<int, string>
+     */
+    public static function displayNames($addresses): array
+    {
+        $byLabel = $addresses->sortBy('id')->groupBy(fn (self $a) => $a->label ?: 'other');
+        $names = [];
+
+        foreach ($byLabel as $group) {
+            $many = $group->count() > 1;
+            foreach ($group->values() as $i => $a) {
+                $names[$a->id] = $a->labelName().($many ? ' '.($i + 1) : '');
+            }
+        }
+
+        return $names;
     }
 
     /** "12 Gulshan Ave, Dhaka, Dhaka, 1212, Bangladesh" — one line, blanks skipped. */
