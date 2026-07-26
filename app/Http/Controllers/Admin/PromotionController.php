@@ -117,6 +117,7 @@ class PromotionController extends Controller
         if ($type === Promotion::TYPE_TOP_BANNER) {
             $rules['mobile_image'] = ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('banner_mobile')];
             $messages['mobile_image.dimensions'] = \App\Support\ImageSpecs::message('banner_mobile', 'mobile image');
+            $rules['banner_bg_color'] = ['nullable', 'string', 'max:7', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'];
         }
 
         $data = $request->validate($rules, $messages);

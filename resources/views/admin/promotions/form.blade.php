@@ -61,6 +61,19 @@
                     </p>
                     @error('mobile_image')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
+
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Side strip colour</label>
+                    <div class="flex items-center gap-3">
+                        <input type="color" name="banner_bg_color" value="{{ old('banner_bg_color', $promotion->banner_bg_color ?? '#f5a238') }}" class="h-10 w-16 cursor-pointer rounded-lg border border-gray-200 p-1">
+                        <p class="text-xs text-[var(--color-muted)]">
+                            The banner sits inside the page width so its artwork lines up with the logo and the menu.
+                            On wide screens this colour fills the strip either side — pick the colour at the very edge
+                            of the artwork and the band still looks edge-to-edge.
+                        </p>
+                    </div>
+                    @error('banner_bg_color')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
             @endunless
 
             <div class="grid gap-5 sm:grid-cols-2">

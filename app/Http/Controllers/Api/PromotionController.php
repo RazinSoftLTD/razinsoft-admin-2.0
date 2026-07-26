@@ -20,6 +20,8 @@ class PromotionController extends Controller
                     'image' => ProductResource::media($topBanner->image),
                     // Optional 6:1 phone artwork; null means phones use the wide image.
                     'mobile_image' => $topBanner->mobile_image ? ProductResource::media($topBanner->mobile_image) : null,
+                    // Fills the strip either side of the container-width artwork on wide screens.
+                    'bg_color' => $topBanner->banner_bg_color,
                     'ends_at' => $topBanner->ends_at?->toIso8601String(),
                     'countdown_enabled' => (bool) $topBanner->countdown_enabled,
                     // null/blank means the admin deliberately cleared it — hide the title, not fall back to a default.
