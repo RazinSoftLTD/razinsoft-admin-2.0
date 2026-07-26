@@ -9,18 +9,45 @@
 @section('content')
     <div x-data="{ tab: '{{ $tab }}', tpl: { open: false, id: null, title: '', body: '' } }">
 
-        {{-- Add New Agents (agents tab) --}}
+        {{-- Add New Agents (agents tab). Multi-select: an employee only appears in the table
+             below once added, so adding them one at a time made a whole team tedious. --}}
         <div x-show="tab === 'agents'" class="mb-4">
-            <form method="POST" action="{{ route('admin.tickets.settings.agents.store') }}" class="inline-flex items-center gap-2">
-                @csrf
-                <select name="user_id" required class="h-10 w-56 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                    <option value="">Select employee…</option>
-                    @foreach ($addableEmployees as $e)<option value="{{ $e->id }}">{{ $e->name }}</option>@endforeach
-                </select>
-                <button class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add New Agent
-                </button>
-            </form>
+            @if ($addableEmployees->isEmpty())
+                <p class="text-sm text-[var(--color-muted)]">Every employee is already an agent.</p>
+            @else
+                <form method="POST" action="{{ route('admin.tickets.settings.agents.store') }}"
+                      x-data="{ open: false, sel: [], all: @js($addableEmployees->pluck('id')->all()) }"
+                      @click.outside="open = false" class="relative inline-flex items-start gap-2">
+                    @csrf
+                    <div class="relative w-72">
+                        <button type="button" @click="open = !open"
+                                class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left text-sm hover:border-gray-300 focus:border-[var(--color-primary)] focus:outline-none">
+                            <span class="truncate" :class="sel.length ? 'text-[var(--color-heading)]' : 'text-gray-400'"
+                                  x-text="sel.length ? sel.length + ' employee(s) selected' : 'Select employees…'"></span>
+                            <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                        <div x-show="open" x-cloak x-ref="list"
+                             class="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                            <label class="flex cursor-pointer items-center gap-2.5 border-b border-gray-100 px-3 py-2 text-sm font-semibold hover:bg-gray-50">
+                                <input type="checkbox" :checked="sel.length === all.length"
+                                       @change="sel = $event.target.checked ? [...all] : []"
+                                       class="h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)]">
+                                <span class="text-[var(--color-heading)]">Select all ({{ $addableEmployees->count() }})</span>
+                            </label>
+                            @foreach ($addableEmployees as $e)
+                                <label class="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-50">
+                                    <input type="checkbox" name="user_ids[]" value="{{ $e->id }}" x-model.number="sel" class="h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)]">
+                                    <span class="text-[var(--color-heading)]">{{ $e->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                    <button :disabled="!sel.length"
+                            class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add Agents
+                    </button>
+                </form>
+            @endif
         </div>
 
         <div class="rounded-xl border border-gray-100 bg-white shadow-sm">

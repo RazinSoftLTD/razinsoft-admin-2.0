@@ -28,12 +28,23 @@ class TicketSettingController extends Controller
     }
 
     // ---- Agents ----
+    /** Add one or more employees as agents in a single submit. */
     public function storeAgent(Request $request)
     {
-        $data = $request->validate(['user_id' => ['required', 'exists:users,id', Rule::unique('ticket_agents', 'user_id')]]);
-        TicketAgent::create(['user_id' => $data['user_id'], 'status' => 'enabled']);
+        $data = $request->validate([
+            'user_ids' => ['required', 'array', 'min:1'],
+            'user_ids.*' => ['integer', 'exists:users,id'],
+        ]);
 
-        return back()->with('status', 'Agent added.');
+        // firstOrCreate, not create: the unique index would otherwise reject the whole batch
+        // if one of the picked employees was made an agent in another tab meanwhile.
+        $added = 0;
+        foreach (array_unique($data['user_ids']) as $id) {
+            $agent = TicketAgent::firstOrCreate(['user_id' => $id], ['status' => 'enabled']);
+            $added += $agent->wasRecentlyCreated ? 1 : 0;
+        }
+
+        return back()->with('status', $added === 1 ? 'Agent added.' : "{$added} agents added.");
     }
 
     public function updateAgent(Request $request, TicketAgent $agent)
