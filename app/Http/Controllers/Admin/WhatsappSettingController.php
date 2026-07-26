@@ -117,7 +117,6 @@ class WhatsappSettingController extends Controller
             'access_token' => ['nullable', 'string'],
             'app_secret' => ['nullable', 'string', 'max:200'],
             'api_version' => ['nullable', 'string', 'max:10'],
-            'interest_options' => ['nullable', 'string'],
         ]);
 
         $settings = WhatsappSetting::current();
@@ -127,9 +126,7 @@ class WhatsappSettingController extends Controller
                 unset($data[$secret]);
             }
         }
-        // Custom interest/product options: one per line → clean array.
-        $data['interest_options'] = collect(preg_split('/\r\n|\r|\n/', (string) ($data['interest_options'] ?? '')))
-            ->map(fn ($v) => trim($v))->filter()->unique()->values()->all();
+        // Interested-in is the shared Product Category list now; nothing edits interest_options.
 
         $settings->update($data + ['api_version' => $data['api_version'] ?: 'v21.0']);
 

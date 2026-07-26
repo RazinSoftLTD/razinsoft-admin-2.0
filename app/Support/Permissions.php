@@ -96,7 +96,10 @@ class Permissions
         'messages' => ['label' => 'Contact Us', 'group' => 'Content', 'actions' => ['view', 'edit', 'delete']],
         'searches' => ['label' => 'Searches', 'group' => 'Content', 'actions' => ['view', 'delete']],
         // owner = client_id: the ticket's requester. "Owned" scope = tickets the user raised themselves.
-        'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete', 'settings'], 'owner' => 'client_id'],
+        // owner = the agent the ticket is assigned to. It used to be client_id, which made the
+        // "Owned" scope match an employee against the *client* column — so a staff member on
+        // "Owned" saw no tickets at all, even the ones assigned to them.
+        'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete', 'settings'], 'owner' => 'assigned_to'],
         'chat' => ['label' => 'Team Chat', 'group' => 'Support', 'actions' => ['create_group', 'clients']],
         'whatsapp' => ['label' => 'WhatsApp', 'group' => 'Support', 'actions' => ['view', 'reply', 'assign', 'activity', 'settings', 'connection', 'numbers', 'labels', 'webhook', 'quick_replies']],
         'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],

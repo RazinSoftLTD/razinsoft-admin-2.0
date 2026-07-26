@@ -666,17 +666,32 @@
                                         @foreach ($leadQualities as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach
                                     </select>
                                 </div>
-                                {{-- Interested product --}}
+                                {{-- Interested in — the same Product Category / Sub-category the Lead,
+                                     Deal and Client forms use, so a converted chat carries them across.
+                                     Sub-category only appears when the chosen category has one. --}}
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-500">Interested in</label>
-                                    <select x-model="form.interested_product" class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
-                                        <option value="">— Select a product —</option>
-                                        <template x-if="form.interested_product && !{{ \Illuminate\Support\Js::from($interestOptions) }}.includes(form.interested_product)">
-                                            <option :value="form.interested_product" x-text="form.interested_product"></option>
+                                    <select x-model="form.product_category" @change="form.product_sub_category = ''"
+                                            class="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-emerald-400 focus:outline-none">
+                                        <option value="">— Select a category —</option>
+                                        <template x-if="form.product_category && !Object.keys(categoryTree).includes(form.product_category)">
+                                            <option :value="form.product_category" x-text="form.product_category"></option>
                                         </template>
-                                        @foreach ($interestOptions as $opt)<option value="{{ $opt }}">{{ $opt }}</option>@endforeach
+                                        @foreach (array_keys($categoryTree) as $cat)<option value="{{ $cat }}">{{ $cat }}</option>@endforeach
                                     </select>
-                                    <p class="mt-1 text-[10px] text-gray-300">Manage options in Settings › WhatsApp Config.</p>
+                                    @if (! count($categoryTree))
+                                        <p class="mt-1 text-[10px] text-gray-300">None yet — add them in Settings › CRM Settings › Product Categories.</p>
+                                    @endif
+                                </div>
+                                <div x-show="subCategories.length" x-cloak>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">Sub-category</label>
+                                    <select x-model="form.product_sub_category"
+                                            class="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-emerald-400 focus:outline-none">
+                                        <option value="">— Select a sub-category —</option>
+                                        <template x-for="s in subCategories" :key="s">
+                                            <option :value="s" x-text="s"></option>
+                                        </template>
+                                    </select>
                                 </div>
                                 <button type="button" @click="saveDetails()" :disabled="savingDetails"
                                         class="w-full rounded-lg bg-emerald-500 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50">
@@ -789,7 +804,15 @@
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
                 showInfo: false, search: '', filter: 'all',
-                form: { name: '', phone: '', lead_quality: '', interested_product: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
+                form: { name: '', phone: '', lead_quality: '', product_category: '', product_sub_category: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
+                // Shared Product Category tree from Settings > CRM Settings.
+                categoryTree: @js($categoryTree),
+                get subCategories() {
+                    const list = this.categoryTree[this.form.product_category] ? [...this.categoryTree[this.form.product_category]] : [];
+                    // a value saved before its sub-category was removed must still be visible
+                    if (this.form.product_sub_category && !list.includes(this.form.product_sub_category)) list.push(this.form.product_sub_category);
+                    return list;
+                },
                 newChat: { open: false, number: '', busy: false, error: '' }, members: [], membersLoading: false,
                 mentionOpen: false, mentionJids: [],
                 lightbox: { open: false, index: 0, items: [] }, lbTouch: 0, replyTo: null,
@@ -920,7 +943,8 @@
                         name: d.chat.raw_name || '',
                         phone: (d.chat.phone || '').replace(/^\+/, ''),
                         lead_quality: d.chat.lead_quality || '',
-                        interested_product: d.chat.interested_product || '',
+                        product_category: d.chat.product_category || '',
+                        product_sub_category: d.chat.product_sub_category || '',
                     };
                     if (!silent) { this.replyTo = null; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
@@ -1128,13 +1152,15 @@
                     this.savingDetails = true;
                     try {
                         const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/details', {
-                            name: this.form.name, phone: this.form.phone, lead_quality: this.form.lead_quality, interested_product: this.form.interested_product,
+                            name: this.form.name, phone: this.form.phone, lead_quality: this.form.lead_quality,
+                            product_category: this.form.product_category, product_sub_category: this.form.product_sub_category,
                         });
                         if (r.ok) {
                             const d = await r.json();
                             this.active.name = d.name; this.active.initials = d.initials;
                             this.active.phone = d.phone; this.active.country = d.country;
-                            this.active.lead_quality = d.lead_quality; this.active.interested_product = d.interested_product;
+                            this.active.lead_quality = d.lead_quality;
+                            this.active.product_category = d.product_category; this.active.product_sub_category = d.product_sub_category;
                             this.loadChats();
                         } else { alert((await r.json()).message || 'Could not save.'); }
                     } catch { alert('Could not save.'); } finally { this.savingDetails = false; }

@@ -35,7 +35,7 @@ class WhatsappController extends Controller
             'agents' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
             'settings' => WhatsappSetting::current(),
-            'interestOptions' => $this->interestOptions(),
+            'categoryTree' => \App\Models\ProductCategory::subMap(),
             'leadQualities' => WhatsappChat::LEAD_QUALITIES,
             'stats' => [
                 'open' => WhatsappChat::whereIn('account_id', $ids)->where('status', 'open')->count(),
@@ -520,7 +520,8 @@ class WhatsappController extends Controller
             'name' => ['nullable', 'string', 'max:191'],
             'phone' => ['nullable', 'string', 'max:32'],
             'lead_quality' => ['nullable', Rule::in(array_keys(WhatsappChat::LEAD_QUALITIES))],
-            'interested_product' => ['nullable', 'string', 'max:191'],
+            'product_category' => ['nullable', 'string', 'max:191'],
+            'product_sub_category' => ['nullable', 'string', 'max:191'],
         ]);
 
         // Normalise a manually entered number to digits (keep it E.164-ish, no spaces/dashes).
@@ -539,7 +540,8 @@ class WhatsappController extends Controller
             'name' => filled($data['name'] ?? null) ? $data['name'] : null,
             'phone' => $phone ?: ($chat->isGroup() ? null : $chat->phone),
             'lead_quality' => $data['lead_quality'] ?? null,
-            'interested_product' => $data['interested_product'] ?? null,
+            'product_category' => $data['product_category'] ?? null,
+            'product_sub_category' => $data['product_sub_category'] ?? null,
         ]);
 
         return response()->json([
@@ -549,7 +551,8 @@ class WhatsappController extends Controller
             'phone' => $chat->realNumber() ? '+'.$chat->realNumber() : null,
             'country' => $chat->country(),
             'lead_quality' => $chat->lead_quality,
-            'interested_product' => $chat->interested_product,
+            'product_category' => $chat->product_category,
+            'product_sub_category' => $chat->product_sub_category,
         ]);
     }
 
@@ -619,6 +622,9 @@ class WhatsappController extends Controller
                 'is_whatsapp' => true,
                 'lead_source' => 'WhatsApp',
                 'lead_status' => $status,
+                'product_category' => $chat->product_category,
+                'product_sub_category' => $chat->product_sub_category,
+                // Pre-category chats kept the interest as free text; keep that visible on the lead.
                 'notes' => $chat->interested_product ? 'Interested in: '.$chat->interested_product : null,
                 'assigned_to' => $chat->assigned_to,
                 'added_by' => $request->user()->id,
@@ -661,14 +667,6 @@ class WhatsappController extends Controller
     }
 
     /** Product names (live) plus any custom options an admin added in WhatsApp settings. */
-    private function interestOptions(): array
-    {
-        $products = \App\Models\Product::query()->orderBy('name')->pluck('name')->all();
-        $custom = WhatsappSetting::current()->interest_options ?: [];
-
-        return collect($products)->merge($custom)->filter()->unique()->values()->all();
-    }
-
     // ---------------------------------------------------------------- internals
 
     private function chatList(Request $request)
@@ -703,6 +701,7 @@ class WhatsappController extends Controller
                     ->orWhere('wa_id', 'like', "%{$search}%")
                     ->orWhere('last_message_preview', 'like', "%{$search}%")
                     ->orWhere('interested_product', 'like', "%{$search}%")
+                    ->orWhere('product_category', 'like', "%{$search}%")
                     // Match anything the client actually wrote in the conversation.
                     ->orWhereHas('messages', fn ($m) => $m->where('body', 'like', "%{$search}%"));
                 if ($digits !== '') {
@@ -741,6 +740,8 @@ class WhatsappController extends Controller
             'last_seen' => $c->last_message_at?->diffForHumans(),
             'lead_quality' => $c->lead_quality,
             'interested_product' => $c->interested_product,
+            'product_category' => $c->product_category,
+            'product_sub_category' => $c->product_sub_category,
             'raw_name' => $c->name,
             'lead' => $this->leadLink($c),
             'client' => $c->client ? ['name' => $c->client->name, 'email' => $c->client->email, 'phone' => $c->client->phone, 'company' => $c->client->company] : null,

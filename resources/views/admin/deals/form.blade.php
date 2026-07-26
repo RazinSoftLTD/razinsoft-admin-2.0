@@ -52,10 +52,8 @@
                         </div>
                     </div>
                     <div class="space-y-5 p-6">
-                        <div class="grid gap-5 sm:grid-cols-3">
-                            <div class="sm:col-span-2"><x-admin.field label="Deal Title" name="title" :value="$deal->title" required placeholder="e.g. Acme — Website Project" /></div>
-                            <x-admin.field label="Project Type" name="project_type" type="select" :value="$deal->project_type" :options="['' => 'Select…'] + array_combine(\App\Models\Deal::PROJECT_TYPES, \App\Models\Deal::PROJECT_TYPES)" />
-                        </div>
+                        {{-- Title first on its own line, then the product it is for. --}}
+                        <x-admin.field label="Deal Title" name="title" :value="$deal->title" required placeholder="e.g. Acme — Website Project" />
                         <x-admin.product-category-fields :category="old('product_category', $deal->product_category)" :sub-category="old('product_sub_category', $deal->product_sub_category)" />
                         <x-admin.field label="Notes" name="notes" type="textarea" rows="4" :value="$deal->notes" placeholder="Scope, requirements, next steps…" />
                     </div>
