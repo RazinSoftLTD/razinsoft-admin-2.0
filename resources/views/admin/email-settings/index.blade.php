@@ -56,9 +56,30 @@
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Username</label>
                         <input name="username" value="{{ old('username', $settings->username) }}" autocomplete="off" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm">
                     </div>
-                    <div class="sm:col-span-2">
+                    {{-- The saved password is filled in rather than left blank: an empty box made it
+                         look as though nothing had been stored. Hidden by default, with a toggle to
+                         check it against the mail provider. --}}
+                    <div class="sm:col-span-2" x-data="{ show: false }">
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Password</label>
-                        <input name="password" type="password" autocomplete="new-password" placeholder="{{ $settings->password ? '•••••••• (leave blank to keep)' : 'App password / SMTP password' }}" class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                        <div class="relative">
+                            <input name="password" :type="show ? 'text' : 'password'"
+                                   value="{{ old('password', $settings->password) }}"
+                                   autocomplete="new-password"
+                                   placeholder="App password / SMTP password"
+                                   class="h-11 w-full rounded-lg border border-gray-200 px-3 pr-10 text-sm">
+                            <button type="button" @click="show = !show"
+                                    :title="show ? 'Hide password' : 'Show password'"
+                                    class="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                <svg x-show="!show" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-7 9.75-7 9.75 7 9.75 7-3.5 7-9.75 7S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="2.75"/></svg>
+                                <svg x-show="show" x-cloak class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 10.6a2.75 2.75 0 0 0 3.8 3.8M9.9 5.2A9.6 9.6 0 0 1 12 5c6.25 0 9.75 7 9.75 7a17 17 0 0 1-3.1 4M6.5 6.7A17 17 0 0 0 2.25 12S5.75 19 12 19c1.2 0 2.3-.26 3.3-.68"/></svg>
+                            </button>
+                        </div>
+                        @if ($settings->password)
+                            <p class="mt-1 flex items-center gap-1 text-xs text-emerald-600">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
+                                Saved — stored encrypted.
+                            </p>
+                        @endif
                     </div>
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">From address</label>

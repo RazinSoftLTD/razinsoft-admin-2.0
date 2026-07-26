@@ -38,9 +38,11 @@ class EmailSettingController extends Controller
         $settings->host = $data['host'] ?? null;
         $settings->port = $data['port'];
         $settings->username = $data['username'] ?? null;
-        // Only overwrite the password when a new one is typed (blank leaves it unchanged).
-        if ($request->filled('password')) {
-            $settings->password = $data['password'];
+        // The form posts the saved password back, so whatever arrives is what the admin wants —
+        // including an emptied box, which means "remove it". Only a request without the field at
+        // all (an older form, or the API) leaves the stored one alone.
+        if ($request->has('password')) {
+            $settings->password = $data['password'] ?: null;
         }
         $settings->encryption = ($data['encryption'] ?? 'none') === 'none' ? null : $data['encryption'];
         $settings->from_address = $data['from_address'] ?? null;
