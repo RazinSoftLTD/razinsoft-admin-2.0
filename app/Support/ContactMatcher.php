@@ -50,8 +50,9 @@ class ContactMatcher
         // One fetch for every client we might link to (respecting the actor's scope).
         $ids = $clientNumbers->pluck('contactable_id')->merge($byEmail->values())->unique()->all();
         $clients = $ids
-            ? User::clients()->clientVisibleTo($actor)->with('contactNumbers')->whereIn('id', $ids)
-                ->get(['id', 'name', 'email', 'company', 'phone', 'dial_code', 'client_code'])->keyBy('id')
+            // No explicit column list: `client_code` only exists on some installs and MySQL
+            // errors on a missing column (SQLite quietly ignores it, which hid this locally).
+            ? User::clients()->clientVisibleTo($actor)->with('contactNumbers')->whereIn('id', $ids)->get()->keyBy('id')
             : collect();
 
         $clientIdsByE164 = $clientNumbers->groupBy('e164')->map(fn ($rows) => $rows->pluck('contactable_id')->unique());
