@@ -48,9 +48,9 @@ class EmailTemplate extends Model
         $data = array_merge(self::globalValues(), $data);
 
         return [
-            'subject' => self::fill($this->subject, $data),
-            'html' => self::fill($this->body, $data),
-            'text' => $this->body_text ? self::fill($this->body_text, $data) : '',
+            'subject' => self::interpolate($this->subject, $data),
+            'html' => self::interpolate($this->body, $data),
+            'text' => $this->body_text ? self::interpolate($this->body_text, $data) : '',
         ];
     }
 
@@ -58,7 +58,9 @@ class EmailTemplate extends Model
     public static function globalValues(): array
     {
         return [
-            'company_name' => config('app.name'),
+            // The brand set in Invoice Configuration — the name customers already see on
+            // their invoices — rather than APP_NAME, which is a developer setting.
+            'company_name' => InvoiceSetting::current()->brand_name ?: config('app.name'),
             'app_url' => config('app.url'),
             'login_url' => rtrim((string) config('app.url'), '/').'/login',
             'current_year' => now()->format('Y'),
@@ -70,7 +72,7 @@ class EmailTemplate extends Model
      * Replace {{name}} / {{ name }}. Anything the caller didn't supply is blanked rather than left
      * showing its braces — a customer seeing "{{invoice_number}}" is worse than seeing nothing.
      */
-    public static function fill(?string $text, array $data): string
+    public static function interpolate(?string $text, array $data): string
     {
         $text = (string) $text;
 

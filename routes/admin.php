@@ -792,6 +792,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('configs/{config}/default', [$ec, 'makeDefault'])->whereNumber('config')->name('configs.default');
         Route::post('configs/{config}/test', [$ec, 'test'])->whereNumber('config')->name('configs.test');
         Route::post('configs/{config}/send-test', [$ec, 'sendTest'])->whereNumber('config')->name('configs.send-test');
+
+        $et = \App\Http\Controllers\Admin\EmailTemplateController::class;
+        Route::get('templates', [$et, 'index'])->name('templates');
+        Route::post('templates', [$et, 'store'])->name('templates.store');
+        Route::get('templates/{template}/edit', [$et, 'edit'])->whereNumber('template')->name('templates.edit');
+        Route::put('templates/{template}', [$et, 'update'])->whereNumber('template')->name('templates.update');
+        Route::delete('templates/{template}', [$et, 'destroy'])->whereNumber('template')->name('templates.destroy');
+        Route::get('templates/{template}/preview', [$et, 'preview'])->whereNumber('template')->name('templates.preview');
+        Route::post('templates/{template}/send-test', [$et, 'sendTest'])->whereNumber('template')->name('templates.send-test');
     });
 
         Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');

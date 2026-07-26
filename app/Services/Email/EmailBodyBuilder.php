@@ -21,7 +21,13 @@ class EmailBodyBuilder
      */
     public static function toPlainText(string $html): string
     {
-        $text = preg_replace('/<(script|style)\b[^>]*>.*?<\/\1>/is', '', $html) ?? $html;
+        // <head> is never body text — its <title> would otherwise be repeated as the first line.
+        $text = preg_replace('/<head\b[^>]*>.*?<\/head>/is', '', $html) ?? $html;
+        $text = preg_replace('/<(script|style)\b[^>]*>.*?<\/\1>/is', '', $text) ?? $text;
+
+        // Drop anything hidden in the HTML — the preheader line is display:none on purpose, and
+        // repeating it as the first thing in the text part reads like a mistake.
+        $text = preg_replace('/<(\w+)[^>]*style=["\'][^"\']*display\s*:\s*none[^"\']*["\'][^>]*>.*?<\/\1>/is', '', $text) ?? $text;
 
         // Keep where a link pointed: "Pay now (https://…)".
         $text = preg_replace_callback(

@@ -4,7 +4,7 @@
     $u = auth()->user();
     $tabs = [
         ['label' => 'Configuration', 'route' => 'admin.email.configs', 'active' => 'admin.email.configs*', 'perm' => 'email.configure', 'ready' => true],
-        ['label' => 'Templates', 'route' => 'admin.email-settings', 'active' => 'admin.email-settings*', 'perm' => 'email.templates', 'ready' => true],
+        ['label' => 'Templates', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.templates', 'ready' => true],
         ['label' => 'Queue', 'route' => null, 'perm' => 'email.queue', 'ready' => false],
         ['label' => 'Logs', 'route' => null, 'perm' => 'email.logs', 'ready' => false],
         ['label' => 'Analytics', 'route' => null, 'perm' => 'email.analytics', 'ready' => false],
