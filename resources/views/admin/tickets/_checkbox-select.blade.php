@@ -2,6 +2,11 @@
     Smooth multi-select as a checkbox dropdown. Check/uncheck several, then it saves
     once when you click away or close it (one request, not one per toggle).
 
+    The panel is positioned `fixed` from the trigger's rect rather than absolutely inside
+    the cell: the tables it sits in are wrapped in overflow-hidden / overflow-x-auto, which
+    clipped an absolute panel — badly on the last rows, where it had nowhere to go. Being
+    fixed, it also flips above the trigger when the space below runs out.
+
     Params:
       $action      form action URL (PATCH)
       $name        array field name, e.g. 'group_ids' or 'agent_ids'
@@ -14,23 +19,37 @@
 <div x-data="{
         open: false,
         dirty: false,
+        style: '',
+        place() {
+            const r = this.$refs.trigger.getBoundingClientRect();
+            const panel = 240;                                  // max-height below
+            const below = window.innerHeight - r.bottom - 12;
+            const above = r.top - 12;
+            const drop = below >= 160 || below >= above;        // enough room, or still the roomier side
+            const h = Math.max(120, Math.min(panel, drop ? below : above));
+            this.style = `left:${r.left}px; width:${r.width}px; max-height:${h}px; `
+                + (drop ? `top:${r.bottom + 4}px` : `bottom:${window.innerHeight - r.top + 4}px`);
+        },
+        toggle() { this.open ? this.close() : (this.place(), this.open = true); },
         close() {
             if (!this.open) return;
             this.open = false;
             if (this.dirty) { this.dirty = false; this.$refs.form.requestSubmit(); }
         },
      }"
-     @click.outside="close()" @keydown.escape="close()" class="relative w-72">
+     @click.outside="close()" @keydown.escape="close()"
+     @scroll.window="open && place()" @resize.window="open && place()"
+     class="w-72">
     <form method="POST" action="{{ $action }}" x-ref="form">
         @csrf @method('PATCH')
         <input type="hidden" name="{{ $syncFlag }}" value="1">
-        <button type="button" @click="open ? close() : (open = true)"
+        <button type="button" x-ref="trigger" @click="toggle()"
                 class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm hover:border-gray-300 focus:border-[var(--color-primary)] focus:outline-none">
             <span class="truncate {{ $summary ? 'text-[var(--color-heading)]' : 'text-gray-400' }}">{{ $summary ?: $placeholder }}</span>
             <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform" :class="open && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
         </button>
-        <div x-show="open" x-cloak x-transition.opacity.duration.100ms
-             class="absolute left-0 right-0 z-30 mt-1 max-h-56 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+        <div x-show="open" x-cloak x-transition.opacity.duration.100ms :style="style"
+             class="fixed z-50 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl ring-1 ring-black/5">
             @forelse ($options as $opt)
                 <label class="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-50">
                     <input type="checkbox" name="{{ $name }}[]" value="{{ $opt['value'] }}" @checked($opt['checked'])
