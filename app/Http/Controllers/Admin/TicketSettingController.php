@@ -24,6 +24,8 @@ class TicketSettingController extends Controller
             'types' => TicketType::with('agents.user')->orderBy('name')->get(),
             'templates' => ReplyTemplate::latest()->get(),
             'addableEmployees' => User::assignable()->whereNotIn('id', $agentUserIds)->orderBy('name')->get(['id', 'name']),
+            // Every employee can be picked per category; the agent record is created on demand.
+            'assignableEmployees' => User::assignable()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -86,8 +88,9 @@ class TicketSettingController extends Controller
     {
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:120', Rule::unique('ticket_types', 'name')->ignore($type->id)],
+            // user ids, not ticket_agent ids: the picker lists every employee.
             'agent_ids' => ['sometimes', 'array'],
-            'agent_ids.*' => ['exists:ticket_agents,id'],
+            'agent_ids.*' => ['integer', 'exists:users,id'],
         ]);
         if (array_key_exists('name', $data)) {
             $type->update(['name' => $data['name']]);
@@ -95,7 +98,12 @@ class TicketSettingController extends Controller
         // sync_agents marks a submit from the agent picker, so unchecking the last agent
         // (no agent_ids key at all) still syncs to an empty set instead of being ignored.
         if ($request->has('agent_ids') || $request->boolean('sync_agents')) {
-            $type->agents()->sync($data['agent_ids'] ?? []);
+            // Picking someone who has never handled a ticket makes them an agent here, so the
+            // category picker is not gated behind a separate trip to the Ticket Agents tab.
+            $agentIds = collect($data['agent_ids'] ?? [])->unique()
+                ->map(fn ($userId) => TicketAgent::firstOrCreate(['user_id' => $userId], ['status' => 'enabled'])->id)
+                ->all();
+            $type->agents()->sync($agentIds);
         }
 
         return back()->with('status', 'Ticket type updated.');

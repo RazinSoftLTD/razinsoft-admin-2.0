@@ -143,14 +143,17 @@
                                         </form>
                                     </td>
                                     <td class="px-5 py-3">
+                                        {{-- Every employee is listed, not just people already on the
+                                             Ticket Agents tab; picking one creates their agent record. --}}
+                                        @php $typeUserIds = $t->agents->pluck('user_id'); @endphp
                                         @include('admin.tickets._checkbox-select', [
                                             'action' => route('admin.tickets.settings.types.update', $t),
                                             'name' => 'agent_ids',
                                             'syncFlag' => 'sync_agents',
                                             'placeholder' => 'Select agents…',
-                                            'summary' => $t->agents->map(fn ($a) => $a->user->name)->join(', '),
-                                            'empty' => 'No agents yet — add one in the Ticket Agents tab.',
-                                            'options' => $agents->map(fn ($a) => ['value' => $a->id, 'label' => $a->user->name, 'checked' => $t->agents->contains($a->id)]),
+                                            'summary' => $t->agents->map(fn ($a) => $a->user?->name)->filter()->join(', '),
+                                            'empty' => 'No employees found.',
+                                            'options' => $assignableEmployees->map(fn ($u) => ['value' => $u->id, 'label' => $u->name, 'checked' => $typeUserIds->contains($u->id)]),
                                         ])
                                     </td>
                                     <td class="px-5 py-3 text-right">
