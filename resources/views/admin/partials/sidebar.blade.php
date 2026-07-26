@@ -114,7 +114,7 @@
             ['label' => 'Designation', 'route' => 'admin.designations.index', 'active' => 'admin.designations.*', 'perm' => 'designations.view', 'icon' => $ic['designation']],
             ['label' => 'Department', 'route' => 'admin.departments.index', 'active' => 'admin.departments.*', 'perm' => 'departments.view', 'icon' => $ic['hr']],
             ['label' => 'Leave', 'route' => 'admin.leaves.index', 'active' => 'admin.leaves.*', 'perm' => 'leave.view', 'icon' => $ic['leave']],
-            ['label' => 'Attendance', 'soon' => true, 'icon' => $ic['attendance']],
+            ['label' => 'Attendance', 'route' => 'admin.attendance.index', 'active' => 'admin.attendance.*', 'perm' => 'attendance.view', 'icon' => $ic['attendance']],
             ['label' => 'Holiday', 'soon' => true, 'icon' => $ic['holiday']],
             ['label' => 'Separation', 'soon' => true, 'icon' => $ic['separation']],
         ]],

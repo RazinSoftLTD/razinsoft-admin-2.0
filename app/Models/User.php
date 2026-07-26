@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'dial_code', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'note', 'password', 'status', 'role', 'role_id', 'permissions', 'employee_code', 'salutation', 'designation_id', 'department_id', 'reporting_to', 'account_manager_id', 'created_by', 'is_private', 'made_private_by', 'language', 'joining_date', 'date_of_birth', 'about', 'employment_type', 'probation_end_date', 'notice_start_date', 'notice_end_date', 'receive_email_notifications', 'last_seen_at', 'gender', 'website', 'tax_name', 'gst_number', 'office_phone', 'client_category', 'client_sub_category', 'shipping_address', 'import_batch', 'client_label'])]
+#[Fillable(['name', 'email', 'phone', 'dial_code', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'note', 'password', 'status', 'role', 'role_id', 'permissions', 'employee_code', 'biometric_id', 'salutation', 'designation_id', 'department_id', 'reporting_to', 'account_manager_id', 'created_by', 'is_private', 'made_private_by', 'language', 'joining_date', 'date_of_birth', 'about', 'employment_type', 'probation_end_date', 'notice_start_date', 'notice_end_date', 'receive_email_notifications', 'last_seen_at', 'gender', 'website', 'tax_name', 'gst_number', 'office_phone', 'client_category', 'client_sub_category', 'shipping_address', 'import_batch', 'client_label'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {

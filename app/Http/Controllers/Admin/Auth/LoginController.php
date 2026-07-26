@@ -40,6 +40,14 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
+        // "Use first login as check-in" — only fires when HR enabled it and we're inside
+        // office hours; never blocks the login if anything goes wrong.
+        try {
+            \App\Support\AttendanceRecorder::fromLogin(Auth::user(), $request);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return redirect()->intended(route('admin.dashboard'));
     }
 

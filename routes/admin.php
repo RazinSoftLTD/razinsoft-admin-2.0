@@ -803,6 +803,32 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::resource('departments', \App\Http\Controllers\Admin\DepartmentController::class)->only(['index', 'store', 'update', 'destroy']);
         });
 
+        // ===== Attendance (biometric / web / login / manual) =====
+        $att = \App\Http\Controllers\Admin\AttendanceController::class;
+        Route::middleware('permission:attendance.view')->group(function () use ($att) {
+            Route::get('attendance', [$att, 'index'])->name('attendance.index');
+            Route::get('attendance/history', [$att, 'history'])->name('attendance.history');
+            // Own check-in/out: any panel user with attendance.view may punch for themselves.
+            Route::post('attendance/check-in', [$att, 'checkIn'])->name('attendance.check-in');
+            Route::post('attendance/check-out', [$att, 'checkOut'])->name('attendance.check-out');
+        });
+        Route::middleware('permission:attendance.create')->group(function () use ($att) {
+            Route::post('attendance/manual', [$att, 'manualStore'])->name('attendance.manual');
+        });
+        Route::middleware('permission:attendance.delete')->group(function () use ($att) {
+            Route::delete('attendance/{attendance}', [$att, 'destroy'])->whereNumber('attendance')->name('attendance.destroy');
+        });
+        Route::middleware('permission:attendance.settings')->group(function () use ($att) {
+            Route::get('attendance/settings', [$att, 'settings'])->name('attendance.settings');
+            Route::put('attendance/settings', [$att, 'settingsUpdate'])->name('attendance.settings.update');
+            Route::get('attendance/devices', [$att, 'devices'])->name('attendance.devices');
+            Route::post('attendance/devices', [$att, 'deviceStore'])->name('attendance.devices.store');
+            Route::put('attendance/devices/{device}', [$att, 'deviceUpdate'])->whereNumber('device')->name('attendance.devices.update');
+            Route::delete('attendance/devices/{device}', [$att, 'deviceDestroy'])->whereNumber('device')->name('attendance.devices.destroy');
+            Route::post('attendance/devices/{device}/import', [$att, 'deviceImport'])->whereNumber('device')->name('attendance.devices.import');
+            Route::post('attendance/biometric-id', [$att, 'assignBiometricId'])->name('attendance.biometric-id');
+        });
+
         // Leave — employees request their own; approvers review.
         Route::middleware('permission:leave.view')->group(function () {
             Route::get('leaves', [\App\Http\Controllers\Admin\LeaveController::class, 'index'])->name('leaves.index');

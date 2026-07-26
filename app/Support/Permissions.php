@@ -107,6 +107,9 @@ class Permissions
         'designations' => ['label' => 'Designations', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
         'departments' => ['label' => 'Departments', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete']],
         'leave' => ['label' => 'Leave', 'group' => 'HR', 'actions' => ['view', 'create', 'approve', 'delete'], 'owner' => 'user_id'],
+        // Attendance: `view` scope owned = only my own days, all = the whole team. `settings`
+        // covers HR settings + the biometric device screens.
+        'attendance' => ['label' => 'Attendance', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete', 'settings'], 'owner' => 'user_id'],
     ];
 
     /** Human labels for each action. */

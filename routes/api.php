@@ -16,6 +16,9 @@ Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // ---- Products (public) ----
 Route::get('/installation-plans', [\App\Http\Controllers\Api\InstallationPlanController::class, 'index']);
+
+// Biometric sync bridge: posts device punches with the device's API token (see HR > Devices).
+Route::post('/attendance/device-logs', [\App\Http\Controllers\Api\AttendanceDeviceController::class, 'push']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/categories', [ProductController::class, 'categories']);
 Route::get('/products/{slug}', [ProductController::class, 'show']);
