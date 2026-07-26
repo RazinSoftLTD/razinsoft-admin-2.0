@@ -20,7 +20,9 @@ class InstallationPlanController extends Controller
 
         return response()->json([
             'products' => $products->map(function (Product $p) {
-                $features = $p->installationFeatures->map(fn ($f) => ['id' => $f->id, 'label' => $f->label])->values();
+                $features = $p->installationFeatures
+                    ->map(fn ($f) => ['id' => $f->id, 'label' => $f->label, 'highlighted' => (bool) $f->is_highlighted])
+                    ->values();
 
                 return [
                     'id' => $p->id,

@@ -20,7 +20,7 @@ class ImageSpecs
         'article_inline' => ['min_width' => 600, 'recommended' => '≥ 600px wide', 'label' => 'at least 600px wide'],
         'avatar' => ['ratio' => '1/1', 'min_width' => 400, 'min_height' => 400, 'recommended' => '400×400', 'label' => 'square (1:1)'],
         // Small square icon for the product chips on the public Installation Plans page.
-        'installation_icon' => ['ratio' => '1/1', 'min_width' => 128, 'min_height' => 128, 'recommended' => '256×256', 'label' => 'square (1:1) icon'],
+        'installation_icon' => ['ratio' => '1/1', 'min_width' => 80, 'min_height' => 80, 'recommended' => '80×80', 'label' => 'square (1:1) icon'],
         // Top Banner — full-width strip shown above the site's nav menu. GIFs allowed (Laravel's
         // `image` rule already accepts gif/jpg/png/webp/bmp/svg).
         'banner' => ['ratio' => '16/1', 'min_width' => 1920, 'min_height' => 120, 'recommended' => '1920×120', 'label' => '16:1 wide banner'],

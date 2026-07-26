@@ -121,6 +121,15 @@ class InstallationPlanController extends Controller
         return back()->with('status', 'Feature updated.');
     }
 
+    /** Star/unstar a feature — highlighted rows are shown bold on the public page. */
+    public function featureHighlight(Request $request, Product $product, InstallationFeature $feature)
+    {
+        abort_if($feature->product_id !== $product->id, 404);
+        $feature->update(['is_highlighted' => $request->boolean('highlighted')]);
+
+        return response()->json(['ok' => true, 'highlighted' => $feature->is_highlighted]);
+    }
+
     public function featureDestroy(Product $product, InstallationFeature $feature)
     {
         abort_if($feature->product_id !== $product->id, 404);

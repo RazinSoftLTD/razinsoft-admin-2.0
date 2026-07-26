@@ -153,7 +153,7 @@
             <section class="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
                 <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                     <h2 class="text-sm font-bold text-[var(--color-heading)]">Features &amp; Comparison Matrix</h2>
-                    <span class="text-xs text-gray-400">Tick which plan includes each feature</span>
+                    <span class="text-xs text-gray-400">Tick which plan includes each feature · star the ones to highlight</span>
                 </div>
                 <div class="p-5">
                     @if ($canEdit)
@@ -180,7 +180,7 @@
                                 </thead>
                                 <tbody id="feature-rows" class="divide-y divide-gray-50" @if ($canEdit) data-reorder-url="{{ route('admin.installation-plans.features.reorder', $product) }}" @endif>
                                     @foreach ($features as $feature)
-                                        <tr class="feature-row" data-feature-id="{{ $feature->id }}">
+                                        <tr class="feature-row {{ $feature->is_highlighted ? 'bg-amber-50' : '' }}" data-feature-id="{{ $feature->id }}">
                                             <td class="py-2.5 pr-4">
                                                 <span class="flex items-center gap-2">
                                                     @if ($canEdit)
@@ -190,8 +190,16 @@
                                                     @endif
                                                 <span x-data="{ e: false }">
                                                     <span x-show="!e" class="flex items-center gap-1.5">
-                                                        <span class="text-[var(--color-heading)]">{{ $feature->label }}</span>
-                                                        @if ($canEdit)<button type="button" @click="e = true" class="text-gray-300 hover:text-[var(--color-heading)]"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.9 4.5a2.1 2.1 0 0 1 3 3L8 19.5l-4 1 1-4L16.9 4.5Z"/></svg></button>@endif
+                                                        <span class="feature-label text-[var(--color-heading)] {{ $feature->is_highlighted ? 'font-bold' : '' }}">{{ $feature->label }}</span>
+                                                        @if ($canEdit)
+                                                            <button type="button" @click="e = true" class="text-gray-300 hover:text-[var(--color-heading)]"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.9 4.5a2.1 2.1 0 0 1 3 3L8 19.5l-4 1 1-4L16.9 4.5Z"/></svg></button>
+                                                            <button type="button" class="feature-star {{ $feature->is_highlighted ? 'text-amber-500' : 'feature-star-off text-gray-300' }}"
+                                                                    data-url="{{ route('admin.installation-plans.features.highlight', [$product, $feature]) }}"
+                                                                    data-on="{{ $feature->is_highlighted ? '1' : '0' }}"
+                                                                    title="Highlight this feature on the public page">
+                                                                <svg class="h-3.5 w-3.5" fill="{{ $feature->is_highlighted ? 'currentColor' : 'none' }}" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8L12 3.5Z"/></svg>
+                                                            </button>
+                                                        @endif
                                                     </span>
                                                     @if ($canEdit)
                                                         <form x-show="e" x-cloak method="POST" action="{{ route('admin.installation-plans.features.update', [$product, $feature]) }}" class="flex items-center gap-1">
@@ -227,6 +235,7 @@
             </section>
         </div>
     @if ($canEdit)
+        <style>.feature-star-off:hover{color:#f59e0b}</style>
         <script>
             // Ajax-toggle the comparison matrix checkboxes.
             document.addEventListener('change', (e) => {
@@ -237,6 +246,33 @@
                     headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ feature_id: cb.dataset.feature, included: cb.checked ? 1 : 0 }),
                 }).catch(() => { cb.checked = !cb.checked; alert('Could not save — try again.'); });
+            });
+
+            // Star toggle — highlighted features render bold on the public Installation page.
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('.feature-star');
+                if (!btn) return;
+                const next = btn.dataset.on !== '1';
+                const row = btn.closest('.feature-row');
+                const label = row.querySelector('.feature-label');
+                const svg = btn.querySelector('svg');
+
+                // Paint first, roll back if the request fails.
+                const paint = (on) => {
+                    btn.dataset.on = on ? '1' : '0';
+                    btn.className = 'feature-star ' + (on ? 'text-amber-500' : 'feature-star-off text-gray-300');
+                    svg.setAttribute('fill', on ? 'currentColor' : 'none');
+                    label.classList.toggle('font-bold', on);
+                    row.classList.toggle('bg-amber-50', on);
+                };
+                paint(next);
+
+                fetch(btn.dataset.url, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ highlighted: next ? 1 : 0 }),
+                }).then((r) => { if (!r.ok) throw new Error(); })
+                  .catch(() => { paint(!next); alert('Could not save — try again.'); });
             });
 
             // Drag-and-drop reordering of feature rows (drag by the grip handle).
