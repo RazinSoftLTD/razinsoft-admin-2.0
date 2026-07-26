@@ -467,7 +467,11 @@ class DefaultTemplates
                   <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#0f172a">Thank you for choosing {{company_name}}.</p>
                   <p style="margin:0;font-size:13px;color:#64748b">We look forward to helping you succeed.</p>
                 </td></tr>
-                <tr><td align="center" style="padding:4px 0 18px">{$social}</td></tr>
+                <tr><td align="center" style="padding:6px 0 14px">
+                  <img src="{{company_logo}}" alt="{{company_name}}" width="140"
+                       style="display:block;width:140px;max-width:55%;height:auto;border:0;margin:0 auto">
+                </td></tr>
+                <tr><td align="center" style="padding:0 0 18px">{$social}</td></tr>
                 <tr><td align="center" style="padding-top:16px;border-top:1px solid #eef2f7">
                   <p style="margin:0 0 4px;font-size:12px;color:#94a3b8">&copy; {$year} {{company_name}}. All rights reserved.</p>
                   <p style="margin:0 0 4px;font-size:12px;color:#94a3b8">{{company_address}}</p>
