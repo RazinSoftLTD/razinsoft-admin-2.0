@@ -100,6 +100,13 @@ Route::middleware(['auth:sanctum', 'client.active'])->group(function () {
     Route::post('/account/email/verify', [AccountController::class, 'sendEmailVerification']);
     Route::delete('/account', [AccountController::class, 'destroy']);
 
+    // Saved billing addresses — the dashboard manages them, checkout picks one.
+    Route::get('/account/billing-addresses', [\App\Http\Controllers\Api\BillingAddressController::class, 'index']);
+    Route::post('/account/billing-addresses', [\App\Http\Controllers\Api\BillingAddressController::class, 'store']);
+    Route::put('/account/billing-addresses/{billingAddress}', [\App\Http\Controllers\Api\BillingAddressController::class, 'update']);
+    Route::delete('/account/billing-addresses/{billingAddress}', [\App\Http\Controllers\Api\BillingAddressController::class, 'destroy']);
+    Route::post('/account/billing-addresses/{billingAddress}/default', [\App\Http\Controllers\Api\BillingAddressController::class, 'setDefault']);
+
     Route::get('/account/orders', [AccountController::class, 'orders']);
     Route::get('/account/orders/{orderNumber}', [AccountController::class, 'order']);
     Route::get('/account/invoices', [AccountController::class, 'invoices']);
