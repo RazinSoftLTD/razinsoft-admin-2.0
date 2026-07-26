@@ -1,0 +1,214 @@
+# Email Management
+
+Everything this application sends, and how it is configured, queued, tracked and measured.
+
+## Why it is built this way
+
+**One entrance.** All mail goes through `EmailDispatcher`. That is what makes the log complete,
+the suppression list enforceable, and duplicate sends preventable. Nothing sends inline inside a
+request: a row is written, a job is queued, a worker does the SMTP conversation.
+
+**The log *is* the queue.** An `email_logs` row moves `pending → sending → sent | failed |
+cancelled`. There is no second queue table, so the two can never disagree about what happened to a
+message.
+
+**Reputation first.** Most of the design is about landing in the inbox: a real plain-text half on
+every message, a Message-ID on our own domain, hard bounces and complaints suppressed
+automatically, batched campaign sending, and per-account rate limits.
+
+---
+
+## Setup
+
+### 1. An SMTP account
+
+**Settings → Email Settings → Configuration → Add SMTP Account.**
+
+Pick the provider and the host, port and encryption fill themselves in; every field stays
+editable. Provider-specific traps are shown on the form — Gmail refuses normal account passwords
+(use an App Password), SendGrid's username is literally `apikey`, SES needs SMTP credentials
+generated in SES rather than AWS access keys.
+
+Then **Test connection** (authenticates without sending) and **Send test** (queues a real
+message, which also proves the worker is running).
+
+Several accounts can exist. The default sends; if it is inactive or has hit its hourly/daily cap
+the job falls back to the next by priority, so one provider rate-limiting does not stop mail.
+
+### 2. A queue worker — required
+
+Nothing sends without one.
+
+```bash
+php artisan queue:work --queue=default --tries=3 --timeout=120
+```
+
+Run it under Supervisor or PM2 so it restarts on its own. The Queue screen says plainly when
+messages have been waiting more than five minutes, which is what a stopped worker looks like.
+
+### 3. Templates and rules
+
+```bash
+php artisan email:seed-templates    # 22 templates; re-running never overwrites edits
+php artisan email:seed-rules        # the event on/off switches
+```
+
+Both are safe to re-run. `email:seed-templates --force` resets templates to the shipped wording.
+
+### 4. Bounce and complaint webhook
+
+Set a secret in `.env` — **without it the endpoint stays closed**:
+
+```
+EMAIL_WEBHOOK_SECRET=a-long-random-string
+```
+
+Point the provider at:
+
+```
+POST https://your-domain/api/email/webhook
+Header: X-Webhook-Secret: <the secret>
+```
+
+SES/SNS, Mailgun, Postmark and SendGrid payloads are all understood. Anything unrecognised is
+ignored rather than guessed at.
+
+### 5. DNS — not optional
+
+SPF, DKIM and DMARC are DNS records, not code. Without them mail will land in spam however good
+the sending system is. Add, at your DNS provider:
+
+| Record | Host | Value |
+|---|---|---|
+| SPF (TXT) | `@` | `v=spf1 include:<your provider's include> ~all` |
+| DKIM (CNAME/TXT) | as the provider gives you | as the provider gives you |
+| DMARC (TXT) | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:dmarc@your-domain` |
+
+Use one SPF record only — several is itself a failure. Start DMARC at `p=none`, read the reports,
+then tighten.
+
+---
+
+## The screens
+
+| Screen | What it is for |
+|---|---|
+| **Configuration** | SMTP accounts, health, limits, connection and send tests |
+| **Templates** | The 22 messages the system sends. HTML + plain text, variables, preview, test send |
+| **Queue** | What is waiting, scheduled or failed. Retry, retry all, cancel. Warns when no worker is running |
+| **Logs** | Every message with full filters; each one shows the exact HTML, text and headers that went out, plus its opens and clicks |
+| **Analytics** | Volume, open/click/bounce rates, average send time, top templates and accounts |
+| **Notification Rules** | A switch per event — turn one off and that email stops everywhere |
+| **Manual Email** | One message to many people, with audience filters, scheduling and batched sending |
+
+---
+
+## Sending from code
+
+```php
+use App\Services\Email\EmailDispatcher;
+
+app(EmailDispatcher::class)->sendTemplate(
+    'invoice_sent',                      // template key
+    $client->email,
+    [                                    // template variables
+        'customer_name'  => $client->name,
+        'invoice_number' => $invoice->invoice_number,
+        'invoice_total'  => $invoice->formattedTotal(),
+        'invoice_url'    => $invoice->payUrl(),
+    ],
+    [
+        'event'    => 'invoice.sent',    // obeys the Notification Rule switch
+        'module'   => 'invoices',        // groups it in the log and filters
+        'related'  => $invoice,          // links the log row back to the record
+        'user_id'  => $client->id,
+    ],
+);
+```
+
+Returns the `EmailLog`, or `null` when the send was refused. `null` is normal, not an error — the
+address may be suppressed or invalid, the template or the notification switched off, or it was an
+exact duplicate of something already in flight.
+
+For a message with no template:
+
+```php
+app(EmailDispatcher::class)->send($to, $subject, $html, $text, ['module' => 'tickets']);
+```
+
+Useful options: `config_id` (a specific SMTP account), `scheduled_at`, `priority`, `cc`, `bcc`,
+`attachments`, `dedupe => false` (a deliberate resend).
+
+---
+
+## What is refused, and why
+
+| Situation | What happens |
+|---|---|
+| Address hard-bounced or reported spam | Refused — mailing on is what gets a domain blocked |
+| Address unsubscribed | Refused |
+| Address malformed | Refused before it reaches the provider |
+| Same message, same recipient, still in flight | Refused — catches a double-clicked Send |
+| Notification rule off | Refused |
+| Template inactive | Refused |
+| Soft bounce (mailbox full) | **Allowed** — temporary; suppressing it would lose a real customer |
+
+The suppression check runs twice: before queueing, and again in the worker, because an address can
+bounce while its message sits in the queue.
+
+---
+
+## Tables
+
+| Table | Holds |
+|---|---|
+| `email_configs` | SMTP accounts, encrypted passwords, limits, health |
+| `email_logs` | Every message — the queue and the log in one |
+| `email_attachments` | Files sent with a message |
+| `email_opens`, `email_clicks` | Tracking hits |
+| `email_bounces`, `email_spam_reports` | Raw provider reports |
+| `email_suppressions` | Addresses nothing may mail again |
+| `email_notification_rules` | The per-event switches |
+| `email_campaigns`, `email_campaign_recipients` | Manual sends and their progress |
+| `email_templates` | Extended with category, plain-text body, description |
+
+---
+
+## Permissions
+
+`email.view`, `email.configure`, `email.templates`, `email.queue`, `email.logs`,
+`email.analytics`, `email.rules`, `email.send`.
+
+They are deliberately separate: support staff can be given `email.logs` to answer "did that
+invoice go out?" without being able to touch SMTP credentials or send to everyone.
+
+---
+
+## When something is wrong
+
+**Nothing is sending.** Check the Queue screen — if it warns that nothing is draining the queue,
+the worker is stopped. Then check Configuration for an account whose health is *Failing*; the
+error under it is the provider's own words, translated.
+
+**Mail is landing in spam.** Check DNS first (SPF/DKIM/DMARC above) — it is the cause far more
+often than the content. Then look at the complaint rate on Analytics: above roughly 0.1% mailbox
+providers start filtering the domain.
+
+**A customer says they get nothing.** Search Logs for their address. If it is on the suppression
+list, the reason is recorded there. Removing an address is possible but should be deliberate —
+mailing a known-bad address again damages the domain for everyone.
+
+**A notification stopped.** Check both Notification Rules (the event switch) and Templates (the
+template's own Active switch). A rule pointing at a switched-off template says so on its row.
+
+---
+
+## Not built
+
+Named honestly so nobody goes looking:
+
+- **Attachment virus scanning** — the attachment path is in place, but no scanner is installed.
+  `SendQueuedEmail::deliver()` is where a check would go.
+- **Redis queue** — the database queue is used. Redis needs no code change, only
+  `QUEUE_CONNECTION=redis` and a Redis server.
+- **A/B testing and drip sequences** — campaigns are one-shot.

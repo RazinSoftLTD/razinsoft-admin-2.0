@@ -17,8 +17,13 @@ return new class extends Migration
         });
 
         // Backfill tokens for any existing invoices.
-        foreach (\App\Models\ClientInvoice::whereNull('public_token')->pluck('id') as $id) {
-            \App\Models\ClientInvoice::where('id', $id)->update(['public_token' => Str::random(40)]);
+        //
+        // Query the table, not the ClientInvoice model: the model later gained SoftDeletes, so
+        // going through it here adds a `deleted_at is null` clause for a column that does not
+        // exist yet at this point in the migration history. That broke every test using
+        // RefreshDatabase, which replays migrations from the start on an empty database.
+        foreach (\Illuminate\Support\Facades\DB::table('client_invoices')->whereNull('public_token')->pluck('id') as $id) {
+            \Illuminate\Support\Facades\DB::table('client_invoices')->where('id', $id)->update(['public_token' => Str::random(40)]);
         }
 
         Schema::create('invoice_installments', function (Blueprint $table) {

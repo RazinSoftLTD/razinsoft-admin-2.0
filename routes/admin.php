@@ -820,6 +820,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('analytics', [$ea, 'index'])->name('analytics');
         Route::get('rules', [$ea, 'rules'])->name('rules');
         Route::post('rules', [$ea, 'updateRules'])->name('rules.update');
+
+        $ecm = \App\Http\Controllers\Admin\EmailCampaignController::class;
+        Route::get('campaigns', [$ecm, 'index'])->name('campaigns');
+        Route::get('campaigns/create', [$ecm, 'create'])->name('campaigns.create');
+        Route::post('campaigns', [$ecm, 'store'])->name('campaigns.store');
+        Route::get('campaigns/audience-count', [$ecm, 'audienceCount'])->name('campaigns.audience-count');
+        Route::get('campaigns/{campaign}', [$ecm, 'show'])->whereNumber('campaign')->name('campaigns.show');
+        Route::get('campaigns/{campaign}/edit', [$ecm, 'edit'])->whereNumber('campaign')->name('campaigns.edit');
+        Route::put('campaigns/{campaign}', [$ecm, 'update'])->whereNumber('campaign')->name('campaigns.update');
+        Route::post('campaigns/{campaign}/cancel', [$ecm, 'cancel'])->whereNumber('campaign')->name('campaigns.cancel');
+        Route::post('campaigns/{campaign}/send-test', [$ecm, 'sendTest'])->whereNumber('campaign')->name('campaigns.send-test');
+        Route::delete('campaigns/{campaign}', [$ecm, 'destroy'])->whereNumber('campaign')->name('campaigns.destroy');
     });
 
         Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');
