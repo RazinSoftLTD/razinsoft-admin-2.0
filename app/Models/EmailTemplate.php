@@ -70,7 +70,9 @@ class EmailTemplate extends Model
             // logo should be, on an installation that has not uploaded one.
             'company_logo' => $settings->logo_url ?: asset('images/razinsoft-logo.png'),
             'app_url' => config('app.url'),
-            'login_url' => rtrim((string) config('app.url'), '/').'/login',
+            // The customer website, not APP_URL — APP_URL is the staff panel, which has no
+            // customer login at all. A welcome mail pointing there is a 404.
+            'login_url' => config('brand.login_url'),
             'website_url' => config('brand.website'),
             'company_address' => config('brand.address'),
             'current_year' => now()->format('Y'),

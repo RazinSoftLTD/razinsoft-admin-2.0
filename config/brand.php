@@ -20,6 +20,12 @@ return [
 
     'support_email' => env('BRAND_SUPPORT_EMAIL', 'support@razinsoft.com'),
 
+    /*
+     | Where a *customer* signs in. Deliberately not APP_URL: that is the staff panel, which has
+     | no customer login, so a welcome mail pointing at it lands on a 404.
+     */
+    'login_url' => env('BRAND_LOGIN_URL', 'https://www.razinsoft.com/login'),
+
     'address' => env('BRAND_ADDRESS', '1st Floor, RMR Center, A&B Ring Rd, Dhaka 1207'),
 
     /*

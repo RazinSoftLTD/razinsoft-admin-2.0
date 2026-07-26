@@ -440,4 +440,14 @@ class EmailManagementTest extends TestCase
         $this->assertStringContainsString('.shell { width:100% !important', $html);
         $this->assertStringContainsString('.stack { display:block !important', $html);
     }
+
+    public function test_the_login_link_points_at_the_customer_site_not_the_staff_panel(): void
+    {
+        config(['app.url' => 'https://deskadmin.example.com']);
+
+        $login = EmailTemplate::globalValues()['login_url'];
+
+        $this->assertSame(config('brand.login_url'), $login);
+        $this->assertStringNotContainsString('deskadmin', $login, 'Customers cannot sign in to the staff panel.');
+    }
 }
