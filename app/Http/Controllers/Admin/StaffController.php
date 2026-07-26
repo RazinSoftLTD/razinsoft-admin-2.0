@@ -59,6 +59,7 @@ class StaffController extends Controller
         'attendance' => 'Attendance',
         'leaves' => 'Leaves',
         'tasks' => 'Tasks',
+        'projects' => 'Projects',
         'timesheet' => 'Timesheet',
         'documents' => 'Documents',
         'payroll' => 'Payroll',
@@ -82,24 +83,7 @@ class StaffController extends Controller
             'staff' => $staff->load('assignedRole', 'designation', 'department', 'reportsTo'),
             'canEdit' => $request->user()->canAct('employees', 'edit', $staff),
             'tab' => $tab,
-            'summary' => $this->profileSummary($staff),
         ], $this->tabData($request, $staff, $tab)));
-    }
-
-    /** The headline numbers shown on every tab. */
-    private function profileSummary(User $staff): array
-    {
-        $monthStart = today()->copy()->startOfMonth();
-
-        return [
-            'open_tasks' => \App\Models\ProjectTask::where('assigned_to', $staff->id)->where('status', '!=', 'completed')->count(),
-            'projects' => \App\Models\Project::where('project_manager_id', $staff->id)->count(),
-            'hours_logged' => (int) \App\Models\ProjectTimeLog::where('user_id', $staff->id)->sum('minutes'),
-            'tickets' => \App\Models\Ticket::where('assigned_to', $staff->id)->count(),
-            'late_this_month' => \App\Models\Attendance::where('user_id', $staff->id)
-                ->whereBetween('work_date', [$monthStart, today()])->where('status', 'late')->count(),
-            'leaves_taken' => \App\Models\Leave::where('user_id', $staff->id)->where('status', 'approved')->count(),
-        ];
     }
 
     /** Only the tab being shown gets queried. */
@@ -118,6 +102,11 @@ class StaffController extends Controller
             'leaves' => ['leaves' => \App\Models\Leave::where('user_id', $staff->id)->latest('from_date')->paginate(20)->withQueryString()],
             'tasks' => ['tasks' => \App\Models\ProjectTask::with('project:id,name')->where('assigned_to', $staff->id)
                 ->orderByRaw('due_date is null')->orderBy('due_date')->paginate(20)->withQueryString()],
+            'projects' => ['projects' => \App\Models\Project::with('client:id,name')
+                ->where(fn ($q) => $q->where('project_manager_id', $staff->id)
+                    ->orWhereHas('members', fn ($m) => $m->where('user_id', $staff->id)))
+                ->withCount('allTasks')
+                ->orderByDesc('id')->paginate(20)->withQueryString()],
             'timesheet' => [
                 'timeLogs' => \App\Models\ProjectTimeLog::with('project:id,name', 'task:id,title')
                     ->where('user_id', $staff->id)->orderByDesc('spent_on')->paginate(20)->withQueryString(),
