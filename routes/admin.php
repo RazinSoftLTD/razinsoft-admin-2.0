@@ -795,6 +795,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('staff-departments', [StaffController::class, 'storeDepartment'])->name('staff.departments.store');
             Route::resource('staff', StaffController::class)->except('show');
             Route::get('staff/{staff}', [StaffController::class, 'show'])->whereNumber('staff')->name('staff.show');
+
+            // Employee profile tabs that own data: documents, payroll and the shift roster.
+            Route::post('staff/{staff}/documents', [StaffController::class, 'documentStore'])->whereNumber('staff')->name('staff.documents.store');
+            Route::delete('staff/{staff}/documents/{document}', [StaffController::class, 'documentDestroy'])->whereNumber(['staff', 'document'])->name('staff.documents.destroy');
+            Route::post('staff/{staff}/payroll', [StaffController::class, 'payrollStore'])->whereNumber('staff')->name('staff.payroll.store');
+            Route::delete('staff/{staff}/payroll/{payroll}', [StaffController::class, 'payrollDestroy'])->whereNumber(['staff', 'payroll'])->name('staff.payroll.destroy');
+            Route::post('staff/{staff}/shifts', [StaffController::class, 'shiftStore'])->whereNumber('staff')->name('staff.shifts.store');
+            Route::delete('staff/{staff}/shifts/{shift}', [StaffController::class, 'shiftDestroy'])->whereNumber(['staff', 'shift'])->name('staff.shifts.destroy');
         });
         Route::middleware('permission:designations.view')->group(function () {
             Route::resource('designations', \App\Http\Controllers\Admin\DesignationController::class)->only(['index', 'store', 'update', 'destroy']);

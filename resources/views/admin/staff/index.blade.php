@@ -53,7 +53,10 @@
                         @forelse ($staff as $s)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-5 py-4 align-top"><input type="checkbox" value="{{ $s->id }}" class="row-check h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)]"></td>
-                                <td class="px-5 py-4 align-top font-semibold text-[var(--color-heading)]">{{ $s->employee_code ?? '—' }}</td>
+                                {{-- The employee ID opens their full profile. --}}
+                                <td class="px-5 py-4 align-top">
+                                    <a href="{{ route('admin.staff.show', $s) }}" class="font-semibold text-[var(--color-primary)] hover:underline">{{ $s->employee_code ?: 'View' }}</a>
+                                </td>
                                 <td class="px-5 py-4 align-top">
                                     <div class="flex items-center gap-3">
                                         @if ($s->photo_url)

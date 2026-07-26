@@ -53,15 +53,215 @@ class StaffController extends Controller
     }
 
     /** Read-only employee profile — respects the "view" scope so staff can open their own record. */
+    /** Tabs on the employee profile, in display order. */
+    public const TABS = [
+        'profile' => 'Profile',
+        'attendance' => 'Attendance',
+        'leaves' => 'Leaves',
+        'tasks' => 'Tasks',
+        'timesheet' => 'Timesheet',
+        'documents' => 'Documents',
+        'payroll' => 'Payroll',
+        'tickets' => 'Tickets',
+        'shifts' => 'Shift Roster',
+        'permissions' => 'Permissions',
+        'activity' => 'Activity',
+    ];
+
     public function show(Request $request, User $staff)
     {
         abort_unless($staff->isStaff() || $staff->isAdmin(), 404);
         abort_unless($request->user()->canAct('employees', 'view', $staff), 403);
 
-        return view('admin.staff.show', [
+        $tab = $request->query('tab', 'profile');
+        if (! array_key_exists($tab, self::TABS)) {
+            $tab = 'profile';
+        }
+
+        return view('admin.staff.show', array_merge([
             'staff' => $staff->load('assignedRole', 'designation', 'department', 'reportsTo'),
             'canEdit' => $request->user()->canAct('employees', 'edit', $staff),
+            'tab' => $tab,
+            'summary' => $this->profileSummary($staff),
+        ], $this->tabData($request, $staff, $tab)));
+    }
+
+    /** The headline numbers shown on every tab. */
+    private function profileSummary(User $staff): array
+    {
+        $monthStart = today()->copy()->startOfMonth();
+
+        return [
+            'open_tasks' => \App\Models\ProjectTask::where('assigned_to', $staff->id)->where('status', '!=', 'completed')->count(),
+            'projects' => \App\Models\Project::where('project_manager_id', $staff->id)->count(),
+            'hours_logged' => (int) \App\Models\ProjectTimeLog::where('user_id', $staff->id)->sum('minutes'),
+            'tickets' => \App\Models\Ticket::where('assigned_to', $staff->id)->count(),
+            'late_this_month' => \App\Models\Attendance::where('user_id', $staff->id)
+                ->whereBetween('work_date', [$monthStart, today()])->where('status', 'late')->count(),
+            'leaves_taken' => \App\Models\Leave::where('user_id', $staff->id)->where('status', 'approved')->count(),
+        ];
+    }
+
+    /** Only the tab being shown gets queried. */
+    private function tabData(Request $request, User $staff, string $tab): array
+    {
+        return match ($tab) {
+            'attendance' => [
+                'attendance' => \App\Models\Attendance::where('user_id', $staff->id)
+                    ->orderByDesc('work_date')->paginate(20, ['*'], 'page')->withQueryString(),
+                'attendanceStats' => [
+                    'present' => \App\Models\Attendance::where('user_id', $staff->id)->whereIn('status', ['present', 'late'])->count(),
+                    'late' => \App\Models\Attendance::where('user_id', $staff->id)->where('status', 'late')->count(),
+                    'minutes' => (int) \App\Models\Attendance::where('user_id', $staff->id)->sum('worked_minutes'),
+                ],
+            ],
+            'leaves' => ['leaves' => \App\Models\Leave::where('user_id', $staff->id)->latest('from_date')->paginate(20)->withQueryString()],
+            'tasks' => ['tasks' => \App\Models\ProjectTask::with('project:id,name')->where('assigned_to', $staff->id)
+                ->orderByRaw('due_date is null')->orderBy('due_date')->paginate(20)->withQueryString()],
+            'timesheet' => [
+                'timeLogs' => \App\Models\ProjectTimeLog::with('project:id,name', 'task:id,title')
+                    ->where('user_id', $staff->id)->orderByDesc('spent_on')->paginate(20)->withQueryString(),
+                'timeTotal' => (int) \App\Models\ProjectTimeLog::where('user_id', $staff->id)->sum('minutes'),
+            ],
+            'documents' => ['documents' => \App\Models\EmployeeDocument::with('uploader:id,name')
+                ->where('user_id', $staff->id)->latest('id')->get()],
+            'payroll' => [
+                'payrolls' => \App\Models\EmployeePayroll::where('user_id', $staff->id)->orderByDesc('period')->get(),
+                'currencies' => \App\Models\Currency::orderBy('code')->pluck('code')->all() ?: ['BDT', 'USD'],
+            ],
+            'tickets' => ['tickets' => \App\Models\Ticket::with('client:id,name')
+                ->where('assigned_to', $staff->id)->latest('id')->paginate(20)->withQueryString()],
+            'shifts' => ['shifts' => \App\Models\EmployeeShift::where('user_id', $staff->id)->orderByDesc('effective_from')->get()],
+            'permissions' => ['roles' => \App\Models\Role::orderBy('name')->get()],
+            'activity' => ['logs' => \App\Models\ActivityLog::where('user_id', $staff->id)->latest('id')->paginate(30)->withQueryString()],
+            default => [],
+        };
+    }
+
+    // ------------------------------------------------------------------ documents
+
+    public function documentStore(Request $request, User $staff)
+    {
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'category' => ['required', Rule::in(array_keys(\App\Models\EmployeeDocument::CATEGORIES))],
+            'file' => ['required', 'file', 'max:10240'],
+            'issued_on' => ['nullable', 'date'],
+            'expires_on' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $file = $request->file('file');
+        \App\Models\EmployeeDocument::create([
+            'user_id' => $staff->id,
+            'title' => $data['title'],
+            'category' => $data['category'],
+            'path' => $file->store('employees/documents', 'public'),
+            'original_name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'issued_on' => $data['issued_on'] ?? null,
+            'expires_on' => $data['expires_on'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'uploaded_by' => $request->user()->id,
+        ]);
+
+        return back()->with('status', 'Document uploaded.');
+    }
+
+    public function documentDestroy(Request $request, User $staff, \App\Models\EmployeeDocument $document)
+    {
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
+        abort_if($document->user_id !== $staff->id, 404);
+
+        \Illuminate\Support\Facades\Storage::disk('public')->delete($document->path);
+        $document->delete();
+
+        return back()->with('status', 'Document removed.');
+    }
+
+    // ------------------------------------------------------------------ payroll
+
+    public function payrollStore(Request $request, User $staff)
+    {
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
+        $data = $request->validate([
+            'period' => ['required', 'date'],
+            'basic' => ['required', 'numeric', 'min:0'],
+            'allowance' => ['nullable', 'numeric', 'min:0'],
+            'bonus' => ['nullable', 'numeric', 'min:0'],
+            'deduction' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:8'],
+            'status' => ['required', Rule::in(array_keys(\App\Models\EmployeePayroll::STATUSES))],
+            'paid_on' => ['nullable', 'date'],
+            'method' => ['nullable', 'string', 'max:60'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        // One payslip per month — re-submitting the same period updates it.
+        $period = \Illuminate\Support\Carbon::parse($data['period'])->startOfMonth();
+        $payroll = \App\Models\EmployeePayroll::where('user_id', $staff->id)->whereDate('period', $period)->first()
+            ?? new \App\Models\EmployeePayroll();
+        $payroll->fill($data + ['allowance' => 0, 'bonus' => 0, 'deduction' => 0]);
+        foreach (['allowance', 'bonus', 'deduction'] as $f) {
+            $payroll->{$f} = $data[$f] ?? 0;
+        }
+        $payroll->user_id = $staff->id;
+        $payroll->period = $period;
+        $payroll->created_by ??= $request->user()->id;
+        $payroll->recalculate();
+        $payroll->save();
+
+        return back()->with('status', 'Payroll saved.');
+    }
+
+    public function payrollDestroy(Request $request, User $staff, \App\Models\EmployeePayroll $payroll)
+    {
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
+        abort_if($payroll->user_id !== $staff->id, 404);
+        $payroll->delete();
+
+        return back()->with('status', 'Payroll entry removed.');
+    }
+
+    // ------------------------------------------------------------------ shift roster
+
+    public function shiftStore(Request $request, User $staff)
+    {
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+            'starts_at' => ['required', 'date_format:H:i'],
+            'ends_at' => ['required', 'date_format:H:i'],
+            'week_offs' => ['nullable', 'array'],
+            'week_offs.*' => ['in:0,1,2,3,4,5,6'],
+            'effective_from' => ['required', 'date'],
+            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        \App\Models\EmployeeShift::create([
+            'user_id' => $staff->id,
+            'name' => $data['name'],
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'],
+            'week_offs' => implode(',', $data['week_offs'] ?? []),
+            'effective_from' => $data['effective_from'],
+            'effective_to' => $data['effective_to'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'created_by' => $request->user()->id,
+        ]);
+
+        return back()->with('status', 'Shift assigned.');
+    }
+
+    public function shiftDestroy(Request $request, User $staff, \App\Models\EmployeeShift $shift)
+    {
+        abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
+        abort_if($shift->user_id !== $staff->id, 404);
+        $shift->delete();
+
+        return back()->with('status', 'Shift removed.');
     }
 
     public function create(Request $request)

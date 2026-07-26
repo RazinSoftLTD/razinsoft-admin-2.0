@@ -41,7 +41,10 @@ class AttendanceRecorder
         $at = $at ? Carbon::parse($at) : now();
         $date = $at->copy()->startOfDay();
 
-        $attendance = Attendance::firstOrNew(['user_id' => $user->id, 'work_date' => $date->toDateString()]);
+        // whereDate, not an equality on a formatted string: the date cast does not change how
+        // the value is stored, so '2026-07-26' would never match a stored '2026-07-26 00:00:00'.
+        $attendance = Attendance::where('user_id', $user->id)->whereDate('work_date', $date)->first()
+            ?? new Attendance(['user_id' => $user->id, 'work_date' => $date->toDateString()]);
 
         // Decide the side of the punch when the caller didn't say.
         $direction ??= $attendance->check_in_at ? 'out' : 'in';
