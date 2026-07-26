@@ -15,7 +15,9 @@ use Illuminate\Console\Command;
  */
 class EmailSeedTemplates extends Command
 {
-    protected $signature = 'email:seed-templates {--force : Overwrite templates that already exist}';
+    protected $signature = 'email:seed-templates
+        {--force : Overwrite templates that already exist}
+        {--only=* : Limit to these template keys}';
 
     protected $description = 'Create the default email templates';
 
@@ -23,7 +25,15 @@ class EmailSeedTemplates extends Command
     {
         $created = $reset = $kept = 0;
 
+        // --only exists so a redesign can be pushed to one template without resetting the
+        // wording an admin has since written into the other twenty-one.
+        $only = (array) $this->option('only');
+
         foreach (DefaultTemplates::all() as $definition) {
+            if ($only && ! in_array($definition['key'], $only, true)) {
+                continue;
+            }
+
             $existing = EmailTemplate::where('key', $definition['key'])->first();
 
             if ($existing && ! $this->option('force')) {
