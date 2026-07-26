@@ -815,6 +815,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('suppressions', [$el, 'suppressions'])->name('suppressions');
         Route::post('suppressions', [$el, 'addSuppression'])->name('suppressions.store');
         Route::delete('suppressions/{suppression}', [$el, 'removeSuppression'])->whereNumber('suppression')->name('suppressions.destroy');
+
+        $ea = \App\Http\Controllers\Admin\EmailAnalyticsController::class;
+        Route::get('analytics', [$ea, 'index'])->name('analytics');
+        Route::get('rules', [$ea, 'rules'])->name('rules');
+        Route::post('rules', [$ea, 'updateRules'])->name('rules.update');
     });
 
         Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');

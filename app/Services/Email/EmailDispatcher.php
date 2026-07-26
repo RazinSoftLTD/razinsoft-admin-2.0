@@ -4,6 +4,7 @@ namespace App\Services\Email;
 
 use App\Jobs\SendQueuedEmail;
 use App\Models\EmailConfig;
+use App\Models\EmailNotificationRule;
 use App\Models\EmailLog;
 use App\Models\EmailSuppression;
 use App\Models\EmailTemplate;
@@ -29,6 +30,13 @@ class EmailDispatcher
      */
     public function sendTemplate(string $templateKey, string $to, array $data = [], array $options = []): ?EmailLog
     {
+        // An event switched off in Notification Rules must not send, whatever the template says.
+        if (($event = $options['event'] ?? null) && ! EmailNotificationRule::allows($event)) {
+            Log::info("Email skipped — the [{$event}] notification is turned off.");
+
+            return null;
+        }
+
         $template = EmailTemplate::where('key', $templateKey)->first();
 
         if (! $template || ! $template->is_active) {
