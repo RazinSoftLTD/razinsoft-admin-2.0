@@ -107,6 +107,37 @@ the sending system is. Add, at your DNS provider:
 Use one SPF record only — several is itself a failure. Start DMARC at `p=none`, read the reports,
 then tighten.
 
+### 7. The logo beside the sender name (BIMI)
+
+The brand mark mailbox providers show next to our name, and the blue tick beside it, come from
+BIMI — a DNS record plus a certificate, not from anything in this application.
+
+The logo is published at `https://www.razinsoft.com/bimi/logo.svg`
+(`razinsoft-website-2.0/public/bimi/logo.svg`). It is a redrawn copy of the panel icon, not a link
+to it: BIMI requires SVG Tiny PS — square, a `<title>`, `version="1.2" baseProfile="tiny-ps"`, and
+no CSS, `xlink`, scripts or external references. Edit one and the other does not follow.
+
+Two DNS records make it live:
+
+| Record | Host | Value |
+|---|---|---|
+| DMARC (TXT, replace) | `_dmarc` | `v=DMARC1; p=quarantine; pct=100; rua=mailto:dmarc@razinsoft.com` |
+| BIMI (TXT, new) | `default._bimi` | `v=BIMI1; l=https://www.razinsoft.com/bimi/logo.svg;` |
+
+DMARC must be at `p=quarantine` or `p=reject` with `pct=100` — BIMI is ignored at `p=none`. Before
+enforcing, confirm every sender is aligned: privateemail passes on SPF and DKIM, and Brevo passes
+on DKIM (`brevo1`/`brevo2` selectors), so both survive the change. Any sender that is neither in
+SPF nor DKIM-signed starts landing in spam the day this is tightened.
+
+**Gmail additionally requires a VMC** — a Verified Mark Certificate from DigiCert or Entrust,
+which needs the logo to be a registered trademark and costs on the order of $1,000+ a year.
+Without one, Gmail shows neither the logo nor the tick; Yahoo, AOL and Fastmail show the logo on
+the DNS record alone. With a VMC, add its `a=` to the BIMI record:
+
+```
+v=BIMI1; l=https://www.razinsoft.com/bimi/logo.svg; a=https://www.razinsoft.com/bimi/vmc.pem
+```
+
 ---
 
 ## The screens
