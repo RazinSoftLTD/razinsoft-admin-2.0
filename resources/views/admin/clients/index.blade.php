@@ -33,13 +33,25 @@
                     <span class="text-amber-800">
                         Last import added <strong>{{ $lastImport->count }}</strong> client(s) {{ $lastImport->created_at->diffForHumans() }}@if ($lastImport->importer) by {{ $lastImport->importer->name }}@endif.
                     </span>
-                    <form method="POST" action="{{ route('admin.clients.import.undo') }}" onsubmit="return confirm('Undo the last import? This will delete the {{ $lastImport->count }} imported client(s) that have no orders/invoices/tickets yet.')">
-                        @csrf
-                        <button class="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
-                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
-                            Undo last import
-                        </button>
-                    </form>
+                    <span class="flex shrink-0 items-center gap-1.5">
+                        <form method="POST" action="{{ route('admin.clients.import.undo') }}" onsubmit="return confirm('Undo the last import? This will delete the {{ $lastImport->count }} imported client(s) that have no orders/invoices/tickets yet.')">
+                            @csrf
+                            <button class="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
+                                Undo last import
+                            </button>
+                        </form>
+
+                        {{-- Closing keeps the imported clients; it only stops the notice coming back.
+                             The confirm says so, because closing also removes the undo. --}}
+                        <form method="POST" action="{{ route('admin.clients.import.dismiss') }}"
+                              onsubmit="return confirm('Close this notice? The imported clients are kept, but the undo will no longer be offered.')">
+                            @csrf
+                            <button title="Close this notice" class="grid h-7 w-7 place-items-center rounded-lg text-amber-700 hover:bg-amber-100">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                            </button>
+                        </form>
+                    </span>
                 </div>
             @endif
         @endisset

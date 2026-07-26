@@ -367,6 +367,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('clients/import', [ClientController::class, 'importForm'])->name('clients.import.form');
             Route::post('clients/import', [ClientController::class, 'import'])->name('clients.import');
             Route::post('clients/import/undo', [ClientController::class, 'undoImport'])->name('clients.import.undo');
+            Route::post('clients/import/dismiss', [ClientController::class, 'dismissImport'])->name('clients.import.dismiss');
         });
         Route::middleware('permission:clients.edit')->group(function () {
             Route::get('clients/{client}/edit', [ClientController::class, 'edit'])->whereNumber('client')->name('clients.edit');

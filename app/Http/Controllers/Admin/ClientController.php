@@ -548,6 +548,23 @@ class ClientController extends Controller
         return redirect()->route('admin.clients.index')->with('status', $msg);
     }
 
+    /**
+     * Close the "last import" banner.
+     *
+     * Marks the batch itself, so it stops nagging every admin — the imported clients are kept,
+     * and this only removes the offer to undo.
+     */
+    public function dismissImport(Request $request)
+    {
+        abort_unless($request->user()->allows('clients', 'import_export'), 403);
+
+        $batch = \App\Models\ClientImportBatch::undoable();
+
+        $batch?->forceFill(['dismissed_at' => now()])->save();
+
+        return back()->with('status', 'Import notice closed. The imported clients are unchanged.');
+    }
+
     /** Undo the most recent client import — deletes the clients it created. */
     public function undoImport(Request $request)
     {
