@@ -157,7 +157,10 @@
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
             ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
-            ['label' => 'Email / SMTP', 'route' => 'admin.email-settings', 'active' => 'admin.email-settings*', 'admin' => true, 'icon' => $ic['messaging']],
+            // Email Management. The old Email / SMTP page is still here as the Templates screen
+            // until that step of the module replaces it.
+            ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
+            ['label' => 'Email Templates', 'route' => 'admin.email-settings', 'active' => 'admin.email-settings*', 'admin' => true, 'icon' => $ic['messaging']],
         ]],
     ];
 

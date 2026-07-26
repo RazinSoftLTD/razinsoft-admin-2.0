@@ -782,6 +782,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('bin/invoices/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyInvoices'])->name('bin.invoices.empty');
         Route::delete('bin/whatsapp/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyWhatsapp'])->name('bin.whatsapp.empty');
 
+    /* ---- Email Management ---------------------------------------------------- */
+    Route::prefix('email')->name('email.')->group(function () {
+        $ec = \App\Http\Controllers\Admin\EmailConfigController::class;
+        Route::get('configs', [$ec, 'index'])->name('configs');
+        Route::post('configs', [$ec, 'store'])->name('configs.store');
+        Route::put('configs/{config}', [$ec, 'update'])->whereNumber('config')->name('configs.update');
+        Route::delete('configs/{config}', [$ec, 'destroy'])->whereNumber('config')->name('configs.destroy');
+        Route::post('configs/{config}/default', [$ec, 'makeDefault'])->whereNumber('config')->name('configs.default');
+        Route::post('configs/{config}/test', [$ec, 'test'])->whereNumber('config')->name('configs.test');
+        Route::post('configs/{config}/send-test', [$ec, 'sendTest'])->whereNumber('config')->name('configs.send-test');
+    });
+
         Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');
         Route::post('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'update'])->name('email-settings.update');
         Route::post('email-settings/test', [\App\Http\Controllers\Admin\EmailSettingController::class, 'sendTest'])->name('email-settings.test');

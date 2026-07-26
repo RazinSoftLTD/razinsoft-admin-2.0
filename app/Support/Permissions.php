@@ -101,6 +101,9 @@ class Permissions
         // "Owned" saw no tickets at all, even the ones assigned to them.
         'tickets' => ['label' => 'Tickets', 'group' => 'Support', 'actions' => ['view', 'create', 'edit', 'reply', 'delete', 'settings'], 'owner' => 'assigned_to'],
         'chat' => ['label' => 'Team Chat', 'group' => 'Support', 'actions' => ['create_group', 'clients']],
+        // Email Management — configuration and sending are separate from just reading the log,
+        // so support staff can look up "did that invoice go out?" without touching SMTP.
+        'email' => ['label' => 'Email', 'group' => 'Support', 'actions' => ['view', 'configure', 'templates', 'queue', 'logs', 'analytics', 'rules', 'send']],
         'whatsapp' => ['label' => 'WhatsApp', 'group' => 'Support', 'actions' => ['view', 'reply', 'assign', 'activity', 'settings', 'connection', 'numbers', 'labels', 'webhook', 'quick_replies']],
         'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],
         // owner = 'id': the employee record IS the user, so "Owned" scope means their own (self) record.

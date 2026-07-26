@@ -20,3 +20,9 @@ Route::get('invoice/pay/{token}/paypal/return', [InvoicePayController::class, 'p
 // ---- Client-facing PRD (token-guarded, no login). Clients submit only; review stays in the panel. ----
 Route::get('prd/{token}', [PublicPrdController::class, 'show'])->name('prd.public');
 Route::post('prd/{token}', [PublicPrdController::class, 'store'])->name('prd.public.store');
+
+// ---- Email tracking (no login: these are opened by the recipient's mail client / browser).
+//      Each message carries an unguessable UUID; that is the only thing identifying it. ----
+Route::get('email/track/open/{tracking}', [\App\Http\Controllers\EmailTrackingController::class, 'open'])->name('email.track.open');
+Route::get('email/track/click/{tracking}', [\App\Http\Controllers\EmailTrackingController::class, 'click'])->name('email.track.click');
+Route::get('email/unsubscribe/{tracking}', [\App\Http\Controllers\EmailTrackingController::class, 'unsubscribe'])->name('email.unsubscribe');
