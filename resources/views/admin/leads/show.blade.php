@@ -118,6 +118,10 @@
         <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
             <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Lead Details</h2>
             <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                    <dt class="text-xs uppercase tracking-wide text-gray-400">Interested in</dt>
+                    <dd class="mt-1"><x-admin.interest-labels :model="$lead" size="md" empty="—" /></dd>
+                </div>
                 @foreach ($rows as $label => $value)
                     <div>
                         <dt class="text-xs uppercase tracking-wide text-gray-400">{{ $label }}</dt>

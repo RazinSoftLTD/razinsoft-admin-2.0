@@ -18,7 +18,7 @@ class LeadController extends Controller
     public function index(Request $request)
     {
         $q = Lead::query()
-            ->with('assignee:id,name', 'nextFollowUp.assignee:id,name', 'lastCompletedFollowUp')
+            ->with('assignee:id,name', 'nextFollowUp.assignee:id,name', 'lastCompletedFollowUp', 'interests.parent')
             ->latest('id');
 
         // Constrain to the rows this user's "view" scope allows (owned / added / both / all).
@@ -47,6 +47,10 @@ class LeadController extends Controller
         }
         if ($priority = $request->query('priority')) {
             $q->where('priority', $priority);
+        }
+        // Interested in: a category also matches its sub-categories (see HasProductInterests).
+        if ($interest = $request->query('interest')) {
+            $q->interestedIn($interest);
         }
 
         // Created-date filter: preset range and/or a custom from–to range.
@@ -366,6 +370,7 @@ class LeadController extends Controller
 
         $data['added_by'] = $request->user()->id;
         $lead = Lead::create($data);
+        \App\Support\ProductInterests::syncFrom($request, $lead);
 
         if ($dealData) {
             Deal::create([
@@ -529,6 +534,7 @@ class LeadController extends Controller
     {
         $this->authorizeLead($request, $lead);
         $lead->update($this->validated($request, $lead));
+        \App\Support\ProductInterests::syncFrom($request, $lead);
 
         return redirect()->route('admin.leads.index')->with('status', 'Lead updated.');
     }
@@ -564,8 +570,6 @@ class LeadController extends Controller
             'lead_source' => ['required', Rule::in(Lead::sourceOptions())],
             // "Product" — a RazinSoft product name (from the Products module). Stored on the industry column.
             'industry' => ['nullable', 'string', 'max:255'],
-            'product_category' => ['nullable', 'string', 'max:80'],
-            'product_sub_category' => ['nullable', 'string', 'max:80'],
             'lead_status' => ['required', Rule::in(array_keys(Lead::STATUSES))],
             'address' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:120'],

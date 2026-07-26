@@ -66,14 +66,9 @@
                 <x-admin.field label="Client Name" name="name" :value="$val('name')" required placeholder="e.g. John Doe" class="flex-1" />
                 <x-admin.field label="Email Address" name="email" type="email" :value="$val('email')" required placeholder="e.g. johndoe@example.com" class="flex-1" />
 
-                {{-- Product Category + Sub-category — the shared list from Settings > CRM Settings --}}
+                {{-- Interested in — the shared Product Category list from Settings > CRM Settings --}}
                 <div class="flex-1">
-                    <x-admin.product-category-fields
-                        label="Client Category"
-                        category-name="client_category"
-                        sub-name="client_sub_category"
-                        :category="$curCat"
-                        :sub-category="$curSub" />
+                    <x-admin.product-interests :selected="old('interest_ids', $client?->exists ? $client->interests->pluck('id')->all() : [])" />
                 </div>
 
                 <x-admin.field label="Language" name="language" type="select" :value="$val('language', 'English')"

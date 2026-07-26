@@ -36,6 +36,29 @@ class ProductCategory extends Model
         return static::whereNull('parent_id')->orderBy('sort_order')->orderBy('name')->pluck('name')->all();
     }
 
+    /** "Ready ecommerce" for a category, "Ready ecommerce › Multi Vendor" for a sub-category. */
+    public function fullName(): string
+    {
+        return $this->parent_id && $this->parent ? $this->parent->name.' › '.$this->name : $this->name;
+    }
+
+    /**
+     * Everything pickable in the "Interested in" list, in tree order: each category followed by
+     * its own sub-categories. Returns [['id' =>, 'label' =>, 'is_sub' =>], …].
+     */
+    public static function pickerOptions(): array
+    {
+        $out = [];
+        foreach (static::tree() as $cat) {
+            $out[] = ['id' => $cat->id, 'label' => $cat->name, 'is_sub' => false];
+            foreach ($cat->children as $sub) {
+                $out[] = ['id' => $sub->id, 'label' => $sub->name, 'is_sub' => true];
+            }
+        }
+
+        return $out;
+    }
+
     /** ['Category' => ['Sub A', 'Sub B'], …] — drives the dependent sub-category dropdown. */
     public static function subMap(): array
     {

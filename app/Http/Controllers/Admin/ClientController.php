@@ -35,11 +35,9 @@ class ClientController extends Controller
         if ($status = $request->query('status')) {
             $q->where('status', $status);
         }
-        if ($category = $request->query('category')) {
-            $q->where('client_category', $category);
-        }
-        if ($subCategory = $request->query('sub_category')) {
-            $q->where('client_sub_category', $subCategory);
+        // Interested in: a category also matches its sub-categories.
+        if ($interest = $request->query('interest')) {
+            $q->interestedIn($interest);
         }
         if ($country = $request->query('country')) {
             $q->where('country', $country);
@@ -101,8 +99,6 @@ class ClientController extends Controller
             'lastImport' => $request->user()->allows('clients', 'import_export') ? \App\Models\ClientImportBatch::undoable() : null,
             // Filter option lists.
             'statuses' => User::STATUSES,
-            'filterCategories' => User::clients()->whereNotNull('client_category')->where('client_category', '!=', '')->distinct()->orderBy('client_category')->pluck('client_category')->all(),
-            'filterSubCategories' => User::clients()->whereNotNull('client_sub_category')->where('client_sub_category', '!=', '')->distinct()->orderBy('client_sub_category')->pluck('client_sub_category')->all(),
             'filterCountries' => User::clients()->whereNotNull('country')->where('country', '!=', '')->distinct()->orderBy('country')->pluck('country')->all(),
             'clientLabels' => \App\Models\ClientLabel::ordered(),
             'filters' => $request->only(['status', 'category', 'sub_category', 'country', 'label', 'date_range', 'from', 'to']),
@@ -251,6 +247,7 @@ class ClientController extends Controller
         }
 
         $client = User::create($data);
+        \App\Support\ProductInterests::syncFrom($request, $client);
         if ($request->user()->allows('clients', 'private')) {
             $this->syncPrivacyGrants($client, $request);
         }
@@ -297,6 +294,7 @@ class ClientController extends Controller
         }
 
         $client->update($data);
+        \App\Support\ProductInterests::syncFrom($request, $client);
         if ($request->user()->allows('clients', 'private')) {
             $this->syncPrivacyGrants($client, $request);
         }

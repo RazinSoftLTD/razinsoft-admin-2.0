@@ -69,9 +69,9 @@
                         <dt class="text-xs uppercase tracking-wide text-gray-400">Last Updated</dt>
                         <dd class="mt-0.5 text-sm font-medium text-[var(--color-heading)]">{{ $deal->updated_at->diffForHumans() }}</dd>
                     </div>
-                    <div>
-                        <dt class="text-xs uppercase tracking-wide text-gray-400">Project Type</dt>
-                        <dd class="mt-0.5 text-sm font-medium text-[var(--color-heading)]">{{ $deal->project_type ?: '—' }}</dd>
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs uppercase tracking-wide text-gray-400">Interested in</dt>
+                        <dd class="mt-1"><x-admin.interest-labels :model="$deal" size="md" empty="—" /></dd>
                     </div>
                     <div>
                         <dt class="text-xs uppercase tracking-wide text-gray-400">Priority</dt>

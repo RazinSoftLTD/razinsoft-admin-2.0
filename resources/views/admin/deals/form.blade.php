@@ -54,7 +54,7 @@
                     <div class="space-y-5 p-6">
                         {{-- Title first on its own line, then the product it is for. --}}
                         <x-admin.field label="Deal Title" name="title" :value="$deal->title" required placeholder="e.g. Acme — Website Project" />
-                        <x-admin.product-category-fields :category="old('product_category', $deal->product_category)" :sub-category="old('product_sub_category', $deal->product_sub_category)" />
+                        <x-admin.product-interests :selected="old('interest_ids', $deal->exists ? $deal->interests->pluck('id')->all() : [])" />
                         <x-admin.field label="Notes" name="notes" type="textarea" rows="4" :value="$deal->notes" placeholder="Scope, requirements, next steps…" />
                     </div>
                 </section>

@@ -117,6 +117,8 @@
                             @endforeach
                         </select>
                     </div>
+                    <x-admin.interest-filter />
+
                     <div>
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Assigned To</label>
                         <select name="assigned" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\HasProductInterests;
 use App\Models\Concerns\HasPrivacy;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,6 +18,8 @@ use Laravel\Sanctum\HasApiTokens;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
+    use HasProductInterests;
+
     use \App\Models\Concerns\SyncsContactNumbers;
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasPrivacy, Notifiable, SoftDeletes;

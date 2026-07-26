@@ -52,6 +52,9 @@
                             @elseif (! $lead->company_name)
                                 <p class="text-xs text-[var(--color-muted)]">—</p>
                             @endif
+                            {{-- What they are interested in. --}}
+                            <x-admin.interest-labels :model="$lead" class="mt-1" />
+
                             {{-- Already a client (matched on a shared phone number or email). --}}
                             @if ($leadClient)
                                 <a href="{{ $matches->count() > 1 ? route('admin.clients.index', ['search' => $leadClient->email ?: $leadClient->name]) : route('admin.clients.show', $leadClient->id) }}"

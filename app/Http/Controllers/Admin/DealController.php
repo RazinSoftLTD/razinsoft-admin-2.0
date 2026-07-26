@@ -19,8 +19,10 @@ class DealController extends Controller
 {
     public function index(Request $request)
     {
-        $base = fn () => Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name', 'nextMilestone')
-            ->when(! $request->user()->seesAll('deals'), fn ($q) => $q->where('assigned_to', $request->user()->id));
+        $base = fn () => Deal::query()->with('client:id,name', 'assignee:id,name', 'lead:id,full_name', 'nextMilestone', 'interests.parent')
+            ->when(! $request->user()->seesAll('deals'), fn ($q) => $q->where('assigned_to', $request->user()->id))
+            // Interested in: a category also matches its sub-categories.
+            ->when($request->query('interest'), fn ($q, $id) => $q->interestedIn($id));
 
         $view = $request->query('view') === 'list' ? 'list' : 'board';
         $all = $base()->latest('id')->get();
@@ -60,6 +62,7 @@ class DealController extends Controller
     public function store(Request $request)
     {
         $deal = Deal::create($this->stamped($this->validated($request)));
+        \App\Support\ProductInterests::syncFrom($request, $deal);
 
         return redirect()->route('admin.deals.show', $deal)->with('status', 'Deal created.');
     }
@@ -79,6 +82,7 @@ class DealController extends Controller
     {
         $this->authorizeDeal($request, $deal);
         $deal->update($this->stamped($this->validated($request), $deal));
+        \App\Support\ProductInterests::syncFrom($request, $deal);
 
         return redirect()->route('admin.deals.show', $deal)->with('status', 'Deal updated.');
     }
@@ -304,8 +308,6 @@ class DealController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'project_type' => ['nullable', Rule::in(Deal::PROJECT_TYPES)],
-            'product_category' => ['nullable', 'string', 'max:80'],
-            'product_sub_category' => ['nullable', 'string', 'max:80'],
             'client_id' => ['nullable', 'exists:users,id'],
             'lead_id' => ['nullable', 'exists:leads,id'],
             'stage' => ['required', Rule::in(array_keys(Deal::stages()))],

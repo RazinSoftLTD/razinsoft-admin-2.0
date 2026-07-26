@@ -152,20 +152,7 @@
                                 @foreach ($clientLabels as $lbl)<option value="{{ $lbl->name }}" @selected(request('label') === $lbl->name)>{{ $lbl->name }}</option>@endforeach
                             </select>
                         </div>
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Category</label>
-                            <select name="category" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                <option value="">All</option>
-                                @foreach ($filterCategories as $cat)<option value="{{ $cat }}" @selected(request('category') === $cat)>{{ $cat }}</option>@endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Sub Category</label>
-                            <select name="sub_category" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                <option value="">All</option>
-                                @foreach ($filterSubCategories as $sc)<option value="{{ $sc }}" @selected(request('sub_category') === $sc)>{{ $sc }}</option>@endforeach
-                            </select>
-                        </div>
+                        <x-admin.interest-filter />
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Country</label>
                             <select name="country" class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">

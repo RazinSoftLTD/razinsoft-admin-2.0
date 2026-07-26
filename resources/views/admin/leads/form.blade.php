@@ -179,7 +179,7 @@
                         </div>
                         {{-- Product Category covers what the old free-text Product field said, so only the department stays here. --}}
                         <x-admin.field label="Lead Department" name="team" type="select" :value="$lead->team" :options="['' => 'Select'] + array_combine(\App\Models\Lead::departmentOptions(), \App\Models\Lead::departmentOptions())" />
-                        <x-admin.product-category-fields stacked :category="old('product_category', $lead->product_category)" :sub-category="old('product_sub_category', $lead->product_sub_category)" />
+                        <x-admin.product-interests :selected="old('interest_ids', $lead->exists ? $lead->interests->pluck('id')->all() : [])" />
                     </div>
                 </section>
 

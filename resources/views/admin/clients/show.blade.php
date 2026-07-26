@@ -80,6 +80,10 @@
                         'Client since' => $client->created_at?->format('d M, Y'),
                     ];
                 @endphp
+                <div class="flex justify-between gap-4 border-b border-gray-50 pb-3">
+                    <dt class="shrink-0 text-sm text-[var(--color-muted)]">Interested in</dt>
+                    <dd class="flex flex-wrap justify-end gap-1.5 text-right"><x-admin.interest-labels :model="$client" empty="—" /></dd>
+                </div>
                 @foreach ($rows as $label => $value)
                     <div class="flex justify-between gap-4 border-b border-gray-50 pb-3">
                         <dt class="text-sm text-[var(--color-muted)]">{{ $label }}</dt>
