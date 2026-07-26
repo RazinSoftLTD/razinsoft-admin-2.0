@@ -27,16 +27,15 @@
                 @endif
                 <div>
                     <h1 class="text-xl font-bold text-[var(--color-heading)]">{{ $staff->name }}</h1>
-                    <p class="text-sm text-[var(--color-muted)]">
-                        {{ $staff->designation?->name ?? 'Employee' }}@if ($staff->department?->name) · {{ $staff->department->name }}@endif
-                        @if ($staff->employee_code) · <span class="font-semibold text-[var(--color-heading)]">{{ $staff->employee_code }}</span>@endif
-                    </p>
-                    <div class="mt-1 flex flex-wrap items-center gap-2">
-                        @php $tone = ['active' => 'bg-emerald-50 text-emerald-700', 'inactive' => 'bg-gray-100 text-gray-600', 'blocked' => 'bg-red-50 text-red-600']; @endphp
+                    {{-- Designation, code and status read as one line; the role and last-seen live on the Profile tab. --}}
+                    @php $tone = ['active' => 'bg-emerald-50 text-emerald-700', 'inactive' => 'bg-gray-100 text-gray-600', 'blocked' => 'bg-red-50 text-red-600']; @endphp
+                    <p class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-muted)]">
+                        <span>
+                            {{ $staff->designation?->name ?? 'Employee' }}@if ($staff->department?->name) · {{ $staff->department->name }}@endif
+                            @if ($staff->employee_code) · <span class="font-semibold text-[var(--color-heading)]">{{ $staff->employee_code }}</span>@endif
+                        </span>
                         <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $tone[$staff->status] ?? 'bg-gray-100 text-gray-600' }}">{{ ucfirst($staff->status) }}</span>
-                        <span class="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">{{ $staff->isAdmin() ? 'Administrator' : ($staff->assignedRole?->name ?? 'No role') }}</span>
-                        <span class="text-xs text-gray-400">{{ $staff->last_seen_at ? 'Last seen '.$staff->last_seen_at->diffForHumans() : 'Never signed in' }}</span>
-                    </div>
+                    </p>
                 </div>
             </div>
 

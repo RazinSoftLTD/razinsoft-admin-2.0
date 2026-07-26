@@ -48,7 +48,7 @@
                         Mobile image <span class="font-normal text-[var(--color-muted)]">(optional)</span>
                     </label>
                     @if ($promotion->mobile_image)
-                        <img src="{{ \App\Http\Resources\ProductResource::media($promotion->mobile_image) }}" class="mb-2 h-20 w-60 rounded-lg border border-gray-100 object-cover">
+                        <img src="{{ \App\Http\Resources\ProductResource::media($promotion->mobile_image) }}" class="mb-2 h-10 w-60 rounded-lg border border-gray-100 object-cover">
                         <label class="mb-2 flex items-center gap-2 text-xs text-[var(--color-muted)]">
                             <input type="checkbox" name="remove_mobile_image" value="1" class="h-4 w-4 rounded accent-[var(--color-primary)]">
                             Remove the mobile image (phones fall back to the wide banner)
