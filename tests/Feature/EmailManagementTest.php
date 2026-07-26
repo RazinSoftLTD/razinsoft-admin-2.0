@@ -430,4 +430,14 @@ class EmailManagementTest extends TestCase
 
         $this->assertStringContainsString('Name Rahim', $text, 'Cells must not run together.');
     }
+
+    public function test_the_shell_can_stack_its_columns_on_a_phone(): void
+    {
+        $html = \App\Services\Email\DefaultTemplates::wrap('<p>Hello</p>');
+
+        $this->assertStringContainsString('@media only screen and (max-width:620px)', $html);
+        // A fixed 600px card is what makes a phone scroll sideways.
+        $this->assertStringContainsString('.shell { width:100% !important', $html);
+        $this->assertStringContainsString('.stack { display:block !important', $html);
+    }
 }

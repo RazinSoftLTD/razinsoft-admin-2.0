@@ -237,13 +237,15 @@ class DefaultTemplates
             ['icon-calendar.png', 'Registration Date', '{{registration_date}}'],
         ];
 
+        // On a phone the value drops under its label — a long email address and its label will
+        // not share a 280px line without one of them wrapping mid-word.
         $detailRows = '';
         foreach ($rows as $i => [$icon, $label, $value]) {
             $line = $i < count($rows) - 1 ? 'border-bottom:1px solid #eef2f7' : '';
-            $detailRows .= '<tr>'
-                .'<td width="34" valign="middle" style="padding:13px 0;'.$line.'">'.$img($icon, 20, 20, '').'</td>'
-                .'<td valign="middle" style="padding:13px 0;font-size:14px;font-weight:600;color:#0f172a;'.$line.'">'.$label.'</td>'
-                .'<td valign="middle" align="right" style="padding:13px 0;font-size:14px;color:#475569;'.$line.'">'.$value.'</td>'
+            $detailRows .= '<tr class="detail-row">'
+                .'<td width="34" valign="middle" class="detail-icon" style="padding:13px 0;'.$line.'">'.$img($icon, 20, 20, '').'</td>'
+                .'<td valign="middle" class="detail-cell detail-label" style="padding:13px 0;font-size:14px;font-weight:600;color:#0f172a;'.$line.'">'.$label.'</td>'
+                .'<td valign="middle" align="right" class="detail-cell detail-value" style="padding:13px 0;font-size:14px;color:#475569;word-break:break-word;'.$line.'">'.$value.'</td>'
                 .'</tr>';
         }
 
@@ -301,8 +303,8 @@ class DefaultTemplates
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                    style="border:1px solid #e6edf7;border-radius:14px">
               <tr>
-                <td valign="top" width="70" style="padding:22px 0 22px 20px">{$imgAvatar}</td>
-                <td style="padding:22px 22px 6px 6px">
+                <td valign="top" width="70" class="detail-icon" style="padding:22px 0 22px 20px">{$imgAvatar}</td>
+                <td class="detail-head" style="padding:22px 22px 6px 6px">
                   <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#0f172a">Your Account Details</p>
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                     {$detailRows}
@@ -326,9 +328,9 @@ class DefaultTemplates
         <!-- the one thing to click -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td align="center" class="pad" style="padding:28px 40px 0">
-            <a href="{{login_url}}" target="_blank"
+            <a href="{{login_url}}" target="_blank" class="cta"
                style="display:inline-block;padding:15px 40px;background:#1a6dff;color:#ffffff;font-size:16px;
-                      font-weight:700;text-decoration:none;border-radius:10px">Go to Dashboard &rarr;</a>
+                      font-weight:700;text-align:center;text-decoration:none;border-radius:10px">Go to Dashboard &rarr;</a>
           </td></tr>
         </table>
 
@@ -337,8 +339,8 @@ class DefaultTemplates
           <tr><td class="pad" style="padding:28px 40px 0">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                    style="background:#f4f8ff;border-radius:14px"><tr>
-              <td valign="middle" width="96" style="padding:20px 0 20px 20px">{$imgSupport}</td>
-              <td valign="middle" style="padding:20px 20px 20px 4px">
+              <td valign="middle" width="96" class="help-art" style="padding:20px 0 20px 20px">{$imgSupport}</td>
+              <td valign="middle" class="help-text" style="padding:20px 20px 20px 4px">
                 <p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#0f172a">Need help?</p>
                 <p style="margin:0 0 10px;font-size:13px;color:#475569">Our support team is always ready to assist you.</p>
                 <a href="mailto:{{support_email}}" style="font-size:13px;font-weight:600;color:#1a6dff;text-decoration:none">{{support_email}}</a>
@@ -398,12 +400,41 @@ class DefaultTemplates
         <title>{{company_name}}</title>
         <style>
           @media only screen and (max-width:620px) {
-            .stack { display:block !important; width:100% !important; max-width:100% !important; }
-            .stack-pad { padding:0 0 20px 0 !important; }
-            .pad { padding-left:22px !important; padding-right:22px !important; }
-            .h1 { font-size:28px !important; }
+            /* The shell itself: a fixed 600px card would force a sideways scroll on a phone. */
+            .shell { width:100% !important; max-width:100% !important; border-radius:12px !important; }
+            .outer { padding:14px 8px !important; }
+
+            /* Side-by-side cells become full-width rows. The padding that separated them
+               horizontally has to go, or the second column sits indented under the first. */
+            .stack { display:block !important; width:100% !important; max-width:100% !important;
+                     padding-left:0 !important; padding-right:0 !important; }
+            .stack-pad { padding-bottom:18px !important; }
+
+            .pad { padding-left:20px !important; padding-right:20px !important; }
+            .h1 { font-size:27px !important; }
             .hero-art { text-align:center !important; }
             .hero-art img { margin-left:auto !important; margin-right:auto !important; }
+
+            /* A label and its value will not both fit on one narrow line, so the value drops
+               under the label and both sit left-aligned. */
+            .detail-label { display:block !important; }
+            .detail-value { display:block !important; width:auto !important; text-align:left !important;
+                            padding:0 0 12px !important; }
+            .detail-row td { border-bottom:0 !important; }
+            .detail-cell { display:block !important; width:auto !important; padding:12px 0 2px !important; }
+            /* The decorative icons go: at 320px the space they take is space an email address
+               needs, and it is the address that has to stay readable. */
+            .detail-icon { display:none !important; }
+            .detail-head { display:block !important; padding:20px 20px 4px !important; }
+
+            /* The support panel reads better with the headset above the words than beside them. */
+            /* width:auto, not 100% — a full-width block plus its own side padding overflows
+               the panel, and a mail client will not do box-sizing for us. */
+            .help-art { display:block !important; width:auto !important; text-align:left !important;
+                        padding:18px 20px 0 !important; }
+            .help-text { display:block !important; width:auto !important; padding:10px 20px 18px !important; }
+
+            .cta { display:block !important; }
           }
         </style>
         </head>
@@ -411,9 +442,9 @@ class DefaultTemplates
         <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">{$preheader}</div>
 
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f8">
-        <tr><td align="center" style="padding:28px 12px">
+        <tr><td align="center" class="outer" style="padding:28px 12px">
 
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="shell"
                  style="width:600px;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden">
 
             <!-- logo -->
