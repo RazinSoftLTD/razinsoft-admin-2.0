@@ -116,13 +116,15 @@
                 <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">Email Templates</h2>
                 <div class="space-y-2">
                     @foreach ($templates as $t)
-                        <a href="{{ route('admin.email-settings.templates.edit', $t) }}" class="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50">
-                            <span class="min-w-0">
+                        {{-- The row still opens the editor; the switch turns the email on or off
+                             without leaving the page. --}}
+                        <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50">
+                            <a href="{{ route('admin.email-settings.templates.edit', $t) }}" class="min-w-0 flex-1">
                                 <span class="block truncate text-sm font-semibold text-[var(--color-heading)]">{{ $t->name }}</span>
                                 <span class="block truncate text-xs text-[var(--color-muted)]">{{ $t->subject }}</span>
-                            </span>
-                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $t->is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400' }}">{{ $t->is_active ? 'Active' : 'Off' }}</span>
-                        </a>
+                            </a>
+                            <x-admin.email-template-toggle :template="$t" />
+                        </div>
                     @endforeach
                 </div>
             </div>

@@ -34,9 +34,6 @@
                             <div class="min-w-0 flex-1">
                                 <p class="flex flex-wrap items-center gap-2">
                                     <a href="{{ route('admin.email.templates.edit', $template) }}" class="truncate text-sm font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $template->name }}</a>
-                                    @unless ($template->is_active)
-                                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-500">Off</span>
-                                    @endunless
                                     @if ($template->is_system)
                                         <span class="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-primary)]">Built-in</span>
                                     @endif
@@ -46,7 +43,8 @@
 
                             <code class="hidden shrink-0 rounded bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 sm:block">{{ $template->key }}</code>
 
-                            <div class="flex shrink-0 items-center gap-1.5">
+                            <div class="flex shrink-0 items-center gap-2">
+                                <x-admin.email-template-toggle :template="$template" />
                                 <a href="{{ route('admin.email.templates.preview', $template) }}" target="_blank" rel="noopener"
                                    class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[var(--color-heading)] hover:bg-gray-50">Preview</a>
                                 <a href="{{ route('admin.email.templates.edit', $template) }}"

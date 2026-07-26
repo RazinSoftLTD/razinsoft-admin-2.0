@@ -801,6 +801,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('templates/{template}', [$et, 'destroy'])->whereNumber('template')->name('templates.destroy');
         Route::get('templates/{template}/preview', [$et, 'preview'])->whereNumber('template')->name('templates.preview');
         Route::post('templates/{template}/send-test', [$et, 'sendTest'])->whereNumber('template')->name('templates.send-test');
+        Route::post('templates/{template}/toggle', [$et, 'toggle'])->whereNumber('template')->name('templates.toggle');
 
         $el = \App\Http\Controllers\Admin\EmailLogController::class;
         Route::get('queue', [$el, 'queue'])->name('queue');

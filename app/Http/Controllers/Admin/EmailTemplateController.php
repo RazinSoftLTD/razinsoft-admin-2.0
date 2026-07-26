@@ -106,6 +106,27 @@ class EmailTemplateController extends Controller
         return redirect()->route('admin.email.templates')->with('status', 'Template deleted.');
     }
 
+    /**
+     * Flip a template on or off from a list, without opening it.
+     *
+     * Its own endpoint rather than a trip through update(): that would need the whole body posted
+     * back, and a half-filled form would overwrite the content.
+     */
+    public function toggle(Request $request, EmailTemplate $template)
+    {
+        $this->can($request, 'templates');
+
+        $template->update(['is_active' => ! $template->is_active]);
+
+        $state = $template->is_active ? 'on' : 'off';
+
+        if ($request->expectsJson()) {
+            return response()->json(['is_active' => $template->is_active, 'message' => "“{$template->name}” turned {$state}."]);
+        }
+
+        return back()->with('status', "“{$template->name}” turned {$state}.");
+    }
+
     /** Rendered preview, filled with example values so it reads like a real message. */
     public function preview(Request $request, EmailTemplate $template)
     {
