@@ -154,61 +154,82 @@
 
                 <div class="space-y-3">
                     @forelse ($productCategories as $cat)
-                        <div class="rounded-xl border border-gray-100 bg-white p-4">
-                            {{-- Category --}}
-                            <div class="flex flex-wrap items-center justify-between gap-2" x-data="{ edit: false }">
-                                <p x-show="!edit" class="text-sm font-bold text-[var(--color-heading)]">{{ $cat->name }}
-                                    <span class="ml-1 text-xs font-normal text-[var(--color-muted)]">{{ $cat->children->count() }} sub-categor{{ $cat->children->count() === 1 ? 'y' : 'ies' }}</span>
-                                </p>
-                                <form x-show="edit" x-cloak method="POST" action="{{ route('admin.crm-settings.product-categories.update', $cat) }}" class="flex flex-1 items-center gap-2">
+                        <div class="overflow-hidden rounded-xl border border-gray-100 bg-white">
+                            {{-- Category header --}}
+                            <div class="flex flex-wrap items-center gap-3 border-b border-gray-100 px-4 py-3" x-data="{ edit: false }">
+                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+                                </span>
+
+                                <span x-show="!edit" class="flex min-w-0 flex-1 items-center gap-2">
+                                    <span class="truncate text-sm font-bold text-[var(--color-heading)]">{{ $cat->name }}</span>
+                                    <span class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{{ $cat->children->count() }} sub</span>
+                                </span>
+
+                                <form x-show="edit" x-cloak method="POST" action="{{ route('admin.crm-settings.product-categories.update', $cat) }}" class="flex min-w-0 flex-1 items-center gap-2">
                                     @csrf @method('PATCH')
-                                    <input name="name" required maxlength="80" value="{{ $cat->name }}" class="h-9 flex-1 rounded-lg border border-gray-200 px-3 text-sm">
-                                    <button class="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">Save</button>
-                                    <button type="button" @click="edit = false" class="text-xs text-gray-400">Cancel</button>
+                                    <input name="name" required maxlength="80" value="{{ $cat->name }}" class="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                    <button class="shrink-0 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">Save</button>
+                                    <button type="button" @click="edit = false" class="shrink-0 text-xs font-semibold text-gray-400 hover:text-[var(--color-heading)]">Cancel</button>
                                 </form>
+
                                 <div x-show="!edit" class="flex shrink-0 items-center gap-1">
-                                    <button type="button" @click="edit = true" title="Rename" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                    <button type="button" @click="edit = true" title="Rename category" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                     </button>
-                                    <form method="POST" action="{{ route('admin.crm-settings.product-categories.destroy', $cat) }}" onsubmit="return confirm('Remove “{{ $cat->name }}”?')">
+                                    <form method="POST" action="{{ route('admin.crm-settings.product-categories.destroy', $cat) }}" onsubmit="return confirm('Remove “{{ $cat->name }}” and its sub-categories?')">
                                         @csrf @method('DELETE')
-                                        <button title="Remove" class="grid h-8 w-8 place-items-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600">
-                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                                        <button title="Remove category" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
                                         </button>
                                     </form>
                                 </div>
                             </div>
 
-                            {{-- Sub-categories --}}
-                            <div class="mt-2 space-y-1 border-t border-gray-50 pt-2">
-                                @foreach ($cat->children as $sub)
-                                    <div class="flex flex-wrap items-center justify-between gap-2 pl-3" x-data="{ edit: false }">
-                                        <span x-show="!edit" class="text-sm text-[var(--color-muted)]">· {{ $sub->name }}</span>
-                                        <form x-show="edit" x-cloak method="POST" action="{{ route('admin.crm-settings.product-categories.update', $sub) }}" class="flex flex-1 items-center gap-2">
-                                            @csrf @method('PATCH')
-                                            <input name="name" required maxlength="80" value="{{ $sub->name }}" class="h-8 flex-1 rounded-lg border border-gray-200 px-3 text-sm">
-                                            <button class="rounded-lg bg-[var(--color-primary)] px-3 py-1 text-xs font-semibold text-white">Save</button>
-                                            <button type="button" @click="edit = false" class="text-xs text-gray-400">Cancel</button>
-                                        </form>
-                                        <div x-show="!edit" class="flex shrink-0 items-center gap-1">
-                                            <button type="button" @click="edit = true" class="rounded p-1 text-gray-300 hover:text-[var(--color-heading)]" title="Rename">
-                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                            </button>
-                                            <form method="POST" action="{{ route('admin.crm-settings.product-categories.destroy', $sub) }}" onsubmit="return confirm('Remove “{{ $sub->name }}”?')">
-                                                @csrf @method('DELETE')
-                                                <button class="rounded p-1 text-red-300 hover:text-red-600" title="Remove">
-                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                @endforeach
+                            {{-- Sub-categories. A grid, not one long column: a category with a dozen
+                                 of them was a thin ribbon of text with the buttons stranded far right. --}}
+                            <div class="p-4">
+                                @if ($cat->children->count())
+                                    <div class="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                        @foreach ($cat->children as $sub)
+                                            <div class="group flex items-center gap-1.5 rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5" x-data="{ edit: false }">
+                                                <span x-show="!edit" class="min-w-0 flex-1 truncate text-sm text-[var(--color-heading)]">{{ $sub->name }}</span>
 
-                                <form method="POST" action="{{ route('admin.crm-settings.product-categories.store') }}" class="flex items-center gap-2 pl-3 pt-1">
+                                                <form x-show="edit" x-cloak method="POST" action="{{ route('admin.crm-settings.product-categories.update', $sub) }}" class="flex min-w-0 flex-1 items-center gap-1.5">
+                                                    @csrf @method('PATCH')
+                                                    <input name="name" required maxlength="80" value="{{ $sub->name }}" class="h-7 min-w-0 flex-1 rounded border border-gray-200 px-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                                    <button class="shrink-0 rounded bg-[var(--color-primary)] px-2 py-1 text-[11px] font-semibold text-white">Save</button>
+                                                    <button type="button" @click="edit = false" title="Cancel" class="shrink-0 text-gray-400 hover:text-[var(--color-heading)]">
+                                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                                                    </button>
+                                                </form>
+
+                                                <div x-show="!edit" class="flex shrink-0 items-center gap-0.5">
+                                                    <button type="button" @click="edit = true" title="Rename" class="grid h-6 w-6 place-items-center rounded text-gray-400 hover:bg-white hover:text-[var(--color-heading)]">
+                                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                                    </button>
+                                                    <form method="POST" action="{{ route('admin.crm-settings.product-categories.destroy', $sub) }}" onsubmit="return confirm('Remove “{{ $sub->name }}”?')">
+                                                        @csrf @method('DELETE')
+                                                        <button title="Remove" class="grid h-6 w-6 place-items-center rounded text-gray-400 hover:bg-white hover:text-red-600">
+                                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="mb-3 text-xs text-gray-400">No sub-categories yet — this category can be picked on its own.</p>
+                                @endif
+
+                                {{-- Sized to the names it takes, not the full card width. --}}
+                                <form method="POST" action="{{ route('admin.crm-settings.product-categories.store') }}" class="flex items-center gap-2" style="max-width:22rem">
                                     @csrf
                                     <input type="hidden" name="parent_id" value="{{ $cat->id }}">
-                                    <input name="name" required maxlength="80" placeholder="Add sub-category…" class="h-8 flex-1 rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                                    <button class="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-[var(--color-heading)] hover:bg-gray-50">Add</button>
+                                    <input name="name" required maxlength="80" placeholder="Add sub-category…" class="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                    <button class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-heading)] hover:bg-gray-50 hover:text-[var(--color-primary)]">
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add
+                                    </button>
                                 </form>
                             </div>
                         </div>
