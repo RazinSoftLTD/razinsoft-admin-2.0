@@ -601,6 +601,14 @@ class WhatsappController extends Controller
         [$dial, $national] = $this->splitNumber($chat->realNumber());
         $email = $chat->client?->email;
 
+        // leads.phone is NOT NULL, and a chat on a @lid id hides the real number — inserting
+        // would fail at the database. Ask for the number instead of returning a 500.
+        if (! $national) {
+            return response()->json([
+                'error' => 'This chat has no phone number yet. Add it in the contact panel above, then convert.',
+            ], 422);
+        }
+
         // Reuse an existing lead with the same phone (or email) — never create a duplicate.
         $lead = null;
         if ($national) {
