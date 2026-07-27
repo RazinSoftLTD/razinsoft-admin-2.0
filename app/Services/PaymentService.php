@@ -51,6 +51,20 @@ class PaymentService
             ])->all(),
         ];
 
+        // Give Stripe who is paying and where they are. It matters for three things: the receipt
+        // Stripe emails, Radar's fraud checks (address and postcode are signals it uses), and tax
+        // where that applies. Falls back to asking Stripe to collect an address when we have none.
+        if ($customer = $this->stripeCustomer($stripe, $order)) {
+            $params['customer'] = $customer->id;
+            // The address is on the customer, so re-asking would only invite a mismatch.
+            $params['billing_address_collection'] = 'auto';
+        } else {
+            $params['billing_address_collection'] = 'required';
+            if ($email = $order->billing['email'] ?? $order->user?->email) {
+                $params['customer_email'] = $email;
+            }
+        }
+
         // Apply the coupon discount so Stripe charges the same total shown on the site.
         if ((float) $order->discount > 0) {
             $coupon = $stripe->coupons->create([
@@ -71,6 +85,74 @@ class PaymentService
             'publishable_key' => config('services.stripe.key'),
             'session_id' => $session->id,
         ];
+    }
+
+    /**
+     * A Stripe Customer carrying this order's billing address, reused across the person's orders.
+     *
+     * Returns null when there is no address to send — the caller then asks Stripe to collect one,
+     * which is better than sending a half-filled address that fails Radar's checks. A Stripe error
+     * degrades to the same path: it must never block a payment.
+     */
+    private function stripeCustomer(StripeClient $stripe, Order $order): ?\Stripe\Customer
+    {
+        $billing = (array) ($order->billing ?? []);
+
+        if (blank($billing['address'] ?? null)) {
+            return null;
+        }
+
+        $name = trim(($billing['first_name'] ?? '').' '.($billing['last_name'] ?? ''))
+            ?: ($billing['full_name'] ?? $order->user?->name);
+
+        $payload = array_filter([
+            'name' => $name,
+            'email' => $billing['email'] ?? $order->user?->email,
+            'phone' => $billing['phone'] ?? null,
+            'address' => array_filter([
+                'line1' => $billing['address'] ?? null,
+                'city' => $billing['city'] ?? null,
+                'state' => $billing['state'] ?? null,
+                'postal_code' => $billing['zip'] ?? null,
+                // Stripe wants ISO-3166 alpha-2; the site stores the country's name.
+                'country' => $this->countryCode($billing['country'] ?? null),
+            ]),
+        ]);
+
+        try {
+            $user = $order->user;
+
+            if ($user?->stripe_customer_id) {
+                // Updated rather than duplicated: the same person paying again is the same customer,
+                // and their address may well have changed since.
+                return $stripe->customers->update($user->stripe_customer_id, $payload);
+            }
+
+            $customer = $stripe->customers->create($payload);
+
+            $user?->forceFill(['stripe_customer_id' => $customer->id])->save();
+
+            return $customer;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    /** Country name → ISO alpha-2, the only form Stripe accepts. */
+    private function countryCode(?string $country): ?string
+    {
+        if (blank($country)) {
+            return null;
+        }
+
+        // Already a code — the dashboard stores names, but an older order may hold either.
+        if (preg_match('/^[A-Za-z]{2}$/', $country)) {
+            return mb_strtoupper($country);
+        }
+
+        return \App\Support\Phone::regionFromCountry($country);
     }
 
     /**
