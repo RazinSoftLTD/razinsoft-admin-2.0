@@ -129,4 +129,46 @@ class WhatsappDriverTest extends TestCase
         $this->assertTrue($cloud->isConfigured(), 'A Cloud API number carries its own credentials.');
         $this->assertFalse($qr->isConfigured(), 'A QR number still needs the shared gateway.');
     }
+
+    public function test_a_rate_limit_does_not_mark_a_working_number_disconnected(): void
+    {
+        $account = $this->account([
+            'driver' => 'cloud_api', 'session_key' => 'cloud-r1',
+            'phone_number_id' => '1', 'access_token' => 'tok',
+            'is_connected' => true, 'session_state' => 'connected',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'graph.facebook.com/*' => \Illuminate\Support\Facades\Http::response([
+                'error' => ['code' => 80008, 'message' => 'There have been too many calls…'],
+            ], 400),
+        ]);
+
+        $status = app(WhatsappManager::class)->provider(null, $account->session_key, $account)->status();
+
+        $this->assertTrue($status['connected'], 'A throttle means "ask later", not "your token is wrong".');
+        $this->assertTrue($account->fresh()->is_connected);
+        $this->assertStringContainsString('rate-limiting', $status['message']);
+    }
+
+    public function test_a_refused_token_does_mark_the_number_disconnected(): void
+    {
+        $account = $this->account([
+            'driver' => 'cloud_api', 'session_key' => 'cloud-r2',
+            'phone_number_id' => '1', 'access_token' => 'bad',
+            'is_connected' => true, 'session_state' => 'connected',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'graph.facebook.com/*' => \Illuminate\Support\Facades\Http::response([
+                'error' => ['code' => 190, 'message' => 'Invalid OAuth access token.'],
+            ], 401),
+        ]);
+
+        $status = app(WhatsappManager::class)->provider(null, $account->session_key, $account)->status();
+
+        $this->assertFalse($status['connected']);
+        $this->assertFalse($account->fresh()->is_connected);
+        $this->assertStringContainsString('Invalid OAuth', $status['message']);
+    }
 }

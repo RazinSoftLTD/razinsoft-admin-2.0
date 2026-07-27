@@ -25,29 +25,63 @@ class CloudApiProvider implements WhatsappProvider
         return 'https://graph.facebook.com/'.($this->account->api_version ?: 'v21.0');
     }
 
+    /**
+     * Ask Meta whether this number's credentials work.
+     *
+     * A failure is not automatically "disconnected". Meta rate-limits per business account and
+     * answers `#80008` when a number is over — that means "ask again shortly", not "your token is
+     * wrong". Treating it as a disconnection wiped a working number's state and made every retry
+     * look like a fresh failure. The same goes for the network being down.
+     */
     public function status(): array
     {
-        $configured = filled($this->account->phone_number_id) && filled($this->account->access_token);
-        if (! $configured) {
-            return ['configured' => false, 'connected' => false, 'state' => 'disconnected', 'qr' => null, 'number' => null, 'message' => 'Add the Phone Number ID and Access Token.'];
+        if (blank($this->account->phone_number_id) || blank($this->account->access_token)) {
+            return $this->result(false, false, 'Add the Phone Number ID and Access Token.');
         }
+
         try {
-            $res = Http::withToken($this->account->access_token)
+            $res = Http::timeout(15)->withToken($this->account->access_token)
                 ->get($this->base().'/'.$this->account->phone_number_id, ['fields' => 'display_phone_number,verified_name']);
-            $ok = $res->successful();
+        } catch (\Throwable $e) {
+            // Could not reach Meta at all — says nothing about the credentials.
+            return $this->result(true, $this->account->is_connected, 'Could not reach Meta just now. Try again in a moment.');
+        }
+
+        if ($res->successful()) {
             $this->account->update([
-                'is_connected' => $ok,
+                'is_connected' => true,
+                'session_state' => 'connected',
                 'display_number' => $res->json('display_phone_number') ?: $this->account->display_number,
-                'session_state' => $ok ? 'connected' : 'disconnected',
-                // Stamped only on the transition, so the list can say how long it has been up.
-                'connected_at' => $ok ? ($this->account->connected_at ?: now()) : $this->account->connected_at,
+                'connected_at' => $this->account->connected_at ?: now(),
             ]);
 
-            return ['configured' => true, 'connected' => $ok, 'state' => $ok ? 'connected' : 'disconnected', 'qr' => null,
-                'number' => $res->json('display_phone_number'), 'message' => $ok ? null : ($res->json('error.message') ?: 'Connection failed.')];
-        } catch (\Throwable $e) {
-            return ['configured' => true, 'connected' => false, 'state' => 'disconnected', 'qr' => null, 'number' => null, 'message' => $e->getMessage()];
+            return $this->result(true, true, null, $res->json('display_phone_number'));
         }
+
+        // 80008 = too many calls to this WhatsApp Business account. 4 and 613 are the general
+        // throttles. All of them clear on their own.
+        if (in_array((int) $res->json('error.code'), [4, 613, 80008], true) || $res->status() === 429) {
+            return $this->result(true, $this->account->is_connected,
+                'Meta is rate-limiting this number right now. Wait a few minutes and verify again — nothing is wrong with the credentials.');
+        }
+
+        // A real refusal: bad token, wrong number id, permissions missing.
+        $this->account->update(['is_connected' => false, 'session_state' => 'disconnected']);
+
+        return $this->result(true, false, $res->json('error.message') ?: 'Meta refused the credentials.');
+    }
+
+    /** @return array{configured: bool, connected: bool, state: string, qr: null, number: ?string, message: ?string} */
+    private function result(bool $configured, bool $connected, ?string $message, ?string $number = null): array
+    {
+        return [
+            'configured' => $configured,
+            'connected' => $connected,
+            'state' => $connected ? 'connected' : 'disconnected',
+            'qr' => null,
+            'number' => $number ?: $this->account->display_number,
+            'message' => $message,
+        ];
     }
 
     public function connect(): array
