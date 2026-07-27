@@ -82,7 +82,14 @@
                 message: '', busy: false, timer: null,
                 csrf: document.querySelector('meta[name=csrf-token]').content,
                 stateLabel() { return { connected: 'Connected', qr: 'Scan the QR code', connecting: 'Connecting…', disconnected: 'Disconnected' }[this.state] || this.state; },
-                init() { this.poll(); this.timer = setInterval(() => this.poll(), 3000); },
+                // A QR number has to be watched: the code refreshes and pairing finishes on its own.
+                // A Cloud API number has nothing to wait for, and every check is a live call to
+                // Meta — polling it just burns the account's rate limit until Meta cuts us off.
+                cloud: {{ $account->isCloudApi() ? 'true' : 'false' }},
+                init() {
+                    this.poll();
+                    if (! this.cloud) this.timer = setInterval(() => this.poll(), 3000);
+                },
                 async poll() {
                     try {
                         const r = await fetch(@js(route('admin.whatsapp-connection.status', $account)));

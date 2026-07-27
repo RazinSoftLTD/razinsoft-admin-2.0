@@ -64,6 +64,19 @@ Templates come from Meta ▸ WhatsApp ▸ Message Templates and must be **approv
 lists nothing else. They are read from the WhatsApp Business Account, so a number without a
 **Business Account ID** has no templates to offer. The list is cached for ten minutes.
 
+## Rate limits
+
+Meta counts calls per WhatsApp Business Account and answers `(#80008) There have been too many
+calls` once a number is over. It clears on its own after a few minutes.
+
+So nothing polls Meta. The connection page refreshes every three seconds for a QR number, because
+the code changes and pairing completes on its own — a Cloud API number checks once on load and
+then only when Verify is pressed. Template lists are cached for ten minutes. The numbers list and
+the inbox read stored state and never call Meta at all.
+
+If you do hit the limit: wait, do not retry in a loop. Repeated Verify clicks are what gets you
+there.
+
 ## What the Cloud API cannot do
 
 Meta's API simply has no equivalent for some of what a paired phone can do. These raise a clear
