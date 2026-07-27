@@ -32,6 +32,24 @@ class AuthController extends Controller
             'role' => 'customer',
         ]);
 
+        try {
+            [$first, $last] = array_pad(explode(' ', trim($user->name), 2), 2, null);
+
+            \App\Services\Meta\ConversionsApi::make()->send('CompleteRegistration', 'signup-'.$user->id, [
+                'content_name' => 'Customer account',
+                'source_url' => rtrim((string) config('brand.website'), '/').'/register',
+            ], [
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'first_name' => $first,
+                'last_name' => $last,
+                'id' => $user->id,
+            ], $request);
+        } catch (\Throwable $e) {
+            // Signing up must not depend on a tracking call.
+            report($e);
+        }
+
         return $this->respondWithToken($user, 201);
     }
 

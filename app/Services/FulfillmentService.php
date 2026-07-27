@@ -41,6 +41,42 @@ class FulfillmentService
         }
 
         $this->sendEmail($order);
+
+        $this->reportPurchase($order);
+    }
+
+    /**
+     * Tell Meta the order was paid.
+     *
+     * event_id is the order number, so if the browser pixel also fires Purchase on the thank-you
+     * page with that same id, Meta counts one sale rather than two.
+     */
+    private function reportPurchase(Order $order): void
+    {
+        try {
+            [$first, $last] = array_pad(explode(' ', trim((string) $order->user?->name), 2), 2, null);
+
+            \App\Services\Meta\ConversionsApi::make()->send('Purchase', 'order-'.$order->order_number, [
+                'value' => $order->total,
+                'currency' => $order->currency ?: 'USD',
+                'order_id' => $order->order_number,
+                'num_items' => $order->items->count(),
+                'contents' => $order->items->map(fn ($i) => [
+                    'id' => (string) $i->product_id,
+                    'quantity' => (int) ($i->quantity ?: 1),
+                    'item_price' => round((float) $i->unit_price, 2),
+                ])->values()->all(),
+            ], [
+                'email' => $order->user?->email,
+                'phone' => $order->user?->phone,
+                'first_name' => $first,
+                'last_name' => $last,
+                'id' => $order->user_id,
+            ]);
+        } catch (\Throwable $e) {
+            // Tracking must never break fulfilment.
+            report($e);
+        }
     }
 
     /**

@@ -119,6 +119,22 @@ class MeetingController extends Controller
             report($e);
         }
 
+        try {
+            [$first, $last] = array_pad(explode(' ', trim((string) $meeting->name), 2), 2, null);
+
+            \App\Services\Meta\ConversionsApi::make()->send('Lead', 'meeting-'.$meeting->id, [
+                'content_name' => 'Meeting booking',
+                'source_url' => rtrim((string) config('brand.website'), '/').'/book-a-meeting',
+            ], [
+                'email' => $meeting->email,
+                'phone' => $meeting->phone ?? null,
+                'first_name' => $first,
+                'last_name' => $last,
+            ], $request);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return response()->json([
             'ok' => true,
             'is_new_client' => $isNew,

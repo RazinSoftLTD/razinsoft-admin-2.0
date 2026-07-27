@@ -767,6 +767,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
             Route::get('codecanyon-settings', [$cc, 'settings'])->name('codecanyon-settings');
             Route::put('codecanyon-settings', [$cc, 'saveSettings'])->name('codecanyon-settings.save');
+
+            // Meta Conversions API — server-side pixel events.
+            Route::get('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'index'])->name('meta-capi');
+            Route::post('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'update'])->name('meta-capi.update');
+            Route::post('meta-capi/test', [\App\Http\Controllers\Admin\MetaCapiController::class, 'test'])->name('meta-capi.test');
         });
 
         // Settings → Bin (recoverable clients + invoices; super admin only, enforced in the controller).
