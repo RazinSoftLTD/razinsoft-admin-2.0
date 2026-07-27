@@ -47,6 +47,32 @@
             </div>
         @endif
 
+        {{-- ───── Light / dark ─────
+             The choice lives in localStorage, not on the account: it belongs to the screen you are
+             sitting at, and someone on a bright monitor by day and a laptop at night wants a
+             different answer on each. --}}
+        <div x-data="{
+                dark: document.documentElement.getAttribute('data-theme') === 'dark',
+                toggle() {
+                    this.dark = ! this.dark;
+                    document.documentElement.setAttribute('data-theme', this.dark ? 'dark' : 'light');
+                    try { localStorage.setItem('rs-theme', this.dark ? 'dark' : 'light'); } catch (e) {}
+                },
+            }">
+            <button type="button" @click="toggle()"
+                    class="grid h-10 w-10 place-items-center rounded-lg text-gray-500 hover:bg-gray-50"
+                    :title="dark ? 'Switch to light' : 'Switch to dark'" aria-label="Toggle light and dark mode">
+                {{-- Moon while light (click for dark), sun while dark. --}}
+                <svg x-show="!dark" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
+                </svg>
+                <svg x-show="dark" x-cloak class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="4"/>
+                    <path stroke-linecap="round" d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>
+                </svg>
+            </button>
+        </div>
+
         {{-- ───── WhatsApp (only for users with access; badge scoped to their numbers) ───── --}}
         @if ($me->hasPermission('whatsapp.view'))
             @php

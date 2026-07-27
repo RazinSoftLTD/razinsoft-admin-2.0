@@ -9,7 +9,21 @@
     <title>@yield('title', 'Admin') · RazinSoft</title>
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <style>[x-cloak]{display:none!important}</style>
+
+    {{-- Set the theme before the first paint, or the page flashes light then swaps. --}}
+    <script>
+        (function () {
+            var stored = null;
+            try { stored = localStorage.getItem('rs-theme'); } catch (e) {}
+            var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
     @vite(['resources/css/app.css'])
+    {{-- Dark theme. Served from public/ rather than compiled: the deploy runs no npm build, and
+         this only redefines the palette variables the compiled utilities already point at. --}}
+    <link rel="stylesheet" href="{{ asset('css/theme-dark.css') }}?v={{ filemtime(public_path('css/theme-dark.css')) }}">
     <style>
         /* Disabled-field styling: the compiled stylesheet has no disabled:* variants. */
         .is-disabled:disabled { background-color: #f9fafb; color: #9ca3af; cursor: not-allowed; }
