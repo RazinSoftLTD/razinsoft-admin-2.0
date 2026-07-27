@@ -52,7 +52,7 @@
 
                 <div class="mt-6 flex items-center gap-2">
                     <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Settings</button>
-                    <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-300 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
+                    <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
                         Test gateway
                     </button>
@@ -78,12 +78,22 @@
                                     <span class="grid h-9 w-9 place-items-center rounded-full text-white" style="background: {{ $acc->color }}">
                                         <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Z"/></svg>
                                     </span>
-                                    <div>
-                                        <p class="text-sm font-bold text-[var(--color-heading)]">{{ $acc->name }}</p>
-                                        <p class="flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
+                                    <div class="min-w-0">
+                                        <p class="flex flex-wrap items-center gap-2 text-sm font-bold text-[var(--color-heading)]">
+                                            {{ $acc->name }}
+                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $acc->isCloudApi() ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
+                                                {{ $acc->isCloudApi() ? 'Cloud API' : 'QR' }}
+                                            </span>
+                                        </p>
+                                        <p class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-muted)]">
                                             <span class="h-1.5 w-1.5 rounded-full {{ $acc->isConnected() ? 'bg-emerald-500' : 'bg-gray-300' }}"></span>
-                                            {{ $acc->isConnected() ? ('Connected'.($acc->display_number ? ' · +'.$acc->display_number : '')) : 'Not connected' }}
-                                            · {{ \App\Models\WhatsappAccount::DRIVERS[$acc->driver] ?? 'QR / WhatsApp Web' }}
+                                            @if ($acc->isConnected())
+                                                Connected{{ $acc->display_number ? ' · +'.$acc->display_number : '' }}
+                                            @elseif (! $acc->isConfigured())
+                                                <span class="text-amber-700">{{ $acc->isCloudApi() ? 'Needs its Meta credentials' : 'Needs the gateway URL' }}</span>
+                                            @else
+                                                {{ $acc->isCloudApi() ? 'Not verified yet' : 'Not connected' }}
+                                            @endif
                                             · {{ $acc->users->count() }} member{{ $acc->users->count() === 1 ? '' : 's' }}
                                         </p>
                                     </div>
@@ -97,11 +107,11 @@
                                 </div>
                             </div>
 
-                            {{-- Edit: name, color, members --}}
+                            {{-- Edit --}}
                             <form method="POST" action="{{ route('admin.whatsapp-accounts.update', $acc) }}" x-show="open" x-cloak class="mt-4 border-t border-gray-100 pt-4"
                                   x-data="{ driver: @js($acc->driver ?: 'baileys') }">
                                 @csrf
-                                <div class="grid gap-3 sm:grid-cols-2">
+                                <div class="mb-4 grid gap-3 sm:grid-cols-2">
                                     <div>
                                         <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Name</label>
                                         <input type="text" name="name" value="{{ $acc->name }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
@@ -110,65 +120,92 @@
                                         <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Colour</label>
                                         <input type="color" name="color" value="{{ $acc->color }}" class="h-10 w-16 rounded-lg border-gray-200">
                                     </div>
-                                    <div class="sm:col-span-2">
-                                        <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">How this number connects</label>
-                                        <select name="driver" x-model="driver" class="h-10 w-full rounded-lg border-gray-200 text-sm">
-                                            @foreach (\App\Models\WhatsappAccount::DRIVERS as $key => $label)
-                                                <option value="{{ $key }}" @selected(old('driver', $acc->driver) === $key)>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                        <p class="mt-1 text-xs text-gray-400">QR pairs a phone the way WhatsApp Web does. Cloud API is Meta's official one and needs a verified business number.</p>
-                                    </div>
                                 </div>
 
-                                <div x-show="driver === 'cloud_api'" x-cloak class="mt-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                        <p class="mb-2 text-xs font-semibold text-[var(--color-muted)]">How this number connects</p>
+                                <div class="mb-4 grid gap-3 sm:grid-cols-2">
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition"
+                                           :class="driver === 'baileys' ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:bg-gray-50'">
+                                        <input type="radio" name="driver" value="baileys" x-model="driver" class="mt-0.5" style="accent-color:#10b981">
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-bold text-[var(--color-heading)]">QR / WhatsApp Web</span>
+                                            <span class="mt-0.5 block text-xs leading-relaxed text-[var(--color-muted)]">Scan a code with the phone. Groups and message editing keep working.</span>
+                                        </span>
+                                    </label>
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition"
+                                           :class="driver === 'cloud_api' ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:bg-gray-50'">
+                                        <input type="radio" name="driver" value="cloud_api" x-model="driver" class="mt-0.5" style="accent-color:#10b981">
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-bold text-[var(--color-heading)]">Meta Cloud API</span>
+                                            <span class="mt-0.5 block text-xs leading-relaxed text-[var(--color-muted)]">Meta&rsquo;s official API. The number leaves the WhatsApp app.</span>
+                                        </span>
+                                    </label>
+                                </div>
+
+                                <div x-show="driver === 'cloud_api'" x-cloak class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                                    <p class="text-xs font-bold text-[var(--color-heading)]">From Meta</p>
+                                    <p class="mb-3 mt-0.5 text-xs leading-relaxed text-[var(--color-muted)]">
+                                        developers.facebook.com &rsaquo; your app &rsaquo; <strong>WhatsApp &rsaquo; API Setup</strong> has the first two.
+                                    </p>
                                     <div class="grid gap-3 sm:grid-cols-2">
                                         <div>
                                             <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Phone Number ID</label>
-                                            <input type="text" name="phone_number_id" value="{{ $acc->phone_number_id }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                            <input type="text" name="phone_number_id" value="{{ $acc->phone_number_id }}" placeholder="109876543210987" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">WhatsApp Business Account ID</label>
-                                            <input type="text" name="business_account_id" value="{{ $acc->business_account_id }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                            <input type="text" name="business_account_id" value="{{ $acc->business_account_id }}" placeholder="102233445566778" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                            <p class="mt-1 text-xs text-gray-400">Without it there are no message templates to send.</p>
                                         </div>
                                         <div class="sm:col-span-2">
                                             <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Permanent Access Token</label>
-                                            <input type="password" name="access_token" autocomplete="new-password"
-                                                   placeholder="{{ $acc->access_token ? 'Saved — leave blank to keep it' : 'Paste the token from Meta' }}"
-                                                   class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                            <input type="password" name="access_token" autocomplete="new-password" placeholder="{{ $acc->access_token ? 'Saved — leave blank to keep it' : 'Paste the token from Meta' }}" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                            <p class="mt-1 text-xs leading-relaxed text-gray-400">
+                                                business.facebook.com &rsaquo; Business Settings &rsaquo; <strong>Users &rsaquo; System Users</strong> &rsaquo; Generate token, expiry <strong>Never</strong>.
+                                                The one on API Setup lasts 24 hours &mdash; do not use it.
+                                            </p>
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">App Secret</label>
-                                            <input type="text" name="app_secret" value="{{ $acc->app_secret }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
-                                            <p class="mt-1 text-xs text-gray-400">Used to check that incoming webhooks really came from Meta.</p>
+                                            <input type="text" name="app_secret" value="{{ $acc->app_secret }}" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                            <p class="mt-1 text-xs text-gray-400">App Settings &rsaquo; Basic &rsaquo; App secret.</p>
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">API version</label>
-                                            <input type="text" name="api_version" value="{{ $acc->api_version ?: 'v21.0' }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                            <input type="text" name="api_version" value="{{ $acc->api_version ?: 'v21.0' }}" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
                                         </div>
                                     </div>
-
-                                    @if ($acc->verify_token)
-                                        <div class="mt-3 rounded-lg border border-gray-200 bg-white p-3">
-                                            <p class="mb-2 text-xs font-semibold text-[var(--color-heading)]">Point Meta at this number</p>
-                                            <p class="mb-1 text-xs text-[var(--color-muted)]">Callback URL</p>
-                                            <input type="text" readonly value="{{ url('/api/whatsapp/webhook') }}" onclick="this.select()" class="mb-2 h-9 w-full rounded-lg border-gray-200 bg-gray-50 text-xs">
-                                            <p class="mb-1 text-xs text-[var(--color-muted)]">Verify Token — this number's own</p>
-                                            <input type="text" readonly value="{{ $acc->verify_token }}" onclick="this.select()" class="h-9 w-full rounded-lg border-gray-200 bg-gray-50 text-xs">
-                                            <p class="mt-2 text-xs text-gray-400">Subscribe to the <strong>messages</strong> field. Several numbers can share this URL — Meta says which one each event belongs to.</p>
-                                        </div>
-                                    @endif
                                 </div>
-                                <p class="mb-1.5 mt-3 text-xs font-semibold text-[var(--color-muted)]">Team members with access</p>
-                                <div class="flex flex-wrap gap-2">
-                                    @foreach ($panelUsers as $u)
+
+                                @if ($acc->isCloudApi() && $acc->verify_token)
+                                    <div x-show="driver === 'cloud_api'" x-cloak class="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                                        <p class="text-xs font-bold text-[var(--color-heading)]">Point Meta at this number</p>
+                                        <p class="mb-3 mt-0.5 text-xs leading-relaxed text-[var(--color-muted)]">
+                                            Meta app &rsaquo; <strong>WhatsApp &rsaquo; Configuration &rsaquo; Webhook &rsaquo; Edit</strong>, paste both, save, then
+                                            <strong>Manage</strong> &rsaquo; subscribe to <code class="rounded bg-white px-1">messages</code>.
+                                        </p>
+                                        <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Callback URL</label>
+                                        <input type="text" readonly value="{{ url('/api/whatsapp/webhook') }}" onclick="this.select()" class="mb-2 h-9 w-full rounded-lg border-gray-200 bg-white font-mono text-xs">
+                                        <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Verify Token &mdash; this number&rsquo;s own</label>
+                                        <input type="text" readonly value="{{ $acc->verify_token }}" onclick="this.select()" class="h-9 w-full rounded-lg border-gray-200 bg-white font-mono text-xs">
+                                        <p class="mt-2 text-xs text-gray-400">Click a box to select it. Several numbers may share the one URL.</p>
+                                    </div>
+                                @endif
+
+                                <p class="mb-1.5 text-xs font-semibold text-[var(--color-muted)]">Who can use this number</p>
+                                <div class="mb-4 flex flex-wrap gap-2">
+                                    @foreach ($panelUsers as $u2)
                                         <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs">
-                                            <input type="checkbox" name="members[]" value="{{ $u->id }}" @checked($acc->users->contains($u->id)) class="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400">
-                                            {{ $u->name }}
+                                            <input type="checkbox" name="members[]" value="{{ $u2->id }}" @checked($acc->users->contains($u2->id)) class="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400">
+                                            {{ $u2->name }}
                                         </label>
                                     @endforeach
                                 </div>
-                                <button class="mt-4 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white">Save changes</button>
+
+                                <div class="flex items-center gap-2">
+                                    <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white">Save changes</button>
+                                    <button type="button" @click="open = false" class="rounded-lg border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+                                </div>
                             </form>
                         </div>
                     @endforeach
@@ -177,63 +214,96 @@
                 {{-- Add number --}}
                 <form method="POST" action="{{ route('admin.whatsapp-accounts.store') }}" class="mt-4 rounded-xl border border-dashed border-gray-200 p-4" x-data="{ open: false, driver: 'baileys' }">
                     @csrf
-                    <button type="button" @click="open = !open" x-show="!open" class="flex items-center gap-2 text-sm font-semibold text-emerald-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Add a WhatsApp number</button>
+                    <button type="button" @click="open = true" x-show="!open" class="flex items-center gap-2 text-sm font-semibold text-emerald-600">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                        Add a WhatsApp number
+                    </button>
+
                     <div x-show="open" x-cloak>
-                        <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="mb-4 grid gap-3 sm:grid-cols-2">
                             <div>
-                                <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Name (e.g. Support)</label>
-                                <input type="text" name="name" placeholder="Support" class="h-10 w-full rounded-lg border-gray-200 text-sm" required>
+                                <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Name</label>
+                                <input type="text" name="name" placeholder="Sales" class="h-10 w-full rounded-lg border-gray-200 text-sm" required>
+                                <p class="mt-1 text-xs text-gray-400">Only your team sees this.</p>
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Colour</label>
                                 <input type="color" name="color" value="#25d366" class="h-10 w-16 rounded-lg border-gray-200">
                             </div>
-                            <div class="sm:col-span-2">
-                                <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">How this number connects</label>
-                                <select name="driver" x-model="driver" class="h-10 w-full rounded-lg border-gray-200 text-sm">
-                                    @foreach (\App\Models\WhatsappAccount::DRIVERS as $key => $label)
-                                        <option value="{{ $key }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                <p class="mt-1 text-xs text-gray-400">QR pairs a phone the way WhatsApp Web does. Cloud API is Meta's official one and needs a verified business number.</p>
-                            </div>
                         </div>
 
-                        <div x-show="driver === 'cloud_api'" x-cloak class="mt-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                        <p class="mb-2 text-xs font-semibold text-[var(--color-muted)]">How this number connects</p>
+                        <div class="mb-4 grid gap-3 sm:grid-cols-2">
+                            <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition"
+                                   :class="driver === 'baileys' ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:bg-gray-50'">
+                                <input type="radio" name="driver" value="baileys" x-model="driver" class="mt-0.5" style="accent-color:#10b981">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-bold text-[var(--color-heading)]">QR / WhatsApp Web</span>
+                                    <span class="mt-0.5 block text-xs leading-relaxed text-[var(--color-muted)]">Scan a code with the phone. Nothing to set up at Meta, and groups and message editing keep working.</span>
+                                </span>
+                            </label>
+                            <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition"
+                                   :class="driver === 'cloud_api' ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:bg-gray-50'">
+                                <input type="radio" name="driver" value="cloud_api" x-model="driver" class="mt-0.5" style="accent-color:#10b981">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-bold text-[var(--color-heading)]">Meta Cloud API</span>
+                                    <span class="mt-0.5 block text-xs leading-relaxed text-[var(--color-muted)]">Meta&rsquo;s official API. Needs a verified business number, which then leaves the WhatsApp app.</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div x-show="driver === 'cloud_api'" x-cloak class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                            <p class="text-xs font-bold text-[var(--color-heading)]">From Meta</p>
+                            <p class="mb-3 mt-0.5 text-xs leading-relaxed text-[var(--color-muted)]">
+                                developers.facebook.com &rsaquo; your app &rsaquo; <strong>WhatsApp &rsaquo; API Setup</strong> has the first two.
+                            </p>
+
                             <div class="grid gap-3 sm:grid-cols-2">
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Phone Number ID</label>
-                                    <input type="text" name="phone_number_id" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                    <input type="text" name="phone_number_id" value="" placeholder="109876543210987" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">WhatsApp Business Account ID</label>
-                                    <input type="text" name="business_account_id" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                    <input type="text" name="business_account_id" value="" placeholder="102233445566778" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                    <p class="mt-1 text-xs text-gray-400">Without it there are no message templates to send.</p>
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Permanent Access Token</label>
-                                    <input type="password" name="access_token" autocomplete="new-password" placeholder="Paste the token from Meta" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                    <input type="password" name="access_token" autocomplete="new-password" placeholder="Paste the token from Meta" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                    <p class="mt-1 text-xs leading-relaxed text-gray-400">
+                                        business.facebook.com &rsaquo; Business Settings &rsaquo; <strong>Users &rsaquo; System Users</strong> &rsaquo; Generate token, with
+                                        <code class="rounded bg-white px-1">whatsapp_business_messaging</code> and
+                                        <code class="rounded bg-white px-1">whatsapp_business_management</code>, expiry <strong>Never</strong>.
+                                        The one on API Setup lasts 24 hours &mdash; do not use it.
+                                    </p>
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">App Secret</label>
-                                    <input type="text" name="app_secret" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                    <input type="text" name="app_secret" value="" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                    <p class="mt-1 text-xs text-gray-400">App Settings &rsaquo; Basic &rsaquo; App secret. Proves a webhook really came from Meta.</p>
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">API version</label>
-                                    <input type="text" name="api_version" value="v21.0" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                    <input type="text" name="api_version" value="v21.0" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
                                 </div>
                             </div>
-                            <p class="mt-2 text-xs text-gray-400">The webhook URL and this number's verify token appear here once it is saved.</p>
                         </div>
 
-                        <p class="mb-1.5 mt-3 text-xs font-semibold text-[var(--color-muted)]">Assign team members</p>
-                        <div class="flex flex-wrap gap-2">
-                            @foreach ($panelUsers as $u)
+                        <p class="mb-1.5 text-xs font-semibold text-[var(--color-muted)]">Who can use this number</p>
+                        <div class="mb-4 flex flex-wrap gap-2">
+                            @foreach ($panelUsers as $u2)
                                 <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs">
-                                    <input type="checkbox" name="members[]" value="{{ $u->id }}" class="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400"> {{ $u->name }}
+                                    <input type="checkbox" name="members[]" value="{{ $u2->id }}" class="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400"> {{ $u2->name }}
                                 </label>
                             @endforeach
                         </div>
-                        <button class="mt-4 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">Add number</button>
+
+                        <div class="flex items-center gap-2">
+                            <button class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">Add number</button>
+                            <button type="button" @click="open = false" class="rounded-lg border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+                            <span x-show="driver === 'cloud_api'" x-cloak class="text-xs text-[var(--color-muted)]">Next: verify it, then point Meta&rsquo;s webhook at it.</span>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -310,7 +380,7 @@
                             <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white">Add Quick Reply</button>
                         </form>
                     @else
-                        <p class="mb-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">You can view quick replies, but you don't have permission to add, edit or delete them.</p>
+                        <p class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">You can view quick replies, but you don't have permission to add, edit or delete them.</p>
                     @endif
                     <ul class="space-y-2">
                         @foreach ($quickReplies as $qr)
