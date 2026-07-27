@@ -82,7 +82,7 @@ class WhatsappSettingController extends Controller
         $account = WhatsappAccount::create([
             'name' => $data['name'],
             'driver' => $data['driver'],
-            'color' => $data['color'] ?: '#25d366',
+            'color' => $data['color'] ?? '#25d366',
             'session_key' => ($cloud ? 'cloud-' : 'acc-').Str::lower(Str::random(10)),
             'position' => (int) WhatsappAccount::max('position') + 1,
             'phone_number_id' => $cloud ? $data['phone_number_id'] : null,
@@ -108,7 +108,9 @@ class WhatsappSettingController extends Controller
             'driver' => ['required', 'in:baileys,cloud_api'],
             'phone_number_id' => ['nullable', 'required_if:driver,cloud_api', 'string', 'max:100'],
             'business_account_id' => ['nullable', 'string', 'max:100'],
-            'access_token' => ['nullable', 'required_if:driver,cloud_api', 'string', 'max:1000'],
+            // Required only when there is nothing saved yet — otherwise an untouched box would be
+            // rejected, and "leave it blank to keep the saved one" could never actually happen.
+            'access_token' => [$account->access_token ? 'nullable' : 'required_if:driver,cloud_api', 'string', 'max:1000'],
             'app_secret' => ['nullable', 'string', 'max:255'],
             'api_version' => ['nullable', 'string', 'max:12'],
             'members' => ['array'],
@@ -120,7 +122,7 @@ class WhatsappSettingController extends Controller
         $account->fill([
             'name' => $data['name'],
             'driver' => $data['driver'],
-            'color' => $data['color'] ?: $account->color,
+            'color' => $data['color'] ?? $account->color,
         ]);
 
         if ($cloud) {
@@ -132,8 +134,9 @@ class WhatsappSettingController extends Controller
                 'verify_token' => $account->verify_token ?: Str::random(24),
             ]);
 
-            // Left blank means "keep the saved one" — the form never shows the token back, so an
-            // empty field is an untouched field, not an instruction to wipe the credentials.
+            // Left blank means "keep the saved one". The form does show the saved token back, so
+            // this is only a backstop — but wiping a working number's credentials because a field
+            // arrived empty is the one outcome worth ruling out entirely.
             if (filled($data['access_token'] ?? null)) {
                 $account->access_token = $data['access_token'];
             }

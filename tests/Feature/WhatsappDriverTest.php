@@ -171,4 +171,28 @@ class WhatsappDriverTest extends TestCase
         $this->assertFalse($account->fresh()->is_connected);
         $this->assertStringContainsString('Invalid OAuth', $status['message']);
     }
+
+    public function test_saving_a_number_never_loses_its_access_token(): void
+    {
+        $account = $this->account([
+            'driver' => 'cloud_api', 'session_key' => 'cloud-t1',
+            'phone_number_id' => '1', 'access_token' => 'EAAlongtoken', 'app_secret' => 'sec',
+        ]);
+
+        $admin = \App\Models\User::create([
+            'name' => 'Admin', 'email' => 'wa-admin@example.com',
+            'password' => bcrypt('secret123'), 'role' => 'admin', 'status' => 'active',
+            // The route is behind permission:whatsapp.numbers.
+            'permissions' => ['whatsapp' => ['numbers' => 'all']],
+        ]);
+
+        // A save that leaves the token box empty must not wipe it.
+        $this->actingAs($admin)->post(route('admin.whatsapp-accounts.update', $account), [
+            'name' => 'Renamed', 'driver' => 'cloud_api',
+            'phone_number_id' => '1', 'access_token' => '', 'api_version' => 'v21.0',
+        ])->assertRedirect();
+
+        $this->assertSame('EAAlongtoken', $account->fresh()->access_token);
+        $this->assertSame('Renamed', $account->fresh()->name);
+    }
 }

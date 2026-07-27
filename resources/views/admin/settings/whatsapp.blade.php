@@ -157,17 +157,33 @@
                                             <input type="text" name="business_account_id" value="{{ $acc->business_account_id }}" placeholder="102233445566778" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
                                             <p class="mt-1 text-xs text-gray-400">Without it there are no message templates to send.</p>
                                         </div>
-                                        <div class="sm:col-span-2">
+                                        <div class="sm:col-span-2" x-data="{ show: false }">
                                             <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Permanent Access Token</label>
-                                            <input type="password" name="access_token" autocomplete="new-password" placeholder="{{ $acc->access_token ? 'Saved — leave blank to keep it' : 'Paste the token from Meta' }}" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                            <div class="flex items-center gap-2">
+                                                <input :type="show ? 'text' : 'password'" name="access_token" autocomplete="new-password"
+                                                       value="{{ $acc->access_token }}" placeholder="Paste the token from Meta"
+                                                       class="h-10 min-w-0 flex-1 rounded-lg border-gray-200 bg-white text-sm">
+                                                <button type="button" @click="show = !show" title="Show / hide"
+                                                        class="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-gray-200 bg-white text-gray-400 transition hover:bg-gray-50">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                                                </button>
+                                            </div>
                                             <p class="mt-1 text-xs leading-relaxed text-gray-400">
                                                 business.facebook.com &rsaquo; Business Settings &rsaquo; <strong>Users &rsaquo; System Users</strong> &rsaquo; Generate token, expiry <strong>Never</strong>.
                                                 The one on API Setup lasts 24 hours &mdash; do not use it.
                                             </p>
                                         </div>
-                                        <div>
+                                        <div x-data="{ show: false }">
                                             <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">App Secret</label>
-                                            <input type="text" name="app_secret" value="{{ $acc->app_secret }}" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                                            <div class="flex items-center gap-2">
+                                                <input :type="show ? 'text' : 'password'" name="app_secret" autocomplete="off"
+                                                       value="{{ $acc->app_secret }}"
+                                                       class="h-10 min-w-0 flex-1 rounded-lg border-gray-200 bg-white text-sm">
+                                                <button type="button" @click="show = !show" title="Show / hide"
+                                                        class="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-gray-200 bg-white text-gray-400 transition hover:bg-gray-50">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                                                </button>
+                                            </div>
                                             <p class="mt-1 text-xs text-gray-400">App Settings &rsaquo; Basic &rsaquo; App secret.</p>
                                         </div>
                                         <div>
