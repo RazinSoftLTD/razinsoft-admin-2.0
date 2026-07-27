@@ -158,6 +158,7 @@
             ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
+            ['label' => 'Branding', 'route' => 'admin.branding', 'active' => 'admin.branding*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Meta Conversions API', 'route' => 'admin.meta-capi', 'active' => 'admin.meta-capi*', 'admin' => true, 'icon' => $ic['settings']],
         ]],
     ];
@@ -187,8 +188,8 @@
 @endphp
 
 <div class="flex h-16 items-center gap-2.5 px-6">
-    <img src="{{ asset(config('brand.icon')) }}" alt="{{ config('brand.product') }}" class="h-9 w-9 rounded-lg shadow-sm">
-    <span class="text-lg font-extrabold text-[var(--color-heading)]">{{ config('brand.product') }}</span>
+    <img src="{{ \App\Models\BrandSetting::current()->iconUrl() }}" alt="{{ \App\Models\BrandSetting::current()->productName() }}" class="h-9 w-9 rounded-lg shadow-sm">
+    <span class="text-lg font-extrabold text-[var(--color-heading)]">{{ \App\Models\BrandSetting::current()->productName() }}</span>
 </div>
 
 <div class="px-4 pb-1">

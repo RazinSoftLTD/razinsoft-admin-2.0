@@ -50,6 +50,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Light / dark preference — a display choice, so no permission gate: everyone has eyes.
         Route::post('theme', [\App\Http\Controllers\Admin\ThemeController::class, 'update'])->name('theme');
 
+        // Branding — the operator makes the panel their own. Admin only; the controller checks.
+        Route::get('branding', [\App\Http\Controllers\Admin\BrandController::class, 'index'])->name('branding');
+        Route::post('branding', [\App\Http\Controllers\Admin\BrandController::class, 'update'])->name('branding.update');
+        Route::post('branding/reset/{field}', [\App\Http\Controllers\Admin\BrandController::class, 'resetAsset'])->name('branding.reset');
+
         // ===== Messenger › WhatsApp inbox =====
         Route::middleware('permission:whatsapp.view')->group(function () {
             $wa = \App\Http\Controllers\Admin\WhatsappController::class;

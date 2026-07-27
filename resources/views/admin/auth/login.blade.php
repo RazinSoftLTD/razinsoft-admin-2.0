@@ -3,15 +3,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in · {{ config('brand.product') }}</title>
-    <link rel="icon" href="{{ asset(config('brand.icon')) }}" type="image/svg+xml">
+    <title>Sign in · {{ \App\Models\BrandSetting::current()->productName() }}</title>
+    <link rel="icon" href="{{ \App\Models\BrandSetting::current()->iconUrl() }}" type="image/svg+xml">
     @vite(['resources/css/app.css'])
 </head>
 <body class="grid min-h-full place-items-center bg-[var(--color-body)] p-4 text-[var(--color-heading)]">
     <div class="w-full max-w-sm">
         <div class="mb-6 flex items-center justify-center gap-2">
-            <img src="{{ asset(config('brand.icon')) }}" alt="{{ config('brand.product') }}" class="h-10 w-10 rounded-lg shadow-sm">
-            <span class="text-xl font-extrabold">{{ config('brand.product') }}</span>
+            <img src="{{ \App\Models\BrandSetting::current()->iconUrl() }}" alt="{{ \App\Models\BrandSetting::current()->productName() }}" class="h-10 w-10 rounded-lg shadow-sm">
+            <span class="text-xl font-extrabold">{{ \App\Models\BrandSetting::current()->productName() }}</span>
         </div>
 
         <div class="rounded-2xl border border-gray-100 bg-white p-7 shadow-sm">

@@ -6,8 +6,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {{-- Don't cache snapshots — pages re-render fresh so Quill/Alpine/real-time widgets re-init cleanly. --}}
     <meta name="turbo-cache-control" content="no-cache">
-    <title>@yield('title', 'Admin') · {{ config('brand.product') }}</title>
-    <link rel="icon" href="{{ asset(config('brand.icon')) }}" type="image/svg+xml">
+    <title>@yield('title', 'Admin') · {{ \App\Models\BrandSetting::current()->productName() }}</title>
+    <link rel="icon" href="{{ \App\Models\BrandSetting::current()->iconUrl() }}">
     <style>[x-cloak]{display:none!important}</style>
 
     {{-- The choice comes from the account, so it is right on the first byte and on any machine
@@ -35,6 +35,19 @@
     </script>
 
     @vite(['resources/css/app.css'])
+
+    {{-- The operator's own colours, from Settings → Branding. After the stylesheet so they win,
+         and inline because they are per-installation and cannot be part of a compiled build. --}}
+    @php $brand = \App\Models\BrandSetting::current(); @endphp
+    <style>
+        :root {
+            --color-primary: {{ $brand->primaryColour() }};
+            --color-primary-hover: {{ $brand->primaryHoverColour() }};
+            --color-primary-soft: {{ $brand->primarySoftColour() }};
+            --color-brand: {{ $brand->primaryColour() }};
+            --color-brand-soft: {{ $brand->primarySoftColour() }};
+        }
+    </style>
     {{-- Dark theme. Served from public/ rather than compiled: the deploy runs no npm build, and
          this only redefines the palette variables the compiled utilities already point at. --}}
     <link rel="stylesheet" href="{{ asset('css/theme-dark.css') }}?v={{ filemtime(public_path('css/theme-dark.css')) }}">
