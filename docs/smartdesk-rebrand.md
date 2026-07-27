@@ -29,23 +29,39 @@ still what production runs.
 
 ## Still to do
 
-1. **Real screenshots.** The hero is a drawn illustration (`tools/gen-smartdesk-hero.mjs`). It
-   carries nobody's data, which is why it is there — but real screens sell better. Take them from a
-   demo install, never from production.
-2. **A demo install.** Buyers expect a live preview: its own database, seeded with invented data.
-
-Everything else that used to be on this list is now two commands — see [install.md](install.md):
-
-```bash
-php artisan smartdesk:prepare-release   # empty the vendor's data before shipping
-php artisan smartdesk:admin             # the buyer's first account
-```
+**A hosted demo.** Buyers expect a live preview at a URL. The data for it already exists — see
+below — so what is left is somewhere to put it.
 
 ## Running the generators
 
 ```bash
 node tools/gen-smartdesk-mark.mjs    # the SmartDesk icon and wordmark
-node tools/gen-smartdesk-hero.mjs    # the website hero illustration
+node tools/gen-smartdesk-hero.mjs    # the fallback hero illustration
 ```
 
-Both need `sharp`, which is resolved from the website repo's `node_modules`.
+Both need `sharp`, resolved from the website repo's `node_modules`.
+
+## The demo, and the screenshots
+
+Screenshots on the site come from a demo database, never from a live install — that is the whole
+reason the demo exists. Every name, company and figure in it is invented.
+
+```bash
+# 1. an empty database of its own; the real one is never touched
+touch /tmp/demo.sqlite
+DB_CONNECTION=sqlite DB_DATABASE=/tmp/demo.sqlite php artisan migrate --force
+DB_CONNECTION=sqlite DB_DATABASE=/tmp/demo.sqlite php artisan email:seed-templates
+DB_CONNECTION=sqlite DB_DATABASE=/tmp/demo.sqlite php artisan smartdesk:demo-seed
+
+# 2. serve it
+DB_CONNECTION=sqlite DB_DATABASE=/tmp/demo.sqlite php artisan serve --port 8099
+
+# 3. capture — writes into the website repo's public/images/screens
+node tools/gen-screens.mjs
+```
+
+`smartdesk:demo-seed` refuses to run against a database that already has people in it. The capture
+script drives Chrome over the DevTools protocol rather than pulling in Playwright — it runs once,
+and a 300MB download to take six pictures is not a trade worth making.
+
+Sign in to the demo as `ariana@smartdesk.example` / `demo1234`.
