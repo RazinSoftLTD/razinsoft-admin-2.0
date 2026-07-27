@@ -369,7 +369,7 @@
                                             <span x-text="m.direction === 'out' ? 'You deleted this message' : 'This message was deleted'"></span>
                                         </span>
                                         {{-- body / inline editor --}}
-                                        <span x-show="m.body && editingId !== m.id" x-text="m.body" class="whitespace-pre-line break-words align-bottom"></span>
+                                        <span x-show="m.body && editingId !== m.id" x-html="linkify(m.body)" class="whitespace-pre-line break-words align-bottom"></span>
                                         <template x-if="editingId === m.id">
                                             <div style="width:17rem; max-width:58vw;">
                                                 <textarea x-model="editDraft" rows="2" x-init="$nextTick(() => { $el.focus(); $el.setSelectionRange($el.value.length, $el.value.length); })" @keydown.enter.prevent="saveEdit(m)" @keydown.escape="editingId = null"
@@ -1085,6 +1085,35 @@
                             alert((await r.json()).error || 'Could not send the template.');
                         }
                     } catch { alert('Could not send the template.'); } finally { this.sending = false; }
+                },
+
+                /**
+                 * Turn links in a message into anchors.
+                 *
+                 * This is text a stranger typed, so it is escaped FIRST and only then are URL
+                 * shapes replaced — building HTML from it any other way is an XSS hole. Only
+                 * http/https and bare www. are linked; anything else stays text.
+                 */
+                linkify(text) {
+                    const escaped = String(text)
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+                    return escaped.replace(
+                        /\b((?:https?:\/\/|www\.)[^\s<]+)/gi,
+                        (match) => {
+                            // Trailing punctuation almost always belongs to the sentence, not the URL.
+                            const trail = match.match(/[.,;:!?)\]]+$/);
+                            const url = trail ? match.slice(0, -trail[0].length) : match;
+                            const href = url.startsWith('http') ? url : 'https://' + url;
+
+                            // noopener/noreferrer: the target is a stranger's link, and it must not
+                            // get a handle on this window or our URL.
+                            return '<a href="' + href + '" target="_blank" rel="noopener noreferrer nofollow" ' +
+                                   'class="underline hover:opacity-80" style="text-underline-offset:2px">' + url + '</a>' +
+                                   (trail ? trail[0] : '');
+                        },
+                    );
                 },
 
                 // Send a failed message again, in place.
