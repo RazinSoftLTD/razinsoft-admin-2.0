@@ -195,4 +195,66 @@ class WhatsappDriverTest extends TestCase
         $this->assertSame('EAAlongtoken', $account->fresh()->access_token);
         $this->assertSame('Renamed', $account->fresh()->name);
     }
+
+    public function test_only_a_failed_message_can_be_retried(): void
+    {
+        [$admin, $chat] = $this->chatWithAgent();
+
+        $sent = $chat->messages()->create([
+            'direction' => 'out', 'type' => 'text', 'body' => 'hello', 'status' => 'sent', 'sent_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.whatsapp.retry', [$chat, $sent]))
+            ->assertStatus(422)
+            ->assertJsonPath('error', 'That message did not fail.');
+    }
+
+    public function test_a_retry_reuses_the_row_rather_than_adding_another(): void
+    {
+        [$admin, $chat] = $this->chatWithAgent();
+
+        $failed = $chat->messages()->create([
+            'direction' => 'out', 'type' => 'text', 'body' => 'hello', 'status' => 'failed',
+            'error' => 'Gateway offline', 'sent_at' => now(),
+        ]);
+
+        // The gateway is unreachable in tests, so the retry fails again — but it must fail on the
+        // same row. A thread showing the message twice would be a lie about what was sent.
+        $this->actingAs($admin)->postJson(route('admin.whatsapp.retry', [$chat, $failed]));
+
+        $this->assertSame(1, $chat->messages()->count());
+        $this->assertSame('failed', $failed->fresh()->status);
+    }
+
+    public function test_a_message_from_another_chat_cannot_be_retried(): void
+    {
+        [$admin, $chat] = $this->chatWithAgent();
+        [, $other] = $this->chatWithAgent('8801700000009', $admin);
+
+        $failed = $other->messages()->create([
+            'direction' => 'out', 'type' => 'text', 'body' => 'x', 'status' => 'failed', 'sent_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.whatsapp.retry', [$chat, $failed]))
+            ->assertNotFound();
+    }
+
+    /** @return array{0: \App\Models\User, 1: \App\Models\WhatsappChat} */
+    private function chatWithAgent(string $waId = '8801700000010', ?\App\Models\User $admin = null): array
+    {
+        $account = $this->account(['driver' => 'baileys', 'session_key' => 'acc-'.uniqid()]);
+        \App\Models\WhatsappSetting::current()->update(['gateway_url' => 'http://127.0.0.1:9']);
+
+        $admin ??= \App\Models\User::create([
+            'name' => 'Agent', 'email' => 'agent'.uniqid().'@example.com',
+            'password' => bcrypt('secret123'), 'role' => 'admin', 'status' => 'active',
+        ]);
+        $account->users()->attach($admin->id);
+
+        return [$admin, \App\Models\WhatsappChat::create([
+            'wa_id' => $waId, 'account_id' => $account->id, 'status' => 'open', 'unread_count' => 0,
+        ])];
+    }
 }

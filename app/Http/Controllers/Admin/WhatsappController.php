@@ -776,6 +776,8 @@ class WhatsappController extends Controller
             'sender_name' => $m->sender_name,
             'body' => $m->body, 'media' => $m->mediaUrl(), 'media_mime' => $m->media_mime, 'media_name' => $m->media_name,
             'status' => $m->status, 'agent' => $m->agent?->name,
+            // Shown on a failed row so the reason is visible without opening a log.
+            'error' => $m->status === 'failed' ? $m->error : null,
             'edited' => (bool) $m->edited_at,
             'deleted' => (bool) $m->deleted_at,
             'reaction' => $m->reaction,
@@ -844,5 +846,60 @@ class WhatsappController extends Controller
         }
 
         return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
+    }
+
+    /**
+     * Send a failed message again.
+     *
+     * Sending is one HTTP call to the provider, and the usual reasons it fails are momentary — the
+     * gateway restarting, Meta throttling, the phone briefly offline. Retyping the message to try
+     * again loses the reply context and the place in the thread, so the row itself offers it.
+     *
+     * The same row is reused rather than a new one appended: the customer never saw the first
+     * attempt, so a thread showing it twice would be a lie about what was sent.
+     */
+    public function retry(Request $request, WhatsappChat $chat, WhatsappMessage $message)
+    {
+        $this->authorizeChat($request, $chat);
+
+        abort_unless($message->chat_id === $chat->id, 404);
+
+        if ($message->status !== 'failed') {
+            return response()->json(['error' => 'That message did not fail.'], 422);
+        }
+
+        if (! $chat->account?->isConfigured()) {
+            return response()->json(['error' => 'This number is not set up yet.'], 422);
+        }
+
+        if ($chat->needsTemplate()) {
+            return response()->json([
+                'error' => 'It has been more than 24 hours since this contact last wrote. Send an approved template instead.',
+                'needs_template' => true,
+            ], 422);
+        }
+
+        try {
+            $service = WhatsappService::for($chat->account);
+
+            $waId = $message->type === 'text' || blank($message->media_path)
+                ? $service->sendText($chat->wa_id, (string) $message->body)
+                : $service->sendMedia($chat->wa_id, $message->type, $message->media_path, $message->body, $message->media_name);
+
+            $message->update([
+                'wa_message_id' => $waId,
+                'status' => 'sent',
+                'error' => null,
+                'sent_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            $message->update(['status' => 'failed', 'error' => $e->getMessage()]);
+
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        $chat->update(['last_message_at' => now()]);
+
+        return response()->json(['message' => $this->messagePayload($message->fresh()->load('agent:id,name'))]);
     }
 }

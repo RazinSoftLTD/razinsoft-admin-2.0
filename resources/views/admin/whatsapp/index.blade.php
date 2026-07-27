@@ -406,6 +406,18 @@
                                             </span>
                                         </template>
                                     </div>
+                                    {{-- A failed message says why, and offers to go again. Retrying reuses the row:
+                                         the customer never saw the first attempt, so showing it twice would be a lie. --}}
+                                    <template x-if="m.direction === 'out' && m.status === 'failed'">
+                                        <span class="mr-1 mt-1 inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] text-red-700">
+                                            <span x-text="m.error || 'Could not be sent.'"></span>
+                                            <button type="button" @click="retry(m)" :disabled="retryingId === m.id"
+                                                    class="rounded border border-red-200 bg-white px-1.5 py-0.5 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+                                                <span x-text="retryingId === m.id ? 'Sending…' : 'Retry'"></span>
+                                            </button>
+                                        </span>
+                                    </template>
+
                                     {{-- Under outgoing messages: who replied + (on the last one) Seen/Delivered status --}}
                                     <template x-if="m.direction === 'out' && (m.agent || isLastOut(i))">
                                         <span class="mr-1 mt-0.5 text-[10px] font-medium text-gray-400">
@@ -855,6 +867,7 @@
                 // Cloud API numbers only: outside 24h from the customer's last message, WhatsApp
                 // accepts an approved template and nothing else.
                 templateGate: false, templates: [], templateOpen: false, pickedTemplate: null, templateVars: [],
+                retryingId: null,
                 showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', product_category: '', product_sub_category: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 // Shared Product Category tree from Settings > CRM Settings.
@@ -1072,6 +1085,28 @@
                             alert((await r.json()).error || 'Could not send the template.');
                         }
                     } catch { alert('Could not send the template.'); } finally { this.sending = false; }
+                },
+
+                // Send a failed message again, in place.
+                async retry(m) {
+                    if (this.retryingId) return;
+                    this.retryingId = m.id;
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/messages/' + m.id + '/retry', {
+                            method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
+                        });
+                        const d = await r.json();
+                        if (r.ok) {
+                            // Replace the row rather than appending — same message, second attempt.
+                            const i = this.messages.findIndex(x => x.id === m.id);
+                            if (i > -1) this.messages[i] = d.message;
+                            this.loadChats();
+                        } else {
+                            if (d.needs_template) { this.templateGate = true; this.templateOpen = true; }
+                            const i = this.messages.findIndex(x => x.id === m.id);
+                            if (i > -1) this.messages[i] = { ...this.messages[i], error: d.error };
+                        }
+                    } catch { /* leave the row failed so it can be tried again */ } finally { this.retryingId = null; }
                 },
 
                 async send() {

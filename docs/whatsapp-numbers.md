@@ -64,6 +64,18 @@ Templates come from Meta ▸ WhatsApp ▸ Message Templates and must be **approv
 lists nothing else. They are read from the WhatsApp Business Account, so a number without a
 **Business Account ID** has no templates to offer. The list is cached for ten minutes.
 
+## When a message fails to send
+
+Sending is one call to the provider, and most failures are momentary — the gateway restarting,
+Meta throttling, the phone briefly offline. A failed message therefore says why on the row itself
+and offers **Retry**.
+
+The retry reuses the same row rather than appending a new one. The customer never saw the first
+attempt, so a thread showing it twice would misrepresent what was actually sent.
+
+Outside the 24-hour window on a Cloud API number the retry is refused with the same explanation as
+a fresh send, and the template picker opens — retrying cannot get around a rule Meta enforces.
+
 ## Rate limits
 
 Meta counts calls per WhatsApp Business Account and answers `(#80008) There have been too many
