@@ -29,8 +29,9 @@ still what production runs.
 
 ## Still to do
 
-**A hosted demo.** Buyers expect a live preview at a URL. The data for it already exists — see
-below — so what is left is somewhere to put it.
+Nothing blocking. The screenshots stand in for a live preview — there is no demo to host — so the
+gallery is what a buyer judges the product on, and it is worth adding screens for the modules it
+does not yet cover.
 
 ## Running the generators
 
@@ -45,6 +46,9 @@ Both need `sharp`, resolved from the website repo's `node_modules`.
 
 Screenshots on the site come from a demo database, never from a live install — that is the whole
 reason the demo exists. Every name, company and figure in it is invented.
+
+There is no hosted preview, so these images are the product as far as a buyer is concerned. Worth
+re-capturing whenever a screen changes.
 
 ```bash
 # 1. an empty database of its own; the real one is never touched
