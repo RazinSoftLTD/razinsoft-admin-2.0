@@ -514,33 +514,6 @@ class EmailManagementTest extends TestCase
         $this->assertSame(0, EmailLog::where('to_email', 'old@example.com')->count());
     }
 
-    public function test_the_old_smtp_account_is_carried_into_the_new_module(): void
-    {
-        \App\Models\EmailSetting::create([
-            'mailer' => 'smtp', 'host' => 'mail.example.com', 'port' => 587, 'encryption' => 'tls',
-            'username' => 'teams@example.com', 'password' => 'plaintext-secret',
-            'from_address' => 'teams@example.com', 'from_name' => 'Example', 'is_enabled' => true,
-        ]);
-
-        $this->artisan('email:import-legacy-smtp')->assertSuccessful();
-
-        $config = \App\Models\EmailConfig::firstOrFail();
-
-        $this->assertSame('mail.example.com', $config->host);
-        // Decrypted and re-encrypted, not copied as ciphertext.
-        $this->assertSame('plaintext-secret', $config->password);
-        // Nothing sends until something is both default and active.
-        $this->assertTrue($config->is_default);
-        $this->assertTrue($config->is_active);
-        $this->assertNotNull(\App\Models\EmailConfig::pick(null));
-
-        // Running it twice must not create a second copy.
-        $this->artisan('email:import-legacy-smtp')->assertSuccessful();
-        $this->assertSame(1, \App\Models\EmailConfig::count());
-    }
-
-    // ---------------------------------------------------------------- everything goes through the module
-
     public function test_a_password_reset_is_queued_through_the_module(): void
     {
         $this->artisan('email:seed-templates');

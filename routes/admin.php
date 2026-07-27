@@ -836,11 +836,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('campaigns/{campaign}', [$ecm, 'destroy'])->whereNumber('campaign')->name('campaigns.destroy');
     });
 
-        Route::get('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'index'])->name('email-settings');
-        Route::post('email-settings', [\App\Http\Controllers\Admin\EmailSettingController::class, 'update'])->name('email-settings.update');
-        Route::post('email-settings/test', [\App\Http\Controllers\Admin\EmailSettingController::class, 'sendTest'])->name('email-settings.test');
-        Route::get('email-settings/templates/{template}', [\App\Http\Controllers\Admin\EmailSettingController::class, 'editTemplate'])->whereNumber('template')->name('email-settings.templates.edit');
-        Route::put('email-settings/templates/{template}', [\App\Http\Controllers\Admin\EmailSettingController::class, 'updateTemplate'])->whereNumber('template')->name('email-settings.templates.update');
     });
 
     // ---- HR (permission-gated: super admin can grant these to employee roles) ----

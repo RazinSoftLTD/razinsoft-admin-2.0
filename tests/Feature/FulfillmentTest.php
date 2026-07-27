@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Mail\OrderFulfilledMail;
 use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Product;
@@ -18,7 +17,7 @@ use Tests\TestCase;
 
 class FulfillmentTest extends TestCase
 {
-    use RefreshDatabase;
+    use \Tests\Concerns\SendsEmail, RefreshDatabase;
 
     private function order(): Order
     {
@@ -38,6 +37,7 @@ class FulfillmentTest extends TestCase
 
     public function test_paid_order_generates_invoice_and_license(): void
     {
+        $this->withEmailModule();
         Storage::fake('local');
         Mail::fake();
         $order = $this->order();
@@ -67,7 +67,7 @@ class FulfillmentTest extends TestCase
         $this->assertStringContainsString('Unlimited domains', $license->terms);
 
         $this->assertEquals('completed', $order->fresh()->status);
-        Mail::assertQueued(OrderFulfilledMail::class);
+        $this->assertDatabaseHas('email_logs', ['to_email' => $order->user->email, 'module' => 'orders']);
     }
 
     public function test_fulfillment_is_idempotent(): void

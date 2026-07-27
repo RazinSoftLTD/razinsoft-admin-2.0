@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Mail\VerifyEmailLink;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -15,7 +14,7 @@ use Tests\TestCase;
 
 class ProfileTest extends TestCase
 {
-    use RefreshDatabase;
+    use \Tests\Concerns\SendsEmail, RefreshDatabase;
 
     private function customer(array $attr = []): User
     {
@@ -81,12 +80,15 @@ class ProfileTest extends TestCase
 
     public function test_email_verification_sends_and_verifies(): void
     {
-        Mail::fake();
+        $this->withEmailModule();
         $u = $this->customer(['email_verified_at' => null]);
         Sanctum::actingAs($u);
 
         $this->postJson('/api/account/email/verify')->assertOk();
-        Mail::assertSent(VerifyEmailLink::class);
+
+        // The mail now goes through the email module, so it is a queued log row rather than a
+        // Mailable the framework sent.
+        $this->assertDatabaseHas('email_logs', ['to_email' => $u->email, 'module' => 'account']);
 
         // hit the signed link the email would contain
         $url = URL::temporarySignedRoute('account.email.verify', now()->addHour(), ['id' => $u->id, 'hash' => sha1($u->email)]);
