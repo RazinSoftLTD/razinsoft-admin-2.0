@@ -2,18 +2,27 @@
 
 namespace App\Services\Whatsapp;
 
+use App\Models\WhatsappAccount;
 use App\Models\WhatsappSetting;
 
-/** Resolves the active WhatsApp provider from settings. Swap drivers without touching callers. */
+/**
+ * Picks the transport for one number.
+ *
+ * The choice belongs to the account, not the installation: a scanned WhatsApp Web number and a
+ * Meta Cloud API number can now be connected at the same time, and reconfiguring one leaves the
+ * others alone. It used to be a single setting, so switching driver silently took every other
+ * number offline.
+ */
 class WhatsappManager
 {
-    public function provider(?WhatsappSetting $settings = null, string $sessionKey = 'default'): WhatsappProvider
+    public function provider(?WhatsappSetting $settings = null, string $sessionKey = 'default', ?WhatsappAccount $account = null): WhatsappProvider
     {
         $settings ??= WhatsappSetting::current();
 
-        return match ($settings->driver) {
-            'cloud_api' => new CloudApiProvider($settings),
-            default => new BaileysProvider($settings, $sessionKey),
-        };
+        if ($account?->isCloudApi()) {
+            return new CloudApiProvider($account);
+        }
+
+        return new BaileysProvider($settings, $sessionKey);
     }
 }

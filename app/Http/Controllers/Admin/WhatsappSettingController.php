@@ -67,18 +67,37 @@ class WhatsappSettingController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:60'],
             'color' => ['nullable', 'string', 'max:9'],
+            'driver' => ['required', 'in:baileys,cloud_api'],
+            'phone_number_id' => ['nullable', 'required_if:driver,cloud_api', 'string', 'max:100'],
+            'business_account_id' => ['nullable', 'string', 'max:100'],
+            'access_token' => ['nullable', 'required_if:driver,cloud_api', 'string', 'max:1000'],
+            'app_secret' => ['nullable', 'string', 'max:255'],
+            'api_version' => ['nullable', 'string', 'max:12'],
             'members' => ['array'],
             'members.*' => ['integer', 'exists:users,id'],
         ]);
+
+        $cloud = $data['driver'] === 'cloud_api';
+
         $account = WhatsappAccount::create([
             'name' => $data['name'],
+            'driver' => $data['driver'],
             'color' => $data['color'] ?: '#25d366',
-            'session_key' => 'acc-'.Str::lower(Str::random(10)),
+            'session_key' => ($cloud ? 'cloud-' : 'acc-').Str::lower(Str::random(10)),
             'position' => (int) WhatsappAccount::max('position') + 1,
+            'phone_number_id' => $cloud ? $data['phone_number_id'] : null,
+            'business_account_id' => $cloud ? ($data['business_account_id'] ?? null) : null,
+            'access_token' => $cloud ? $data['access_token'] : null,
+            'app_secret' => $cloud ? ($data['app_secret'] ?? null) : null,
+            // Meta echoes this back during the webhook handshake, so each number needs its own.
+            'verify_token' => $cloud ? Str::random(24) : null,
+            'api_version' => $cloud ? ($data['api_version'] ?: 'v21.0') : null,
         ]);
         $account->users()->sync($data['members'] ?? []);
 
-        return back()->with('status', 'WhatsApp number added. Now connect it by scanning the QR.');
+        return back()->with('status', $cloud
+            ? 'Cloud API number added. Verify it, then point the Meta webhook at the URL shown.'
+            : 'WhatsApp number added. Now connect it by scanning the QR.');
     }
 
     public function accountUpdate(Request $request, WhatsappAccount $account)
@@ -86,10 +105,41 @@ class WhatsappSettingController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:60'],
             'color' => ['nullable', 'string', 'max:9'],
+            'driver' => ['required', 'in:baileys,cloud_api'],
+            'phone_number_id' => ['nullable', 'required_if:driver,cloud_api', 'string', 'max:100'],
+            'business_account_id' => ['nullable', 'string', 'max:100'],
+            'access_token' => ['nullable', 'required_if:driver,cloud_api', 'string', 'max:1000'],
+            'app_secret' => ['nullable', 'string', 'max:255'],
+            'api_version' => ['nullable', 'string', 'max:12'],
             'members' => ['array'],
             'members.*' => ['integer', 'exists:users,id'],
         ]);
-        $account->update(['name' => $data['name'], 'color' => $data['color'] ?: $account->color]);
+
+        $cloud = $data['driver'] === 'cloud_api';
+
+        $account->fill([
+            'name' => $data['name'],
+            'driver' => $data['driver'],
+            'color' => $data['color'] ?: $account->color,
+        ]);
+
+        if ($cloud) {
+            $account->fill([
+                'phone_number_id' => $data['phone_number_id'],
+                'business_account_id' => $data['business_account_id'] ?? null,
+                'app_secret' => $data['app_secret'] ?? null,
+                'api_version' => $data['api_version'] ?: ($account->api_version ?: 'v21.0'),
+                'verify_token' => $account->verify_token ?: Str::random(24),
+            ]);
+
+            // Left blank means "keep the saved one" — the form never shows the token back, so an
+            // empty field is an untouched field, not an instruction to wipe the credentials.
+            if (filled($data['access_token'] ?? null)) {
+                $account->access_token = $data['access_token'];
+            }
+        }
+
+        $account->save();
         $account->users()->sync($data['members'] ?? []);
 
         return back()->with('status', 'Number updated.');

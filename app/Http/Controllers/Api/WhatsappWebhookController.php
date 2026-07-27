@@ -6,20 +6,31 @@ use App\Events\WhatsappMessageReceived;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\WhatsappChat;
+use App\Models\WhatsappAccount;
 use App\Models\WhatsappMessage;
-use App\Models\WhatsappSetting;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /** Meta calls this: GET to verify the endpoint, POST to deliver messages & status updates. */
 class WhatsappWebhookController extends Controller
 {
-    /** Verification handshake — echo hub.challenge when the verify token matches. */
+    /**
+     * Verification handshake — echo hub.challenge when the token matches any Cloud API number.
+     *
+     * Each number carries its own verify token, so several can point at this one URL and Meta's
+     * handshake still identifies which is calling.
+     */
     public function verify(Request $request)
     {
-        $settings = WhatsappSetting::current();
-        if ($request->query('hub_mode') === 'subscribe'
-            && $request->query('hub_verify_token') === $settings->verify_token) {
+        $token = (string) $request->query('hub_verify_token');
+
+        $matches = $token !== '' && WhatsappAccount::where('driver', 'cloud_api')
+            ->whereNotNull('verify_token')
+            ->get()
+            ->contains(fn (WhatsappAccount $a) => hash_equals((string) $a->verify_token, $token));
+
+        if ($request->query('hub_mode') === 'subscribe' && $matches) {
             return response($request->query('hub_challenge'), 200);
         }
 
@@ -28,24 +39,33 @@ class WhatsappWebhookController extends Controller
 
     public function receive(Request $request)
     {
-        $settings = WhatsappSetting::current();
-
-        // Verify the payload signature (X-Hub-Signature-256) when an app secret is set.
-        if ($settings->app_secret) {
-            $sig = $request->header('X-Hub-Signature-256', '');
-            $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $settings->app_secret);
-            if (! hash_equals($expected, $sig)) {
-                return response('Invalid signature', 403);
-            }
-        }
-
         foreach ($request->input('entry', []) as $entry) {
             foreach ($entry['changes'] ?? [] as $change) {
                 $value = $change['value'] ?? [];
+
+                // Which of our numbers is this about? Meta names it in the payload, which is what
+                // lets several Cloud API numbers share one webhook URL.
+                $account = WhatsappAccount::where('driver', 'cloud_api')
+                    ->where('phone_number_id', $value['metadata']['phone_number_id'] ?? null)
+                    ->first();
+
+                if (! $account) {
+                    Log::warning('WhatsApp webhook for an unknown number.', [
+                        'phone_number_id' => $value['metadata']['phone_number_id'] ?? null,
+                    ]);
+
+                    continue;
+                }
+
+                // Signature is checked per number, against that number's own app secret.
+                if ($account->app_secret && ! $this->signatureMatches($request, $account)) {
+                    return response('Invalid signature', 403);
+                }
+
                 $contacts = collect($value['contacts'] ?? [])->keyBy('wa_id');
 
                 foreach ($value['messages'] ?? [] as $msg) {
-                    $this->storeInbound($msg, $contacts->get($msg['from'] ?? '') ?? []);
+                    $this->storeInbound($msg, $contacts->get($msg['from'] ?? '') ?? [], $account);
                 }
                 foreach ($value['statuses'] ?? [] as $status) {
                     $this->applyStatus($status);
@@ -56,14 +76,23 @@ class WhatsappWebhookController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function storeInbound(array $msg, array $contact): void
+    private function signatureMatches(Request $request, WhatsappAccount $account): bool
+    {
+        $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), (string) $account->app_secret);
+
+        return hash_equals($expected, (string) $request->header('X-Hub-Signature-256', ''));
+    }
+
+    private function storeInbound(array $msg, array $contact, WhatsappAccount $account): void
     {
         $waId = $msg['from'] ?? null;
         if (! $waId) {
             return;
         }
 
-        $chat = WhatsappChat::firstOrCreate(['wa_id' => $waId], [
+        // Scoped to the number it arrived on — the same person writing to two of our numbers is
+        // two conversations, and the reply has to go back out the way it came in.
+        $chat = WhatsappChat::firstOrCreate(['wa_id' => $waId, 'account_id' => $account->id], [
             'profile_name' => $contact['profile']['name'] ?? null,
             'client_id' => User::clients()->where('phone', 'like', '%'.substr($waId, -9))->value('id'),
             'status' => 'open',

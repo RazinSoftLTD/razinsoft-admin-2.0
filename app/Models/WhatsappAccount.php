@@ -14,10 +14,30 @@ class WhatsappAccount extends Model
 
     protected $guarded = [];
 
+    public const DRIVERS = [
+        'baileys' => 'QR / WhatsApp Web',
+        'cloud_api' => 'Meta Cloud API',
+    ];
+
     protected $casts = [
         'is_connected' => 'boolean',
         'connected_at' => 'datetime',
+        'access_token' => 'encrypted',
+        'app_secret' => 'encrypted',
     ];
+
+    public function isCloudApi(): bool
+    {
+        return $this->driver === 'cloud_api';
+    }
+
+    /** Whether this number has enough detail to talk to WhatsApp at all. */
+    public function isConfigured(): bool
+    {
+        return $this->isCloudApi()
+            ? filled($this->phone_number_id) && filled($this->access_token)
+            : filled(WhatsappSetting::current()->gateway_url);
+    }
 
     /** Team members allowed to see/reply on this number. */
     public function users(): BelongsToMany
@@ -32,7 +52,9 @@ class WhatsappAccount extends Model
 
     public function isConnected(): bool
     {
-        return $this->session_state === 'connected';
+        // A Cloud API number has no session to hold open — it is connected when Meta accepts the
+        // credentials, which the last verify recorded.
+        return $this->isCloudApi() ? (bool) $this->is_connected : $this->session_state === 'connected';
     }
 
     /** Accounts a given user may access (assigned to). */

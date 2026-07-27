@@ -20,6 +20,8 @@ class WhatsappService
 
     private string $sessionKey = 'default';
 
+    private ?WhatsappAccount $account = null;
+
     public function __construct(?WhatsappSetting $settings = null)
     {
         $this->settings = $settings ?: WhatsappSetting::current();
@@ -30,13 +32,14 @@ class WhatsappService
     {
         $service = new self;
         $service->sessionKey = $account?->session_key ?: 'default';
+        $service->account = $account;
 
         return $service;
     }
 
     private function provider(): WhatsappProvider
     {
-        return app(WhatsappManager::class)->provider($this->settings, $this->sessionKey);
+        return app(WhatsappManager::class)->provider($this->settings, $this->sessionKey, $this->account);
     }
 
     /** Live connection status for the active driver (used by the Connection page). */
