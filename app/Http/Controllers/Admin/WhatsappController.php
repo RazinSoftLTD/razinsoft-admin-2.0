@@ -181,6 +181,16 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'WhatsApp is not connected. Configure it in Settings › WhatsApp API.'], 422);
         }
 
+        // Meta refuses a plain message more than 24 hours after the customer last wrote. Better to
+        // say so here than to let it leave, fail at the provider, and sit in the thread as an
+        // error nobody can act on.
+        if ($chat->needsTemplate()) {
+            return response()->json([
+                'error' => 'It has been more than 24 hours since this contact last wrote. WhatsApp only allows an approved template until they reply.',
+                'needs_template' => true,
+            ], 422);
+        }
+
         // Build the quoted (reply-to) context from an existing message in this chat.
         [$quoted, $quotedFields] = $this->buildQuoted($chat, $data['reply_to'] ?? null);
 
@@ -776,5 +786,63 @@ class WhatsappController extends Controller
             'date_key' => $at->toDateString(),
             'day' => $at->isToday() ? 'Today' : ($at->isYesterday() ? 'Yesterday' : $at->format('d F Y')),
         ];
+    }
+
+    /** The approved templates available on this chat's number, for the reply box picker. */
+    public function templates(Request $request, WhatsappChat $chat)
+    {
+        $this->authorizeChat($request, $chat);
+
+        return response()->json([
+            'needs_template' => $chat->needsTemplate(),
+            'templates' => WhatsappService::for($chat->account)->templates(),
+        ]);
+    }
+
+    /** Send an approved template — the only thing WhatsApp accepts once the 24 hours are up. */
+    public function sendTemplate(Request $request, WhatsappChat $chat)
+    {
+        $this->authorizeChat($request, $chat);
+
+        $data = $request->validate([
+            'template' => ['required', 'string', 'max:255'],
+            'language' => ['required', 'string', 'max:10'],
+            'variables' => ['array'],
+            'variables.*' => ['nullable', 'string', 'max:500'],
+            'preview' => ['nullable', 'string', 'max:4096'],
+        ]);
+
+        $variables = array_values($data['variables'] ?? []);
+
+        // The thread shows what the customer will read, not the template's raw name.
+        $body = $data['preview'] ?: $data['template'];
+
+        $message = $chat->messages()->create([
+            'direction' => 'out', 'type' => 'text', 'body' => $body,
+            'status' => 'sent', 'agent_id' => $request->user()->id, 'sent_at' => now(),
+        ]);
+
+        try {
+            $waId = WhatsappService::for($chat->account)
+                ->sendTemplateMessage($chat->wa_id, $data['template'], $data['language'], $variables);
+            $message->update(['wa_message_id' => $waId]);
+        } catch (\Throwable $e) {
+            $message->update(['status' => 'failed', 'error' => $e->getMessage()]);
+
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        $chat->update([
+            'last_message_at' => now(),
+            'last_message_preview' => \Illuminate\Support\Str::limit($body, 120),
+            'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
+        ]);
+
+        try {
+            event(new WhatsappMessageReceived($chat->id, $message->id, 'out'));
+        } catch (\Throwable) {
+        }
+
+        return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
     }
 }

@@ -158,4 +158,16 @@ class WhatsappService
             return null;
         }
     }
+
+    /** The approved templates this number may send (empty for QR numbers). */
+    public function templates(): array
+    {
+        return $this->provider()->templates();
+    }
+
+    /** Send an approved template. Returns the provider message id. */
+    public function sendTemplateMessage(string $to, string $template, string $language, array $variables = []): string
+    {
+        return $this->provider()->sendTemplateMessage($to, $template, $language, $variables)['id'] ?? '';
+    }
 }

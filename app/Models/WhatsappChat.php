@@ -147,4 +147,30 @@ class WhatsappChat extends Model
         return mb_convert_encoding('&#'.(0x1F1E6 + ord($iso[0]) - 65).';', 'UTF-8', 'HTML-ENTITIES')
             .mb_convert_encoding('&#'.(0x1F1E6 + ord($iso[1]) - 65).';', 'UTF-8', 'HTML-ENTITIES');
     }
+
+    /** When the customer last wrote to us — the clock Meta's 24-hour rule runs on. */
+    public function lastInboundAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->messages()->where('direction', 'in')->max('sent_at')
+            ? \Illuminate\Support\Carbon::parse($this->messages()->where('direction', 'in')->max('sent_at'))
+            : null;
+    }
+
+    /**
+     * Whether a plain message would be refused right now.
+     *
+     * Only Cloud API numbers have this rule: outside 24 hours from the customer's last message,
+     * Meta accepts an approved template and nothing else. A paired phone has no such limit, so it
+     * is never in the closed state.
+     */
+    public function needsTemplate(): bool
+    {
+        if (! $this->account?->isCloudApi()) {
+            return false;
+        }
+
+        $last = $this->lastInboundAt();
+
+        return $last === null || $last->lt(now()->subDay());
+    }
 }

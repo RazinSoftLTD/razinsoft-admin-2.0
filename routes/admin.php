@@ -60,6 +60,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('whatsapp/chats/{chat}', [$wa, 'show'])->whereNumber('chat')->name('whatsapp.show');
             Route::get('whatsapp/chats/{chat}/older', [$wa, 'olderMessages'])->whereNumber('chat')->name('whatsapp.older');
             Route::post('whatsapp/chats/{chat}/send', [$wa, 'send'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.send');
+            Route::get('whatsapp/chats/{chat}/templates', [$wa, 'templates'])->whereNumber('chat')->name('whatsapp.templates');
+            Route::post('whatsapp/chats/{chat}/template', [$wa, 'sendTemplate'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.send-template');
             Route::post('whatsapp/chats/{chat}/media', [$wa, 'sendMediaMessage'])->whereNumber('chat')->middleware('permission:whatsapp.reply')->name('whatsapp.media');
             Route::post('whatsapp/chats/{chat}/messages/{message}/edit', [$wa, 'editMessage'])->whereNumber('chat')->whereNumber('message')->middleware('permission:whatsapp.reply')->name('whatsapp.msg.edit');
             Route::post('whatsapp/chats/{chat}/messages/{message}/react', [$wa, 'reactMessage'])->whereNumber('chat')->whereNumber('message')->middleware('permission:whatsapp.reply')->name('whatsapp.msg.react');

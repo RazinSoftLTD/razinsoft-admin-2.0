@@ -143,4 +143,81 @@ class CloudApiProvider implements WhatsappProvider
 
         return ['id' => $res->json('messages.0.id', '')];
     }
+
+    /**
+     * The approved templates on this number's WhatsApp Business Account.
+     *
+     * Cached for a few minutes: the picker asks on every chat open, the list changes about as
+     * often as someone submits a template for review, and Graph is rate-limited.
+     */
+    public function templates(): array
+    {
+        if (blank($this->account->business_account_id)) {
+            return [];
+        }
+
+        return \Illuminate\Support\Facades\Cache::remember(
+            "wa.templates.{$this->account->id}",
+            now()->addMinutes(10),
+            function () {
+                $res = Http::withToken($this->account->access_token)
+                    ->get($this->base().'/'.$this->account->business_account_id.'/message_templates', [
+                        'fields' => 'name,status,category,language,components',
+                        'limit' => 200,
+                    ]);
+
+                if (! $res->successful()) {
+                    return [];
+                }
+
+                return collect($res->json('data', []))
+                    // Only APPROVED templates can actually be sent; the rest would be refused.
+                    ->filter(fn ($t) => ($t['status'] ?? '') === 'APPROVED')
+                    ->map(function ($t) {
+                        $body = collect($t['components'] ?? [])->firstWhere('type', 'BODY')['text'] ?? '';
+
+                        return [
+                            'name' => $t['name'] ?? '',
+                            'language' => $t['language'] ?? 'en_US',
+                            'category' => $t['category'] ?? '',
+                            'body' => $body,
+                            // How many {{n}} placeholders the body expects, so the form can ask for them.
+                            'variables' => preg_match_all('/\{\{\s*\d+\s*\}\}/', $body),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+            },
+        );
+    }
+
+    public function sendTemplateMessage(string $to, string $template, string $language, array $variables = []): array
+    {
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'to' => $to,
+            'type' => 'template',
+            'template' => [
+                'name' => $template,
+                'language' => ['code' => $language ?: 'en_US'],
+            ],
+        ];
+
+        // Positional: Meta fills {{1}}, {{2}}… from this list in order, so gaps are not allowed.
+        if ($variables !== []) {
+            $payload['template']['components'] = [[
+                'type' => 'body',
+                'parameters' => array_map(fn ($v) => ['type' => 'text', 'text' => (string) $v], array_values($variables)),
+            ]];
+        }
+
+        $res = Http::withToken($this->account->access_token)
+            ->post($this->base().'/'.$this->account->phone_number_id.'/messages', $payload);
+
+        if (! $res->successful()) {
+            throw new \RuntimeException($res->json('error.message') ?: 'Failed to send the template.');
+        }
+
+        return ['id' => $res->json('messages.0.id') ?: ''];
+    }
 }

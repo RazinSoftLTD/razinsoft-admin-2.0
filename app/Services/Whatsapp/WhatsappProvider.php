@@ -58,4 +58,22 @@ interface WhatsappProvider
      * path the gateway can read (Baileys). Returns ['id' => provider message id].
      */
     public function sendMedia(string $to, string $type, string $source, ?string $caption = null, ?string $filename = null): array;
+
+    /**
+     * The approved message templates this number may send.
+     *
+     * Empty for transports that have no such concept. Shape:
+     *   [['name' => string, 'language' => string, 'category' => string, 'body' => string, 'variables' => int]]
+     */
+    public function templates(): array;
+
+    /**
+     * Send an approved template.
+     *
+     * Meta refuses a plain message more than 24 hours after the customer last wrote; a template is
+     * the only way to reopen the conversation. $variables fill {{1}}, {{2}}… in order.
+     *
+     * @return array{id: string}
+     */
+    public function sendTemplateMessage(string $to, string $template, string $language, array $variables = []): array;
 }

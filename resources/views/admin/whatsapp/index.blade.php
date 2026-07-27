@@ -501,12 +501,61 @@
                                         </div>
                                     </div>
                                 </div>
+                            {{-- 24-hour window: WhatsApp only accepts an approved template until the contact replies. --}}
+                            <div x-show="templateGate" x-cloak class="mb-2 w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <p class="text-xs text-amber-800">
+                                        This contact last wrote over 24 hours ago. WhatsApp only allows an approved template until they reply.
+                                    </p>
+                                    <button type="button" @click="templateOpen = !templateOpen"
+                                            class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
+                                        <span x-text="templateOpen ? 'Close' : 'Choose a template'"></span>
+                                    </button>
+                                </div>
+
+                                <div x-show="templateOpen" x-cloak class="mt-3 border-t border-amber-200 pt-3">
+                                    <p x-show="!templates.length" class="text-xs text-amber-700">
+                                        No approved templates on this number yet. They are created and submitted for review in Meta &rsaquo; WhatsApp &rsaquo; Message Templates.
+                                    </p>
+
+                                    <div x-show="templates.length && !pickedTemplate" class="flex max-h-56 flex-col gap-1.5 overflow-auto">
+                                        <template x-for="t in templates" :key="t.name + t.language">
+                                            <button type="button" @click="pickTemplate(t)"
+                                                    class="rounded-lg border border-amber-200 bg-white px-3 py-2 text-left hover:bg-amber-100">
+                                                <span class="block text-xs font-semibold text-[var(--color-heading)]" x-text="t.name"></span>
+                                                <span class="block truncate text-xs text-gray-500" x-text="t.body"></span>
+                                                <span class="text-[11px] text-gray-400" x-text="t.language + ' · ' + t.category"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+
+                                    <div x-show="pickedTemplate" x-cloak>
+                                        <div class="mb-2 flex items-center justify-between">
+                                            <span class="text-xs font-semibold text-[var(--color-heading)]" x-text="pickedTemplate?.name"></span>
+                                            <button type="button" @click="pickedTemplate = null" class="text-xs font-semibold text-amber-700 hover:underline">Back to list</button>
+                                        </div>
+
+                                        <template x-for="(v, i) in templateVars" :key="i">
+                                            <input type="text" x-model="templateVars[i]" :placeholder="'Value for {{' + (i + 1) + '}}'"
+                                                   class="mb-1.5 h-9 w-full rounded-lg border-gray-200 text-xs">
+                                        </template>
+
+                                        <p class="mb-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-700" x-text="templatePreview() || 'This template has no text body.'"></p>
+
+                                        <button type="button" @click="sendTemplate()" :disabled="sending"
+                                                class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">
+                                            <span x-text="sending ? 'Sending…' : 'Send template'"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                                 <textarea x-ref="composer" x-model="draft"
                                           @keydown.enter="if (slashOpen()) { $event.preventDefault(); pickSlash(slashMatches()[slashIndex]); } else if (!$event.shiftKey && !$event.isComposing) { $event.preventDefault(); send(); }"
                                           @keydown.arrow-down="if (slashOpen()) { $event.preventDefault(); slashNav(1); }"
                                           @keydown.arrow-up="if (slashOpen()) { $event.preventDefault(); slashNav(-1); }"
                                           @keydown.escape="slashOff = true"
-                                          @input="autoGrow(); slashOff = false; slashIndex = 0" rows="1" placeholder="Type a message…  (Enter to send · type / for quick replies)"
+                                          @input="autoGrow(); slashOff = false; slashIndex = 0" rows="1" :placeholder="templateGate ? 'Waiting on their reply — send an approved template to reopen the chat' : 'Type a message…  (Enter to send · type / for quick replies)'"
                                           class="max-h-40 min-h-[2.75rem] flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-sm leading-5 text-gray-800 shadow-sm outline-none ring-1 ring-gray-200 transition focus:ring-2 focus:ring-emerald-400"></textarea>
                                 <button type="submit" :disabled="!draft.trim() || sending" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
@@ -803,6 +852,9 @@
         function waInbox() {
             return {
                 chats: [], active: null, messages: [], draft: '', noteDraft: '', sending: false, showQuick: false, attachOpen: false,
+                // Cloud API numbers only: outside 24h from the customer's last message, WhatsApp
+                // accepts an approved template and nothing else.
+                templateGate: false, templates: [], templateOpen: false, pickedTemplate: null, templateVars: [],
                 showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', product_category: '', product_sub_category: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 // Shared Product Category tree from Settings > CRM Settings.
@@ -946,7 +998,7 @@
                         product_category: d.chat.product_category || '',
                         product_sub_category: d.chat.product_sub_category || '',
                     };
-                    if (!silent) { this.replyTo = null; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; }
+                    if (!silent) { this.replyTo = null; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; this.loadTemplates(id); }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
                     if (atBottom) this.scrollBottom();
                 },
@@ -971,6 +1023,57 @@
                     const t = this.$refs.thread;
                     return !t || (t.scrollHeight - t.scrollTop - t.clientHeight < 80);
                 },
+                // Ask whether this chat is inside the 24-hour window, and what may be sent if not.
+                async loadTemplates(id) {
+                    this.templateGate = false; this.templates = []; this.pickedTemplate = null; this.templateOpen = false;
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + id + '/templates');
+                        if (!r.ok) return;
+                        const d = await r.json();
+                        this.templateGate = !!d.needs_template;
+                        this.templates = d.templates || [];
+                    } catch { /* a picker that fails to load must not break the thread */ }
+                },
+
+                pickTemplate(t) {
+                    this.pickedTemplate = t;
+                    this.templateVars = Array.from({ length: t.variables || 0 }, () => '');
+                },
+
+                // What the customer will actually read, so the thread shows that and not the raw name.
+                templatePreview() {
+                    if (!this.pickedTemplate) return '';
+                    let body = this.pickedTemplate.body || '';
+                    this.templateVars.forEach((v, i) => {
+                        body = body.replace(new RegExp('\\{\\{\\s*' + (i + 1) + '\\s*\\}\\}', 'g'), v || '');
+                    });
+                    return body;
+                },
+
+                async sendTemplate() {
+                    if (!this.pickedTemplate || this.sending) return;
+                    this.sending = true;
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/template', {
+                            method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify({
+                                template: this.pickedTemplate.name,
+                                language: this.pickedTemplate.language,
+                                variables: this.templateVars,
+                                preview: this.templatePreview(),
+                            }),
+                        });
+                        if (r.ok) {
+                            this.messages.push((await r.json()).message);
+                            this.scrollBottom(true); this.loadChats();
+                            // Sending a template reopens the conversation, so the gate lifts.
+                            this.templateGate = false; this.templateOpen = false; this.pickedTemplate = null;
+                        } else {
+                            alert((await r.json()).error || 'Could not send the template.');
+                        }
+                    } catch { alert('Could not send the template.'); } finally { this.sending = false; }
+                },
+
                 async send() {
                     if (!this.draft.trim() || this.sending) return;
                     this.sending = true;
@@ -985,7 +1088,12 @@
                             body: JSON.stringify({ body, mentions, reply_to: replyId }),
                         });
                         if (r.ok) { this.messages.push((await r.json()).message); this.scrollBottom(true); this.loadChats(); this.$nextTick(() => this.autoGrow()); }
-                        else { alert((await r.json()).error || 'Could not send.'); this.draft = body; }
+                        else {
+                            const err = await r.json();
+                            this.draft = body;
+                            if (err.needs_template) { this.templateGate = true; this.templateOpen = true; }
+                            alert(err.error || 'Could not send.');
+                        }
                     } catch { this.draft = body; } finally { this.sending = false; }
                 },
                 startEdit(m) {

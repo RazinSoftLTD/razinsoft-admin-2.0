@@ -174,4 +174,18 @@ class BaileysProvider implements WhatsappProvider
 
         return ['id' => $res->json('id', '')];
     }
+
+    /**
+     * A paired phone has no template concept — it may send anything at any time, so there is
+     * nothing to list and nothing the picker should offer.
+     */
+    public function templates(): array
+    {
+        return [];
+    }
+
+    public function sendTemplateMessage(string $to, string $template, string $language, array $variables = []): array
+    {
+        throw new \RuntimeException('Message templates apply to Meta Cloud API numbers. This number can be sent a normal message.');
+    }
 }

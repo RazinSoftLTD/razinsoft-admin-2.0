@@ -71,4 +71,47 @@ class WhatsappDriverTest extends TestCase
             'session_key' => 'acc-'.uniqid(), 'position' => 1,
         ]);
     }
+
+    public function test_the_24_hour_window_only_applies_to_cloud_api_numbers(): void
+    {
+        $qr = $this->account(['driver' => 'baileys', 'session_key' => 'acc-w1']);
+        $cloud = $this->account(['driver' => 'cloud_api', 'session_key' => 'cloud-w1', 'phone_number_id' => '1', 'access_token' => 't']);
+
+        // A paired phone may write whenever it likes, even with nothing incoming at all.
+        $this->assertFalse($this->chat($qr)->needsTemplate());
+
+        // A Cloud API chat with no inbound message has never opened a window.
+        $this->assertTrue($this->chat($cloud)->needsTemplate());
+    }
+
+    public function test_the_window_opens_on_an_inbound_message_and_closes_after_a_day(): void
+    {
+        $cloud = $this->account(['driver' => 'cloud_api', 'session_key' => 'cloud-w2', 'phone_number_id' => '1', 'access_token' => 't']);
+
+        $fresh = $this->chat($cloud, '8801700000001');
+        $fresh->messages()->create(['direction' => 'in', 'type' => 'text', 'body' => 'hi', 'status' => 'received', 'sent_at' => now()->subHours(2)]);
+        $this->assertFalse($fresh->fresh()->needsTemplate());
+
+        $stale = $this->chat($cloud, '8801700000002');
+        $stale->messages()->create(['direction' => 'in', 'type' => 'text', 'body' => 'hi', 'status' => 'received', 'sent_at' => now()->subDays(2)]);
+        $this->assertTrue($stale->fresh()->needsTemplate());
+
+        // Our own replies do not reopen it — only the customer writing does.
+        $stale->messages()->create(['direction' => 'out', 'type' => 'text', 'body' => 'hello', 'status' => 'sent', 'sent_at' => now()]);
+        $this->assertTrue($stale->fresh()->needsTemplate());
+    }
+
+    public function test_a_qr_number_has_no_templates_to_offer(): void
+    {
+        $qr = $this->account(['driver' => 'baileys', 'session_key' => 'acc-w2']);
+
+        $this->assertSame([], app(WhatsappManager::class)->provider(null, $qr->session_key, $qr)->templates());
+    }
+
+    private function chat(WhatsappAccount $account, string $waId = '8801700000000'): \App\Models\WhatsappChat
+    {
+        return \App\Models\WhatsappChat::create([
+            'wa_id' => $waId, 'account_id' => $account->id, 'status' => 'open', 'unread_count' => 0,
+        ]);
+    }
 }
