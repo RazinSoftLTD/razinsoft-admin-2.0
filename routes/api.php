@@ -49,6 +49,8 @@ Route::post('/search-log', [\App\Http\Controllers\Api\SearchController::class, '
 
 // ---- Public invoice pay page data (token-guarded, no auth) — consumed by the frontend pay page ----
 Route::get('/invoice/pay/{token}', [\App\Http\Controllers\InvoicePayController::class, 'apiShow']);
+// The pay link is the authorisation; the controller refuses a paid invoice or one that already has an address.
+Route::post('/invoice/pay/{token}/billing-address', [\App\Http\Controllers\InvoicePayController::class, 'storeBillingAddress']);
 
 // ---- WhatsApp Business Cloud API webhook (public — Meta verifies via token/signature) ----
 Route::get('/whatsapp/webhook', [\App\Http\Controllers\Api\WhatsappWebhookController::class, 'verify']);

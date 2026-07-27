@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BillingAddress;
 use App\Models\ClientInvoice;
 use App\Models\InvoicePayment;
 use Illuminate\Http\Request;
@@ -31,6 +32,8 @@ class InvoicePayController extends Controller
                 'email' => $invoice->bill_to_email,
                 'phone' => $invoice->bill_to_phone,
                 'address' => $invoice->bill_to_address,
+                // The page shows the form only when this is missing.
+                'has_address' => filled($invoice->bill_to_address),
             ],
             'items' => $invoice->items->map(fn ($i) => [
                 'description' => $i->description,
@@ -77,6 +80,77 @@ class InvoicePayController extends Controller
     }
 
     /** Start payment for the payable amount — Stripe Checkout, or a local dev fallback. */
+    /**
+     * Let the person paying supply the billing address when the invoice has none.
+     *
+     * The pay link is the authorisation — whoever holds it is trusted to pay, so they are trusted
+     * to say where the bill goes. It is accepted only while the invoice is unpaid and only when
+     * there is nothing there yet: an address already on a bill is part of a financial record and
+     * is not something a link should be able to rewrite.
+     *
+     * The address is also filed against the client, so the next invoice and their own dashboard
+     * already have it and nobody is asked twice.
+     */
+    public function storeBillingAddress(Request $request, string $token)
+    {
+        $invoice = ClientInvoice::where('public_token', $token)->firstOrFail();
+
+        if (filled($invoice->bill_to_address)) {
+            return response()->json(['error' => 'This invoice already has a billing address.'], 422);
+        }
+
+        if ($invoice->status === 'paid' || (float) $invoice->amountDue() <= 0) {
+            return response()->json(['error' => 'This invoice is already settled.'], 422);
+        }
+
+        $data = $request->validate([
+            'label' => ['nullable', 'in:home,office,other'],
+            'full_name' => ['nullable', 'string', 'max:150'],
+            'company' => ['nullable', 'string', 'max:150'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'address' => ['required', 'string', 'max:500'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'state' => ['nullable', 'string', 'max:100'],
+            'zip' => ['required', 'string', 'max:30'],
+            'country' => ['required', 'string', 'max:100'],
+        ]);
+
+        // Kept on the client when the invoice belongs to one, so it is theirs from now on.
+        $saved = null;
+
+        if ($invoice->client_id) {
+            $saved = BillingAddress::create([
+                'user_id' => $invoice->client_id,
+                'label' => $data['label'] ?? 'other',
+                'full_name' => ($data['full_name'] ?? null) ?: $invoice->bill_to_name,
+                'company' => ($data['company'] ?? null) ?: $invoice->bill_to_company,
+                'phone' => ($data['phone'] ?? null) ?: $invoice->bill_to_phone,
+                'address' => $data['address'],
+                'city' => $data['city'] ?? null,
+                'state' => $data['state'] ?? null,
+                'zip' => $data['zip'],
+                'country' => $data['country'],
+            ]);
+        }
+
+        // The invoice stores one line, which is what the PDF and the panel show.
+        $oneLine = $saved
+            ? $saved->oneLine()
+            : collect([$data['address'], $data['city'] ?? null, $data['state'] ?? null, $data['zip'], $data['country']])
+                ->filter()->join(', ');
+
+        $invoice->forceFill(array_filter([
+            'bill_to_address' => $oneLine,
+            'bill_to_name' => $invoice->bill_to_name ?: ($data['full_name'] ?? null),
+            'bill_to_company' => $invoice->bill_to_company ?: ($data['company'] ?? null),
+            'bill_to_phone' => $invoice->bill_to_phone ?: ($data['phone'] ?? null),
+        ]))->save();
+
+        $invoice->logActivity('billing_address_added', 'Billing address added from the payment page.', 'client', $invoice->client);
+
+        return response()->json(['address' => $oneLine]);
+    }
+
     public function checkout(string $token)
     {
         $invoice = ClientInvoice::where('public_token', $token)->firstOrFail();
