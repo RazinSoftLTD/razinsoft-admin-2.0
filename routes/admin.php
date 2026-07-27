@@ -237,6 +237,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('deals/{deal}/invoice', [DealController::class, 'invoice'])->name('deals.invoice');
             Route::post('deals/{deal}/milestones', [DealController::class, 'milestoneStore'])->name('deals.milestones.store');
             Route::put('deals/{deal}/milestones/{milestone}', [DealController::class, 'milestoneUpdate'])->whereNumber(['deal', 'milestone'])->name('deals.milestones.update');
+            Route::post('deals/{deal}/milestones/{milestone}/status', [DealController::class, 'milestoneStatus'])->whereNumber(['deal', 'milestone'])->name('deals.milestones.status');
             Route::delete('deals/{deal}/milestones/{milestone}', [DealController::class, 'milestoneDestroy'])->whereNumber(['deal', 'milestone'])->name('deals.milestones.destroy');
         });
         Route::middleware('permission:deals.delete')->group(function () {

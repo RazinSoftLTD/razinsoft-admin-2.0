@@ -126,6 +126,61 @@ class DealController extends Controller
         return back()->with('status', 'Milestone added.');
     }
 
+    /**
+     * Mark a milestone done, called off, or put it back to pending.
+     *
+     * The date is stamped here and kept: "when was this delivered" has to survive someone editing
+     * the title next week, which is what deriving it from updated_at would not.
+     */
+    public function milestoneStatus(Request $request, Deal $deal, \App\Models\DealMilestone $milestone)
+    {
+        $this->authorizeDeal($request, $deal);
+        abort_if($milestone->deal_id !== $deal->id, 404);
+
+        $data = $request->validate([
+            'status' => ['required', 'in:'.implode(',', array_keys(\App\Models\DealMilestone::STATUSES))],
+        ]);
+
+        if ($data['status'] === $milestone->status) {
+            return back();
+        }
+
+        $was = $milestone->status;
+
+        $milestone->update([
+            'status' => $data['status'],
+            // Only the date for the state it is now in survives; reopening clears both, so a
+            // milestone never carries a completion date it is no longer in.
+            'completed_at' => $data['status'] === 'completed' ? now() : null,
+            'cancelled_at' => $data['status'] === 'cancelled' ? now() : null,
+            'status_by' => $data['status'] === 'pending' ? null : $request->user()->id,
+        ]);
+
+        $label = \App\Models\DealMilestone::STATUSES[$data['status']];
+        $symbol = \App\Models\Currency::symbolMap()[$deal->currency] ?? (string) $deal->currency;
+        $amount = $milestone->amount ? ' ('.$symbol.number_format((float) $milestone->amount, 2).')' : '';
+
+        DealActivity::create([
+            'deal_id' => $deal->id,
+            'user_id' => $request->user()->id,
+            'type' => 'stage',
+            'body' => $data['status'] === 'pending'
+                ? "Reopened milestone “{$milestone->title}”{$amount}."
+                : "Milestone “{$milestone->title}”{$amount} marked ".mb_strtolower($label).'.',
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'status' => $milestone->status,
+                'settled_at' => $milestone->settledAt()?->format('d M Y, g:i A'),
+                'by' => $request->user()->name,
+            ]);
+        }
+
+        return back()->with('status', "Milestone marked {$label}.");
+    }
+
     public function milestoneUpdate(Request $request, Deal $deal, \App\Models\DealMilestone $milestone)
     {
         $this->authorizeDeal($request, $deal);

@@ -294,21 +294,56 @@
                 <div class="divide-y divide-gray-50">
                     @forelse ($deal->milestones as $ms)
                         <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3" x-data="{ edit: false }">
-                            <div x-show="!edit" class="min-w-0">
-                                <p class="text-sm font-semibold text-[var(--color-heading)]">{{ $ms->title }}</p>
-                                <p class="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
-                                    @if ($ms->due_date)
-                                        <span class="{{ $ms->isOverdue() ? 'font-semibold text-red-600' : 'text-[var(--color-muted)]' }}">
-                                            Due {{ $ms->due_date->format('d M Y') }}{{ $ms->isOverdue() ? ' · overdue' : '' }}
-                                        </span>
-                                    @else
-                                        <span class="text-gray-400">No due date</span>
-                                    @endif
-                                    <span class="font-semibold text-[var(--color-heading)]">{{ $symbol }}{{ number_format((float) $ms->amount, 0) }}</span>
-                                </p>
+                            <div x-show="!edit" class="flex min-w-0 items-start gap-3">
+                                @if ($canEditDeal)
+                                    {{-- One click to settle it. A cancelled milestone is not "done", so it gets its
+                                         own control rather than sharing the tick. --}}
+                                    <form method="POST" action="{{ route('admin.deals.milestones.status', [$deal, $ms]) }}" class="mt-0.5 shrink-0">
+                                        @csrf
+                                        <input type="hidden" name="status" value="{{ $ms->status === 'completed' ? 'pending' : 'completed' }}">
+                                        <button title="{{ $ms->status === 'completed' ? 'Reopen' : 'Mark completed' }}"
+                                                class="grid h-5 w-5 place-items-center rounded border {{ $ms->status === 'completed' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-transparent hover:border-emerald-500' }}">
+                                            <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
+                                        </button>
+                                    </form>
+                                @endif
+                                <div class="min-w-0">
+                                    <p class="flex flex-wrap items-center gap-2 text-sm font-semibold {{ $ms->isSettled() ? 'text-gray-400 line-through' : 'text-[var(--color-heading)]' }}">
+                                        {{ $ms->title }}
+                                        @if ($ms->status !== 'pending')
+                                            <span style="text-decoration:none" class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $ms->status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600' }}">
+                                                {{ \App\Models\DealMilestone::STATUSES[$ms->status] }}
+                                            </span>
+                                        @endif
+                                    </p>
+                                    <p class="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+                                        @if ($ms->due_date)
+                                            <span class="{{ $ms->isOverdue() ? 'font-semibold text-red-600' : 'text-[var(--color-muted)]' }}">
+                                                Due {{ $ms->due_date->format('d M Y') }}{{ $ms->isOverdue() ? ' · overdue' : '' }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400">No due date</span>
+                                        @endif
+                                        <span class="font-semibold text-[var(--color-heading)]">{{ $symbol }}{{ number_format((float) $ms->amount, 0) }}</span>
+                                        @if ($ms->settledAt())
+                                            {{-- Kept so "when was this delivered" survives a later edit to the title. --}}
+                                            <span class="text-[var(--color-muted)]">
+                                                · {{ $ms->status === 'completed' ? 'Completed' : 'Cancelled' }} {{ $ms->settledAt()->format('d M Y') }}@if ($ms->statusBy) by {{ $ms->statusBy->name }}@endif
+                                            </span>
+                                        @endif
+                                    </p>
+                                </div>
                             </div>
                             @if ($canEditDeal)
                                 <div x-show="!edit" class="flex shrink-0 items-center gap-1">
+                                    <form method="POST" action="{{ route('admin.deals.milestones.status', [$deal, $ms]) }}">
+                                        @csrf
+                                        <input type="hidden" name="status" value="{{ $ms->status === 'cancelled' ? 'pending' : 'cancelled' }}">
+                                        <button title="{{ $ms->status === 'cancelled' ? 'Reopen' : 'Cancel this milestone' }}"
+                                                class="grid h-8 w-8 place-items-center rounded-lg {{ $ms->status === 'cancelled' ? 'text-amber-600 hover:bg-amber-50' : 'text-gray-400 hover:bg-gray-100 hover:text-amber-600' }}">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6 6 18M6 6l12 12"/></svg>
+                                        </button>
+                                    </form>
                                     <button type="button" @click="edit = true" title="Edit" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                     </button>
