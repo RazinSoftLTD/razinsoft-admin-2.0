@@ -30,18 +30,16 @@ still what production runs.
 ## Still to do
 
 1. **Real screenshots.** The hero is a drawn illustration (`tools/gen-smartdesk-hero.mjs`). It
-   carries nobody's data, which is why it is there — but real screens sell better. They must come
-   from a demo install, never from production.
-2. **A demo install.** Buyers expect a live preview. It needs its own database and seeded, invented
-   data.
-3. **Strip the vendor's own data before shipping.** This is the one that must not be skipped:
-   - WhatsApp accounts, Meta credentials and verify tokens
-   - SMTP accounts and the email logs
-   - `config/brand.php` socials, address and support email
-   - the client, lead and invoice tables
-   - `.env` — Stripe, PayPal, Envato, Meta, database
-4. **An installer.** A buyer with cPanel will not run migrations by hand.
-5. **Docs** — installation, configuration, and how to extend a module.
+   carries nobody's data, which is why it is there — but real screens sell better. Take them from a
+   demo install, never from production.
+2. **A demo install.** Buyers expect a live preview: its own database, seeded with invented data.
+
+Everything else that used to be on this list is now two commands — see [install.md](install.md):
+
+```bash
+php artisan smartdesk:prepare-release   # empty the vendor's data before shipping
+php artisan smartdesk:admin             # the buyer's first account
+```
 
 ## Running the generators
 
