@@ -152,7 +152,7 @@ class ProductResource extends JsonResource
             'og_image' => self::media($s?->og_image ?: $this->hero_image),
             'twitter_card' => $s?->twitter_card ?: 'summary_large_image',
             'twitter_image' => self::media($s?->twitter_image ?: $this->hero_image),
-            'brand' => $s?->brand ?: 'RazinSoft',
+            'brand' => $s?->brand ?: config('brand.product'),
             'sku' => $s?->sku,
             'operating_system' => $s?->operating_system,
             'application_category' => $s?->application_category,

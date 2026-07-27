@@ -8,7 +8,7 @@ use App\Models\Conversation;
 use Illuminate\Http\Request;
 
 /**
- * Client-facing direct messaging with the RazinSoft team.
+ * Client-facing direct messaging with the team.
  * Each customer has a single "client" conversation; staff who hold `chat.clients`
  * see and reply to it from the admin Teams → Client tab.
  */
@@ -41,7 +41,7 @@ class AccountMessageController extends Controller
                 'id' => $m->id,
                 'body' => $m->body,
                 'mine' => $m->user_id === $user->id,
-                'author' => $m->author?->name ?? 'RazinSoft',
+                'author' => $m->author?->name ?? config('brand.product'),
                 'attachment' => $m->attachment_url,
                 'attachment_name' => $m->attachment_name,
                 'is_image' => $m->is_image,

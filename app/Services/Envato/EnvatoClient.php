@@ -136,7 +136,7 @@ class EnvatoClient
     {
         $response = Http::withToken($this->token)
             ->acceptJson()
-            ->withUserAgent('RazinSoft Admin — CodeCanyon market analysis')
+            ->withUserAgent(config('brand.product').' — CodeCanyon market analysis')
             ->timeout(20)
             ->get(self::BASE.$path, $query);
 

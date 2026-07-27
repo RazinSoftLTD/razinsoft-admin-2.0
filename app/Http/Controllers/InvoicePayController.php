@@ -323,7 +323,7 @@ class InvoicePayController extends Controller
                     'description' => "Invoice {$invoice->invoice_number}",
                 ]],
                 'application_context' => [
-                    'brand_name' => 'RazinSoft',
+                    'brand_name' => config('brand.product'),
                     'user_action' => 'PAY_NOW',
                     'return_url' => route('pay.invoice.paypal.return', $token),
                     'cancel_url' => $invoice->payUrl(),

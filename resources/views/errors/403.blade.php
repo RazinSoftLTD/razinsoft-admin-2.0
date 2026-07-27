@@ -118,7 +118,7 @@
             </a>
         </div>
 
-        <p class="hint">RazinSoft Workspace · Access controlled by your role &amp; permissions</p>
+        <p class="hint">{{ config('brand.product') }} · Access controlled by your role &amp; permissions</p>
     </div>
 </body>
 </html>

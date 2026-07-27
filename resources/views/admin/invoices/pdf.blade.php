@@ -56,9 +56,9 @@
               : (is_file($logoPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath)) : null);
       @endphp
       @if ($logoSrc)
-        <img src="{{ $logoSrc }}" alt="RazinSoft" style="height:64px;width:auto">
+        <img src="{{ $logoSrc }}" alt="{{ \App\Models\InvoiceSetting::current()->brand_name }}" style="height:64px;width:auto">
       @else
-        <div class="brand">RazinSoft</div>
+        <div class="brand">{{ \App\Models\InvoiceSetting::current()->brand_name }}</div>
       @endif
     </td>
     <td style="border:none;vertical-align:top" class="right">
@@ -85,7 +85,7 @@
   <table style="width:100%;margin-top:22px"><tr>
     <td style="border:none;vertical-align:top;width:50%">
       <div class="muted" style="font-size:12px">Billed From</div>
-      <div style="font-weight:bold;margin-top:2px">RazinSoft</div>
+      <div style="font-weight:bold;margin-top:2px">{{ \App\Models\InvoiceSetting::current()->brand_name }}</div>
       <div>info@razinsoft.com</div>
       <div>+8801711257498</div>
       <div>RMR Center 1/1 (A&amp;B) Shyamoli Ring Road, Dhaka - 1207.</div>

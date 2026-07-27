@@ -331,12 +331,12 @@
                         @if ($branding->logo_url)
                             <img src="{{ $branding->logo_url }}" alt="{{ $branding->brand_name }}" class="h-8 max-w-[140px] object-contain">
                         @else
-                            <span class="text-lg font-extrabold text-[var(--color-primary)]">{{ $branding->brand_name ?? 'RazinSoft' }}</span>
+                            <span class="text-lg font-extrabold text-[var(--color-primary)]">{{ $branding->brand_name ?: config('brand.product') }}</span>
                         @endif
                         <span class="rounded bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--color-primary)]">INVOICE</span>
                     </div>
                     <div class="flex justify-between text-xs">
-                        <div class="text-[var(--color-muted)]">{{ $branding->brand_name ?? 'RazinSoft' }}<br>support@razinsoft.com</div>
+                        <div class="text-[var(--color-muted)]">{{ $branding->brand_name ?: config('brand.product') }}<br>{{ config('brand.support_email') }}</div>
                         <div class="text-right">
                             <p class="font-bold text-[var(--color-heading)]" x-text="invoiceNumber"></p>
                             <p class="text-[var(--color-muted)]">Date: <span x-text="invoiceDate"></span></p>

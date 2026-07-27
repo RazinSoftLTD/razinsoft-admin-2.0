@@ -6,8 +6,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {{-- Don't cache snapshots — pages re-render fresh so Quill/Alpine/real-time widgets re-init cleanly. --}}
     <meta name="turbo-cache-control" content="no-cache">
-    <title>@yield('title', 'Admin') · RazinSoft</title>
-    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <title>@yield('title', 'Admin') · {{ config('brand.product') }}</title>
+    <link rel="icon" href="{{ asset(config('brand.icon')) }}" type="image/svg+xml">
     <style>[x-cloak]{display:none!important}</style>
 
     {{-- The choice comes from the account, so it is right on the first byte and on any machine

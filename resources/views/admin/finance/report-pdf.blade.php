@@ -19,7 +19,7 @@
     <button class="noprint" onclick="window.print()" style="float:right;padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer">Print / Save as PDF</button>
 
     <h1>{{ ucwords(str_replace('_', ' ', $report)) }} Report</h1>
-    <p class="meta">RazinSoft · {{ \Carbon\Carbon::parse($from)->format('d M Y') }} – {{ \Carbon\Carbon::parse($to)->format('d M Y') }} · generated {{ now()->format('d M Y, g:i A') }}</p>
+    <p class="meta">{{ \App\Models\InvoiceSetting::current()->brand_name }} · {{ \Carbon\Carbon::parse($from)->format('d M Y') }} – {{ \Carbon\Carbon::parse($to)->format('d M Y') }} · generated {{ now()->format('d M Y, g:i A') }}</p>
 
     <table>
         <thead><tr>@foreach ($columns as $col)<th>{{ $col }}</th>@endforeach</tr></thead>

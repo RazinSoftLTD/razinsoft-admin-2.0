@@ -39,8 +39,15 @@
             {{-- Header --}}
             <div class="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 p-8">
                 <div>
-                    <img src="{{ asset('images/razinsoft-logo.png') }}" alt="RazinSoft" class="h-9 w-auto">
-                    <p class="mt-2 text-xs text-[var(--color-muted)]">RazinSoft Ltd. · support@razinsoft.com</p>
+                    {{-- The operator's own branding, set in Invoice Configuration — this is the
+                         company the client is being billed by, not the software. --}}
+                    @php $branding = \App\Models\InvoiceSetting::current(); @endphp
+                    @if ($branding->logo_url)
+                        <img src="{{ $branding->logo_url }}" alt="{{ $branding->brand_name }}" class="h-9 w-auto">
+                    @else
+                        <p class="text-lg font-extrabold text-[var(--color-heading)]">{{ $branding->brand_name }}</p>
+                    @endif
+                    <p class="mt-2 text-xs text-[var(--color-muted)]">{{ $branding->brand_name }} · {{ config('brand.support_email') }}</p>
                 </div>
                 <div class="text-right">
                     <span class="inline-flex rounded-md bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">Invoice</span>

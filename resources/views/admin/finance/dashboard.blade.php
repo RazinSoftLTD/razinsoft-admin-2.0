@@ -14,7 +14,7 @@
 @section('content')
     <div class="mb-5">
         <h1 class="text-xl font-bold text-[var(--color-heading)]">Finance</h1>
-        <p class="mt-1 text-sm text-[var(--color-muted)]">RazinSoft's own money — wallets, banks, income and spending. Paid invoices arrive here automatically.</p>
+        <p class="mt-1 text-sm text-[var(--color-muted)]">Your own money — wallets, banks, income and spending. Paid invoices arrive here automatically.</p>
     </div>
 
     @include('admin.finance._nav')

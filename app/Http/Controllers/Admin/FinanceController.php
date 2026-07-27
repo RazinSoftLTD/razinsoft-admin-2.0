@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
- * Finance — RazinSoft's own money: wallets, bank accounts, income, expenses, transfers,
+ * Finance — this company's own money: wallets, bank accounts, income, expenses, transfers,
  * conversions, payables and tax. Client billing lives in the Invoice module; paid invoices
  * arrive here as income automatically and unpaid ones are listed as receivables.
  */

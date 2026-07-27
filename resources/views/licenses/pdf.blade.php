@@ -35,7 +35,7 @@
     <div class="frame-inner">
       <table class="top"><tr>
         <td style="text-align:left;">
-          <div class="brand">RazinSoft</div>
+          <div class="brand">{{ \App\Models\InvoiceSetting::current()->brand_name }}</div>
           <div class="muted" style="font-size:11px;">info@razinsoft.com &middot; razinsoft.com</div>
         </td>
         <td style="text-align:right;"><span class="ribbon">OFFICIAL LICENSE</span></td>
@@ -69,7 +69,7 @@
 
       <div class="foot">
         This certificate authorises use of the above product under the purchased plan. Source code and updates are available
-        from your RazinSoft account dashboard while this license remains active. Keep your license key confidential.
+        from your account dashboard while this license remains active. Keep your license key confidential.
       </div>
     </div>
   </div>

@@ -187,8 +187,8 @@
 @endphp
 
 <div class="flex h-16 items-center gap-2.5 px-6">
-    <img src="{{ asset('images/razinsoft-icon.svg') }}" alt="RazinSoft" class="h-9 w-9 rounded-lg shadow-sm">
-    <span class="text-lg font-extrabold text-[var(--color-heading)]">RazinSoft</span>
+    <img src="{{ asset(config('brand.icon')) }}" alt="{{ config('brand.product') }}" class="h-9 w-9 rounded-lg shadow-sm">
+    <span class="text-lg font-extrabold text-[var(--color-heading)]">{{ config('brand.product') }}</span>
 </div>
 
 <div class="px-4 pb-1">

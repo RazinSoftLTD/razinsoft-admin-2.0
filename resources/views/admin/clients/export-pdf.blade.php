@@ -16,7 +16,7 @@
 </head>
 <body>
     <div class="head">
-        <h1>RazinSoft — Clients Export</h1>
+        <h1>{{ \App\Models\InvoiceSetting::current()->brand_name }} — Clients Export</h1>
         <span class="meta">{{ count($rows) }} client(s) · generated {{ $generatedAt }}</span>
     </div>
     <table>

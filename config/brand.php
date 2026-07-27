@@ -16,6 +16,29 @@
 
 return [
 
+    /*
+     | The product itself. Everything a buyer sees — the sign-in screen, the sidebar, page titles,
+     | the licence certificate — reads from here, so renaming the product is one line rather than a
+     | search across thirty files.
+     |
+     | Note the difference from InvoiceSetting::brand_name: that is *the operator's* company, the
+     | one whose name goes on the invoices they send. This is the software.
+     */
+    'product' => env('BRAND_PRODUCT', 'SmartDesk'),
+
+    'tagline' => env('BRAND_TAGLINE', 'The business hub for growing teams'),
+
+    /*
+     | The marks, relative to public/. A buyer drops their own files in and points these at them;
+     | nothing else has to change.
+     */
+    'icon' => env('BRAND_ICON', 'images/smartdesk-icon.svg'),
+    'logo' => env('BRAND_LOGO', 'images/smartdesk-logo.svg'),
+
+    /* Who makes it. Shown as "SmartDesk by RazinSoft". */
+    'vendor' => env('BRAND_VENDOR', 'RazinSoft'),
+    'vendor_url' => env('BRAND_VENDOR_URL', 'https://www.razinsoft.com'),
+
     'website' => env('BRAND_WEBSITE', 'https://www.razinsoft.com'),
 
     'support_email' => env('BRAND_SUPPORT_EMAIL', 'support@razinsoft.com'),

@@ -12,7 +12,9 @@ class InvoiceSetting extends Model
     /** The one settings row, created on demand. */
     public static function current(): self
     {
-        return static::first() ?? static::create(['brand_name' => 'RazinSoft']);
+        // A fresh installation has no company name yet; the product's is a better placeholder than
+        // the name of whoever wrote the software.
+        return static::first() ?? static::create(['brand_name' => config('brand.product')]);
     }
 
     public function getLogoUrlAttribute(): ?string

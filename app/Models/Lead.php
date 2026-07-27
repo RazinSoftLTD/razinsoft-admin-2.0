@@ -45,7 +45,7 @@ class Lead extends Model
     }
 
     /**
-     * Product names: the RazinSoft Products module, plus any extra products added
+     * Product names: the Products module, plus any extra products added
      * in Settings → CRM Settings. Deduped and sorted.
      */
     public static function productOptions(): array
