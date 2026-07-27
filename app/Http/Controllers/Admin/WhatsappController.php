@@ -176,9 +176,10 @@ class WhatsappController extends Controller
             'mentions.*' => ['string', 'max:64'],
             'reply_to' => ['nullable', 'integer'],
         ]);
-        $settings = WhatsappSetting::current();
-        if (! $settings->isConfigured()) {
-            return response()->json(['error' => 'WhatsApp is not connected. Configure it in Settings › WhatsApp API.'], 422);
+        // Asked of the number, not of the installation: a Cloud API number carries its own
+        // credentials and works with no gateway configured at all.
+        if (! $chat->account?->isConfigured()) {
+            return response()->json(['error' => 'This number is not set up yet. Finish it in Settings › WhatsApp Config.'], 422);
         }
 
         // Meta refuses a plain message more than 24 hours after the customer last wrote. Better to
@@ -261,9 +262,8 @@ class WhatsappController extends Controller
             'file' => ['required', 'file', 'max:16384'], // 16 MB — WhatsApp's practical ceiling
             'caption' => ['nullable', 'string', 'max:1024'],
         ]);
-        $settings = WhatsappSetting::current();
-        if (! $settings->isConfigured()) {
-            return response()->json(['error' => 'WhatsApp is not connected. Configure it in Settings › WhatsApp Config.'], 422);
+        if (! $chat->account?->isConfigured()) {
+            return response()->json(['error' => 'This number is not set up yet. Finish it in Settings › WhatsApp Config.'], 422);
         }
 
         $file = $request->file('file');

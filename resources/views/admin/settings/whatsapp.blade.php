@@ -18,7 +18,7 @@
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
             <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Config</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Gateway settings, connected numbers, labels &amp; quick replies. Connect each number from the list below.</p>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Each number picks its own connection method, so QR and Meta Cloud API numbers can run side by side. Set one up from the list below.</p>
         </div>
     </div>
 
@@ -29,23 +29,15 @@
         @if ($hasLeft)
         <div class="{{ $bothCols ? 'lg:col-span-2' : 'max-w-3xl' }}">
             @if ($canConnection)
-            <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm" x-data="{ driver: @js(old('driver', $settings->driver ?? 'baileys')) }">
+            <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 @csrf
-                {{-- Connection method --}}
-                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Connection Method</h2>
-                <div class="mb-5 grid gap-3 sm:grid-cols-2">
-                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition" :class="driver === 'baileys' ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-gray-200 hover:bg-gray-50'">
-                        <input type="radio" name="driver" value="baileys" x-model="driver" class="mt-0.5 accent-[var(--color-primary)]">
-                        <span><span class="block text-sm font-bold text-[var(--color-heading)]">QR / WhatsApp Web</span><span class="block text-xs text-[var(--color-muted)]">Scan a QR — no Meta account needed. (Phase 1)</span></span>
-                    </label>
-                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition" :class="driver === 'cloud_api' ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-gray-200 hover:bg-gray-50'">
-                        <input type="radio" name="driver" value="cloud_api" x-model="driver" class="mt-0.5 accent-[var(--color-primary)]">
-                        <span><span class="block text-sm font-bold text-[var(--color-heading)]">Meta Cloud API</span><span class="block text-xs text-[var(--color-muted)]">Official API with a WhatsApp Business account.</span></span>
-                    </label>
-                </div>
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">QR Gateway</h2>
+                <p class="mb-5 mt-1 text-xs text-[var(--color-muted)]">
+                    Shared by every number connected by QR. Meta Cloud API numbers do not use it — their
+                    credentials live on the number itself, so both kinds can be connected at the same time.
+                </p>
 
-                {{-- Baileys gateway --}}
-                <div x-show="driver === 'baileys'" x-cloak class="mb-5 grid gap-5 sm:grid-cols-2 border-t border-gray-100 pt-5">
+                <div class="mb-1 grid gap-5 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway URL</label>
                         <input type="url" name="gateway_url" value="{{ old('gateway_url', $settings->gateway_url) }}" placeholder="https://wa-gateway.yourserver.com" class="h-11 w-full rounded-lg border-gray-200 text-sm">
@@ -54,31 +46,7 @@
                     <div class="sm:col-span-2">
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway Secret</label>
                         <input type="password" name="gateway_secret" value="" placeholder="{{ $settings->gateway_secret ? '•••••••• (saved)' : 'Shared secret between Laravel & gateway' }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                    </div>
-                </div>
-
-                <h2 class="mb-5 text-sm font-bold text-[var(--color-heading)]" x-show="driver === 'cloud_api'" x-cloak>API Credentials</h2>
-                <div class="grid gap-5 sm:grid-cols-2" x-show="driver === 'cloud_api'" x-cloak>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Phone Number ID</label>
-                        <input type="text" name="phone_number_id" value="{{ old('phone_number_id', $settings->phone_number_id) }}" placeholder="e.g. 1029384756XXXX" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">WhatsApp Business Account ID</label>
-                        <input type="text" name="business_account_id" value="{{ old('business_account_id', $settings->business_account_id) }}" placeholder="e.g. 1122334455XXXX" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Access Token</label>
-                        <input type="password" name="access_token" value="" placeholder="{{ $settings->access_token ? '•••••••• (saved — leave blank to keep)' : 'Permanent access token' }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                        <p class="mt-1 text-xs text-gray-400">Use a permanent System User token from Meta Business.</p>
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">App Secret</label>
-                        <input type="password" name="app_secret" value="" placeholder="{{ $settings->app_secret ? '•••••••• (saved)' : 'Verifies webhook signatures' }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                    </div>
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">API Version</label>
-                        <input type="text" name="api_version" value="{{ old('api_version', $settings->api_version) }}" placeholder="v21.0" class="h-11 w-full rounded-lg border-gray-200 text-sm">
+                        <p class="mt-1 text-xs text-gray-400">Leave blank to keep the saved one.</p>
                     </div>
                 </div>
 
@@ -86,7 +54,7 @@
                     <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Settings</button>
                     <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-300 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
-                        Test Connection
+                        Test gateway
                     </button>
                 </div>
             </form>
@@ -275,20 +243,18 @@
             @if ($canWebhook)
             <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Webhook</h2>
-                <p class="mb-3 text-xs text-[var(--color-muted)]">In Meta &rsaquo; WhatsApp &rsaquo; Configuration, set the Callback URL and Verify Token below, then subscribe to the <strong>messages</strong> field.</p>
+                <p class="mb-3 text-xs text-[var(--color-muted)]">
+                    In Meta &rsaquo; WhatsApp &rsaquo; Configuration, set this Callback URL and subscribe to the
+                    <strong>messages</strong> field. Every Cloud API number has its <em>own</em> verify token —
+                    find it on that number under WhatsApp Numbers &rsaquo; Edit. Several numbers can share this
+                    one URL; Meta names which number each event belongs to.
+                </p>
                 <div class="space-y-3">
                     <div>
                         <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Callback URL</label>
                         <div class="flex items-center gap-2" x-data="{ c: false }">
                             <input type="text" readonly value="{{ $webhookUrl }}" class="h-10 flex-1 rounded-lg border-gray-200 bg-gray-50 text-xs">
                             <button type="button" @click="navigator.clipboard.writeText('{{ $webhookUrl }}'); c = true; setTimeout(() => c = false, 1500)" class="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200" x-text="c ? 'Copied' : 'Copy'"></button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Verify Token</label>
-                        <div class="flex items-center gap-2" x-data="{ c: false }">
-                            <input type="text" readonly value="{{ $settings->verify_token }}" class="h-10 flex-1 rounded-lg border-gray-200 bg-gray-50 text-xs">
-                            <button type="button" @click="navigator.clipboard.writeText('{{ $settings->verify_token }}'); c = true; setTimeout(() => c = false, 1500)" class="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200" x-text="c ? 'Copied' : 'Copy'"></button>
                         </div>
                     </div>
                 </div>

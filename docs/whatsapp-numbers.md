@@ -14,6 +14,19 @@ switching it silently took every other number offline.
 | Inbound | Gateway posts to `/api/whatsapp/gateway` | Meta posts to `/api/whatsapp/webhook` |
 | Session | Stays paired; can drop | Nothing to hold open |
 
+## Where the settings live
+
+| Setting | Where |
+|---|---|
+| Connection method | **On each number** — there is no installation-wide choice |
+| Cloud API credentials | On each Cloud API number, encrypted |
+| Verify token | On each Cloud API number — its own |
+| QR gateway URL + secret | WhatsApp Config, shared by every QR number |
+| Callback URL | One for all of them; Meta names the number in each event |
+
+A Cloud API number needs no gateway at all, and a QR number ignores the Cloud API fields. That is
+what lets both run at once.
+
 ## Adding a Cloud API number
 
 **Settings → WhatsApp → WhatsApp Numbers → Add a WhatsApp number**, choose *Meta Cloud API*, then

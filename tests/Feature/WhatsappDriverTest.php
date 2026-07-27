@@ -114,4 +114,19 @@ class WhatsappDriverTest extends TestCase
             'wa_id' => $waId, 'account_id' => $account->id, 'status' => 'open', 'unread_count' => 0,
         ]);
     }
+
+    public function test_a_cloud_api_number_works_with_no_qr_gateway_configured(): void
+    {
+        // No gateway URL anywhere — the old global check would have blocked this number.
+        \App\Models\WhatsappSetting::current()->update(['gateway_url' => null]);
+
+        $cloud = $this->account([
+            'driver' => 'cloud_api', 'session_key' => 'cloud-g1',
+            'phone_number_id' => '1', 'access_token' => 'tok',
+        ]);
+        $qr = $this->account(['driver' => 'baileys', 'session_key' => 'acc-g1']);
+
+        $this->assertTrue($cloud->isConfigured(), 'A Cloud API number carries its own credentials.');
+        $this->assertFalse($qr->isConfigured(), 'A QR number still needs the shared gateway.');
+    }
 }

@@ -22,16 +22,14 @@ class WhatsappSetting extends Model
         return static::firstOrCreate([], ['api_version' => 'v21.0', 'verify_token' => \Illuminate\Support\Str::random(24)]);
     }
 
-    /** Ready to send/receive? Depends on the active driver. */
+    /**
+     * Whether the shared QR gateway is set up.
+     *
+     * This row is now only about the gateway: the connection method and any Cloud API credentials
+     * live on each number, so asking "is WhatsApp configured" globally no longer has an answer.
+     */
     public function isConfigured(): bool
     {
-        return $this->driver === 'cloud_api'
-            ? filled($this->phone_number_id) && filled($this->access_token)
-            : filled($this->gateway_url);
-    }
-
-    public function isConnected(): bool
-    {
-        return $this->driver === 'cloud_api' ? (bool) $this->is_connected : $this->session_state === 'connected';
+        return filled($this->gateway_url);
     }
 }

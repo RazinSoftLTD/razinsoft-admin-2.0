@@ -158,29 +158,22 @@ class WhatsappSettingController extends Controller
 
     public function update(Request $request)
     {
+        // Only the QR gateway is global. The connection method, and Cloud API credentials, belong
+        // to each number — that is what lets QR and Cloud API numbers run at the same time.
         $data = $request->validate([
-            'driver' => ['required', 'in:baileys,cloud_api'],
             'gateway_url' => ['nullable', 'url', 'max:255'],
             'gateway_secret' => ['nullable', 'string', 'max:255'],
-            'phone_number_id' => ['nullable', 'string', 'max:100'],
-            'business_account_id' => ['nullable', 'string', 'max:100'],
-            'access_token' => ['nullable', 'string'],
-            'app_secret' => ['nullable', 'string', 'max:200'],
-            'api_version' => ['nullable', 'string', 'max:10'],
         ]);
 
-        $settings = WhatsappSetting::current();
-        // Keep stored secrets if their field was left blank (so editing never wipes them).
-        foreach (['access_token', 'app_secret', 'gateway_secret'] as $secret) {
-            if (blank($data[$secret] ?? null)) {
-                unset($data[$secret]);
-            }
+        // Blank means "leave the saved one alone" — the form never shows a secret back, so an
+        // empty field is an untouched field, not an instruction to wipe it.
+        if (blank($data['gateway_secret'] ?? null)) {
+            unset($data['gateway_secret']);
         }
-        // Interested-in is the shared Product Category list now; nothing edits interest_options.
 
-        $settings->update($data + ['api_version' => $data['api_version'] ?: 'v21.0']);
+        WhatsappSetting::current()->update($data);
 
-        return back()->with('status', 'WhatsApp settings saved.');
+        return back()->with('status', 'Gateway settings saved.');
     }
 
     public function test()
