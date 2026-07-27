@@ -4,15 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
-use App\Mail\VerifyEmailLink;
 use App\Models\Invoice;
 use App\Models\License;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Email\EmailDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rules\Password;
@@ -332,7 +331,17 @@ class AccountController extends Controller
             'hash' => sha1($user->email),
         ]);
 
-        Mail::to($user->email)->send(new VerifyEmailLink($user, $url));
+        app(EmailDispatcher::class)->sendTemplate('email_verification', $user->email, [
+            'customer_name' => $user->name,
+            'verification_url' => $url,
+        ], [
+            'event' => 'account.verification',
+            'module' => 'account',
+            'related' => $user,
+            'user_id' => $user->id,
+            // Asking again usually means the first one never arrived.
+            'dedupe' => false,
+        ]);
 
         return response()->json(['message' => 'Verification link sent — check your inbox.']);
     }

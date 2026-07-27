@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Mail\OrderFulfilledMail;
+use App\Services\Email\EmailDispatcher;
 use App\Models\ClientInvoice;
 use App\Models\Invoice;
 use App\Models\License;
@@ -130,7 +130,24 @@ class FulfillmentService
     private function sendEmail(Order $order): void
     {
         try {
-            Mail::to($order->user->email)->queue(new OrderFulfilledMail($order));
+            $order->loadMissing('items', 'invoice', 'user');
+
+            $items = $order->items
+                ->map(fn ($i) => '<li><strong>'.e($i->product_name).'</strong> — '.e($i->plan_name ?? 'License').'</li>')
+                ->implode('');
+
+            app(EmailDispatcher::class)->sendTemplate('order_confirmation', $order->user->email, [
+                'customer_name' => $order->user->name,
+                'order_number' => $order->order_number,
+                'order_total' => '$'.number_format((float) $order->total, 2),
+                'order_items' => $items,
+                'order_url' => rtrim((string) config('services.frontend_url', config('app.frontend_url')), '/').'/dashboard',
+            ], [
+                'event' => 'order.confirmed',
+                'module' => 'orders',
+                'related' => $order,
+                'user_id' => $order->user->id,
+            ]);
         } catch (\Throwable $e) {
             Log::warning('Order fulfilment email failed', ['order' => $order->order_number, 'error' => $e->getMessage()]);
         }

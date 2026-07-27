@@ -64,6 +64,7 @@ class EmailNotificationRule extends Model
             ['key' => 'payment.received', 'name' => 'Payment received', 'group' => 'Billing', 'template' => 'payment_received', 'description' => 'When a payment is recorded.'],
             ['key' => 'payment.failed', 'name' => 'Payment failed', 'group' => 'Billing', 'template' => 'payment_failed', 'description' => 'When an online payment attempt fails.'],
             ['key' => 'payment.refunded', 'name' => 'Refund processed', 'group' => 'Billing', 'template' => 'refund_processed', 'description' => 'When a refund is issued.'],
+            ['key' => 'invoice.reminder', 'name' => 'Invoice reminder', 'group' => 'Billing', 'template' => 'invoice_reminder', 'description' => 'When a client is reminded about an unpaid invoice.'],
             ['key' => 'order.confirmed', 'name' => 'Order confirmation', 'group' => 'Billing', 'template' => 'order_confirmation', 'description' => 'When an order is placed.'],
             ['key' => 'license.delivered', 'name' => 'License delivered', 'group' => 'Billing', 'template' => 'license_delivered', 'description' => 'When a purchased license is issued.'],
             ['key' => 'subscription.activated', 'name' => 'Subscription activated', 'group' => 'Billing', 'template' => 'subscription_activated', 'description' => 'When a subscription starts or renews.'],

@@ -538,4 +538,69 @@ class EmailManagementTest extends TestCase
         $this->artisan('email:import-legacy-smtp')->assertSuccessful();
         $this->assertSame(1, \App\Models\EmailConfig::count());
     }
+
+    // ---------------------------------------------------------------- everything goes through the module
+
+    public function test_a_password_reset_is_queued_through_the_module(): void
+    {
+        $this->artisan('email:seed-templates');
+        $this->config();
+
+        $user = \App\Models\User::create([
+            'name' => 'Rahim', 'email' => 'reset@example.com',
+            'password' => bcrypt('secret123'), 'role' => 'customer', 'status' => 'active',
+        ]);
+
+        $user->sendPasswordResetNotification('tok-123');
+
+        $log = EmailLog::where('to_email', 'reset@example.com')->firstOrFail();
+
+        $this->assertStringContainsString('tok-123', $log->body_html, 'The reset token must survive.');
+        $this->assertStringContainsString('reset-password', $log->body_html);
+    }
+
+    public function test_an_invoice_is_queued_with_its_pdf_attached(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $this->artisan('email:seed-templates');
+        $this->config();
+
+        $invoice = $this->invoice();
+
+        $log = app(\App\Services\Email\InvoiceMailer::class)->send($invoice);
+
+        $this->assertNotNull($log);
+        $this->assertSame(1, $log->attachments()->count(), 'The invoice PDF has to travel with it.');
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($log->attachments()->first()->path);
+
+        // A reminder is a deliberate repeat, so the duplicate guard must not swallow it.
+        $reminder = app(\App\Services\Email\InvoiceMailer::class)->remind($invoice);
+        $this->assertNotNull($reminder);
+        $this->assertNotSame($log->subject, $reminder->subject);
+    }
+
+    public function test_the_default_account_becomes_laravels_own_mailer(): void
+    {
+        config(['mail.default' => 'log']);
+
+        $config = $this->config();
+        $config->makeDefaultMailer();
+
+        $this->assertSame('db-'.$config->id, config('mail.default'));
+        $this->assertSame($config->host, config('mail.mailers.db-'.$config->id.'.host'));
+    }
+
+    private function invoice(): \App\Models\ClientInvoice
+    {
+        return \App\Models\ClientInvoice::create([
+            'invoice_number' => 'INV-TEST-1',
+            'bill_to_name' => 'Test Client',
+            'bill_to_email' => 'billing@example.com',
+            'currency' => 'USD',
+            'total' => 100,
+            'status' => 'sent',
+            'invoice_date' => now(),
+            'due_date' => now()->addDays(7),
+        ]);
+    }
 }

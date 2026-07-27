@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\BookingSetting;
 use App\Models\Meeting;
-use App\Support\TemplateMailer;
+use App\Services\Email\EmailDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Password;
@@ -103,12 +103,17 @@ class MeetingController extends Controller
                 ? $frontend.'/reset-password?token='.Password::broker()->createToken($client).'&email='.urlencode($client->email)
                 : $frontend.'/login';
 
-            TemplateMailer::send($meeting->email, 'meeting_booked', [
+            app(EmailDispatcher::class)->sendTemplate('meeting_booked', $meeting->email, [
                 'name' => $meeting->name,
+                'customer_name' => $meeting->name,
                 'email' => $meeting->email,
                 'day' => $meeting->date->format('l, F j, Y'),
                 'slot' => $meeting->slot_label,
                 'set_password_url' => $setUrl,
+            ], [
+                'event' => 'meeting.booked',
+                'module' => 'meetings',
+                'related' => $meeting,
             ]);
         } catch (\Throwable $e) {
             report($e);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClientInvoice;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Email\InvoiceMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -211,16 +212,14 @@ class ClientInvoiceController extends Controller
             $invoice->update(['status' => 'sent']);
         }
 
-        if ($invoice->bill_to_email) {
-            try {
-                \Illuminate\Support\Facades\Mail::to($invoice->bill_to_email)
-                    ->send(new \App\Mail\InvoiceSent($invoice));
-            } catch (\Throwable $e) {
-                $invoice->logActivity('sent', 'Marked sent (email delivery failed).');
+        if ($invoice->bill_to_email && ! app(InvoiceMailer::class)->send($invoice)) {
+            // Queueing was refused — no SMTP account, a suppressed address, or the notification
+            // switched off. The reason is in Email Settings → Logs; saying so beats a vague failure.
+            $invoice->logActivity('sent', 'Marked sent (the email was not queued).');
 
-                return back()->with('status', 'Invoice marked sent. Email could not be delivered (mail not configured): '.$e->getMessage());
-            }
+            return back()->with('error', 'Invoice marked sent, but the email was not queued. Check Email Settings → Queue.');
         }
+
         $invoice->logActivity('sent', 'Invoice emailed to '.($invoice->bill_to_email ?: 'the client').'.');
 
         return back()->with('status', 'Invoice sent to '.($invoice->bill_to_email ?: 'the client').'.');
@@ -264,11 +263,10 @@ class ClientInvoiceController extends Controller
         if (! $invoice->bill_to_email) {
             return back()->with('error', 'This invoice has no client email to remind.');
         }
-        try {
-            \Illuminate\Support\Facades\Mail::to($invoice->bill_to_email)->send(new \App\Mail\InvoiceSent($invoice, true));
-        } catch (\Throwable $e) {
-            return back()->with('error', 'Reminder could not be delivered (mail not configured): '.$e->getMessage());
+        if (! app(InvoiceMailer::class)->remind($invoice)) {
+            return back()->with('error', 'The reminder was not queued. Check Email Settings → Queue.');
         }
+
         $invoice->logActivity('reminder_sent', 'Payment reminder emailed to '.$invoice->bill_to_email.'.');
 
         return back()->with('status', 'Payment reminder sent to '.$invoice->bill_to_email.'.');

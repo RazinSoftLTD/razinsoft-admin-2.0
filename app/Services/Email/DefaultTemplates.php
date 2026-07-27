@@ -56,6 +56,15 @@ class DefaultTemplates
                 .self::button('{{invoice_url}}', 'View invoice')
                 .'<p>Please reply to this email if anything on it looks wrong.</p>'),
 
+            self::make('invoice_reminder', 'Invoice Reminder', 'Billing',
+                'Reminder: invoice {{invoice_number}} is still open',
+                'Sent when a client is reminded about an unpaid invoice.',
+                'customer_name, invoice_number, invoice_total, due_date, invoice_url',
+                '<p>Hi {{customer_name}},</p>
+                 <p>Invoice <strong>{{invoice_number}}</strong> for <strong>{{invoice_total}}</strong> is still showing as unpaid. It was due on {{due_date}}.</p>'
+                .self::button('{{invoice_url}}', 'Pay invoice')
+                .'<p>If you have already paid, or something on the invoice looks wrong, reply to this email and we will sort it out.</p>'),
+
             self::make('payment_received', 'Payment Received', 'Billing',
                 'Payment received for invoice {{invoice_number}}',
                 'Sent when a payment is recorded against an invoice.',
@@ -81,12 +90,14 @@ class DefaultTemplates
                  <p>We have refunded <strong>{{refund_amount}}</strong> against invoice {{invoice_number}}. Depending on your bank it can take a few working days to appear.</p>'),
 
             self::make('order_confirmation', 'Order Confirmation', 'Billing',
-                'Your order {{order_number}} is confirmed',
-                'Sent when an order is placed.',
-                'customer_name, order_number, order_total, order_url',
+                'Your order {{order_number}} is ready',
+                'Sent when an order is paid and its items have been made available.',
+                'customer_name, order_number, order_total, order_items, order_url',
                 '<p>Hi {{customer_name}},</p>
-                 <p>Thank you for your order <strong>{{order_number}}</strong> ({{order_total}}). We will email you again as soon as it is ready.</p>'
-                .self::button('{{order_url}}', 'View order')),
+                 <p>Your order <strong>{{order_number}}</strong> ({{order_total}}) is paid and ready. You now have access to:</p>
+                 <ul style="margin:12px 0;padding-left:20px">{{order_items}}</ul>
+                 <p>Your invoice, license keys and downloads are in your account.</p>'
+                .self::button('{{order_url}}', 'Open my account')),
 
             self::make('license_delivered', 'License Delivered', 'Billing',
                 'Your license key for {{product_name}}',

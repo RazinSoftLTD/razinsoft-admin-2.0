@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Models\EmailSetting;
+use App\Models\EmailConfig;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -22,10 +22,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Apply the admin-configured SMTP settings over config/mail.php (if the table exists).
+        // Point Laravel's own mailer at the default account from Email Settings → Configuration.
+        //
+        // Mail sent through EmailDispatcher does not need this — the worker picks its own account
+        // per message. This is for anything that still reaches for `Mail::` directly, including
+        // the framework's own notifications: without it they fall back to MAIL_MAILER in .env,
+        // which is `log` here, so they would be written to a file and never sent.
         try {
-            if (Schema::hasTable('email_settings')) {
-                EmailSetting::current()->apply();
+            if (Schema::hasTable('email_configs')) {
+                EmailConfig::pick()?->makeDefaultMailer();
             }
         } catch (\Throwable $e) {
             // DB not ready (e.g. during install) — fall back to .env mail config.

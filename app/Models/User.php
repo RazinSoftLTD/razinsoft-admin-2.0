@@ -370,4 +370,37 @@ class User extends Authenticatable
     {
         return $this->hasMany(ClientPasswordHistory::class)->latest();
     }
+
+    /**
+     * Send the password-reset link through the email module rather than the framework's own
+     * notification.
+     *
+     * Same reason as everything else here: it puts the message in the log, honours the suppression
+     * list, and lets the wording be edited from Templates. The reset link itself is still built by
+     * the framework, so the token and its expiry are unchanged.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        // AppServiceProvider registers the callback that points the link at the website's reset
+        // page. The fallback repeats it rather than calling route('password.reset'), which this
+        // application has no web route for.
+        $callback = \Illuminate\Auth\Notifications\ResetPassword::$createUrlCallback;
+
+        $url = $callback
+            ? call_user_func($callback, $this, $token)
+            : rtrim((string) config('app.frontend_url', config('services.frontend_url')), '/')
+                .'/reset-password?token='.$token.'&email='.urlencode($this->getEmailForPasswordReset());
+
+        app(\App\Services\Email\EmailDispatcher::class)->sendTemplate('password_reset', $this->email, [
+            'customer_name' => $this->name,
+            'reset_url' => $url,
+        ], [
+            'event' => 'account.password_reset',
+            'module' => 'account',
+            'related' => $this,
+            'user_id' => $this->id,
+            // A second reset request is a deliberate resend — the first link may never have arrived.
+            'dedupe' => false,
+        ]);
+    }
 }

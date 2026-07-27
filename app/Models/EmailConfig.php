@@ -102,6 +102,18 @@ class EmailConfig extends Model
         return $name;
     }
 
+    /**
+     * Make this the mailer Laravel reaches for when nothing names one.
+     *
+     * applyToMailer() only registers the account; without this, plain `Mail::` calls would still
+     * go to whatever MAIL_MAILER says in .env — which on this installation is `log`, meaning the
+     * message is written to a file and quietly never sent.
+     */
+    public function makeDefaultMailer(): void
+    {
+        Config::set('mail.default', $this->applyToMailer());
+    }
+
     public function markHealthy(): void
     {
         $this->forceFill(['health' => 'ok', 'last_checked_at' => now(), 'last_error' => null])->save();

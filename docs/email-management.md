@@ -214,6 +214,32 @@ User::where('role', 'customer')->where('created_at', '>=', '2026-01-01')->update
 Two switches turn it off, both in the panel: the **account.welcome** notification rule, and the
 template's own **Active** toggle.
 
+## Nothing sends outside the module
+
+Every message this application produces goes through `EmailDispatcher`, including the ones the
+framework used to send on its own:
+
+| Message | Sent by | Template |
+|---|---|---|
+| Welcome | `AuthController::welcomeOnce()` | `welcome_client` |
+| Email verification | `AccountController::sendEmailVerification()` | `email_verification` |
+| Password reset | `User::sendPasswordResetNotification()` | `password_reset` |
+| Invoice | `InvoiceMailer::send()` | `invoice_sent` (+ PDF) |
+| Invoice reminder | `InvoiceMailer::remind()` | `invoice_reminder` |
+| Order ready | `FulfillmentService::sendEmail()` | `order_confirmation` |
+| Meeting booked | `MeetingController::store()` | `meeting_booked` |
+
+That is what makes the log complete and the suppression list real. A plain `Mail::` call would
+bypass all of it, so there are none left — if you add one, it will not appear in Logs, will mail a
+bounced address, and cannot be turned off from Notification Rules.
+
+`AppServiceProvider` still points Laravel's own mailer at the default account, as a safety net for
+anything a package might send.
+
+The invoice PDF is rendered and stored **before** queueing, under `storage/app/public/invoices/`.
+The worker runs later in another process, so the file has to exist by then — and it means the log
+keeps the document that actually went out, not a fresh render of an invoice edited since.
+
 ## What is refused, and why
 
 | Situation | What happens |
