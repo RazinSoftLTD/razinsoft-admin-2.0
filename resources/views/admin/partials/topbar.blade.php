@@ -47,30 +47,37 @@
             </div>
         @endif
 
-        {{-- ───── Light / dark ─────
-             The choice lives in localStorage, not on the account: it belongs to the screen you are
-             sitting at, and someone on a bright monitor by day and a laptop at night wants a
-             different answer on each. --}}
-        <div x-data="{
-                dark: document.documentElement.getAttribute('data-theme') === 'dark',
-                toggle() {
-                    this.dark = ! this.dark;
-                    document.documentElement.setAttribute('data-theme', this.dark ? 'dark' : 'light');
-                    try { localStorage.setItem('rs-theme', this.dark ? 'dark' : 'light'); } catch (e) {}
-                },
-            }">
-            <button type="button" @click="toggle()"
+        {{-- ───── Appearance ─────
+             Three choices, not a toggle: `system` is the one most people want and a two-way switch
+             cannot express it. Saved on the account so it follows the person to any machine. --}}
+        <div class="relative" x-data="themePicker(@js(auth()->user()?->theme ?: 'system'))" @click.outside="open = false">
+            <button type="button" @click="open = !open"
                     class="grid h-10 w-10 place-items-center rounded-lg text-gray-500 hover:bg-gray-50"
-                    :title="dark ? 'Switch to light' : 'Switch to dark'" aria-label="Toggle light and dark mode">
-                {{-- Moon while light (click for dark), sun while dark. --}}
-                <svg x-show="!dark" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    :title="'Appearance: ' + label()" aria-label="Appearance">
+                <svg x-show="resolved() !== 'dark'" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
                 </svg>
-                <svg x-show="dark" x-cloak class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <svg x-show="resolved() === 'dark'" x-cloak class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="4"/>
                     <path stroke-linecap="round" d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>
                 </svg>
             </button>
+
+            <div x-show="open" x-cloak x-transition.opacity
+                 class="absolute right-0 z-50 mt-1 w-44 rounded-xl border border-gray-100 bg-white p-1 shadow-lg">
+                <p class="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Appearance</p>
+                <template x-for="opt in options" :key="opt.value">
+                    <button type="button" @click="choose(opt.value)"
+                            class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-50"
+                            :class="choice === opt.value ? 'font-semibold text-[var(--color-heading)]' : 'text-[var(--color-muted)]'">
+                        <span x-text="opt.label"></span>
+                        <svg x-show="choice === opt.value" class="h-4 w-4 text-[var(--color-primary)]" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/>
+                        </svg>
+                    </button>
+                </template>
+                <p class="px-3 pb-1.5 pt-1 text-[11px] text-gray-400">System follows your device.</p>
+            </div>
         </div>
 
         {{-- ───── WhatsApp (only for users with access; badge scoped to their numbers) ───── --}}
@@ -222,6 +229,47 @@
 </script>
 
 <script>
+    // Appearance picker. The choice is saved on the account, so it is already right the next
+    // time this person signs in — here or on any other machine.
+    function themePicker(initial) {
+        return {
+            open: false,
+            choice: initial,
+            options: [
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'system', label: 'System' },
+            ],
+
+            label() { return (this.options.find(o => o.value === this.choice) || {}).label || 'System'; },
+
+            // What is actually on screen right now — `system` depends on the device.
+            resolved() {
+                if (this.choice !== 'system') return this.choice;
+                return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            },
+
+            choose(value) {
+                this.choice = value;
+                this.open = false;
+
+                // Paint immediately; the save is a background detail the user should not wait on.
+                document.documentElement.setAttribute('data-theme-choice', value);
+                document.documentElement.setAttribute('data-theme', this.resolved());
+
+                fetch(@js(route('admin.theme')), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ theme: value }),
+                }).catch(function () { /* the screen is already right; it will re-save next time */ });
+            },
+        };
+    }
+
     // Live clock for the topbar timer.
     function topbarTicker(startSeconds) {
         return {

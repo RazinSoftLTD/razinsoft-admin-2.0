@@ -47,6 +47,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'edit'])->name('my-profile.edit');
         Route::post('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'update'])->name('my-profile.update');
 
+        // Light / dark preference — a display choice, so no permission gate: everyone has eyes.
+        Route::post('theme', [\App\Http\Controllers\Admin\ThemeController::class, 'update'])->name('theme');
+
         // ===== Messenger › WhatsApp inbox =====
         Route::middleware('permission:whatsapp.view')->group(function () {
             $wa = \App\Http\Controllers\Admin\WhatsappController::class;
@@ -774,6 +777,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'index'])->name('meta-capi');
             Route::post('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'update'])->name('meta-capi.update');
             Route::post('meta-capi/test', [\App\Http\Controllers\Admin\MetaCapiController::class, 'test'])->name('meta-capi.test');
+
         });
 
         // Settings → Bin (recoverable clients + invoices; super admin only, enforced in the controller).

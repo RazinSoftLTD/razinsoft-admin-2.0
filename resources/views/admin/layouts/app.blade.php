@@ -10,13 +10,27 @@
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <style>[x-cloak]{display:none!important}</style>
 
-    {{-- Set the theme before the first paint, or the page flashes light then swaps. --}}
+    {{-- The choice comes from the account, so it is right on the first byte and on any machine
+         this person signs in from. Only `system` needs the browser to resolve it, and that runs
+         before the first paint — otherwise the page flashes light and swaps. --}}
+    @php $themeChoice = auth()->user()?->theme ?: 'system'; @endphp
     <script>
         (function () {
-            var stored = null;
-            try { stored = localStorage.getItem('rs-theme'); } catch (e) {}
-            var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
+            var choice = @js($themeChoice);
+            var resolved = choice === 'system'
+                ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : choice;
+            document.documentElement.setAttribute('data-theme', resolved);
+            document.documentElement.setAttribute('data-theme-choice', choice);
+        })();
+
+        // Following the system means following it as it changes, not only at sign-in.
+        (function () {
+            if (!window.matchMedia) return;
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+                if (document.documentElement.getAttribute('data-theme-choice') !== 'system') return;
+                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            });
         })();
     </script>
 

@@ -1,11 +1,16 @@
 # Dark mode
 
-Settings live nowhere — the toggle is the sun/moon button in the top bar, and the choice is kept
-in `localStorage` under `rs-theme`. On a first visit the operating system's preference decides.
+Everyone picks their own, from the sun/moon button in the top bar: **Light**, **Dark** or
+**System**. New accounts start on System.
 
-It is deliberately not stored on the account: the right answer belongs to the screen someone is
-sitting at, and the same person on a bright monitor by day and a laptop at night wants a different
-one on each.
+Three choices rather than a switch, because System is the one most people want and a two-way toggle
+cannot express it. Choosing it means following the device as it changes — a machine that goes dark
+at sunset takes the panel with it, without a reload.
+
+The choice is stored on the account (`users.theme`), so it follows the person to any machine they
+sign in from. That also means the server knows it while rendering: the right theme is set on the
+first byte, and the page never flashes light and swaps. Only `System` needs the browser, and that
+is resolved before the first paint.
 
 ## How it works, and why that way
 

@@ -14,7 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'dial_code', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'note', 'password', 'status', 'role', 'role_id', 'permissions', 'employee_code', 'biometric_id', 'salutation', 'designation_id', 'department_id', 'reporting_to', 'account_manager_id', 'created_by', 'is_private', 'made_private_by', 'language', 'joining_date', 'date_of_birth', 'about', 'employment_type', 'probation_end_date', 'notice_start_date', 'notice_end_date', 'receive_email_notifications', 'last_seen_at', 'gender', 'website', 'tax_name', 'gst_number', 'office_phone', 'client_category', 'client_sub_category', 'shipping_address', 'import_batch', 'client_label'])]
+#[Fillable(['name', 'email', 'phone', 'dial_code', 'photo', 'job_title', 'company', 'address', 'city', 'state', 'country', 'zip', 'note', 'password', 'status', 'role', 'role_id', 'permissions', 'employee_code', 'biometric_id', 'salutation', 'designation_id', 'department_id', 'reporting_to', 'account_manager_id', 'created_by', 'is_private', 'made_private_by', 'language', 'theme', 'joining_date', 'date_of_birth', 'about', 'employment_type', 'probation_end_date', 'notice_start_date', 'notice_end_date', 'receive_email_notifications', 'last_seen_at', 'gender', 'website', 'tax_name', 'gst_number', 'office_phone', 'client_category', 'client_sub_category', 'shipping_address', 'import_batch', 'client_label'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,6 +28,14 @@ class User extends Authenticatable
     public const ROLE_ADMIN = 'admin';
     public const ROLE_STAFF = 'staff';
     public const ROLE_CUSTOMER = 'customer';
+
+    /** The light/dark choices someone can make. `system` follows the operating system. */
+    public const THEMES = ['light' => 'Light', 'dark' => 'Dark', 'system' => 'System'];
+
+    // The column defaults to system, but that only lands after a reload — without this a freshly
+    // created user reads back as null and the layout has nothing to render.
+    protected $attributes = ['theme' => 'system'];
+
 
     /** Client account status. active = full access, inactive = login-only (support only), blocked = no login. */
     public const STATUS_ACTIVE = 'active';
