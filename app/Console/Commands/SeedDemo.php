@@ -954,17 +954,21 @@ class SeedDemo extends Command
             ->mapWithKeys(fn ($n) => [$n => ArticleCategory::firstOrCreate(['slug' => str()->slug($n)], ['name' => $n])->id]);
 
         $posts = [
-            ['Why we stopped paying per seat', 'Product', 'The tenth person on your team should not cost more than the ninth.', 8],
-            ['Setting up WhatsApp Cloud API, step by step', 'Guides', 'Meta\'s own docs assume you already know the vocabulary. This does not.', 22],
-            ['Moving your invoices across without losing history', 'Guides', 'A CSV, a dry run, and the two columns everyone forgets.', 40],
-            ['What shipped this quarter', 'Release notes', 'Deal milestones, retryable WhatsApp sends, and a dark theme.', 55],
+            ['Why we stopped paying per seat', 'Product', 'The tenth person on your team should not cost more than the ninth.', 8, 'why-we-stopped-paying-per-seat'],
+            ['Setting up WhatsApp Cloud API, step by step', 'Guides', 'Meta\'s own docs assume you already know the vocabulary. This does not.', 22, 'setting-up-whatsapp-cloud-api'],
+            ['Moving your invoices across without losing history', 'Guides', 'A CSV, a dry run, and the two columns everyone forgets.', 40, 'moving-your-invoices-across'],
+            ['What shipped this quarter', 'Release notes', 'Deal milestones, retryable WhatsApp sends, and a dark theme.', 55, 'what-shipped-this-quarter'],
         ];
 
-        foreach ($posts as $i => [$title, $cat, $excerpt, $daysAgo]) {
+        foreach ($posts as $i => [$title, $cat, $excerpt, $daysAgo, $cover]) {
             Article::create([
                 'title' => $title,
                 'slug' => str()->slug($title),
                 'excerpt' => $excerpt,
+                // The blog card renders <img :src> with no fallback, so an article without a
+                // cover shows a broken thumbnail rather than a tidy blank.
+                'image' => $this->demoAsset('articles/'.$cover.'.png'),
+                'image_alt' => $title,
                 'content' => '<p>'.$excerpt.'</p><p>Demo post. Replace the body before you publish — this text ships with the package.</p>',
                 'category_id' => $categories[$cat],
                 'author_id' => $author->id,
@@ -1387,9 +1391,14 @@ class SeedDemo extends Command
 
         if (! is_file($target)) {
             @mkdir(dirname($target), 0755, true);
-            $source = public_path('images/smartdesk-logo.png');
-            if (is_file($source)) {
-                @copy($source, $target);
+
+            // Prefer the file shipped for this exact path; fall back to the brand mark so a
+            // missing asset still renders something rather than a broken image.
+            foreach ([database_path('demo-assets/'.$path), public_path('images/smartdesk-logo.png')] as $source) {
+                if (is_file($source)) {
+                    @copy($source, $target);
+                    break;
+                }
             }
         }
 
