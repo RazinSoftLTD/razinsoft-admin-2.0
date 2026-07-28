@@ -74,7 +74,6 @@
             ['label' => 'Deals', 'route' => 'admin.deals.index', 'active' => 'admin.deals.*', 'perm' => 'deals.view', 'icon' => $ic['deals']],
             ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
             ['label' => 'Tickets', 'route' => 'admin.tickets.index', 'active' => 'admin.tickets.*', 'perm' => 'tickets.view', 'icon' => $ic['tickets'], 'badge' => \App\Models\Ticket::where('unread_by_admin', true)->count() ?: null],
-            ['label' => 'Analytics', 'route' => 'admin.analytics.index', 'active' => 'admin.analytics.*', 'perm' => 'analytics.view', 'icon' => $ic['analytics']],
         ]],
 
         ['type' => 'group', 'label' => 'Communication', 'icon' => $ic['chat'], 'items' => [
@@ -105,7 +104,6 @@
             ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
             ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'perm' => 'searches.view', 'icon' => $ic['searches']],
             ['label' => 'Subscribers', 'route' => 'admin.subscribers.index', 'active' => 'admin.subscribers.*', 'perm' => 'subscribers.view', 'icon' => $ic['subscribers']],
-            ['label' => 'Reports', 'soon' => true, 'icon' => $ic['reports']],
         ]],
 
         ['type' => 'group', 'label' => 'HR', 'icon' => $ic['hr'], 'items' => [
@@ -139,9 +137,6 @@
             ['label' => 'Employee', 'route' => 'admin.activity-logs', 'active' => 'admin.activity-logs*', 'perm' => 'activity.employee', 'icon' => $ic['employees']],
             ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => ['admin.client-activity', 'admin.client-activity.details', 'admin.client-activity.errors'], 'perm' => 'activity.client', 'icon' => $ic['clients']],
             ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.blogs', 'icon' => $ic['blog']],
-            ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.products', 'icon' => $ic['products']],
-            ['label' => 'WhatsApp', 'route' => 'admin.whatsapp-activity', 'active' => 'admin.whatsapp-activity*', 'perm' => 'whatsapp.activity', 'icon' => $ic['whatsapp']],
-            ['label' => 'CodeCanyon', 'route' => 'admin.codecanyon.index', 'active' => 'admin.codecanyon.*', 'perm' => 'codecanyon.view', 'icon' => $ic['products']],
         ]],
 
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
@@ -152,7 +147,6 @@
             ['label' => 'HR Settings', 'route' => 'admin.attendance.settings', 'active' => ['admin.attendance.settings', 'admin.attendance.devices'], 'perm' => 'attendance.settings', 'icon' => $ic['hr']],
             ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
-            ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
             ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
