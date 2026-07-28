@@ -755,34 +755,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('activity-logs/{employee}', [\App\Http\Controllers\Admin\ActivityLogController::class, 'show'])->whereNumber('employee')->name('activity-logs.show');
         });
 
-        // ---- Activity → CodeCanyon (official Envato API only; no scraping) ----
-        Route::middleware('permission:codecanyon.view')->group(function () {
-            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
-            Route::get('codecanyon', [$cc, 'index'])->name('codecanyon.index');
-            Route::get('codecanyon/authors/{author}', [$cc, 'author'])->whereNumber('author')->name('codecanyon.author');
-            Route::get('codecanyon/products/{product}', [$cc, 'product'])->whereNumber('product')->name('codecanyon.product');
-        });
-        Route::middleware('permission:codecanyon.manage')->group(function () {
-            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
-            Route::post('codecanyon/authors', [$cc, 'storeAuthor'])->name('codecanyon.authors.store');
-            Route::delete('codecanyon/authors/{author}', [$cc, 'destroyAuthor'])->whereNumber('author')->name('codecanyon.authors.destroy');
-            Route::post('codecanyon/products', [$cc, 'storeProduct'])->name('codecanyon.products.store');
-            Route::put('codecanyon/products/{product}', [$cc, 'updateProduct'])->whereNumber('product')->name('codecanyon.products.update');
-            Route::delete('codecanyon/products/{product}', [$cc, 'destroyProduct'])->whereNumber('product')->name('codecanyon.products.destroy');
-            Route::post('codecanyon/niches', [$cc, 'storeNiche'])->name('codecanyon.niches.store');
-            Route::delete('codecanyon/niches/{niche}', [$cc, 'destroyNiche'])->whereNumber('niche')->name('codecanyon.niches.destroy');
-            Route::post('codecanyon/sync', [$cc, 'sync'])->name('codecanyon.sync');
-        });
-        Route::middleware('permission:codecanyon.settings')->group(function () {
-            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
-            Route::get('codecanyon-settings', [$cc, 'settings'])->name('codecanyon-settings');
-            Route::put('codecanyon-settings', [$cc, 'saveSettings'])->name('codecanyon-settings.save');
-
-            // Meta Conversions API — server-side pixel events.
-            Route::get('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'index'])->name('meta-capi');
-            Route::post('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'update'])->name('meta-capi.update');
-            Route::post('meta-capi/test', [\App\Http\Controllers\Admin\MetaCapiController::class, 'test'])->name('meta-capi.test');
-
+        // Meta Conversions API — server-side pixel events.
+        //
+        // These used to sit inside the CodeCanyon settings group and were guarded by its permission
+        // purely by accident of where they were pasted. With that group gone they need a gate of
+        // their own: admin, matching how the sidebar already hides the link.
+        Route::middleware('admin')->group(function () {
+            $capi = \App\Http\Controllers\Admin\MetaCapiController::class;
+            Route::get('meta-capi', [$capi, 'index'])->name('meta-capi');
+            Route::post('meta-capi', [$capi, 'update'])->name('meta-capi.update');
+            Route::post('meta-capi/test', [$capi, 'test'])->name('meta-capi.test');
         });
 
         // Settings → Bin (recoverable clients + invoices; super admin only, enforced in the controller).

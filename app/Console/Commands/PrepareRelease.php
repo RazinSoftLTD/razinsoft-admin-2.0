@@ -101,7 +101,7 @@ class PrepareRelease extends Command
 
         $this->newLine();
         $this->info('Done. Left to do by hand, because a command should not:');
-        $this->line('  • rotate the keys in .env (Stripe, PayPal, Meta, Envato, mail)');
+        $this->line('  • rotate the keys in .env (Stripe, PayPal, Meta, mail)');
         $this->line('  • clear storage/app/public — uploaded logos, invoice PDFs, licence files');
         $this->line('  • create the first admin: php artisan smartdesk:admin');
 

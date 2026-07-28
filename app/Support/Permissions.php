@@ -70,8 +70,6 @@ class Permissions
         'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
         // Activity logs — each page is its own toggle (Employee actions, Client visits, Blogs & Products reports).
         'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products']],
-        // CodeCanyon market analysis (Activity → CodeCanyon) + its API config.
-        'codecanyon' => ['label' => 'CodeCanyon', 'group' => 'Activity', 'actions' => ['view', 'manage', 'settings']],
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'members', 'milestones', 'files', 'prd', 'settings', 'columns', 'private'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
         // Tasks live inside projects but each part of a task is its own toggle.
         'tasks' => ['label' => 'Tasks', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'status', 'comments', 'attachments', 'time', 'subtasks'], 'owner' => 'assigned_to', 'creator' => 'created_by'],
