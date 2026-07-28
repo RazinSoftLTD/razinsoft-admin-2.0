@@ -139,6 +139,22 @@
             ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.blogs', 'icon' => $ic['blog']],
         ]],
 
+        // ---- Email Manager ----
+        // The email module is eight screens, and the sidebar reached exactly one of them: a
+        // "Email Settings" link buried in Settings, whose `active` pattern then claimed all eight
+        // so whichever you opened, Settings is what lit up. Templates, campaigns, the queue, the
+        // logs and the rest were only findable by knowing they were tabs inside that page.
+        ['type' => 'group', 'label' => 'Email Manager', 'icon' => $ic['messaging'], 'items' => [
+            ['label' => 'Templates', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.templates', 'icon' => $ic['article']],
+            ['label' => 'Campaigns', 'route' => 'admin.email.campaigns', 'active' => 'admin.email.campaigns*', 'perm' => 'email.send', 'icon' => $ic['marketing']],
+            ['label' => 'Queue', 'route' => 'admin.email.queue', 'active' => 'admin.email.queue', 'perm' => 'email.queue', 'icon' => $ic['tasks']],
+            ['label' => 'Logs', 'route' => 'admin.email.logs', 'active' => ['admin.email.logs', 'admin.email.logs.show'], 'perm' => 'email.logs', 'icon' => $ic['searches']],
+            ['label' => 'Suppressions', 'route' => 'admin.email.suppressions', 'active' => 'admin.email.suppressions*', 'perm' => 'email.logs', 'icon' => $ic['subscribers']],
+            ['label' => 'Analytics', 'route' => 'admin.email.analytics', 'active' => 'admin.email.analytics', 'perm' => 'email.analytics', 'icon' => $ic['reports']],
+            ['label' => 'Rules', 'route' => 'admin.email.rules', 'active' => 'admin.email.rules*', 'perm' => 'email.rules', 'icon' => $ic['roles']],
+            ['label' => 'SMTP Accounts', 'route' => 'admin.email.configs', 'active' => 'admin.email.configs*', 'perm' => 'email.configure', 'icon' => $ic['settings']],
+        ]],
+
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
             ['label' => 'My Profile', 'route' => 'admin.my-profile.edit', 'active' => 'admin.my-profile.*', 'icon' => $ic['author']],
             ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'active' => 'admin.roles.*', 'admin' => true, 'icon' => $ic['roles']],
@@ -151,7 +167,6 @@
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
             ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
-            ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
             ['label' => 'Branding', 'route' => 'admin.branding', 'active' => 'admin.branding*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Meta Conversions API', 'route' => 'admin.meta-capi', 'active' => 'admin.meta-capi*', 'admin' => true, 'icon' => $ic['settings']],
         ]],
