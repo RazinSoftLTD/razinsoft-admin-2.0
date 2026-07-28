@@ -20,6 +20,10 @@ const SHOTS = [
   ['whatsapp', '/admin/whatsapp'],
   ['email-templates', '/admin/email/templates'],
   ['branding', '/admin/branding'],
+  ['projects', '/admin/projects'],
+  ['hr', '/admin/staff'],
+  ['analytics', '/admin/finance'],
+  ['messenger', '/admin/chat'],
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -91,6 +95,15 @@ for (const [name, path] of SHOTS) {
 
   // An inbox with nothing open shows an empty half — open the first conversation so the shot
   // says what the screen is for.
+  if (name === 'messenger') {
+    await evaluate(`(() => {
+      const rows = [...document.querySelectorAll('a, button')].filter(b => /Product team/.test(b.textContent));
+      if (rows[0]) { rows[0].click(); return true; }
+      return false;
+    })()`);
+    await sleep(1600);
+  }
+
   if (name === 'whatsapp') {
     // The list rows are Alpine buttons; the first one in the thread column is the first chat.
     await evaluate(`(() => {

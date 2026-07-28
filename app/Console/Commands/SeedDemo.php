@@ -2,12 +2,19 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ChatMessage;
 use App\Models\ClientInvoice;
+use App\Models\Conversation;
 use App\Models\Deal;
+use App\Models\FinanceAccount;
+use App\Models\FinanceTransaction;
 use App\Models\Lead;
+use App\Models\Project;
+use App\Models\ProjectTask;
 use App\Models\User;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
+use App\Models\WhatsappSetting;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -40,11 +47,12 @@ class SeedDemo extends Command
         ['Lumen Education', 'Aisha Bello', 'aisha@lumen.example', 'Education'],
     ];
 
+    /** name, email, role, employee code, job title. */
     private const STAFF = [
-        ['Ariana Cole', 'ariana@smartdesk.example', 'admin'],
-        ['Marcus Reid', 'marcus@smartdesk.example', 'staff'],
-        ['Yuki Tanaka', 'yuki@smartdesk.example', 'staff'],
-        ['Ibrahim Farouk', 'ibrahim@smartdesk.example', 'staff'],
+        ['Ariana Cole', 'ariana@smartdesk.example', 'admin', 'EMP-001', 'Operations Lead'],
+        ['Marcus Reid', 'marcus@smartdesk.example', 'staff', 'EMP-002', 'Account Manager'],
+        ['Yuki Tanaka', 'yuki@smartdesk.example', 'staff', 'EMP-003', 'Project Manager'],
+        ['Ibrahim Farouk', 'ibrahim@smartdesk.example', 'staff', 'EMP-004', 'Support Engineer'],
     ];
 
     public function handle(): int
@@ -63,6 +71,9 @@ class SeedDemo extends Command
         $this->invoices($clients);
         $this->catalogue($clients);
         $this->whatsapp($clients, $staff);
+        $this->projects($clients, $staff);
+        $this->messenger($staff);
+        $this->finance($staff);
 
         $this->newLine();
         $this->info('Demo data seeded. Every name in it is invented.');
@@ -76,14 +87,25 @@ class SeedDemo extends Command
     {
         $made = [];
 
-        foreach (self::STAFF as [$name, $email, $role]) {
+        foreach (self::STAFF as [$name, $email, $role, $code, $title]) {
             $made[] = User::firstOrCreate(['email' => $email], [
                 'name' => $name,
                 'password' => Hash::make('demo1234'),
                 'role' => $role,
                 'status' => 'active',
-                'job_title' => $role === 'admin' ? 'Operations Lead' : 'Account Manager',
+                'employee_code' => $code,
+                'job_title' => $title,
+                'joining_date' => now()->subMonths(30 - count($made) * 6),
+                // Screenshots have to be one theme. The column defaults to 'system', and headless
+                // Chrome reports a dark preference, so half the gallery came back dark.
+                'theme' => 'light',
             ]);
+        }
+
+        // Everyone reports to the first person on the list; an empty "Reporting to" column on the
+        // employee screen makes the org look like four unconnected people.
+        foreach (array_slice($made, 1) as $person) {
+            $person->forceFill(['reporting_to' => $made[0]->id])->save();
         }
 
         $this->line('  '.count($made).' staff');
@@ -202,7 +224,7 @@ class SeedDemo extends Command
      * Without these the dashboard is a wall of zeros, which is the one screen a buyer looks at
      * first — an empty demo says the product does nothing.
      *
-     * @param array<int, User> $clients
+     * @param  array<int, User>  $clients
      */
     private function catalogue(array $clients): void
     {
@@ -285,7 +307,7 @@ class SeedDemo extends Command
         // A gateway URL so the panel does not show "not connected yet" — in a demo that banner
         // reads as a broken product rather than an unconfigured one. It points nowhere; nothing
         // in the demo actually sends.
-        \App\Models\WhatsappSetting::current()->update(['gateway_url' => 'http://127.0.0.1:8090']);
+        WhatsappSetting::current()->update(['gateway_url' => 'http://127.0.0.1:8090']);
 
         $account = WhatsappAccount::firstOrCreate(['session_key' => 'demo-support'], [
             'name' => 'Support',
@@ -329,5 +351,239 @@ class SeedDemo extends Command
         }
 
         $this->line('  1 WhatsApp number, '.count($threads).' conversations');
+    }
+
+    /**
+     * Projects with tasks spread across the board's columns.
+     *
+     * @param  array<int, User>  $clients
+     * @param  array<int, User>  $staff
+     */
+    private function projects(array $clients, array $staff): void
+    {
+        if (! Schema::hasTable('projects')) {
+            return;
+        }
+
+        $plan = [
+            ['Website rebuild', 'Northwind Retail', 'in_progress', 'high', 62, 18000],
+            ['Warehouse integration', 'Harbour Logistics', 'in_progress', 'medium', 34, 24500],
+            ['Patient portal', 'Verda Health', 'in_progress', 'high', 78, 41000],
+            ['Payments migration', 'Kestrel Fintech', 'on_hold', 'medium', 20, 15400],
+            ['Brand refresh', 'Bluepeak Studios', 'completed', 'low', 100, 7200],
+        ];
+
+        // One task per column, so a screenshot of the board is never a single full lane.
+        $columns = [
+            ['todo', 'Collect brand assets from the client'],
+            ['in_progress', 'Build the checkout flow'],
+            ['review', 'Accessibility pass on the booking form'],
+            ['done', 'Kick-off call and scope sign-off'],
+        ];
+
+        $made = 0;
+
+        foreach ($plan as $i => [$name, $company, $status, $priority, $progress, $budget]) {
+            $client = collect($clients)->firstWhere('company', $company) ?? $clients[$i % count($clients)];
+
+            $project = Project::firstOrCreate(['name' => $name], [
+                'code' => 'PRJ-'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
+                'client_id' => $client->id,
+                'status' => $status,
+                'priority' => $priority,
+                'progress' => $progress,
+                // Otherwise the stored figure is ignored in favour of one computed from the
+                // task board, and every bar in the screenshot reads 0%.
+                'auto_progress' => false,
+                'budget' => $budget,
+                'currency' => 'USD',
+                'start_date' => now()->subDays(70 - $i * 9),
+                'deadline' => now()->addDays(25 + $i * 11),
+                'project_manager_id' => $staff[($i % (count($staff) - 1)) + 1]->id,
+                'created_by' => $staff[0]->id,
+                'summary' => 'Demo project. Every name and figure here is invented.',
+                'created_at' => now()->subDays(70 - $i * 9),
+            ]);
+
+            $made++;
+
+            if (! $project->wasRecentlyCreated || ! Schema::hasTable('project_tasks')) {
+                continue;
+            }
+
+            foreach ($columns as $n => [$state, $title]) {
+                ProjectTask::create([
+                    'project_id' => $project->id,
+                    'title' => $title,
+                    'status' => $state,
+                    'priority' => ['high', 'medium', 'low'][$n % 3],
+                    'assigned_to' => $staff[($n % (count($staff) - 1)) + 1]->id,
+                    'due_date' => now()->addDays(6 + $n * 8),
+                    'sort_order' => $n + 1,
+                    'created_by' => $staff[0]->id,
+                    'completed_at' => $state === 'done' ? now()->subDays(3) : null,
+                ]);
+            }
+        }
+
+        $this->line('  '.$made.' projects with tasks');
+    }
+
+    /**
+     * A wallet, a bank account and a year of money moving through them.
+     *
+     * Without this the Finance dashboard is a wall of 0.00 — every balance, every chart, every
+     * category. It is one of the better screens in the product and it looked broken.
+     *
+     * @param  array<int, User>  $staff
+     */
+    private function finance(array $staff): void
+    {
+        if (! Schema::hasTable('finance_accounts') || ! Schema::hasTable('finance_transactions')) {
+            return;
+        }
+
+        $wallet = FinanceAccount::firstOrCreate(['name' => 'Company Wallet'], [
+            'type' => FinanceAccount::TYPE_WALLET,
+            'currency' => 'USD',
+            'opening_balance' => 5000,
+            'current_balance' => 5000,
+            'status' => 'active',
+            'sort_order' => 1,
+        ]);
+
+        $bank = FinanceAccount::firstOrCreate(['name' => 'Business Current Account'], [
+            'type' => FinanceAccount::TYPE_BANK,
+            'provider' => 'Meridian Bank',
+            'currency' => 'USD',
+            'account_number' => '•••• 4417',
+            'opening_balance' => 42000,
+            'current_balance' => 42000,
+            'status' => 'active',
+            'sort_order' => 2,
+        ]);
+
+        if (FinanceTransaction::exists()) {
+            return;
+        }
+
+        // Twelve months, so the income-vs-expense chart has a shape rather than one bar. Income
+        // climbs, costs stay flat-ish: the picture a growing business would actually show.
+        $incomeNotes = ['Project invoice settled', 'Retainer', 'Licence sale', 'Support renewal'];
+        $expenseNotes = ['Hosting & infrastructure', 'Salaries', 'Software subscriptions', 'Office rent'];
+
+        $rows = [];
+
+        for ($m = 11; $m >= 0; $m--) {
+            $month = now()->subMonths($m);
+            $income = 14000 + (11 - $m) * 900;
+            $expense = 9000 + (($m % 3) * 450);
+
+            $rows[] = [
+                'type' => 'income', 'direction' => 'in',
+                'account_id' => $m % 2 ? $bank->id : $wallet->id,
+                'amount' => $income, 'currency' => 'USD', 'converted_amount' => $income,
+                'occurred_on' => $month->copy()->day(8)->toDateString(),
+                'reference' => 'INC-'.$month->format('Ym'),
+                'notes' => $incomeNotes[$m % count($incomeNotes)],
+                'source' => 'manual', 'created_by' => $staff[0]->id,
+                'created_at' => $month, 'updated_at' => $month,
+            ];
+
+            $rows[] = [
+                'type' => 'expense', 'direction' => 'out',
+                'account_id' => $bank->id,
+                'amount' => $expense, 'currency' => 'USD', 'converted_amount' => $expense,
+                'occurred_on' => $month->copy()->day(20)->toDateString(),
+                'reference' => 'EXP-'.$month->format('Ym'),
+                'notes' => $expenseNotes[$m % count($expenseNotes)],
+                'source' => 'manual', 'created_by' => $staff[0]->id,
+                'created_at' => $month, 'updated_at' => $month,
+            ];
+        }
+
+        FinanceTransaction::insert($rows);
+
+        // Balances are stored, not derived, so they have to be brought in line with what we just
+        // inserted or the cards disagree with the ledger below them.
+        foreach ([$wallet, $bank] as $account) {
+            $in = FinanceTransaction::where('account_id', $account->id)->where('direction', 'in')->sum('amount');
+            $out = FinanceTransaction::where('account_id', $account->id)->where('direction', 'out')->sum('amount');
+            $account->forceFill(['current_balance' => $account->opening_balance + $in - $out])->save();
+        }
+
+        $this->line('  2 finance accounts, '.count($rows).' transactions across 12 months');
+    }
+
+    /**
+     * Internal messaging: one team channel and one direct thread.
+     *
+     * The inbox screen shows an empty right-hand half until a thread has messages in it, so both
+     * of these are seeded with a short exchange rather than left as bare rooms.
+     *
+     * @param  array<int, User>  $staff
+     */
+    private function messenger(array $staff): void
+    {
+        if (! Schema::hasTable('conversations') || ! Schema::hasTable('conversation_user')) {
+            return;
+        }
+
+        $threads = [
+            [
+                'group', 'Product team',
+                [
+                    [1, 'Morning — the Verda portal build is at 78%. Launch call is Thursday.'],
+                    [2, 'Nice. I still need the copy for the consent screen before I can close mine.'],
+                    [1, 'Sending it over this afternoon.'],
+                    [3, 'Harbour have moved their cut-over to the 14th, so we have a week more there.'],
+                ],
+            ],
+            [
+                'direct', null,
+                [
+                    [2, 'Did Northwind come back on the invoice?'],
+                    [1, 'Paid this morning. £4,500, cleared.'],
+                    [2, 'Great — I will close the milestone.'],
+                ],
+            ],
+        ];
+
+        $made = 0;
+
+        foreach ($threads as [$type, $name, $lines]) {
+            $existing = Conversation::when($name, fn ($q) => $q->where('name', $name))
+                ->when(! $name, fn ($q) => $q->where('type', 'direct'))
+                ->first();
+
+            if ($existing) {
+                continue;
+            }
+
+            $convo = Conversation::create([
+                'type' => $type,
+                'name' => $name,
+                'created_by' => $staff[0]->id,
+                'last_message_at' => now()->subMinutes(6),
+            ]);
+
+            // A direct thread is exactly two people; the channel is everyone.
+            $members = $type === 'direct' ? [$staff[0], $staff[1]] : $staff;
+            $convo->members()->sync(collect($members)->pluck('id')->all());
+
+            foreach ($lines as $n => [$who, $body]) {
+                ChatMessage::create([
+                    'conversation_id' => $convo->id,
+                    'user_id' => $staff[$who % count($staff)]->id,
+                    'body' => $body,
+                    'created_at' => now()->subMinutes(40 - $n * 8),
+                    'updated_at' => now()->subMinutes(40 - $n * 8),
+                ]);
+            }
+
+            $made++;
+        }
+
+        $this->line('  '.$made.' internal message threads');
     }
 }
