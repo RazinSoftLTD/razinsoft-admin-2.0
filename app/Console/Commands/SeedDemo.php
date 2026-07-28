@@ -22,6 +22,7 @@ use App\Models\FinanceAccount;
 use App\Models\FinanceTransaction;
 use App\Models\JobOpening;
 use App\Models\Lead;
+use App\Models\LeadFollowUp;
 use App\Models\Leave;
 use App\Models\Meeting;
 use App\Models\Project;
@@ -91,6 +92,7 @@ class SeedDemo extends Command
 
         $this->leads();
         $this->deals($clients, $staff);
+        $this->followUps($staff);
         $this->invoices($clients);
         $this->catalogue($clients);
         $this->whatsapp($clients, $staff);
@@ -223,6 +225,65 @@ class SeedDemo extends Command
         }
 
         $this->line('  '.count($titles).' deals with milestones');
+    }
+
+    /**
+     * CRM follow-ups: what someone owes each lead, and by when.
+     *
+     * Spread deliberately across pending / overdue / done / cancelled. "Overdue" is not a stored
+     * status — it is a pending row whose scheduled_at has passed — so at least two of these sit in
+     * the past, otherwise that state never appears on the screen.
+     *
+     * @param  array<int, User>  $staff
+     */
+    private function followUps(array $staff): void
+    {
+        if (! Schema::hasTable('lead_follow_ups') || LeadFollowUp::exists()) {
+            return;
+        }
+
+        $leads = Lead::orderBy('id')->get();
+        if ($leads->isEmpty()) {
+            return;
+        }
+
+        $rows = [
+            // type, priority, hours from now, status, note, completion note
+            ['call', 'high', -30, 'pending', 'Chase the signed proposal — they went quiet after the pricing call.', null],
+            ['whatsapp', 'medium', -6, 'pending', 'Send the migration checklist she asked for.', null],
+            ['call', 'high', 3, 'pending', 'Discovery call. Ask who owns the hosting.', null],
+            ['meeting', 'medium', 26, 'pending', 'Demo of the WhatsApp inbox for their support team.', null],
+            ['email', 'low', 52, 'pending', 'Send the licence comparison — Regular vs Extended.', null],
+            ['call', 'medium', 96, 'pending', 'Check in after the trial install.', null],
+            ['email', 'medium', -120, 'done', 'Send pricing and the module list.', 'Sent. He replied asking about the Extended licence.'],
+            ['call', 'high', -72, 'done', 'Follow up on the quote.', 'Spoke for 20 minutes — moving to proposal.'],
+            ['sms', 'low', -200, 'cancelled', 'Reminder about the webinar.', 'Webinar moved; no longer relevant.'],
+        ];
+
+        foreach ($rows as $i => [$type, $priority, $hours, $status, $note, $done]) {
+            $lead = $leads[$i % $leads->count()];
+            $owner = $staff[($i % (count($staff) - 1)) + 1];
+            $when = now()->addHours($hours);
+
+            LeadFollowUp::create([
+                'lead_id' => $lead->id,
+                'user_id' => $owner->id,
+                'created_by' => $staff[0]->id,
+                'type' => $type,
+                'priority' => $priority,
+                'note' => $note,
+                'scheduled_at' => $when,
+                'status' => $status,
+                'completion_note' => $done,
+                'completed_at' => $status === 'done' ? $when->copy()->addHours(2) : null,
+                'completed_by' => $status === 'done' ? $owner->id : null,
+                'created_at' => $when->copy()->subDays(2),
+                'updated_at' => $when->copy()->subDays(2),
+            ]);
+        }
+
+        $overdue = collect($rows)->filter(fn ($r) => $r[3] === 'pending' && $r[2] < 0)->count();
+        $this->line('  '.count($rows).' lead follow-ups ('.$overdue.' overdue)');
     }
 
     /** @param array<int, User> $clients */
