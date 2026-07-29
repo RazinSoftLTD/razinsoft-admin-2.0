@@ -5,12 +5,12 @@
 @php
     $u = auth()->user();
     $tabs = [
-        ['label' => 'Templates', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.templates', 'ready' => true],
+        ['label' => 'Email', 'route' => 'admin.email.campaigns', 'active' => 'admin.email.campaigns*', 'perm' => 'email.send', 'ready' => true],
+        ['label' => 'Template', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.templates', 'ready' => true],
         ['label' => 'Queue', 'route' => 'admin.email.queue', 'active' => 'admin.email.queue*', 'perm' => 'email.queue', 'ready' => true],
         ['label' => 'Logs', 'route' => 'admin.email.logs', 'active' => 'admin.email.logs*', 'perm' => 'email.logs', 'ready' => true],
-        ['label' => 'Analytics', 'route' => 'admin.email.analytics', 'active' => 'admin.email.analytics*', 'perm' => 'email.analytics', 'ready' => true],
         ['label' => 'Notification Rules', 'route' => 'admin.email.rules', 'active' => 'admin.email.rules*', 'perm' => 'email.rules', 'ready' => true],
-        ['label' => 'Manual Email', 'route' => 'admin.email.campaigns', 'active' => 'admin.email.campaigns*', 'perm' => 'email.send', 'ready' => true],
+        ['label' => 'Analytics', 'route' => 'admin.email.analytics', 'active' => 'admin.email.analytics*', 'perm' => 'email.analytics', 'ready' => true],
     ];
 @endphp
 

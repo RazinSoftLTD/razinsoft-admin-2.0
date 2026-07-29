@@ -69,7 +69,7 @@
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
         // Sits above CRM: sending campaigns is this panel's main job, not a setting you visit once.
-        ['type' => 'link', 'label' => 'Email Manager', 'route' => 'admin.email.templates', 'active' => ['admin.email.templates*', 'admin.email.queue*', 'admin.email.logs*', 'admin.email.analytics*', 'admin.email.rules*', 'admin.email.campaigns*', 'admin.email.suppressions*'], 'perm' => 'email.templates', 'icon' => $ic['messaging']],
+        ['type' => 'link', 'label' => 'Email Manager', 'route' => 'admin.email.campaigns', 'active' => ['admin.email.campaigns*', 'admin.email.templates*', 'admin.email.queue*', 'admin.email.logs*', 'admin.email.rules*', 'admin.email.analytics*', 'admin.email.suppressions*'], 'perm' => 'email.send', 'icon' => $ic['messaging']],
 
         // MARKETING BRANCH: Leads / Follow-ups / Deals / Tickets / Analytics removed — this
         // deployment is for the marketing team; only the client book stays.
