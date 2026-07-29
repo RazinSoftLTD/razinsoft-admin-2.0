@@ -68,13 +68,10 @@
     $nav = [
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
+        // MARKETING BRANCH: Leads / Follow-ups / Deals / Tickets / Analytics removed — this
+        // deployment is for the marketing team; only the client book stays.
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
-            ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => ['admin.leads.index', 'admin.leads.show', 'admin.leads.edit', 'admin.leads.create', 'admin.leads.import.form'], 'perm' => 'leads.view', 'icon' => $ic['leads']],
-            ['label' => 'Follow-ups', 'route' => 'admin.follow-ups.index', 'active' => 'admin.follow-ups.*', 'perm' => 'follow_ups.view', 'icon' => $ic['followups']],
-            ['label' => 'Deals', 'route' => 'admin.deals.index', 'active' => 'admin.deals.*', 'perm' => 'deals.view', 'icon' => $ic['deals']],
             ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
-            ['label' => 'Tickets', 'route' => 'admin.tickets.index', 'active' => 'admin.tickets.*', 'perm' => 'tickets.view', 'icon' => $ic['tickets'], 'badge' => \App\Models\Ticket::where('unread_by_admin', true)->count() ?: null],
-            ['label' => 'Analytics', 'route' => 'admin.analytics.index', 'active' => 'admin.analytics.*', 'perm' => 'analytics.view', 'icon' => $ic['analytics']],
         ]],
 
         ['type' => 'group', 'label' => 'Communication', 'icon' => $ic['chat'], 'items' => [
@@ -108,39 +105,12 @@
             ['label' => 'Reports', 'soon' => true, 'icon' => $ic['reports']],
         ]],
 
-        ['type' => 'group', 'label' => 'HR', 'icon' => $ic['hr'], 'items' => [
-            ['label' => 'Employees', 'route' => 'admin.staff.index', 'active' => 'admin.staff.*', 'perm' => 'employees.view_all', 'icon' => $ic['employees']],
-            ['label' => 'Careers', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.*', 'perm' => 'careers.view', 'icon' => $ic['employees']],
-            ['label' => 'Designation', 'route' => 'admin.designations.index', 'active' => 'admin.designations.*', 'perm' => 'designations.view', 'icon' => $ic['designation']],
-            ['label' => 'Department', 'route' => 'admin.departments.index', 'active' => 'admin.departments.*', 'perm' => 'departments.view', 'icon' => $ic['hr']],
-            ['label' => 'Leave', 'route' => 'admin.leaves.index', 'active' => 'admin.leaves.*', 'perm' => 'leave.view', 'icon' => $ic['leave']],
-            ['label' => 'Attendance', 'route' => 'admin.attendance.index', 'active' => 'admin.attendance.*', 'perm' => 'attendance.view', 'icon' => $ic['attendance']],
-            ['label' => 'Holiday', 'soon' => true, 'icon' => $ic['holiday']],
-            ['label' => 'Separation', 'soon' => true, 'icon' => $ic['separation']],
-        ]],
-
-        ['type' => 'group', 'label' => 'Finance', 'icon' => $ic['finance'], 'items' => [
-            ['label' => 'Dashboard', 'route' => 'admin.finance.dashboard', 'active' => 'admin.finance.dashboard', 'perm' => 'finance.view', 'icon' => $ic['dashboard']],
-            ['label' => 'Invoices', 'route' => 'admin.invoices.index', 'active' => ['admin.invoices.*', 'admin.recurring.*', 'admin.invoice-templates.*'], 'perm' => 'invoices.view', 'icon' => $ic['invoice']],
-            ['label' => 'Wallets', 'route' => 'admin.finance.wallets', 'active' => 'admin.finance.wallets', 'perm' => 'finance.view', 'icon' => $ic['currency']],
-            ['label' => 'Bank Accounts', 'route' => 'admin.finance.banks', 'active' => 'admin.finance.banks', 'perm' => 'finance.view', 'icon' => $ic['bank']],
-            ['label' => 'Transactions', 'route' => 'admin.finance.transactions', 'active' => 'admin.finance.transactions', 'perm' => 'finance.view', 'icon' => $ic['reports']],
-            ['label' => 'Income', 'route' => 'admin.finance.income', 'active' => 'admin.finance.income', 'perm' => 'finance.view', 'icon' => $ic['finance']],
-            ['label' => 'Expenses', 'route' => 'admin.finance.expenses', 'active' => 'admin.finance.expenses', 'perm' => 'finance.view', 'icon' => $ic['expense']],
-            ['label' => 'Transfers', 'route' => 'admin.finance.transfers', 'active' => 'admin.finance.transfers', 'perm' => 'finance.view', 'icon' => $ic['separation']],
-            ['label' => 'Currency Conversion', 'route' => 'admin.finance.conversions', 'active' => 'admin.finance.conversions', 'perm' => 'finance.view', 'icon' => $ic['currency']],
-            ['label' => 'Receivables', 'route' => 'admin.finance.receivables', 'active' => 'admin.finance.receivables', 'perm' => 'finance.view', 'icon' => $ic['invoice']],
-            ['label' => 'Payables', 'route' => 'admin.finance.payables', 'active' => 'admin.finance.payables', 'perm' => 'finance.view', 'icon' => $ic['estimation']],
-            ['label' => 'VAT & Tax', 'route' => 'admin.finance.taxes', 'active' => 'admin.finance.taxes', 'perm' => 'finance.view', 'icon' => $ic['proposal']],
-            ['label' => 'Reports', 'route' => 'admin.finance.reports', 'active' => 'admin.finance.reports', 'perm' => 'finance.reports', 'icon' => $ic['reports']],
-        ]],
-
+        // MARKETING BRANCH: the HR and Finance groups are removed entirely, and Activity keeps
+        // only the visitor-facing reports (Client / Blogs / WhatsApp / CodeCanyon) — Employee,
+        // Products and Cart activity are ops concerns that stay on the main deployment.
         ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [
-            ['label' => 'Employee', 'route' => 'admin.activity-logs', 'active' => 'admin.activity-logs*', 'perm' => 'activity.employee', 'icon' => $ic['employees']],
             ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => ['admin.client-activity', 'admin.client-activity.details', 'admin.client-activity.errors'], 'perm' => 'activity.client', 'icon' => $ic['clients']],
             ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.blogs', 'icon' => $ic['blog']],
-            ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.products', 'icon' => $ic['products']],
-            ['label' => 'Cart', 'route' => 'admin.cart-activity', 'active' => 'admin.cart-activity*', 'perm' => 'activity.cart', 'icon' => $ic['orders']],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp-activity', 'active' => 'admin.whatsapp-activity*', 'perm' => 'whatsapp.activity', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon', 'route' => 'admin.codecanyon.index', 'active' => 'admin.codecanyon.*', 'perm' => 'codecanyon.view', 'icon' => $ic['products']],
         ]],
