@@ -6,6 +6,20 @@
     <title>Sign in · {{ \App\Models\BrandSetting::current()->productName() }}</title>
     <link rel="icon" href="{{ \App\Models\BrandSetting::current()->iconUrl() }}" type="image/svg+xml">
     @vite(['resources/css/app.css'])
+    @if (config('demo.enabled'))
+        <style>
+            /* Scoped to the demo box. Plain CSS because the shipped Tailwind bundle has no
+               hover:bg-* variants and this deploy never rebuilds it. */
+            .demo-row { display: flex; align-items: center; gap: .5rem; }
+            .demo-copy { border: 1px solid #e5e7eb; background: #fff; border-radius: .375rem;
+                         padding: .25rem .5rem; font-size: 11px; font-weight: 600; color: #4b5563;
+                         cursor: pointer; transition: background .15s, color .15s; }
+            .demo-copy:hover { background: #f3f4f6; color: #111827; }
+            .demo-copy.is-done { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+            .demo-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+                          color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        </style>
+    @endif
 </head>
 <body class="grid min-h-full place-items-center bg-[var(--color-body)] p-4 text-[var(--color-heading)]">
     <div class="w-full max-w-sm">
@@ -41,6 +55,7 @@
                             <svg id="pw-eye" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
                             <svg id="pw-eye-off" class="hidden h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
                         </button>
+
                     </div>
                 </div>
                 <label class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
@@ -49,6 +64,29 @@
                 <button type="submit" class="h-11 w-full rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">
                     Sign in
                 </button>
+                @if (config('demo.enabled'))
+                    {{-- Demo installs only. config('demo.enabled') defaults to false, so a real
+                         install — one that never set DEMO_MODE — prints nothing here. Nothing
+                         guesses "this looks like a demo" from the data: a wrong guess would
+                         publish an admin password. --}}
+                    <div class="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Demo account</p>
+                        <p class="mt-1 text-xs text-gray-400">This is a public demo. Sign in with these.</p>
+
+                        <div class="mt-3 demo-row">
+                            <span class="demo-value" style="flex:1">{{ config('demo.email') }}</span>
+                            <button type="button" class="demo-copy" data-copy="{{ config('demo.email') }}">Copy</button>
+                        </div>
+                        <div class="mt-2 demo-row">
+                            <span class="demo-value" style="flex:1">{{ config('demo.password') }}</span>
+                            <button type="button" class="demo-copy" data-copy="{{ config('demo.password') }}">Copy</button>
+                        </div>
+
+                        <button type="button" id="demo-fill" class="demo-copy mt-3" style="width:100%">
+                            Fill the form
+                        </button>
+                    </div>
+                @endif
             </form>
         </div>
     </div>
@@ -65,6 +103,46 @@
                 if (eye) eye.classList.toggle('hidden', show);
                 if (eyeOff) eyeOff.classList.toggle('hidden', !show);
             });
+            const done = (btn, label) => {
+                const was = btn.textContent;
+                btn.textContent = label;
+                btn.classList.add('is-done');
+                setTimeout(() => { btn.textContent = was; btn.classList.remove('is-done'); }, 1400);
+            };
+
+            document.querySelectorAll('[data-copy]').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    const text = btn.getAttribute('data-copy');
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        done(btn, 'Copied');
+                    } catch (e) {
+                        // clipboard needs a secure context; an http demo would fail silently
+                        // otherwise, so fall back to the old selection trick.
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        ta.style.position = 'fixed';
+                        ta.style.opacity = '0';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        ta.remove();
+                        done(btn, 'Copied');
+                    }
+                });
+            });
+
+            const fill = document.getElementById('demo-fill');
+            if (fill) {
+                fill.addEventListener('click', function () {
+                    const email = document.querySelector('input[name=email]');
+                    const pw = document.getElementById('password');
+                    const row = document.querySelectorAll('[data-copy]');
+                    if (email && row[0]) email.value = row[0].getAttribute('data-copy');
+                    if (pw && row[1]) pw.value = row[1].getAttribute('data-copy');
+                    done(fill, 'Filled');
+                });
+            }
         })();
     </script>
 </body>
