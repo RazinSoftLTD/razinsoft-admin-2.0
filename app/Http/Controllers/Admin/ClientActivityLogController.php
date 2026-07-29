@@ -164,6 +164,35 @@ class ClientActivityLogController extends Controller
         ]);
     }
 
+    /**
+     * Every signed-in client in the window, one row each — what the "Logged-in Clients" stat counts.
+     * The main Visitors table mixes them in with anonymous IPs, so this is the list you reach for
+     * when the question is "who has actually logged in?". Each row opens that client's full history.
+     */
+    public function clients(Request $request)
+    {
+        $base = ClientActivityLog::query()->whereNull('error_code')->whereNotNull('client_id');
+        $this->applyDates($base, $request);
+
+        $clients = (clone $base)
+            ->selectRaw('client_id, COUNT(*) as visits, MAX(id) as last_id, MAX(created_at) as last_seen, MIN(created_at) as first_seen')
+            ->groupBy('client_id')->orderByDesc('last_seen')
+            ->paginate(20)->withQueryString();
+
+        // The latest row per client carries the page/country to show alongside their totals.
+        $lastRows = ClientActivityLog::whereIn('id', $clients->pluck('last_id'))->get()->keyBy('id');
+
+        return view('admin.client-activity.clients', [
+            'clients' => $clients,
+            'lastRows' => $lastRows,
+            'clientUsers' => User::withTrashed()
+                ->whereIn('id', $clients->pluck('client_id'))
+                ->get(['id', 'name', 'email', 'photo'])->keyBy('id'),
+            'totalClients' => (int) (clone $base)->distinct()->count('client_id'),
+            'totalLogins' => (clone $base)->count(),
+        ]);
+    }
+
     /** Full history for one visitor — a client (by id) or an unknown visitor (by ip). */
     public function details(Request $request)
     {

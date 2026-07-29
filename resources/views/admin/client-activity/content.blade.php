@@ -30,12 +30,14 @@
             $stats = [
                 ['label' => 'Total Views', 'value' => number_format($totalViews), 'icon' => 'M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z', 'tint' => 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]'],
                 ['label' => 'Unique Visitors', 'value' => number_format($uniqueVisitors), 'icon' => 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0', 'tint' => 'bg-emerald-50 text-emerald-600'],
-                ['label' => 'Logged-in Clients', 'value' => number_format($knownClients), 'icon' => 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 21v-1a6 6 0 0 1 12 0v1M19 8v4M21 10h-4', 'tint' => 'bg-sky-50 text-sky-600'],
+                ['label' => 'Logged-in Clients', 'value' => number_format($knownClients), 'icon' => 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 21v-1a6 6 0 0 1 12 0v1M19 8v4M21 10h-4', 'tint' => 'bg-sky-50 text-sky-600', 'sub' => 'View all clients →', 'url' => route('admin.client-activity.clients', request()->only(['date_range', 'from', 'to']))],
                 ['label' => 'Top Country', 'value' => $topCountry->country ?? '—', 'sub' => $topCountry ? number_format($topCountry->views).' views' : null, 'icon' => 'M2.5 12a9.5 9.5 0 1 0 19 0 9.5 9.5 0 0 0-19 0Zm0 0h19M12 2.5c2.5 2.6 2.5 16.4 0 19M12 2.5c-2.5 2.6-2.5 16.4 0 19', 'tint' => 'bg-violet-50 text-violet-600'],
             ];
         @endphp
         @foreach ($stats as $s)
-            <div class="flex items-center gap-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            {{-- A card with a 'url' is a link through to its own report; the rest are plain figures. --}}
+            <{{ empty($s['url']) ? 'div' : 'a' }} @if (! empty($s['url'])) href="{{ $s['url'] }}" @endif
+                class="flex items-center gap-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm{{ empty($s['url']) ? '' : ' transition hover:shadow' }}">
                 <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg {{ $s['tint'] }}">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $s['icon'] }}"/></svg>
                 </span>
@@ -44,7 +46,7 @@
                     <p class="text-lg font-bold text-[var(--color-heading)]">{{ $s['value'] }}</p>
                     @if (! empty($s['sub']))<p class="text-xs text-[var(--color-muted)]">{{ $s['sub'] }}</p>@endif
                 </div>
-            </div>
+            </{{ empty($s['url']) ? 'div' : 'a' }}>
         @endforeach
     </div>
 

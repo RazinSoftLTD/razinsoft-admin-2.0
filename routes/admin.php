@@ -356,6 +356,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('client-activity', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'index'])->name('client-activity');
             Route::get('client-activity/details', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'details'])->name('client-activity.details');
             Route::get('client-activity/errors', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'errors'])->name('client-activity.errors');
+            Route::get('client-activity/clients', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'clients'])->name('client-activity.clients');
         });
         // Blogs / Products share one route; the exact permission (activity.blogs / activity.products)
         // is checked in the controller since it depends on {type}.
