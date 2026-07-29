@@ -3,12 +3,20 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Concerns\HasProductInterests;
 use App\Models\Concerns\HasPrivacy;
+use App\Models\Concerns\HasProductInterests;
+use App\Models\Concerns\SyncsContactNumbers;
+use App\Services\Email\EmailDispatcher;
+use App\Support\Permissions;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,15 +26,17 @@ use Laravel\Sanctum\HasApiTokens;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    use HasProductInterests;
-
-    use \App\Models\Concerns\SyncsContactNumbers;
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasPrivacy, Notifiable, SoftDeletes;
+    use HasProductInterests;
+
+    use SyncsContactNumbers;
 
     /** Roles: admin (full panel), staff (limited panel — own leads), customer (= public client). */
     public const ROLE_ADMIN = 'admin';
+
     public const ROLE_STAFF = 'staff';
+
     public const ROLE_CUSTOMER = 'customer';
 
     /** The light/dark choices someone can make. `system` follows the operating system. */
@@ -36,11 +46,13 @@ class User extends Authenticatable
     // created user reads back as null and the layout has nothing to render.
     protected $attributes = ['theme' => 'system'];
 
-
     /** Client account status. active = full access, inactive = login-only (support only), blocked = no login. */
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_INACTIVE = 'inactive';
+
     public const STATUS_BLOCKED = 'blocked';
+
     public const STATUSES = [
         self::STATUS_ACTIVE => 'Active',
         self::STATUS_INACTIVE => 'Inactive',
@@ -92,7 +104,7 @@ class User extends Authenticatable
 
     /** The staff member's base role (grants a set of module.action permissions).
      *  Named assignedRole() because the `role` string column would shadow a `role()` relation. */
-    public function assignedRole(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function assignedRole(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');
     }
@@ -107,7 +119,7 @@ class User extends Authenticatable
     }
 
     /** Team-chat conversations (direct + groups) this user belongs to. */
-    public function conversations(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function conversations(): BelongsToMany
     {
         return $this->belongsToMany(Conversation::class, 'conversation_user')
             ->withPivot('is_manager', 'last_read_at')
@@ -127,7 +139,7 @@ class User extends Authenticatable
         // Per-user override wins (raw map so an explicit "None"/Deny is honoured, not dropped).
         $override = (array) $this->permissions;
         if (array_key_exists("{$module}.{$action}", $override)) {
-            return \App\Support\Permissions::scopeValue($override["{$module}.{$action}"]);
+            return Permissions::scopeValue($override["{$module}.{$action}"]);
         }
 
         return optional($this->assignedRole)->grantedScope("{$module}.{$action}") ?? 'none';
@@ -177,8 +189,8 @@ class User extends Authenticatable
             return $query->whereRaw('1 = 0');
         }
 
-        $owner = \App\Support\Permissions::owner($module);
-        $creator = \App\Support\Permissions::creator($module);
+        $owner = Permissions::owner($module);
+        $creator = Permissions::creator($module);
 
         return $query->where(function ($q) use ($scope, $owner, $creator) {
             $applied = false;
@@ -208,8 +220,8 @@ class User extends Authenticatable
             return false;
         }
 
-        $owner = \App\Support\Permissions::owner($module);
-        $creator = \App\Support\Permissions::creator($module);
+        $owner = Permissions::owner($module);
+        $creator = Permissions::creator($module);
         $isOwner = $owner && (int) $model->{$owner} === (int) $this->id;
         $isCreator = $creator && (int) $model->{$creator} === (int) $this->id;
 
@@ -260,7 +272,7 @@ class User extends Authenticatable
     }
 
     /** Every phone number on this person (the built-in phone/office columns are mirrored here). */
-    public function contactNumbers(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function contactNumbers(): MorphMany
     {
         return $this->morphMany(ContactNumber::class, 'contactable')->orderByDesc('is_primary')->orderBy('position')->orderBy('id');
     }
@@ -310,43 +322,74 @@ class User extends Authenticatable
         return 'CUS-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
     }
 
-    public function assignedLeads(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function assignedLeads(): HasMany
     {
         return $this->hasMany(Lead::class, 'assigned_to');
     }
 
-    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function billingAddresses(): HasMany
+    {
+        return $this->hasMany(BillingAddress::class);
+    }
+
+    /**
+     * The one address to bill this client at, wherever they last put it.
+     *
+     * There are two stores. A customer saving an address in their own dashboard writes a
+     * billing_addresses row; the older columns on this table are what the panel has always
+     * written. Whoever asks "does this client have an address?" has to look in both, or a client
+     * who filled it in themselves reads as having none — which is exactly what the invoice form
+     * was doing, for three of the four clients that had one.
+     *
+     * The dashboard row wins: it is the one the customer maintains.
+     */
+    public function billingAddressLine(): ?string
+    {
+        $saved = $this->relationLoaded('billingAddresses')
+            ? $this->billingAddresses->firstWhere('is_default', true) ?: $this->billingAddresses->first()
+            : $this->billingAddresses()->orderByDesc('is_default')->first();
+
+        if ($saved) {
+            return collect([$saved->address, $saved->city, $saved->state, $saved->country, $saved->zip])
+                ->filter()->join(', ') ?: null;
+        }
+
+        return collect([$this->address, $this->city, $this->state, $this->country, $this->zip])
+            ->filter()->join(', ') ?: null;
+    }
+
+    public function orders(): HasMany
     {
         return $this->hasMany(Order::class)->latest();
     }
 
     /** CRM invoices billed to this client (used for the "top paying" client sort). */
-    public function clientInvoices(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function clientInvoices(): HasMany
     {
         return $this->hasMany(ClientInvoice::class, 'client_id');
     }
 
-    public function documents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function documents(): HasMany
     {
         return $this->hasMany(ClientDocument::class, 'client_id')->latest();
     }
 
-    public function tickets(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class, 'client_id')->latest();
     }
 
-    public function designation(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function designation(): BelongsTo
     {
         return $this->belongsTo(Designation::class);
     }
 
-    public function department(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
     }
 
-    public function reportsTo(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function reportsTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reporting_to');
     }
@@ -363,18 +406,18 @@ class User extends Authenticatable
             ->exists();
     }
 
-    public function licenses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function licenses(): HasMany
     {
         return $this->hasMany(License::class)->latest();
     }
 
-    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
 
     /** Passwords an admin set/generated for this client account (newest first). */
-    public function passwordHistories(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function passwordHistories(): HasMany
     {
         return $this->hasMany(ClientPasswordHistory::class)->latest();
     }
@@ -392,14 +435,14 @@ class User extends Authenticatable
         // AppServiceProvider registers the callback that points the link at the website's reset
         // page. The fallback repeats it rather than calling route('password.reset'), which this
         // application has no web route for.
-        $callback = \Illuminate\Auth\Notifications\ResetPassword::$createUrlCallback;
+        $callback = ResetPassword::$createUrlCallback;
 
         $url = $callback
             ? call_user_func($callback, $this, $token)
             : rtrim((string) config('app.frontend_url', config('services.frontend_url')), '/')
                 .'/reset-password?token='.$token.'&email='.urlencode($this->getEmailForPasswordReset());
 
-        app(\App\Services\Email\EmailDispatcher::class)->sendTemplate('password_reset', $this->email, [
+        app(EmailDispatcher::class)->sendTemplate('password_reset', $this->email, [
             'customer_name' => $this->name,
             'reset_url' => $url,
         ], [

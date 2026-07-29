@@ -4,10 +4,12 @@
 @php
     $clientsJson = $clients->keyBy('id')->map(fn ($c) => [
         'id' => $c->id, 'name' => $c->name, 'company' => $c->company, 'email' => $c->email, 'phone' => $c->phone,
-        'address' => collect([$c->address, $c->city, $c->state, $c->country, $c->zip])->filter()->join(', '),
+        // Resolved by the model, so an address the customer saved in their own dashboard counts.
+        // Reading users.* here is what made three of four such clients look address-less.
+        'address' => $c->billing_address,
         // Kept apart as well: the billing block prefills each field and Stripe wants them separate.
         'parts' => ['address' => $c->address, 'city' => $c->city, 'state' => $c->state, 'zip' => $c->zip, 'country' => $c->country],
-        'hasAddress' => filled($c->address) && filled($c->country),
+        'hasAddress' => filled($c->billing_address),
     ]);
     $unitNames = collect($units)->pluck('name')->values();
     $taxesJson = collect($taxes)->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'rate' => (float) $t->rate, 'label' => $t->label]);

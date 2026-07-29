@@ -4,12 +4,20 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientInvoice;
+use App\Models\InvoiceSetting;
+use App\Models\InvoiceTax;
+use App\Models\InvoiceTemplate;
+use App\Models\InvoiceUnit;
+use App\Models\Project;
 use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\Email\InvoiceMailer;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ClientInvoiceController extends Controller
 {
@@ -38,7 +46,7 @@ class ClientInvoiceController extends Controller
 
     public function create(Request $request)
     {
-        $tpl = $request->filled('template') ? \App\Models\InvoiceTemplate::find($request->query('template')) : null;
+        $tpl = $request->filled('template') ? InvoiceTemplate::find($request->query('template')) : null;
 
         return view('admin.invoices.form', [
             'invoice' => new ClientInvoice([
@@ -52,10 +60,10 @@ class ClientInvoiceController extends Controller
                 'notes' => $tpl->notes ?? 'Thank you for your business. We appreciate your trust in our services.',
                 'payment_method' => $tpl->payment_method ?? 'Bank Transfer',
             ]),
-            'clients' => User::clients()->orderBy('name')->get(['id', 'name', 'company', 'email', 'phone', 'address', 'city', 'state', 'country', 'zip']),
+            'clients' => $this->clientOptions(),
             'items' => $tpl ? collect($tpl->items)->map(fn ($i) => [
                 'description' => $i['description'] ?? '', 'sub_description' => $i['sub_description'] ?? '',
-                'qty' => (float) ($i['qty'] ?? 1), 'unit' => $i['unit'] ?? \App\Models\InvoiceUnit::defaultName(),
+                'qty' => (float) ($i['qty'] ?? 1), 'unit' => $i['unit'] ?? InvoiceUnit::defaultName(),
                 'unit_price' => (float) ($i['unit_price'] ?? 0),
                 'discount_percent' => (float) ($i['discount_percent'] ?? 0), 'taxIds' => [],
             ])->all() : [],
@@ -68,10 +76,10 @@ class ClientInvoiceController extends Controller
     private function configData(): array
     {
         return [
-            'units' => \App\Models\InvoiceUnit::options(),
-            'taxes' => \App\Models\InvoiceTax::options(),
-            'branding' => \App\Models\InvoiceSetting::current(),
-            'defaultUnit' => \App\Models\InvoiceUnit::defaultName(),
+            'units' => InvoiceUnit::options(),
+            'taxes' => InvoiceTax::options(),
+            'branding' => InvoiceSetting::current(),
+            'defaultUnit' => InvoiceUnit::defaultName(),
         ];
     }
 
@@ -80,7 +88,7 @@ class ClientInvoiceController extends Controller
         $data = $this->validated($request);
         $invoice = DB::transaction(fn () => $this->persist(new ClientInvoice([
             'invoice_number' => $this->nextNumber(),
-            'public_token' => \Illuminate\Support\Str::random(40),
+            'public_token' => Str::random(40),
             'created_by' => $request->user()->id,
         ]), $data, $request));
         $invoice->logActivity('created', 'Invoice created.');
@@ -97,7 +105,7 @@ class ClientInvoiceController extends Controller
 
         return view('admin.invoices.show', [
             'invoice' => $invoice,
-            'projects' => \App\Models\Project::when($invoice->client_id, fn ($q) => $q->where('client_id', $invoice->client_id))
+            'projects' => Project::when($invoice->client_id, fn ($q) => $q->where('client_id', $invoice->client_id))
                 ->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -109,10 +117,10 @@ class ClientInvoiceController extends Controller
 
         return view('admin.invoices.form', [
             'invoice' => $invoice,
-            'clients' => User::clients()->orderBy('name')->get(['id', 'name', 'company', 'email', 'phone', 'address', 'city', 'state', 'country', 'zip']),
+            'clients' => $this->clientOptions(),
             'items' => $invoice->items->map(fn ($i) => [
                 'description' => $i->description, 'sub_description' => $i->sub_description,
-                'qty' => (float) $i->qty, 'unit' => $i->unit ?? \App\Models\InvoiceUnit::defaultName(),
+                'qty' => (float) $i->qty, 'unit' => $i->unit ?? InvoiceUnit::defaultName(),
                 'unit_price' => (float) $i->unit_price, 'discount_percent' => (float) $i->discount_percent,
                 'taxIds' => collect($i->taxes ?? [])->pluck('id')->filter()->values()->all(),
                 'attachment' => $i->attachment,
@@ -282,7 +290,7 @@ class ClientInvoiceController extends Controller
                 'invoice_number', 'public_token', 'status', 'amount_paid', 'requested_amount', 'created_at', 'updated_at',
             ]);
             $new->invoice_number = $this->nextNumber();
-            $new->public_token = \Illuminate\Support\Str::random(40);
+            $new->public_token = Str::random(40);
             $new->status = 'draft';
             $new->amount_paid = 0;
             $new->requested_amount = null;
@@ -377,7 +385,7 @@ class ClientInvoiceController extends Controller
         }
 
         // ---- Totals from line items ----
-        $taxCatalog = \App\Models\InvoiceTax::whereIn('id', collect($data['items'])->pluck('taxes')->flatten()->filter()->unique())->get()->keyBy('id');
+        $taxCatalog = InvoiceTax::whereIn('id', collect($data['items'])->pluck('taxes')->flatten()->filter()->unique())->get()->keyBy('id');
         $subtotal = $discountTotal = $taxTotal = 0;
         $lines = [];
         foreach ($data['items'] as $i => $row) {
@@ -443,6 +451,27 @@ class ClientInvoiceController extends Controller
     }
 
     /**
+     * Clients for the picker, each with the address the invoice would actually bill.
+     *
+     * billing_address is resolved through the model, which prefers the row the customer maintains
+     * in their own dashboard over the older columns on the users table. Sending raw users.* here —
+     * which is what this did — made every dashboard-saved address invisible to the panel.
+     */
+    private function clientOptions(): Collection
+    {
+        return User::clients()
+            ->with(['billingAddresses' => fn ($q) => $q->orderByDesc('is_default')])
+            ->orderBy('name')
+            ->get(['id', 'name', 'company', 'email', 'phone', 'address', 'city', 'state', 'country', 'zip'])
+            ->map(function (User $u) {
+                $u->setAttribute('billing_address', $u->billingAddressLine());
+                $u->unsetRelation('billingAddresses');
+
+                return $u;
+            });
+    }
+
+    /**
      * The address to bill. A per-invoice address entered on the form wins; otherwise the client's
      * saved one. When the form asks, the entered address is also written back to the client so the
      * next invoice already has it.
@@ -465,9 +494,15 @@ class ClientInvoiceController extends Controller
             return collect($parts)->filter()->join(', ');
         }
 
-        return $client
-            ? collect([$client->address, $client->city, $client->state, $client->country, $client->zip])->filter()->join(', ') ?: null
-            : null;
+        return $client?->billingAddressLine();
+    }
+
+    /** Whether the client picked on this request already has an address to bill. */
+    private function clientHasBillingAddress(Request $request): bool
+    {
+        $client = User::find($request->input('client_id'));
+
+        return $client ? filled($client->billingAddressLine()) : false;
     }
 
     private function validated(Request $request): array
@@ -485,11 +520,19 @@ class ClientInvoiceController extends Controller
             'discount_value' => ['nullable', 'numeric', 'min:0', 'required_with:discount_type'],
             'attachment' => ['nullable', 'file', 'max:5120'],
             // Billing address — Stripe will not take the payment without one.
-            'bill_address' => ['nullable', 'string', 'max:255'],
+            // Required unless the client already has one — the browser hides the field in that
+            // case, but a request that skips it must not create an unbillable invoice either.
+            'bill_address' => [
+                Rule::requiredIf(fn () => ! $this->clientHasBillingAddress($request)),
+                'nullable', 'string', 'max:255',
+            ],
             'bill_city' => ['nullable', 'string', 'max:120'],
             'bill_state' => ['nullable', 'string', 'max:120'],
             'bill_zip' => ['nullable', 'string', 'max:20'],
-            'bill_country' => ['nullable', 'string', 'max:120'],
+            'bill_country' => [
+                Rule::requiredIf(fn () => ! $this->clientHasBillingAddress($request)),
+                'nullable', 'string', 'max:120',
+            ],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.sub_description' => ['nullable', 'string', 'max:5000'],

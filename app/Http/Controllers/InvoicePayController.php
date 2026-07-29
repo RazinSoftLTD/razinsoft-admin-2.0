@@ -6,6 +6,8 @@ use App\Models\BillingAddress;
 use App\Models\ClientInvoice;
 use App\Models\InvoicePayment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Stripe\Customer;
 use Stripe\StripeClient;
 
 /** Public (token-guarded, no login) invoice pay flow. The page itself lives on the FRONTEND; this
@@ -154,6 +156,13 @@ class InvoicePayController extends Controller
     public function checkout(string $token)
     {
         $invoice = ClientInvoice::where('public_token', $token)->firstOrFail();
+
+        // An invoice with no billing address cannot be paid. The page hides the buttons, but the
+        // gateway URLs are guessable from the token, and Stripe collecting an address at checkout
+        // is not the same thing: that address never reaches the invoice, so the record we keep and
+        // the receipt the payer gets would name different places.
+        abort_if(blank($invoice->bill_to_address), 409, 'This invoice needs a billing address before it can be paid.');
+
         $amount = $invoice->payableAmount();
 
         if ($amount <= 0) {
@@ -201,7 +210,7 @@ class InvoicePayController extends Controller
      * collect one at checkout. A Stripe error here must not block the payment, so it degrades
      * to the same path.
      */
-    private function stripeCustomer(StripeClient $stripe, ClientInvoice $invoice): ?\Stripe\Customer
+    private function stripeCustomer(StripeClient $stripe, ClientInvoice $invoice): ?Customer
     {
         if (blank($invoice->bill_to_address)) {
             return null;
@@ -290,7 +299,7 @@ class InvoicePayController extends Controller
             return null;
         }
 
-        $res = \Illuminate\Support\Facades\Http::asForm()
+        $res = Http::asForm()
             ->withBasicAuth($id, $secret)
             ->post($this->paypalBase().'/v1/oauth2/token', ['grant_type' => 'client_credentials']);
 
@@ -301,6 +310,13 @@ class InvoicePayController extends Controller
     public function paypal(string $token)
     {
         $invoice = ClientInvoice::where('public_token', $token)->firstOrFail();
+
+        // An invoice with no billing address cannot be paid. The page hides the buttons, but the
+        // gateway URLs are guessable from the token, and Stripe collecting an address at checkout
+        // is not the same thing: that address never reaches the invoice, so the record we keep and
+        // the receipt the payer gets would name different places.
+        abort_if(blank($invoice->bill_to_address), 409, 'This invoice needs a billing address before it can be paid.');
+
         $amount = $invoice->payableAmount();
 
         if ($amount <= 0 || ! in_array('paypal', $invoice->payMethods(), true)) {
@@ -313,7 +329,7 @@ class InvoicePayController extends Controller
             return redirect()->away($invoice->payUrl().'?paypal=unavailable');
         }
 
-        $res = \Illuminate\Support\Facades\Http::withToken($access)
+        $res = Http::withToken($access)
             ->post($this->paypalBase().'/v2/checkout/orders', [
                 'intent' => 'CAPTURE',
                 'purchase_units' => [[
@@ -346,7 +362,7 @@ class InvoicePayController extends Controller
             return redirect()->away($invoice->payUrl());
         }
 
-        $res = \Illuminate\Support\Facades\Http::withToken($access)
+        $res = Http::withToken($access)
             ->withBody('', 'application/json')
             ->post($this->paypalBase()."/v2/checkout/orders/{$orderId}/capture");
 
