@@ -140,6 +140,7 @@
             ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => ['admin.client-activity', 'admin.client-activity.details', 'admin.client-activity.errors'], 'perm' => 'activity.client', 'icon' => $ic['clients']],
             ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.blogs', 'icon' => $ic['blog']],
             ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.products', 'icon' => $ic['products']],
+            ['label' => 'Cart', 'route' => 'admin.cart-activity', 'active' => 'admin.cart-activity*', 'perm' => 'activity.cart', 'icon' => $ic['orders']],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp-activity', 'active' => 'admin.whatsapp-activity*', 'perm' => 'whatsapp.activity', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon', 'route' => 'admin.codecanyon.index', 'active' => 'admin.codecanyon.*', 'perm' => 'codecanyon.view', 'icon' => $ic['products']],
         ]],

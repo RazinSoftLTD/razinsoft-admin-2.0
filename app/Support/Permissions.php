@@ -69,7 +69,7 @@ class Permissions
         'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'import_export', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets', 'private'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
         'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
         // Activity logs — each page is its own toggle (Employee actions, Client visits, Blogs & Products reports).
-        'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products']],
+        'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products', 'cart']],
         // CodeCanyon market analysis (Activity → CodeCanyon) + its API config.
         'codecanyon' => ['label' => 'CodeCanyon', 'group' => 'Activity', 'actions' => ['view', 'manage', 'settings']],
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'members', 'milestones', 'files', 'prd', 'settings', 'columns', 'private'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],

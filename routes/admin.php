@@ -360,6 +360,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // Super-admin-only; the controller enforces that (permission alone is not enough here).
             Route::post('client-activity/clients/{client}/logout', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'logoutClient'])->whereNumber('client')->name('client-activity.clients.logout');
         });
+        // Activity → Cart: who added products to their cart on the website.
+        Route::middleware('permission:activity.cart')->group(function () {
+            Route::get('cart-activity', [\App\Http\Controllers\Admin\CartActivityController::class, 'index'])->name('cart-activity');
+        });
         // Blogs / Products share one route; the exact permission (activity.blogs / activity.products)
         // is checked in the controller since it depends on {type}.
         Route::get('client-activity/{type}', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'content'])->whereIn('type', ['blogs', 'products'])->name('client-activity.content');

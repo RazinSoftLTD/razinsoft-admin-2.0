@@ -43,6 +43,8 @@ Route::post('/subscribe', [\App\Http\Controllers\Api\SubscriberController::class
 
 // Client page-visit beacon — logs only when a valid client token is present (checked in the controller).
 Route::post('/track/visit', [\App\Http\Controllers\Api\TrackController::class, 'visit'])->middleware('throttle:120,1');
+// Add-to-cart beacon — the cart is browser-side, so this is the only server-side record of it.
+Route::post('/track/cart', [\App\Http\Controllers\Api\TrackController::class, 'cart'])->middleware('throttle:60,1');
 
 // ---- Search analytics (public) ----
 Route::post('/search-log', [\App\Http\Controllers\Api\SearchController::class, 'store']);
