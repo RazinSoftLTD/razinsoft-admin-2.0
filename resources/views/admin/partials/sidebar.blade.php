@@ -74,37 +74,27 @@
             ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
         ]],
 
+        // MARKETING BRANCH: WhatsApp is the only channel this panel runs — the internal team
+        // Messenger belongs to the main deployment.
         ['type' => 'group', 'label' => 'Communication', 'icon' => $ic['chat'], 'items' => [
-            ['label' => 'Messenger', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::whereIn('account_id', \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id'))->where('unread_count', '>', 0)->count() ?: null],
         ]],
 
-        // MARKETING BRANCH: Workspace (projects/tasks) and Sales (orders/products/coupons/
-        // reviews/questions) removed — this panel does not run delivery or the storefront.
-
-        ['type' => 'group', 'label' => 'Marketing', 'icon' => $ic['marketing'], 'items' => [
-            ['label' => 'Promotion', 'route' => 'admin.promotions.index', 'active' => 'admin.promotions.*', 'perm' => 'promotion.view', 'icon' => $ic['promotion']],
-            ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'perm' => 'blog.view', 'icon' => $ic['article']],
-            ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'perm' => 'blog.view', 'icon' => $ic['category']],
-            ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
-            ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'perm' => 'searches.view', 'icon' => $ic['searches']],
-            ['label' => 'Subscribers', 'route' => 'admin.subscribers.index', 'active' => 'admin.subscribers.*', 'perm' => 'subscribers.view', 'icon' => $ic['subscribers']],
-            ['label' => 'Reports', 'soon' => true, 'icon' => $ic['reports']],
-        ]],
+        // MARKETING BRANCH: Workspace (projects/tasks), Sales (orders/products/coupons/reviews/
+        // questions) and the whole Marketing group (promotions, blog, subscribers) are removed —
+        // this panel does not run delivery, the storefront, or the website's content.
 
         // MARKETING BRANCH: the HR and Finance groups are removed entirely, and Activity keeps
         // only the visitor-facing reports (Client / Blogs / WhatsApp / CodeCanyon) — Employee,
         // Products and Cart activity are ops concerns that stay on the main deployment.
         ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [
             ['label' => 'Client', 'route' => 'admin.client-activity', 'active' => ['admin.client-activity', 'admin.client-activity.details', 'admin.client-activity.errors'], 'perm' => 'activity.client', 'icon' => $ic['clients']],
-            ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.blogs', 'icon' => $ic['blog']],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp-activity', 'active' => 'admin.whatsapp-activity*', 'perm' => 'whatsapp.activity', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon', 'route' => 'admin.codecanyon.index', 'active' => 'admin.codecanyon.*', 'perm' => 'codecanyon.view', 'icon' => $ic['products']],
         ]],
 
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
             ['label' => 'My Profile', 'route' => 'admin.my-profile.edit', 'active' => 'admin.my-profile.*', 'icon' => $ic['author']],
-            ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'active' => 'admin.roles.*', 'admin' => true, 'icon' => $ic['roles']],
             // MARKETING BRANCH: every settings page whose module is gone has been dropped —
             // CRM, HR, Ticket, Invoice, Project Config (Workspace) and Booking (Meetings).
             // What is left configures something this panel still does.
@@ -112,7 +102,6 @@
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
-            ['label' => 'Meta Conversions API', 'route' => 'admin.meta-capi', 'active' => 'admin.meta-capi*', 'admin' => true, 'icon' => $ic['settings']],
         ]],
     ];
 
