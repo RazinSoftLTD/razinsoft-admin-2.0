@@ -98,7 +98,11 @@ async function start(key) {
       auth: authState,
       logger: pino({ level: 'silent' }),
       browser: Browsers.ubuntu('Chrome'),
-      syncFullHistory: true,
+      // OFF: with it on, every reconnect re-delivered the full phone history (tens of thousands of
+      // messages, all deduped to nothing by Laravel) and the webhook flood took the whole site down
+      // (nginx "Too many open files" → Cloudflare 522). Missed-while-offline messages still arrive
+      // via messages.upsert type 'append' on reconnect, which is the catch-up that matters.
+      syncFullHistory: false,
     })
     s.sock = sock
 
@@ -152,11 +156,13 @@ async function start(key) {
     sock.ev.on('messaging-history.set', ({ messages }) => {
       if (!Array.isArray(messages) || !messages.length) return
       log.info(`[${key}] history sync: ${messages.length} messages`)
-      // Import in a detached task with small gaps so the socket keepalive keeps flowing (avoids 408 storm).
+      // Import in a detached task, throttled hard: at 15ms (~60 req/s) the per-message webhook
+      // pushes saturated php-fpm and took the site down (522). 150ms (~7 req/s) keeps history
+      // imports background noise while the socket keepalive keeps flowing.
       ;(async () => {
         for (const m of messages) {
           try { await handleMessage(key, m, true) } catch {}
-          await new Promise((r) => setTimeout(r, 15))
+          await new Promise((r) => setTimeout(r, 150))
         }
       })()
     })
