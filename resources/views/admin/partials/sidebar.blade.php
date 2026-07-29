@@ -105,11 +105,11 @@
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
             ['label' => 'My Profile', 'route' => 'admin.my-profile.edit', 'active' => 'admin.my-profile.*', 'icon' => $ic['author']],
             ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'active' => 'admin.roles.*', 'admin' => true, 'icon' => $ic['roles']],
-            // MARKETING BRANCH: CRM / HR / Ticket / Invoice settings removed with their modules.
-            ['label' => 'Project Config', 'route' => 'admin.project-config', 'active' => 'admin.project-config*', 'perm' => 'projects.settings', 'icon' => $ic['projects']],
+            // MARKETING BRANCH: every settings page whose module is gone has been dropped —
+            // CRM, HR, Ticket, Invoice, Project Config (Workspace) and Booking (Meetings).
+            // What is left configures something this panel still does.
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
-            ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
             ['label' => 'Meta Conversions API', 'route' => 'admin.meta-capi', 'active' => 'admin.meta-capi*', 'admin' => true, 'icon' => $ic['settings']],
