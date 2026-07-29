@@ -2,12 +2,7 @@
 @section('title', 'Notification Rules')
 
 @section('content')
-    <div class="mb-5">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">Email Manager</h1>
-        <p class="text-sm text-[var(--color-muted)]">How mail is templated, queued, sent and tracked. SMTP accounts live under Email Config.</p>
-    </div>
-
-    @include('admin.email._nav')
+    <x-admin.email-shell>
 
     <form method="POST" action="{{ route('admin.email.rules.update') }}">
         @csrf
@@ -67,4 +62,5 @@
             </div>
         @endforelse
     </form>
+    </x-admin.email-shell>
 @endsection

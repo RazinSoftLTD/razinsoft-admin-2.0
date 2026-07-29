@@ -2,12 +2,7 @@
 @section('title', 'Suppression List')
 
 @section('content')
-    <div class="mb-5">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">Email Manager</h1>
-        <p class="text-sm text-[var(--color-muted)]">How mail is templated, queued, sent and tracked. SMTP accounts live under Email Config.</p>
-    </div>
-
-    @include('admin.email._nav')
+    <x-admin.email-shell>
 
     <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
         <p class="text-sm font-bold text-amber-800">Nothing on this list will ever be emailed</p>
@@ -94,4 +89,5 @@
             </section>
         @endif
     </div>
+    </x-admin.email-shell>
 @endsection

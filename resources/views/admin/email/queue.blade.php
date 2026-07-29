@@ -2,12 +2,7 @@
 @section('title', 'Email Queue')
 
 @section('content')
-    <div class="mb-5">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">Email Manager</h1>
-        <p class="text-sm text-[var(--color-muted)]">How mail is templated, queued, sent and tracked. SMTP accounts live under Email Config.</p>
-    </div>
-
-    @include('admin.email._nav')
+    <x-admin.email-shell>
 
     {{-- A stopped worker is the usual reason "email is broken", so it is said plainly. --}}
     @unless ($workerRunning)
@@ -131,4 +126,5 @@
             <div class="border-t border-gray-100 px-5 py-3">{{ $logs->links() }}</div>
         @endif
     </section>
+    </x-admin.email-shell>
 @endsection
