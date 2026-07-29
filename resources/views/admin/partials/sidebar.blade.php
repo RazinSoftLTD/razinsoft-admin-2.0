@@ -69,7 +69,14 @@
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
         // Sits above CRM: sending campaigns is this panel's main job, not a setting you visit once.
-        ['type' => 'link', 'label' => 'Email Manager', 'route' => 'admin.email.campaigns', 'active' => ['admin.email.campaigns*', 'admin.email.templates*', 'admin.email.queue*', 'admin.email.logs*', 'admin.email.rules*', 'admin.email.analytics*', 'admin.email.suppressions*'], 'perm' => 'email.send', 'icon' => $ic['messaging']],
+        ['type' => 'group', 'label' => 'Email Manager', 'icon' => $ic['messaging'], 'items' => [
+            ['label' => 'Email', 'route' => 'admin.email.campaigns', 'active' => 'admin.email.campaigns*', 'perm' => 'email.send', 'icon' => $ic['messaging']],
+            ['label' => 'Template', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.templates', 'icon' => $ic['article']],
+            ['label' => 'Queue', 'route' => 'admin.email.queue', 'active' => 'admin.email.queue*', 'perm' => 'email.queue', 'icon' => $ic['tasks'] ?? $ic['reports']],
+            ['label' => 'Logs', 'route' => 'admin.email.logs', 'active' => ['admin.email.logs*', 'admin.email.suppressions*'], 'perm' => 'email.logs', 'icon' => $ic['reports']],
+            ['label' => 'Notification Rules', 'route' => 'admin.email.rules', 'active' => 'admin.email.rules*', 'perm' => 'email.rules', 'icon' => $ic['settings']],
+            ['label' => 'Analytics', 'route' => 'admin.email.analytics', 'active' => 'admin.email.analytics*', 'perm' => 'email.analytics', 'icon' => $ic['analytics']],
+        ]],
 
         // MARKETING BRANCH: Leads / Follow-ups / Deals / Tickets / Analytics removed — this
         // deployment is for the marketing team; only the client book stays.
