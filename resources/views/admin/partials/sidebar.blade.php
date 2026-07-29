@@ -121,6 +121,7 @@
 
         ['type' => 'group', 'label' => 'Finance', 'icon' => $ic['finance'], 'items' => [
             ['label' => 'Dashboard', 'route' => 'admin.finance.dashboard', 'active' => 'admin.finance.dashboard', 'perm' => 'finance.view', 'icon' => $ic['dashboard']],
+            ['label' => 'Invoices', 'route' => 'admin.invoices.index', 'active' => ['admin.invoices.*', 'admin.recurring.*', 'admin.invoice-templates.*'], 'perm' => 'invoices.view', 'icon' => $ic['invoice']],
             ['label' => 'Wallets', 'route' => 'admin.finance.wallets', 'active' => 'admin.finance.wallets', 'perm' => 'finance.view', 'icon' => $ic['currency']],
             ['label' => 'Bank Accounts', 'route' => 'admin.finance.banks', 'active' => 'admin.finance.banks', 'perm' => 'finance.view', 'icon' => $ic['bank']],
             ['label' => 'Transactions', 'route' => 'admin.finance.transactions', 'active' => 'admin.finance.transactions', 'perm' => 'finance.view', 'icon' => $ic['reports']],
@@ -132,7 +133,6 @@
             ['label' => 'Payables', 'route' => 'admin.finance.payables', 'active' => 'admin.finance.payables', 'perm' => 'finance.view', 'icon' => $ic['estimation']],
             ['label' => 'VAT & Tax', 'route' => 'admin.finance.taxes', 'active' => 'admin.finance.taxes', 'perm' => 'finance.view', 'icon' => $ic['proposal']],
             ['label' => 'Reports', 'route' => 'admin.finance.reports', 'active' => 'admin.finance.reports', 'perm' => 'finance.reports', 'icon' => $ic['reports']],
-            ['label' => 'Invoices', 'route' => 'admin.invoices.index', 'active' => ['admin.invoices.*', 'admin.recurring.*', 'admin.invoice-templates.*'], 'perm' => 'invoices.view', 'icon' => $ic['invoice']],
         ]],
 
         ['type' => 'group', 'label' => 'Activity', 'icon' => $ic['author'], 'items' => [
