@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class Product extends Model
 {
@@ -38,12 +41,19 @@ class Product extends Model
     public static function forgetCache(?string $slug): void
     {
         if ($slug) {
-            \Illuminate\Support\Facades\Cache::forget(static::cacheKey($slug));
+            Cache::forget(static::cacheKey($slug));
         }
     }
 
     protected static function booted(): void
     {
+        // Every product must have a share token — it is the only address the thing has now that
+        // there is no catalogue to browse. Generated here rather than by the caller, so a product
+        // created from an import, a seeder or tinker is as reachable as one made in the panel.
+        static::creating(function (self $p) {
+            $p->public_token = $p->public_token ?: Str::random(40);
+        });
+
         // Any direct product edit (general/media/status) drops its cached detail payload.
         static::saved(fn (self $p) => static::forgetCache($p->getOriginal('slug') ?: $p->slug));
         static::saved(fn (self $p) => static::forgetCache($p->slug));
@@ -55,10 +65,21 @@ class Product extends Model
         static::deleted(fn (self $p) => static::forgetLinkedArticleCaches($p));
     }
 
+    /**
+     * The link an operator sends a customer.
+     *
+     * Points at the frontend, not the panel — the customer never sees the admin. Same shape as an
+     * invoice pay-link, and for the same reason: the token is the authorisation.
+     */
+    public function shareUrl(): string
+    {
+        return rtrim((string) config('services.frontend_url'), '/').'/p/'.$this->public_token;
+    }
+
     /** Clear the cached payload of every blog post that features this product. */
     protected static function forgetLinkedArticleCaches(self $p): void
     {
-        \Illuminate\Support\Facades\DB::table('article_product')
+        DB::table('article_product')
             ->join('articles', 'articles.id', '=', 'article_product.article_id')
             ->where('article_product.product_id', $p->id)
             ->pluck('articles.slug')

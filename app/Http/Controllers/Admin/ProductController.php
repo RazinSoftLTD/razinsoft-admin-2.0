@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Support\ImageSpecs;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -31,6 +33,7 @@ class ProductController extends Controller
         foreach ($data['order'] as $id) {
             Product::where('id', $id)->update(['sort_order' => $pos++]);
         }
+
         return response()->json(['ok' => true]);
     }
 
@@ -42,6 +45,7 @@ class ProductController extends Controller
         foreach ($data['order'] as $id) {
             Product::where('id', $id)->where('for_home', true)->update(['home_order' => $pos++]);
         }
+
         return response()->json(['ok' => true]);
     }
 
@@ -97,9 +101,12 @@ class ProductController extends Controller
     /** Duplicate a product with all its content relations (a fresh draft to tweak). */
     public function clone(Product $product)
     {
-        $clone = \Illuminate\Support\Facades\DB::transaction(function () use ($product) {
+        $clone = DB::transaction(function () use ($product) {
             $copy = $product->replicate([
-                'slug', 'status', 'is_featured', 'rating', 'reviews_count', 'sales_count',
+                // public_token is unique and IS the copy's address — carrying the original's over
+                // would collide on save, and if it somehow did not, two products would answer on
+                // one sales link. Left unset so the model mints a fresh one.
+                'slug', 'status', 'is_featured', 'rating', 'reviews_count', 'sales_count', 'public_token',
             ]);
             $copy->name = $product->name.' (Copy)';
             $copy->slug = $this->uniqueSlug($product->slug.'-copy');
@@ -174,11 +181,11 @@ class ProductController extends Controller
             'thumbnail_alt' => ['nullable', 'string', 'max:255'],
             'hero_alt' => ['nullable', 'string', 'max:255'],
             'overview' => ['nullable', 'string'],
-            'thumbnail' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('product')],
-            'hero_image' => ['nullable', 'image', 'max:4096', \App\Support\ImageSpecs::rule('product')],
+            'thumbnail' => ['nullable', 'image', 'max:4096', ImageSpecs::rule('product')],
+            'hero_image' => ['nullable', 'image', 'max:4096', ImageSpecs::rule('product')],
         ], [
-            'thumbnail.dimensions' => \App\Support\ImageSpecs::message('product', 'thumbnail'),
-            'hero_image.dimensions' => \App\Support\ImageSpecs::message('product', 'hero image'),
+            'thumbnail.dimensions' => ImageSpecs::message('product', 'thumbnail'),
+            'hero_image.dimensions' => ImageSpecs::message('product', 'hero image'),
         ]);
 
         $data['slug'] = Str::slug(($data['slug'] ?? '') ?: $data['name']);

@@ -21,8 +21,23 @@
         <a href="{{ route('admin.products.index') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-muted)] hover:text-[var(--color-heading)]">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m15 18-6-6 6-6"/></svg> Back to products
         </a>
-        @if ($product->slug && $isPublished)
-            <a href="{{ rtrim(config('services.frontend_url'), '/') }}/products/{{ $product->slug }}" target="_blank" class="text-sm font-semibold text-[var(--color-primary)] hover:underline">Preview on site ↗</a>
+        @if ($isPublished)
+            {{-- The sales link. There is no catalogue to browse, so this URL is the only way a
+                 customer reaches this product — it is meant to be copied and sent. --}}
+            <div class="flex items-center gap-2" x-data="{ copied: false }">
+                <input readonly value="{{ $product->shareUrl() }}"
+                       class="h-9 w-72 rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs text-gray-600 focus:outline-none"
+                       onfocus="this.select()">
+                <button type="button"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]"
+                        @click="navigator.clipboard.writeText('{{ $product->shareUrl() }}'); copied = true; setTimeout(() => copied = false, 1800)">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+                    <span x-text="copied ? 'Copied' : 'Copy sales link'"></span>
+                </button>
+                <a href="{{ $product->shareUrl() }}" target="_blank" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">Open ↗</a>
+            </div>
+        @else
+            <span class="text-xs text-gray-400">Publish this product to get its sales link.</span>
         @endif
     </div>
 

@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'Installation Plans')
+@section('title', 'Service Plans')
 
 @php
     $me = auth()->user();
@@ -16,7 +16,7 @@
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
             <nav class="mb-1 flex items-center gap-2 text-sm text-[var(--color-muted)]">
-                <a href="{{ route('admin.installation-plans') }}" class="hover:text-[var(--color-heading)]">Installation Plans</a>
+                <a href="{{ route('admin.installation-plans') }}" class="hover:text-[var(--color-heading)]">Service Plans</a>
                 <svg class="h-3.5 w-3.5 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 6 6 6-6 6"/></svg>
                 <span class="text-[var(--color-heading)]">{{ $product->name }}</span>
             </nav>
@@ -33,7 +33,7 @@
             {{-- Copy plans from another product --}}
             @if ($canCopy && $products->where('id', '!=', $product->id)->where('installation_plans_count', '>', 0)->isNotEmpty())
                 <form method="POST" action="{{ route('admin.installation-plans.copy-from', $product) }}" class="flex items-center gap-2"
-                      onsubmit="return confirm('This replaces {{ $product->name }}\'s current installation plans with a copy. Continue?')">
+                      onsubmit="return confirm('This replaces {{ $product->name }}\'s current service plans with a copy. Continue?')">
                     @csrf
                     <select name="source_id" required class="h-10 rounded-lg border-gray-200 text-sm">
                         <option value="">Copy plans from…</option>

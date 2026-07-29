@@ -12,7 +12,7 @@
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
             <nav class="mb-1 flex items-center gap-2 text-sm text-[var(--color-muted)]">
-                <a href="{{ route('admin.installation-plans.show', $product) }}" class="hover:text-[var(--color-heading)]">Installation Plans</a>
+                <a href="{{ route('admin.installation-plans.show', $product) }}" class="hover:text-[var(--color-heading)]">Service Plans</a>
                 <svg class="h-3.5 w-3.5 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 6 6 6-6 6"/></svg>
                 <span class="text-[var(--color-heading)]">Preview</span>
             </nav>

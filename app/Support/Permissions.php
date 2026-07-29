@@ -80,8 +80,8 @@ class Permissions
         // billing stays under `invoices`; `settings` covers the account & category setup pages.
         'finance' => ['label' => 'Finance', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'reports', 'settings']],
         'products' => ['label' => 'Products', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'publish', 'clone', 'relations']],
-        // Installation Plans has its own screens (features, plans, copy-from), so it gets its own toggles.
-        'installation_plans' => ['label' => 'Installation Plans', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'copy']],
+        // Service Plans has its own screens (features, plans, copy-from), so it gets its own toggles.
+        'installation_plans' => ['label' => 'Service Plans', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'copy']],
         'orders' => ['label' => 'Orders', 'group' => 'Sales', 'actions' => ['view', 'create']],
         'coupons' => ['label' => 'Coupons', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
         'blog' => ['label' => 'Blog', 'group' => 'Content', 'actions' => ['view', 'create', 'edit', 'delete']],

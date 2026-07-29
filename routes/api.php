@@ -60,6 +60,11 @@ Route::post('/whatsapp/gateway', [\App\Http\Controllers\Api\WhatsappGatewayContr
 
 // ---- Payment webhooks (public, no auth) ----
 Route::post('/webhooks/stripe', [WebhookController::class, 'stripe']);
+// ---- Public product sales link: the page payload and the buy action. Token-guarded, no login,
+//      same footing as the invoice pay-link above. ----
+Route::get('/p/{token}', [\App\Http\Controllers\ProductLinkController::class, 'payload']);
+Route::post('/p/{token}/order', [\App\Http\Controllers\ProductLinkController::class, 'order']);
+
 Route::post('/webhooks/paypal', [WebhookController::class, 'paypal']);
 Route::get('/dev/pay/{order}', [WebhookController::class, 'devPay']); // local-only
 

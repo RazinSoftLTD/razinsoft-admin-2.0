@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'Installation Plans')
+@section('title', 'Service Plans')
 
 @php
     $me = auth()->user();
@@ -17,7 +17,7 @@
 @section('content')
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">Installation Plans</h1>
+            <h1 class="text-xl font-bold text-[var(--color-heading)]">Service Plans</h1>
             <p class="mt-1 text-sm text-[var(--color-muted)]">Pick a product to build its plans and comparison matrix. The publish state controls whether the public Installation page shows it.</p>
         </div>
 
@@ -141,7 +141,7 @@
                                             </a>
                                             @if ($canDelete)
                                                 <form method="POST" action="{{ route('admin.installation-plans.products.destroy', $p) }}"
-                                                      onsubmit="return confirm('Remove “{{ $p->name }}” from the whole site (catalogue included), along with its installation plans? It can be restored by a developer.')">
+                                                      onsubmit="return confirm('Remove “{{ $p->name }}” from the whole site (catalogue included), along with its service plans? It can be restored by a developer.')">
                                                     @csrf @method('DELETE')
                                                     <button class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-gray-50">
                                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>Delete product

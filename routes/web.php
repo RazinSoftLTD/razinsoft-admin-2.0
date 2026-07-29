@@ -17,6 +17,10 @@ Route::get('invoice/pay/{token}/success', [InvoicePayController::class, 'success
 Route::get('invoice/pay/{token}/paypal', [InvoicePayController::class, 'paypal'])->name('pay.invoice.paypal');
 Route::get('invoice/pay/{token}/paypal/return', [InvoicePayController::class, 'paypalReturn'])->name('pay.invoice.paypal.return');
 
+// ---- Public product sales link (token-guarded, no login). The page lives on the frontend;
+//      this route exists so the share URL works if somebody pastes it at the backend host. ----
+Route::get('p/{token}', [\App\Http\Controllers\ProductLinkController::class, 'show'])->name('product.link');
+
 // ---- Client-facing PRD (token-guarded, no login). Clients submit only; review stays in the panel. ----
 Route::get('prd/{token}', [PublicPrdController::class, 'show'])->name('prd.public');
 Route::post('prd/{token}', [PublicPrdController::class, 'store'])->name('prd.public.store');
