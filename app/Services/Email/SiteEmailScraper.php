@@ -33,7 +33,7 @@ class SiteEmailScraper
         'pdf', 'zip', 'rar', 'mp4', 'mp3', 'avi', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
 
     /**
-     * @return array{emails: array<string, array{url: string, name: ?string}>, pages: int}
+     * @return array{emails: array<string, array{url: string, name: ?string}>, numbers: array<string, array{url: string, raw: string, whatsapp: bool}>, pages: int}
      */
     public function crawl(string $startUrl, int $maxPages = 25): array
     {
@@ -47,6 +47,7 @@ class SiteEmailScraper
         $queue = $this->seedQueue($start, $host);
         $visited = [];
         $emails = [];
+        $numbers = [];
         $pages = 0;
 
         while ($queue && $pages < $maxPages) {
@@ -69,12 +70,79 @@ class SiteEmailScraper
                 $emails[$email] ??= ['url' => $url, 'name' => $name];
             }
 
+            foreach ($this->extractNumbers($html) as $number => $meta) {
+                if (isset($numbers[$number])) {
+                    // A number found in plain text on one page and behind a wa.me link on another
+                    // is a WhatsApp number — the stronger signal wins wherever it turns up.
+                    $numbers[$number]['whatsapp'] = $numbers[$number]['whatsapp'] || $meta['whatsapp'];
+
+                    continue;
+                }
+                $numbers[$number] = $meta + ['url' => $url];
+            }
+
             if ($pages < $maxPages) {
                 $queue = $this->mergeLinks($queue, $visited, $html, $url, $host);
             }
         }
 
-        return ['emails' => $emails, 'pages' => $pages];
+        return ['emails' => $emails, 'numbers' => $numbers, 'pages' => $pages];
+    }
+
+    /**
+     * Phone numbers in the page, flagged with whether the site says they are on WhatsApp.
+     *
+     * Three sources, in descending confidence: wa.me / whatsapp:// links (WhatsApp, stated by the
+     * site), tel: links (a real number, WhatsApp unknown), and international-format numbers in the
+     * text. Plain text is the noisy one — prices, dates and order ids all look like digits — so it
+     * only accepts numbers written with a country code, and every candidate is then put through
+     * libphonenumber, which knows what a valid number looks like per country. Anything it rejects
+     * is dropped rather than guessed at.
+     *
+     * @return array<string, array{raw: string, whatsapp: bool}>
+     */
+    public function extractNumbers(string $html): array
+    {
+        $found = [];
+
+        $add = function (string $raw, bool $whatsapp) use (&$found) {
+            $parsed = \App\Support\Phone::normalize($raw);
+            if (! $parsed) {
+                return;
+            }
+            $e164 = $parsed['dial'].$parsed['number'];
+
+            if (isset($found[$e164])) {
+                $found[$e164]['whatsapp'] = $found[$e164]['whatsapp'] || $whatsapp;
+
+                return;
+            }
+            $found[$e164] = ['raw' => mb_substr(trim($raw), 0, 64), 'whatsapp' => $whatsapp];
+        };
+
+        // wa.me/8801…, api.whatsapp.com/send?phone=…, whatsapp://send?phone=…
+        if (preg_match_all('#(?:wa\.me/|api\.whatsapp\.com/send\?phone=|whatsapp://send\?phone=|web\.whatsapp\.com/send\?phone=)\+?([0-9]{6,20})#i', $html, $m)) {
+            foreach ($m[1] as $digits) {
+                $add('+'.$digits, true);
+            }
+        }
+
+        // tel: links — a number the site publishes, WhatsApp status unknown.
+        if (preg_match_all('/<a[^>]+href=["\']tel:([^"\']+)["\']/i', $html, $m)) {
+            foreach ($m[1] as $raw) {
+                $add(rawurldecode($raw), false);
+            }
+        }
+
+        // Plain text, international format only.
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5);
+        if (preg_match_all('/(?:\+|00)\d[\d\s\-().]{7,20}\d/', $text, $m)) {
+            foreach ($m[0] as $raw) {
+                $add($raw, false);
+            }
+        }
+
+        return $found;
     }
 
     /** Start page plus the usual contact paths, so a homepage with no links still yields something. */

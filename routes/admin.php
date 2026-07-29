@@ -831,6 +831,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('scraping/import', [$es, 'import'])->name('scraping.import');
         Route::get('scraping/export', [$es, 'export'])->name('scraping.export');
         Route::delete('scraping/{scrapedEmail}', [$es, 'destroy'])->whereNumber('scrapedEmail')->name('scraping.destroy');
+        Route::post('scraping/import-numbers', [$es, 'importNumbers'])->name('scraping.import-numbers');
+        Route::delete('scraping/numbers/{scrapedNumber}', [$es, 'destroyNumber'])->whereNumber('scrapedNumber')->name('scraping.numbers.destroy');
 
         $el = \App\Http\Controllers\Admin\EmailLogController::class;
         Route::get('queue', [$el, 'queue'])->name('queue');

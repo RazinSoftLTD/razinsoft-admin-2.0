@@ -7,6 +7,7 @@ use App\Jobs\ScrapeSiteEmails;
 use App\Models\EmailScrapeRun;
 use App\Models\EmailSuppression;
 use App\Models\ScrapedEmail;
+use App\Models\ScrapedNumber;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -35,13 +36,29 @@ class EmailScrapeController extends Controller
             ->latest('id')
             ->paginate(30)->withQueryString();
 
+        $numbers = ScrapedNumber::query()
+            ->when($request->filled('q'), fn ($q) => $q->where(fn ($w) => $w
+                ->where('number', 'like', '%'.$request->string('q').'%')
+                ->orWhere('domain', 'like', '%'.$request->string('q').'%')))
+            ->when($request->query('domain'), fn ($q, $d) => $q->where('domain', $d))
+            ->when($request->query('kind') === 'whatsapp', fn ($q) => $q->where('is_whatsapp', true))
+            ->when($request->query('imported') === 'yes', fn ($q) => $q->whereNotNull('imported_client_id'))
+            ->when($request->query('imported') === 'no', fn ($q) => $q->whereNull('imported_client_id'))
+            ->latest('id')
+            ->paginate(30, ['*'], 'numbers_page')->withQueryString();
+
         return view('admin.email.scraping', [
             'runs' => EmailScrapeRun::with('creator:id,name')->latest('id')->limit(10)->get(),
+            'show' => $request->query('show') === 'numbers' ? 'numbers' : 'emails',
             'emails' => $emails,
+            'numbers' => $numbers,
             'total' => ScrapedEmail::count(),
             'people' => ScrapedEmail::where('is_role_address', false)->count(),
             'imported' => ScrapedEmail::whereNotNull('imported_client_id')->count(),
-            'domains' => ScrapedEmail::whereNotNull('domain')->distinct()->orderBy('domain')->pluck('domain'),
+            'numbersTotal' => ScrapedNumber::count(),
+            'whatsappTotal' => ScrapedNumber::where('is_whatsapp', true)->count(),
+            'domains' => ScrapedEmail::whereNotNull('domain')->distinct()->orderBy('domain')->pluck('domain')
+                ->merge(ScrapedNumber::whereNotNull('domain')->distinct()->pluck('domain'))->unique()->sort()->values(),
         ]);
     }
 
@@ -131,6 +148,58 @@ class EmailScrapeController extends Controller
         return back()->with('status', $msg);
     }
 
+    /**
+     * Move numbers into the client book, so WhatsApp can reach them.
+     *
+     * Matched on the number, not the email: a scraped number usually has no address beside it, and
+     * the WhatsApp side of the panel works off the phone field.
+     */
+    public function importNumbers(Request $request)
+    {
+        $this->authorizeScraping($request);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'label' => ['required', 'string', 'max:60'],
+        ]);
+
+        $rows = ScrapedNumber::whereIn('id', $data['ids'])->whereNull('imported_client_id')->get();
+        $imported = 0;
+
+        foreach ($rows as $row) {
+            $client = User::where('phone', $row->number)->first();
+
+            if (! $client) {
+                $client = User::create([
+                    'name' => $row->name ?: $row->number,
+                    // Clients are keyed by email everywhere else, and a scraped number rarely comes
+                    // with one. A placeholder on an unroutable domain keeps the record valid without
+                    // ever looking like a real inbox someone could mail by mistake.
+                    'email' => 'wa-'.ltrim($row->number, '+').'@scraped.invalid',
+                    'phone' => $row->number,
+                    'role' => 'customer',
+                    'password' => bcrypt(Str::random(32)),
+                    'client_label' => $data['label'],
+                    'company' => $row->domain,
+                ]);
+            }
+
+            $row->update(['imported_client_id' => $client->id, 'imported_at' => now()]);
+            $imported++;
+        }
+
+        return back()->with('status', "{$imported} number(s) added to clients under \"{$data['label']}\".");
+    }
+
+    public function destroyNumber(Request $request, ScrapedNumber $scrapedNumber)
+    {
+        $this->authorizeScraping($request);
+        $scrapedNumber->delete();
+
+        return back()->with('status', 'Number removed.');
+    }
+
     public function destroy(Request $request, ScrapedEmail $scrapedEmail)
     {
         $this->authorizeScraping($request);
@@ -150,6 +219,12 @@ class EmailScrapeController extends Controller
             ->when($request->query('kind') === 'role', fn ($q) => $q->where('is_role_address', true))
             ->orderBy('id');
 
+        // Numbers export their own file — a single sheet mixing addresses and phone numbers is
+        // not something you can import anywhere.
+        if ($request->query('show') === 'numbers') {
+            return $this->exportNumbers($request);
+        }
+
         $name = 'scraped-emails-'.now()->format('Y-m-d').'.csv';
 
         return response()->streamDownload(function () use ($query) {
@@ -166,6 +241,28 @@ class EmailScrapeController extends Controller
             });
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv']);
+    }
+
+    private function exportNumbers(Request $request): StreamedResponse
+    {
+        $query = ScrapedNumber::query()
+            ->when($request->query('domain'), fn ($q, $d) => $q->where('domain', $d))
+            ->when($request->query('kind') === 'whatsapp', fn ($q) => $q->where('is_whatsapp', true))
+            ->orderBy('id');
+
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Number', 'On WhatsApp', 'Name', 'Domain', 'Source page', 'Found']);
+            $query->chunk(500, function ($rows) use ($out) {
+                foreach ($rows as $r) {
+                    fputcsv($out, [
+                        $r->number, $r->is_whatsapp ? 'Yes' : 'Unknown', $r->name, $r->domain,
+                        $r->source_url, optional($r->created_at)->format('Y-m-d H:i'),
+                    ]);
+                }
+            });
+            fclose($out);
+        }, 'scraped-numbers-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
     }
 
     /** Scraping rides on the send permission — collecting a list is only useful if you may mail it. */

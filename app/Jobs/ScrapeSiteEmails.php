@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\EmailScrapeRun;
 use App\Models\ScrapedEmail;
+use App\Models\ScrapedNumber;
 use App\Services\Email\SiteEmailScraper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -77,11 +78,40 @@ class ScrapeSiteEmails implements ShouldQueue
             $new++;
         }
 
+        $newNumbers = 0;
+
+        foreach ($result['numbers'] ?? [] as $number => $meta) {
+            $existing = ScrapedNumber::where('number', $number)->first();
+
+            if ($existing) {
+                $existing->update([
+                    'last_seen_at' => now(),
+                    // Only ever upgrade: a number confirmed on WhatsApp once stays confirmed.
+                    'is_whatsapp' => $existing->is_whatsapp || $meta['whatsapp'],
+                ]);
+
+                continue;
+            }
+
+            ScrapedNumber::create([
+                'number' => $number,
+                'raw' => $meta['raw'] ?? null,
+                'is_whatsapp' => $meta['whatsapp'] ?? false,
+                'domain' => $run->domain,
+                'source_url' => mb_substr($meta['url'] ?? $run->url, 0, 1024),
+                'run_id' => $run->id,
+                'last_seen_at' => now(),
+            ]);
+            $newNumbers++;
+        }
+
         $run->update([
             'status' => 'done',
             'pages_crawled' => $result['pages'],
             'emails_found' => count($result['emails']),
             'emails_new' => $new,
+            'numbers_found' => count($result['numbers'] ?? []),
+            'numbers_new' => $newNumbers,
             'finished_at' => now(),
         ]);
     }

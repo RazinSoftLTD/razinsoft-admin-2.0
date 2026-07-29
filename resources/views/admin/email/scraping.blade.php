@@ -45,8 +45,8 @@
                             <th class="px-5 py-3 font-semibold">Site</th>
                             <th class="px-5 py-3 font-semibold">Status</th>
                             <th class="px-5 py-3 text-right font-semibold">Pages</th>
-                            <th class="px-5 py-3 text-right font-semibold">Found</th>
-                            <th class="px-5 py-3 text-right font-semibold">New</th>
+                            <th class="px-5 py-3 text-right font-semibold">Emails</th>
+                            <th class="px-5 py-3 text-right font-semibold">Numbers</th>
                             <th class="px-5 py-3 font-semibold">Started</th>
                         </tr>
                     </thead>
@@ -64,8 +64,8 @@
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $tone }}">{{ ucfirst($run->status) }}</span>
                                 </td>
                                 <td class="px-5 py-3 text-right text-[var(--color-muted)]">{{ $run->pages_crawled }}</td>
-                                <td class="px-5 py-3 text-right text-[var(--color-muted)]">{{ $run->emails_found }}</td>
-                                <td class="px-5 py-3 text-right font-semibold text-[var(--color-heading)]">{{ $run->emails_new }}</td>
+                                <td class="px-5 py-3 text-right"><span class="font-semibold text-[var(--color-heading)]">{{ $run->emails_new }}</span><span class="text-xs text-[var(--color-muted)]"> / {{ $run->emails_found }}</span></td>
+                                <td class="px-5 py-3 text-right"><span class="font-semibold text-[var(--color-heading)]">{{ $run->numbers_new }}</span><span class="text-xs text-[var(--color-muted)]"> / {{ $run->numbers_found }}</span></td>
                                 <td class="px-5 py-3 text-[var(--color-muted)]">{{ optional($run->created_at)->diffForHumans() }}</td>
                             </tr>
                         @endforeach
@@ -79,6 +79,8 @@
     <div class="mb-6 flex flex-wrap gap-4">
         @foreach ([['Addresses', $total, 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]'],
                    ['People (not role)', $people, 'bg-emerald-50 text-emerald-600'],
+                   ['Numbers', $numbersTotal, 'bg-gray-100 text-gray-500'],
+                   ['On WhatsApp', $whatsappTotal, 'bg-emerald-50 text-emerald-600'],
                    ['Imported as clients', $imported, 'bg-sky-50 text-sky-600']] as [$label, $value, $tint])
             <div class="flex items-center gap-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
                 <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg {{ $tint }}">
@@ -92,6 +94,17 @@
         @endforeach
     </div>
 
+    {{-- Emails / numbers --}}
+    <div class="mb-4 flex gap-1 border-b border-gray-100">
+        @foreach ([['emails', 'Addresses', $total], ['numbers', 'Phone numbers', $numbersTotal]] as [$key, $label, $count])
+            <a href="{{ route('admin.email.scraping', array_merge(request()->only(['q', 'domain', 'imported']), ['show' => $key])) }}"
+               class="shrink-0 border-b-2 px-4 py-2.5 text-sm font-semibold transition {{ $show === $key ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
+                {{ $label }} <span class="text-xs">({{ number_format($count) }})</span>
+            </a>
+        @endforeach
+    </div>
+
+    @if ($show === 'emails')
     {{-- Collected addresses --}}
     <form method="POST" action="{{ route('admin.email.scraping.import') }}"
           x-data="{ picked: [], label: '' }"
@@ -221,6 +234,131 @@
             @csrf @method('DELETE')
         </form>
     @endforeach
+    @endif
+
+    @if ($show === 'numbers')
+    {{-- Collected phone numbers --}}
+    <form method="POST" action="{{ route('admin.email.scraping.import-numbers') }}"
+          x-data="{ picked: [], label: '' }"
+          @submit="if (!picked.length) { $event.preventDefault(); alert('Select at least one number.'); }">
+        @csrf
+
+        <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+            <div class="flex flex-wrap items-end justify-between gap-3 border-b border-gray-100 px-6 py-4">
+                <div>
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Phone numbers</h2>
+                    <p class="text-xs text-[var(--color-muted)]">
+                        Numbers behind a WhatsApp link are marked — the site is telling you they are reachable there.
+                        The rest are published phone numbers, which may be a landline.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-end gap-2">
+                    <input type="text" name="label" x-model="label" placeholder="Label, e.g. WA Prospects"
+                           class="h-10 rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                    <button type="submit"
+                            class="h-10 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                        Add <span x-text="picked.length"></span> to clients
+                    </button>
+                    <a href="{{ route('admin.email.scraping.export', array_merge(request()->only(['domain', 'kind']), ['show' => 'numbers'])) }}"
+                       class="h-10 rounded-lg border border-gray-200 px-4 text-sm font-semibold leading-10 text-[var(--color-muted)] hover:bg-gray-50">
+                        Export CSV
+                    </a>
+                </div>
+            </div>
+
+            <div class="border-b border-gray-100 px-6 py-3">
+                <form method="GET" class="flex flex-wrap items-end gap-2">
+                    <input type="hidden" name="show" value="numbers">
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Search number or site"
+                           class="h-9 w-56 rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                    <select name="domain" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                        <option value="">Every site</option>
+                        @foreach ($domains as $d)
+                            <option value="{{ $d }}" @selected(request('domain') === $d)>{{ $d }}</option>
+                        @endforeach
+                    </select>
+                    <select name="kind" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                        <option value="">All numbers</option>
+                        <option value="whatsapp" @selected(request('kind') === 'whatsapp')>On WhatsApp only</option>
+                    </select>
+                    <button class="h-9 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Filter</button>
+                    <a href="{{ route('admin.email.scraping', ['show' => 'numbers']) }}" class="h-9 rounded-lg border border-gray-200 px-4 text-sm font-semibold leading-9 text-[var(--color-muted)] hover:bg-gray-50">Clear</a>
+                </form>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
+                        <tr>
+                            <th class="px-5 py-3 font-semibold">
+                                <input type="checkbox" class="h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)]"
+                                       @change="picked = $event.target.checked ? [...$root.querySelectorAll('[data-pick]')].filter(c => !c.disabled).map(c => c.value) : []">
+                            </th>
+                            <th class="px-5 py-3 font-semibold">Number</th>
+                            <th class="px-5 py-3 font-semibold">Site</th>
+                            <th class="px-5 py-3 font-semibold">WhatsApp</th>
+                            <th class="px-5 py-3 font-semibold">Found on</th>
+                            <th class="px-5 py-3 text-right font-semibold"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse ($numbers as $row)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-5 py-3">
+                                    <input type="checkbox" name="ids[]" data-pick value="{{ $row->id }}" x-model="picked"
+                                           @disabled($row->imported_client_id)
+                                           class="h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)] disabled:opacity-40">
+                                </td>
+                                <td class="px-5 py-3">
+                                    <span class="block font-medium text-[var(--color-heading)]">{{ $row->number }}</span>
+                                    @if ($row->raw && $row->raw !== $row->number)
+                                        <span class="block text-xs text-[var(--color-muted)]">written as {{ $row->raw }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3 text-[var(--color-muted)]">{{ $row->domain ?: '—' }}</td>
+                                <td class="px-5 py-3">
+                                    @if ($row->is_whatsapp)
+                                        <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">On WhatsApp</span>
+                                    @else
+                                        <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">Unknown</span>
+                                    @endif
+                                    @if ($row->imported_client_id)
+                                        <span class="ml-1 inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-600">Imported</span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3">
+                                    @if ($row->source_url)
+                                        <a href="{{ $row->source_url }}" target="_blank" rel="noopener"
+                                           class="block max-w-xs truncate font-mono text-xs text-[var(--color-primary)] hover:underline">{{ $row->source_url }}</a>
+                                    @else
+                                        <span class="text-[var(--color-muted)]">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3 text-right">
+                                    <button type="button"
+                                            @click="if (confirm('Remove {{ $row->number }}?')) { document.getElementById('deln-{{ $row->id }}').submit(); }"
+                                            class="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Remove">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">No numbers collected yet.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-4">{{ $numbers->links() }}</div>
+    </form>
+
+    @foreach ($numbers as $row)
+        <form id="deln-{{ $row->id }}" method="POST" action="{{ route('admin.email.scraping.numbers.destroy', $row) }}" class="hidden">
+            @csrf @method('DELETE')
+        </form>
+    @endforeach
+    @endif
 
 </x-admin.email-shell>
 @endsection
