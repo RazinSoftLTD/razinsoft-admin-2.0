@@ -68,6 +68,9 @@
     $nav = [
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
+        // Sits above CRM: sending campaigns is this panel's main job, not a setting you visit once.
+        ['type' => 'link', 'label' => 'Email Manager', 'route' => 'admin.email.templates', 'active' => ['admin.email.templates*', 'admin.email.queue*', 'admin.email.logs*', 'admin.email.analytics*', 'admin.email.rules*', 'admin.email.campaigns*', 'admin.email.suppressions*'], 'perm' => 'email.templates', 'icon' => $ic['messaging']],
+
         // MARKETING BRANCH: Leads / Follow-ups / Deals / Tickets / Analytics removed — this
         // deployment is for the marketing team; only the client book stays.
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
@@ -101,11 +104,9 @@
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
-            // Split in two: Config is the SMTP plumbing, set up once; Email Manager is the daily
-            // sending desk (templates, queue, logs, analytics, rules, manual sends — and the
-            // scraping tools to come).
+            // Only the SMTP plumbing stays a setting; the sending desk (Email Manager) is a
+            // top-level entry above CRM.
             ['label' => 'Email Config', 'route' => 'admin.email.configs', 'active' => 'admin.email.configs*', 'perm' => 'email.configure', 'icon' => $ic['settings']],
-            ['label' => 'Email Manager', 'route' => 'admin.email.templates', 'active' => ['admin.email.templates*', 'admin.email.queue*', 'admin.email.logs*', 'admin.email.analytics*', 'admin.email.rules*', 'admin.email.campaigns*', 'admin.email.suppressions*'], 'perm' => 'email.templates', 'icon' => $ic['messaging']],
         ]],
     ];
 
