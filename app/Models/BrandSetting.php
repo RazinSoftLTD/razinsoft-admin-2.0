@@ -15,7 +15,14 @@ class BrandSetting extends Model
 {
     private const CACHE_KEY = 'brand.settings';
 
-    protected $fillable = ['product', 'tagline', 'logo', 'icon', 'primary', 'primary_hover'];
+    protected $fillable = [
+        'product', 'tagline', 'logo', 'icon', 'primary', 'primary_hover',
+        'company_name', 'support_email', 'phone', 'website_url', 'address',
+        'header_cta_label', 'header_cta_url', 'footer_about', 'footer_note',
+        'login_heading', 'login_subheading', 'social',
+    ];
+
+    protected $casts = ['social' => 'array'];
 
     public static function current(): self
     {
@@ -65,6 +72,96 @@ class BrandSetting extends Model
     public function primarySoftColour(): string
     {
         return $this->mixWithWhite($this->primaryColour(), 0.9);
+    }
+
+    // ----- Basic information -------------------------------------------------
+    // Each of these falls back to what the software shipped with. An operator who fills in three
+    // fields should not be punished with blanks for the ones they left alone.
+
+    public function companyName(): string
+    {
+        return $this->company_name ?: config('brand.vendor');
+    }
+
+    public function supportEmail(): string
+    {
+        return $this->support_email ?: config('brand.support_email');
+    }
+
+    public function phoneNumber(): ?string
+    {
+        return $this->phone ?: null;
+    }
+
+    public function websiteUrl(): string
+    {
+        return $this->website_url ?: config('brand.website');
+    }
+
+    public function addressText(): ?string
+    {
+        return $this->address ?: config('brand.address');
+    }
+
+    // ----- Website chrome ----------------------------------------------------
+
+    public function headerCtaLabel(): string
+    {
+        return $this->header_cta_label ?: 'Get Started';
+    }
+
+    public function headerCtaUrl(): string
+    {
+        return $this->header_cta_url ?: '/#pricing';
+    }
+
+    public function footerAbout(): string
+    {
+        return $this->footer_about ?: $this->taglineText();
+    }
+
+    public function footerNote(): ?string
+    {
+        return $this->footer_note ?: null;
+    }
+
+    public function loginHeading(): string
+    {
+        return $this->login_heading ?: 'Welcome back';
+    }
+
+    public function loginSubheading(): string
+    {
+        return $this->login_subheading ?: 'Sign in to your '.$this->productName().' account.';
+    }
+
+    /**
+     * Social links, blank ones dropped.
+     *
+     * An empty field means "we are not on that network", so it must not render as a dead icon —
+     * which is what happens if the view iterates the raw array.
+     *
+     * @return array<string, string>
+     */
+    public function socialLinks(): array
+    {
+        $saved = array_filter(is_array($this->social) ? $this->social : []);
+
+        if ($saved) {
+            return array_filter(array_map('trim', array_map('strval', $saved)));
+        }
+
+        // The shipped defaults are ['facebook' => ['label' => …, 'url' => …]]; the saved ones are a
+        // flat network => url map. Flatten so callers only ever meet one shape.
+        $shipped = [];
+        foreach ((array) config('brand.social', []) as $key => $value) {
+            $url = is_array($value) ? ($value['url'] ?? '') : (string) $value;
+            if (trim($url) !== '') {
+                $shipped[$key] = trim($url);
+            }
+        }
+
+        return $shipped;
     }
 
     private function assetUrl(?string $uploaded, ?string $shipped): ?string
