@@ -118,15 +118,11 @@
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
             ['label' => 'My Profile', 'route' => 'admin.my-profile.edit', 'active' => 'admin.my-profile.*', 'icon' => $ic['author']],
             ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'active' => 'admin.roles.*', 'admin' => true, 'icon' => $ic['roles']],
-            ['label' => 'CRM Settings', 'route' => 'admin.crm-settings', 'active' => 'admin.crm-settings*', 'perm' => 'leads.settings', 'icon' => $ic['crm']],
+            // MARKETING BRANCH: CRM / HR / Ticket / Invoice settings removed with their modules.
             ['label' => 'Project Config', 'route' => 'admin.project-config', 'active' => 'admin.project-config*', 'perm' => 'projects.settings', 'icon' => $ic['projects']],
-            ['label' => 'HR Settings', 'route' => 'admin.attendance.settings', 'active' => ['admin.attendance.settings', 'admin.attendance.devices'], 'perm' => 'attendance.settings', 'icon' => $ic['hr']],
-            ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
-            ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
-            ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
             ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
             ['label' => 'Meta Conversions API', 'route' => 'admin.meta-capi', 'active' => 'admin.meta-capi*', 'admin' => true, 'icon' => $ic['settings']],
