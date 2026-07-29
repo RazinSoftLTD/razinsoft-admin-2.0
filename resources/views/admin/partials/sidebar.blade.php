@@ -77,23 +77,10 @@
         ['type' => 'group', 'label' => 'Communication', 'icon' => $ic['chat'], 'items' => [
             ['label' => 'Messenger', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::whereIn('account_id', \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id'))->where('unread_count', '>', 0)->count() ?: null],
-            ['label' => 'Contact Us', 'route' => 'admin.messages.index', 'active' => 'admin.messages.*', 'perm' => 'messages.view', 'icon' => $ic['messaging'], 'badge' => \App\Models\ContactMessage::where('is_read', false)->count()],
-            ['label' => 'Meetings', 'route' => 'admin.meetings.index', 'active' => ['admin.meetings.index', 'admin.meetings.show'], 'perm' => 'meetings.view', 'icon' => $ic['meeting'], 'badge' => \App\Http\Controllers\Admin\MeetingController::unreadCount($user) ?: null],
         ]],
 
-        ['type' => 'group', 'label' => 'Workspace', 'icon' => $ic['workspace'], 'items' => [
-            ['label' => 'Projects', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'perm' => 'projects.view', 'icon' => $ic['projects']],
-            ['label' => 'Tasks', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*', 'perm' => 'projects.view', 'icon' => $ic['tasks'] ?? $ic['projects']],
-        ]],
-
-        ['type' => 'group', 'label' => 'Sales', 'icon' => $ic['orders'], 'items' => [
-            ['label' => 'Orders', 'route' => 'admin.orders.index', 'active' => 'admin.orders.*', 'perm' => 'orders.view', 'icon' => $ic['orders']],
-            ['label' => 'All Products', 'route' => 'admin.products.index', 'active' => 'admin.products.*', 'perm' => 'products.view', 'icon' => $ic['products']],
-            ['label' => 'Installation Plans', 'route' => 'admin.installation-plans', 'active' => 'admin.installation-plans*', 'perm' => 'installation_plans.view', 'icon' => $ic['tasks'] ?? $ic['products']],
-            ['label' => 'Coupons', 'route' => 'admin.coupons.index', 'active' => 'admin.coupons.*', 'perm' => 'coupons.view', 'icon' => $ic['coupons']],
-            ['label' => 'Reviews', 'route' => 'admin.reviews.index', 'active' => 'admin.reviews.*', 'perm' => 'reviews.view', 'icon' => $ic['reviews']],
-            ['label' => 'Questions', 'route' => 'admin.questions.index', 'active' => 'admin.questions.*', 'perm' => 'questions.view', 'icon' => $ic['questions'], 'badge' => \App\Models\ProductQuestion::whereDoesntHave('answers', fn ($a) => $a->where('is_admin', true))->count()],
-        ]],
+        // MARKETING BRANCH: Workspace (projects/tasks) and Sales (orders/products/coupons/
+        // reviews/questions) removed — this panel does not run delivery or the storefront.
 
         ['type' => 'group', 'label' => 'Marketing', 'icon' => $ic['marketing'], 'items' => [
             ['label' => 'Promotion', 'route' => 'admin.promotions.index', 'active' => 'admin.promotions.*', 'perm' => 'promotion.view', 'icon' => $ic['promotion']],
