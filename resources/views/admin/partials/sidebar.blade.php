@@ -76,6 +76,7 @@
             ['label' => 'Logs', 'route' => 'admin.email.logs', 'active' => ['admin.email.logs*', 'admin.email.suppressions*'], 'perm' => 'email.logs', 'icon' => $ic['reports']],
             ['label' => 'Notification Rules', 'route' => 'admin.email.rules', 'active' => 'admin.email.rules*', 'perm' => 'email.rules', 'icon' => $ic['settings']],
             ['label' => 'Analytics', 'route' => 'admin.email.analytics', 'active' => 'admin.email.analytics*', 'perm' => 'email.analytics', 'icon' => $ic['analytics']],
+            ['label' => 'Scraping', 'route' => 'admin.email.scraping', 'active' => 'admin.email.scraping*', 'perm' => 'email.send', 'icon' => $ic['searches']],
         ]],
 
         // MARKETING BRANCH: Leads / Follow-ups / Deals / Tickets / Analytics removed — this

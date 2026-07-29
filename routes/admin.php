@@ -824,6 +824,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('templates/{template}/send-test', [$et, 'sendTest'])->whereNumber('template')->name('templates.send-test');
         Route::post('templates/{template}/toggle', [$et, 'toggle'])->whereNumber('template')->name('templates.toggle');
 
+        // Scraping: collect published addresses from a site, then import the useful ones as clients.
+        $es = \App\Http\Controllers\Admin\EmailScrapeController::class;
+        Route::get('scraping', [$es, 'index'])->name('scraping');
+        Route::post('scraping', [$es, 'store'])->name('scraping.store');
+        Route::post('scraping/import', [$es, 'import'])->name('scraping.import');
+        Route::get('scraping/export', [$es, 'export'])->name('scraping.export');
+        Route::delete('scraping/{scrapedEmail}', [$es, 'destroy'])->whereNumber('scrapedEmail')->name('scraping.destroy');
+
         $el = \App\Http\Controllers\Admin\EmailLogController::class;
         Route::get('queue', [$el, 'queue'])->name('queue');
         Route::post('queue/retry-all', [$el, 'retryAll'])->name('queue.retry-all');
