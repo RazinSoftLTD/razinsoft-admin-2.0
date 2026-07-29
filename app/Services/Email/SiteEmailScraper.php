@@ -191,6 +191,19 @@ class SiteEmailScraper
     {
         $found = [];
 
+        // Cloudflare Email Obfuscation. Sites behind Cloudflare can have every address on the page
+        // replaced with <a class="__cf_email__" data-cfemail="<hex>">[email protected]</a>, decoded
+        // in the browser by a script — so the address is published, just not as text. Skipping this
+        // means reporting "no emails" for sites that plainly have one. The scheme is a XOR against
+        // the first byte, which is why it is a few lines rather than a dependency.
+        if (preg_match_all('/data-cfemail=["\']([a-f0-9]+)["\']/i', $html, $m)) {
+            foreach ($m[1] as $hex) {
+                if ($email = $this->clean($this->decodeCloudflare($hex))) {
+                    $found[$email] ??= null;
+                }
+            }
+        }
+
         // mailto: links — the anchor text is frequently the person's name.
         if (preg_match_all('/<a[^>]+href=["\']mailto:([^"\'?]+)[^>]*>(.*?)<\/a>/is', $html, $m, PREG_SET_ORDER)) {
             foreach ($m as $hit) {
@@ -233,6 +246,23 @@ class SiteEmailScraper
         return $found;
     }
 
+    /** Cloudflare's data-cfemail: hex bytes XORed with the first byte, which is the key. */
+    private function decodeCloudflare(string $hex): string
+    {
+        if (strlen($hex) < 4 || strlen($hex) % 2 !== 0) {
+            return '';
+        }
+
+        $key = hexdec(substr($hex, 0, 2));
+        $out = '';
+
+        for ($i = 2; $i < strlen($hex); $i += 2) {
+            $out .= chr(hexdec(substr($hex, $i, 2)) ^ $key);
+        }
+
+        return $out;
+    }
+
     /** Normalise, validate, and reject the addresses that are never people. */
     private function clean(string $raw): ?string
     {
@@ -247,8 +277,15 @@ class SiteEmailScraper
             return null;
         }
 
+        // Domains that only ever appear as filler: the demo credentials a product site prints
+        // (admin@admin.com), the "e.g." in a contact form (john@company.com), and the placeholders
+        // documentation uses. Real prospects are not on any of them.
         $domain = explode('@', $email)[1] ?? '';
-        if (in_array($domain, ['example.com', 'example.org', 'domain.com', 'email.com', 'sentry.io'], true)) {
+        if (in_array($domain, [
+            'example.com', 'example.org', 'example.net', 'domain.com', 'yourdomain.com',
+            'yoursite.com', 'company.com', 'yourcompany.com', 'email.com', 'admin.com',
+            'test.com', 'demo.com', 'sample.com', 'mysite.com', 'website.com', 'sentry.io',
+        ], true)) {
             return null;
         }
 
