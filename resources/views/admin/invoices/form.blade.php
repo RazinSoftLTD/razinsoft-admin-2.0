@@ -36,7 +36,9 @@
         terms: {{ Illuminate\Support\Js::from(old('terms', $invoice->terms ?? '')) }},
     })">
 
-    <form method="POST" action="{{ $invoice->exists ? route('admin.invoices.update', $invoice) : route('admin.invoices.store') }}" enctype="multipart/form-data">
+    {{-- The client lives in a hidden input now, and browsers skip validation on those — so the
+         "pick a client" stop that the old <select required> gave us is enforced here instead. --}}
+    <form method="POST" action="{{ $invoice->exists ? route('admin.invoices.update', $invoice) : route('admin.invoices.store') }}" enctype="multipart/form-data" @submit="guardSubmit($event)">
         @csrf
         @if ($invoice->exists) @method('PUT') @endif
         <input type="hidden" name="status" :value="status">
@@ -70,12 +72,36 @@
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Client <span class="text-red-500">*</span></label>
                             <div class="flex gap-2">
-                                <select name="client_id" x-model="clientId" x-ref="clientSelect" @change="pickClient()" required class="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                                    <option value="" disabled>Select a client…</option>
-                                    @foreach ($clients as $c)
-                                        <option value="{{ $c->id }}">{{ $c->name }}{{ $c->company ? ' — '.$c->company : '' }}</option>
-                                    @endforeach
-                                </select>
+                                {{-- Searchable client picker. A plain <select> is unusable at 900+ clients, so this
+                                     is a combobox over the same `clients` map the rest of the form reads — a client
+                                     added through "Add" lands in that map and is instantly selectable here too. --}}
+                                <div class="relative w-full" @click.outside="clientOpen = false" @keydown.escape="clientOpen = false">
+                                    <input type="hidden" name="client_id" :value="clientId">
+                                    <button type="button" @click="toggleClientPicker()"
+                                            class="flex h-11 w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 text-left text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                                        <span :class="!clientId && 'text-gray-400'" x-text="clientLabel"></span>
+                                        <svg class="h-4 w-4 shrink-0 text-gray-400 transition" :class="clientOpen && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div x-show="clientOpen" x-cloak class="absolute z-40 mt-1 w-full overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
+                                        <div class="p-2">
+                                            <input x-ref="clientSearch" x-model="clientQuery" @click.stop type="text" placeholder="Search name, company or email…"
+                                                   class="h-9 w-full rounded-lg border border-gray-200 px-2.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                        </div>
+                                        <div class="max-h-56 overflow-y-auto pb-1">
+                                            <template x-for="c in shownClients" :key="c.id">
+                                                <button type="button" @click="selectClient(c.id)"
+                                                        class="flex w-full items-center px-3 py-1.5 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50"
+                                                        :class="String(c.id) === String(clientId) && 'bg-[var(--color-primary-soft)]'"
+                                                        x-text="clientOptionLabel(c)"></button>
+                                            </template>
+                                            <p x-show="!shownClients.length" class="px-3 py-2 text-sm text-gray-400">No match found.</p>
+                                            {{-- Rendering 900 rows on every open is what makes such a list feel broken. --}}
+                                            <p x-show="matchedClients.length > shownClients.length" x-cloak class="px-3 py-2 text-xs text-gray-400">
+                                                Showing <span x-text="shownClients.length"></span> of <span x-text="matchedClients.length"></span> — keep typing to narrow.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                                 <button type="button" @click="qa.open = true" class="h-11 shrink-0 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">Add</button>
                             </div>
                         </div>
@@ -439,6 +465,42 @@ function invoiceForm(cfg) {
             const c = this.clients[this.clientId];
             this.bill = c ? { name: c.name, company: c.company, email: c.email, phone: c.phone, address: c.address } : { name: '', company: '', email: '', phone: '', address: '' };
         },
+        // ---- client picker (searchable) ----
+        clientOpen: false,
+        clientQuery: '',
+        clientOptionLabel(c) { return c.name + (c.company ? ' — ' + c.company : ''); },
+        get clientLabel() {
+            const c = this.clients[this.clientId];
+            return c ? this.clientOptionLabel(c) : 'Select a client…';
+        },
+        // Name, company and email all match — staff look clients up by whichever they have to hand.
+        get matchedClients() {
+            const all = Object.values(this.clients);
+            const q = this.clientQuery.trim().toLowerCase();
+            if (!q) return all;
+            return all.filter((c) => `${c.name || ''} ${c.company || ''} ${c.email || ''}`.toLowerCase().includes(q));
+        },
+        // Capped: building every row on each open is what makes a long list feel frozen.
+        get shownClients() { return this.matchedClients.slice(0, 100); },
+        toggleClientPicker() {
+            this.clientOpen = !this.clientOpen;
+            if (this.clientOpen) {
+                this.clientQuery = '';
+                this.$nextTick(() => this.$refs.clientSearch?.focus());
+            }
+        },
+        selectClient(id) {
+            this.clientId = String(id);
+            this.clientOpen = false;
+            this.clientQuery = '';
+            this.pickClient();
+        },
+        guardSubmit(e) {
+            if (this.clientId) return;
+            e.preventDefault();
+            this.clientOpen = true;
+            this.$nextTick(() => this.$refs.clientSearch?.focus());
+        },
         // ---- items ----
         addItem() { this.items.push({ description: '', sub_description: '', qty: 1, unit: this.defaultUnit, unit_price: 0, discount_percent: 0, taxIds: [], attachment: null }); },
         removeItem(i) { this.items.splice(i, 1); },
@@ -498,11 +560,9 @@ function invoiceForm(cfg) {
                     this.qa.saving = false; return;
                 }
                 const c = await res.json();
+                // The picker renders straight from this map, so the new client is selectable at once.
                 this.clients[c.id] = c;
-                const opt = document.createElement('option');
-                opt.value = c.id; opt.textContent = c.name + (c.company ? ' — ' + c.company : '');
-                this.$refs.clientSelect.appendChild(opt);
-                this.clientId = String(c.id); this.pickClient();
+                this.selectClient(c.id);
                 this.qa = { open: false, name: '', email: '', company: '', saving: false, error: '' };
             } catch (e) { this.qa.error = 'Something went wrong. Please try again.'; this.qa.saving = false; }
         },
