@@ -17,7 +17,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class ClientInvoiceController extends Controller
 {
@@ -366,7 +365,10 @@ class ClientInvoiceController extends Controller
             'bill_to_company' => $client?->company,
             'bill_to_email' => $client?->email,
             'bill_to_phone' => $client?->phone,
-            'bill_to_address' => $this->billingAddress($data, $client, $request),
+            // Not collected on the admin form. Use the client's saved address if they have one;
+            // otherwise keep whatever the invoice already carries — an address the client entered on
+            // the payment page is filed against the client, so this preserves it on later edits.
+            'bill_to_address' => $client?->billingAddressLine() ?: $invoice->bill_to_address,
             'invoice_date' => $data['invoice_date'],
             'due_date' => $data['due_date'] ?? null,
             'currency' => $data['currency'],
@@ -471,39 +473,6 @@ class ClientInvoiceController extends Controller
             });
     }
 
-    /**
-     * The address to bill. A per-invoice address entered on the form wins; otherwise the client's
-     * saved one. When the form asks, the entered address is also written back to the client so the
-     * next invoice already has it.
-     */
-    private function billingAddress(array $data, ?User $client, Request $request): ?string
-    {
-        $parts = [
-            'address' => $data['bill_address'] ?? null,
-            'city' => $data['bill_city'] ?? null,
-            'state' => $data['bill_state'] ?? null,
-            'country' => $data['bill_country'] ?? null,
-            'zip' => $data['bill_zip'] ?? null,
-        ];
-
-        if (filled($parts['address'])) {
-            if ($client && $request->boolean('save_billing_to_client')) {
-                $client->forceFill($parts)->save();
-            }
-
-            return collect($parts)->filter()->join(', ');
-        }
-
-        return $client?->billingAddressLine();
-    }
-
-    /** Whether the client picked on this request already has an address to bill. */
-    private function clientHasBillingAddress(Request $request): bool
-    {
-        $client = User::find($request->input('client_id'));
-
-        return $client ? filled($client->billingAddressLine()) : false;
-    }
 
     private function validated(Request $request): array
     {
@@ -519,20 +488,9 @@ class ClientInvoiceController extends Controller
             'discount_type' => ['nullable', 'in:flat,percent'],
             'discount_value' => ['nullable', 'numeric', 'min:0', 'required_with:discount_type'],
             'attachment' => ['nullable', 'file', 'max:5120'],
-            // Billing address — Stripe will not take the payment without one.
-            // Required unless the client already has one — the browser hides the field in that
-            // case, but a request that skips it must not create an unbillable invoice either.
-            'bill_address' => [
-                Rule::requiredIf(fn () => ! $this->clientHasBillingAddress($request)),
-                'nullable', 'string', 'max:255',
-            ],
-            'bill_city' => ['nullable', 'string', 'max:120'],
-            'bill_state' => ['nullable', 'string', 'max:120'],
-            'bill_zip' => ['nullable', 'string', 'max:20'],
-            'bill_country' => [
-                Rule::requiredIf(fn () => ! $this->clientHasBillingAddress($request)),
-                'nullable', 'string', 'max:120',
-            ],
+            // Billing address is not collected on this form. An invoice can be raised without one;
+            // when it has none the client supplies it on the payment link page before paying, and
+            // the payment gateway is still gated on it there (see needsBillingAddress()).
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.sub_description' => ['nullable', 'string', 'max:5000'],

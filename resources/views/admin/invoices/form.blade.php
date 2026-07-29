@@ -4,12 +4,9 @@
 @php
     $clientsJson = $clients->keyBy('id')->map(fn ($c) => [
         'id' => $c->id, 'name' => $c->name, 'company' => $c->company, 'email' => $c->email, 'phone' => $c->phone,
-        // Resolved by the model, so an address the customer saved in their own dashboard counts.
-        // Reading users.* here is what made three of four such clients look address-less.
+        // Shown read-only in the "Bill To" preview. Resolved by the model so an address the customer
+        // saved in their own dashboard counts. Not editable here — the payment page collects it.
         'address' => $c->billing_address,
-        // Kept apart as well: the billing block prefills each field and Stripe wants them separate.
-        'parts' => ['address' => $c->address, 'city' => $c->city, 'state' => $c->state, 'zip' => $c->zip, 'country' => $c->country],
-        'hasAddress' => filled($c->billing_address),
     ]);
     $unitNames = collect($units)->pluck('name')->values();
     $taxesJson = collect($taxes)->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'rate' => (float) $t->rate, 'label' => $t->label]);
@@ -83,51 +80,9 @@
                             </div>
                         </div>
                     </div>
-                    {{-- Billing address. Stripe needs one to take the payment, so it is required: the
-                         client's saved address is used by default, and editing it here can also be
-                         written back as their default. --}}
-                    <div class="mt-5 rounded-lg border border-gray-100 bg-gray-50 p-4" x-show="clientId" x-cloak>
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p class="text-sm font-semibold text-[var(--color-heading)]">Billing address <span class="text-red-500">*</span></p>
-                            <label class="flex items-center gap-2 text-xs text-[var(--color-muted)]" x-show="clientHasAddress">
-                                <input type="checkbox" x-model="billOverride" class="h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)]">
-                                Use a different address for this invoice
-                            </label>
-                        </div>
-
-                        {{-- The saved one, shown as-is until you choose to change it. --}}
-                        <p x-show="clientHasAddress && !billOverride" class="mt-2 text-sm text-[var(--color-heading)]" x-text="bill.address"></p>
-                        <p x-show="!clientHasAddress" class="mt-2 text-xs text-amber-700" x-cloak>
-                            This client has no billing address yet — add one below. It will be saved to the client too.
-                        </p>
-
-                        <div x-show="!clientHasAddress || billOverride" x-cloak class="mt-3 grid gap-3 sm:grid-cols-2">
-                            <div class="sm:col-span-2">
-                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Street address <span class="text-red-500">*</span></label>
-                                <input type="text" name="bill_address" x-model="billParts.address" :required="!clientHasAddress || billOverride" maxlength="255" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">City</label>
-                                <input type="text" name="bill_city" x-model="billParts.city" maxlength="120" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">State / Region</label>
-                                <input type="text" name="bill_state" x-model="billParts.state" maxlength="120" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Postal code</label>
-                                <input type="text" name="bill_zip" x-model="billParts.zip" maxlength="20" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-[var(--color-muted)]">Country <span class="text-red-500">*</span></label>
-                                <input type="text" name="bill_country" x-model="billParts.country" :required="!clientHasAddress || billOverride" maxlength="120" class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-                            </div>
-                            <label class="flex items-center gap-2 text-xs text-[var(--color-muted)] sm:col-span-2">
-                                <input type="checkbox" name="save_billing_to_client" value="1" x-model="saveBillingToClient" class="h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)]">
-                                Save this as the client's billing address
-                            </label>
-                        </div>
-                    </div>
+                    {{-- Billing address is not collected here. An invoice can be raised without one;
+                         when it has none the client supplies it on the payment link page before paying
+                         (see pages/invoice/pay/[token].vue → needsAddress). --}}
 
                     <div class="mt-5 grid gap-5 sm:grid-cols-3">
                         <div>
@@ -475,22 +430,14 @@ function invoiceForm(cfg) {
         invoiceNumber: cfg.invoiceNumber, invoiceDate: cfg.invoiceDate, dueDate: cfg.dueDate, amountPaid: cfg.amountPaid, status: cfg.status,
         discountType: cfg.discountType || '', discountValue: cfg.discountValue || 0,
         notes: cfg.notes || '', terms: cfg.terms || '',
+        // Read-only "Bill To" preview only. Billing address is collected on the payment page, not here.
         bill: { name: '', company: '', email: '', phone: '', address: '' },
-        billParts: { address: '', city: '', state: '', zip: '', country: '' },
-        clientHasAddress: false,
-        billOverride: false,
-        saveBillingToClient: false,
         dragFrom: null,
         qa: { open: false, name: '', email: '', company: '', saving: false, error: '' },
         init() { this.pickClient(); },
         pickClient() {
             const c = this.clients[this.clientId];
             this.bill = c ? { name: c.name, company: c.company, email: c.email, phone: c.phone, address: c.address } : { name: '', company: '', email: '', phone: '', address: '' };
-            this.clientHasAddress = !!(c && c.hasAddress);
-            this.billParts = c ? { ...c.parts } : { address: '', city: '', state: '', zip: '', country: '' };
-            // A client with nothing saved must supply one, and it is worth keeping.
-            this.billOverride = false;
-            this.saveBillingToClient = !this.clientHasAddress;
         },
         // ---- items ----
         addItem() { this.items.push({ description: '', sub_description: '', qty: 1, unit: this.defaultUnit, unit_price: 0, discount_percent: 0, taxIds: [], attachment: null }); },
