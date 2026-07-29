@@ -45,6 +45,17 @@
                 <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($totalLogins) }}</p>
             </div>
         </div>
+        {{-- Counts only the clients on this page — an active session is looked up per listed client. --}}
+        <div class="flex items-center gap-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/></svg>
+            </span>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Signed in now</p>
+                <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($activeSessions->count()) }}</p>
+                <p class="text-xs text-[var(--color-muted)]">of {{ $clients->count() }} on this page</p>
+            </div>
+        </div>
     </div>
 
     {{-- Client list --}}
@@ -54,10 +65,10 @@
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
                     <tr>
                         <th class="px-5 py-3 font-semibold">Client</th>
+                        <th class="px-5 py-3 font-semibold">Status</th>
                         <th class="px-5 py-3 font-semibold">Country</th>
                         <th class="px-5 py-3 font-semibold">Last page visited</th>
                         <th class="px-5 py-3 text-right font-semibold">Total visits</th>
-                        <th class="px-5 py-3 font-semibold">First seen</th>
                         <th class="px-5 py-3 font-semibold">Last seen</th>
                         <th class="px-5 py-3 text-right font-semibold"></th>
                     </tr>
@@ -67,6 +78,7 @@
                         @php
                             $client = $clientUsers[$row->client_id] ?? null;
                             $log = $lastRows[$row->last_id] ?? null;
+                            $active = $activeSessions[$row->client_id] ?? null;
                             $detailUrl = route('admin.client-activity.details', ['client' => $row->client_id]);
                         @endphp
                         <tr class="hover:bg-gray-50">
@@ -83,22 +95,45 @@
                                     </span>
                                 </a>
                             </td>
+                            <td class="px-5 py-3">
+                                @if ($active)
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
+                                        <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                                        Signed in
+                                    </span>
+                                    <span class="mt-0.5 block text-[11px] text-gray-400">{{ $active->sessions }} session(s)</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-400">Signed out</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $log->country ?: '—' }}</td>
                             <td class="px-5 py-3">
                                 <span class="font-medium text-[var(--color-heading)]">{{ $log->title ?: '—' }}</span>
                                 <span class="block font-mono text-xs text-[var(--color-primary)]">{{ $log->path ?? '' }}</span>
                             </td>
                             <td class="px-5 py-3 text-right"><span class="inline-flex rounded-full bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-xs font-bold text-[var(--color-primary)]">{{ number_format($row->visits) }}</span></td>
-                            <td class="px-5 py-3 text-[var(--color-muted)]">{{ \Illuminate\Support\Carbon::parse($row->first_seen)->format('d M Y, h:i A') }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">
                                 {{ \Illuminate\Support\Carbon::parse($row->last_seen)->format('d M Y, h:i A') }}
-                                <span class="block text-xs text-gray-400">{{ \Illuminate\Support\Carbon::parse($row->last_seen)->diffForHumans() }}</span>
+                                <span class="block text-xs text-gray-400">first seen {{ \Illuminate\Support\Carbon::parse($row->first_seen)->format('d M Y') }}</span>
                             </td>
-                            <td class="px-5 py-3 text-right">
-                                <a href="{{ $detailUrl }}" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:bg-gray-50">
-                                    History
-                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 18 6-6-6-6"/></svg>
-                                </a>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ $detailUrl }}" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:bg-gray-50">
+                                        History
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 18 6-6-6-6"/></svg>
+                                    </a>
+                                    {{-- Super admins only: this kicks a paying customer out of the website mid-visit. --}}
+                                    @if ($canSignOut && $active)
+                                        <form method="POST" action="{{ route('admin.client-activity.clients.logout', $row->client_id) }}"
+                                              onsubmit="return confirm('Sign {{ addslashes($client->name ?? 'this client') }} out of the website? They will have to log in again.')">
+                                            @csrf
+                                            <button type="submit" class="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12H3m0 0 4-4m-4 4 4 4M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg>
+                                                Sign out
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty

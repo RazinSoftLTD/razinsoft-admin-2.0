@@ -357,6 +357,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('client-activity/details', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'details'])->name('client-activity.details');
             Route::get('client-activity/errors', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'errors'])->name('client-activity.errors');
             Route::get('client-activity/clients', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'clients'])->name('client-activity.clients');
+            // Super-admin-only; the controller enforces that (permission alone is not enough here).
+            Route::post('client-activity/clients/{client}/logout', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'logoutClient'])->whereNumber('client')->name('client-activity.clients.logout');
         });
         // Blogs / Products share one route; the exact permission (activity.blogs / activity.products)
         // is checked in the controller since it depends on {type}.

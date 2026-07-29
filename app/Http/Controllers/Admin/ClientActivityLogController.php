@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClientActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Activity → Client: marketing-style report of website visitors.
@@ -182,15 +183,49 @@ class ClientActivityLogController extends Controller
         // The latest row per client carries the page/country to show alongside their totals.
         $lastRows = ClientActivityLog::whereIn('id', $clients->pluck('last_id'))->get()->keyBy('id');
 
+        // Who is signed in *right now*: clients log in through the API, so a live Sanctum token is
+        // the session. Without this the list only says who visited, not who is still in.
+        $ids = $clients->pluck('client_id');
+        $activeSessions = DB::table('personal_access_tokens')
+            ->where('tokenable_type', User::class)->whereIn('tokenable_id', $ids)
+            ->selectRaw('tokenable_id, COUNT(*) as sessions, MAX(last_used_at) as last_used')
+            ->groupBy('tokenable_id')->get()->keyBy('tokenable_id');
+
         return view('admin.client-activity.clients', [
             'clients' => $clients,
             'lastRows' => $lastRows,
+            'activeSessions' => $activeSessions,
+            'canSignOut' => (bool) $request->user()?->isSuperAdmin(),
             'clientUsers' => User::withTrashed()
-                ->whereIn('id', $clients->pluck('client_id'))
+                ->whereIn('id', $ids)
                 ->get(['id', 'name', 'email', 'photo'])->keyBy('id'),
             'totalClients' => (int) (clone $base)->distinct()->count('client_id'),
             'totalLogins' => (clone $base)->count(),
         ]);
+    }
+
+    /**
+     * Sign a client out of the website everywhere, from the Logged-in Clients list.
+     *
+     * Clients hold Sanctum tokens (the Nuxt site logs in through the API), so revoking those is what
+     * actually ends the session; the sessions row is cleared too in case they also have a cookie
+     * session. Super admins only — this kicks a paying customer out mid-visit.
+     */
+    public function logoutClient(Request $request, User $client)
+    {
+        abort_unless($request->user()->isSuperAdmin(), 403, 'Only a super admin can sign a client out.');
+
+        $tokens = $client->tokens()->count();
+        $client->tokens()->delete();
+
+        // Session rows are only touched when the table is the session store (it is: SESSION_DRIVER=database).
+        if (config('session.driver') === 'database') {
+            DB::table(config('session.table', 'sessions'))->where('user_id', $client->id)->delete();
+        }
+
+        return back()->with('status', $tokens
+            ? "{$client->name} has been signed out ({$tokens} session(s) ended)."
+            : "{$client->name} had no active session — nothing to sign out.");
     }
 
     /** Full history for one visitor — a client (by id) or an unknown visitor (by ip). */
