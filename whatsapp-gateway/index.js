@@ -451,3 +451,28 @@ function bootExisting() {
   for (const k of keys) start(k).catch((e) => log.error(`[${k}] ${e.message}`))
 }
 bootExisting()
+
+// ---- Watchdog: self-heal a poisoned process ----
+// A 405 close falls into the generic backoff branch and retries forever. When the process's
+// in-memory socket/libsignal state is poisoned, re-creating the socket in-process keeps hitting
+// 405 — only a fresh process recovers. So if no session is connected and at least one is stuck
+// in the reconnect loop, exit and let PM2 restart us clean (the proven fix for the stuck state).
+// Gated on "none connected" so a healthy gateway is never disrupted, and on a startup grace so a
+// fresh boot mid-handshake is not killed. A session parked at 'qr'/'disconnected' (logged out or
+// replaced) keeps attempts low, so a genuine re-link never triggers a restart loop.
+const WATCHDOG_EVERY_MS = 60_000
+const STUCK_ATTEMPTS = 10 // ~3+ min of continuous failed reconnects (backoff caps at 30s)
+const STARTUP_GRACE_MS = 180_000
+const STARTED_AT = Date.now()
+
+setInterval(() => {
+  const all = [...sessions.values()]
+  if (!all.length) return
+  const anyConnected = all.some((s) => s.state === 'connected')
+  const anyStuck = all.some((s) => (s.attempts || 0) >= STUCK_ATTEMPTS)
+  if (!anyConnected && anyStuck && Date.now() - STARTED_AT > STARTUP_GRACE_MS) {
+    const summary = all.map((s) => `${s.number || '?'}:${s.state}/${s.attempts || 0}`).join(' ')
+    log.error(`watchdog: no session connected and reconnects are stuck (${summary}); exiting for a clean PM2 restart.`)
+    process.exit(1)
+  }
+}, WATCHDOG_EVERY_MS).unref?.()
