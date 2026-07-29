@@ -14,11 +14,30 @@ use Illuminate\Support\Facades\Storage;
 
 class OrderController extends Controller
 {
-    public function index()
-    {
-        $orders = Order::with('user')->latest()->paginate(15);
+    /** Order statuses that mean the money never arrived — checkout started, payment never completed. */
+    private const UNPAID = ['pending', 'failed', 'cancelled'];
 
-        return view('admin.orders.index', compact('orders'));
+    public function index(Request $request)
+    {
+        $filter = $request->query('filter');
+
+        $orders = Order::with('user')
+            // "unpaid" is the list of customers to chase: the gateway only tells us about
+            // successful payments, so a checkout that failed, was cancelled or abandoned simply
+            // stays at its opening status. That is what this filter surfaces.
+            ->when($filter === 'unpaid', fn ($q) => $q->whereIn('status', self::UNPAID))
+            ->when($filter === 'paid', fn ($q) => $q->whereNotIn('status', self::UNPAID))
+            ->latest()->paginate(15)->withQueryString();
+
+        return view('admin.orders.index', [
+            'orders' => $orders,
+            'filter' => $filter,
+            'counts' => [
+                'all' => Order::count(),
+                'unpaid' => Order::whereIn('status', self::UNPAID)->count(),
+                'paid' => Order::whereNotIn('status', self::UNPAID)->count(),
+            ],
+        ]);
     }
 
     public function create()
