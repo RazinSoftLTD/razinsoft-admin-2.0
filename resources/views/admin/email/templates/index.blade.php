@@ -3,8 +3,8 @@
 
 @section('content')
     <div class="mb-5">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">Email Management</h1>
-        <p class="text-sm text-[var(--color-muted)]">The SMTP accounts this system sends through, and how mail is templated, queued and tracked.</p>
+        <h1 class="text-xl font-bold text-[var(--color-heading)]">Email Manager</h1>
+        <p class="text-sm text-[var(--color-muted)]">How mail is templated, queued, sent and tracked. SMTP accounts live under Email Config.</p>
     </div>
 
     @include('admin.email._nav')

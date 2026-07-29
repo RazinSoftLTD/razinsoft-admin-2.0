@@ -7,12 +7,12 @@
 @endphp
 
 @section('content')
+    {{-- Its own page now, not a tab of Email Manager: this is the plumbing (which SMTP accounts
+         mail leaves through), set up once, while Email Manager is the day-to-day sending. No
+         section heading — the topbar already names the page, and repeating it read as a stutter. --}}
     <div class="mb-5">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">Email Management</h1>
-        <p class="text-sm text-[var(--color-muted)]">The SMTP accounts this system sends through, and how mail is templated, queued and tracked.</p>
+        <p class="text-sm text-[var(--color-muted)]">The SMTP accounts this system sends through.</p>
     </div>
-
-    @include('admin.email._nav')
 
     <div x-data="emailConfigs()">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">

@@ -101,7 +101,11 @@
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
-            ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
+            // Split in two: Config is the SMTP plumbing, set up once; Email Manager is the daily
+            // sending desk (templates, queue, logs, analytics, rules, manual sends — and the
+            // scraping tools to come).
+            ['label' => 'Email Config', 'route' => 'admin.email.configs', 'active' => 'admin.email.configs*', 'perm' => 'email.configure', 'icon' => $ic['settings']],
+            ['label' => 'Email Manager', 'route' => 'admin.email.templates', 'active' => ['admin.email.templates*', 'admin.email.queue*', 'admin.email.logs*', 'admin.email.analytics*', 'admin.email.rules*', 'admin.email.campaigns*', 'admin.email.suppressions*'], 'perm' => 'email.templates', 'icon' => $ic['messaging']],
         ]],
     ];
 

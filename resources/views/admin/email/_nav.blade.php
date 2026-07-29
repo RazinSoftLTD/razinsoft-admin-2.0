@@ -1,9 +1,10 @@
-{{-- Email Management sub-navigation. Only the pages the user may open are shown, so the tab bar
-     never offers something that 403s. Pages still to come are marked so the menu reads honestly. --}}
+{{-- Email Manager sub-navigation. Only the pages the user may open are shown, so the tab bar
+     never offers something that 403s. Pages still to come are marked so the menu reads honestly.
+     Configuration is NOT a tab here — the SMTP accounts are their own sidebar entry (Email
+     Config), kept apart from the day-to-day sending tools. --}}
 @php
     $u = auth()->user();
     $tabs = [
-        ['label' => 'Configuration', 'route' => 'admin.email.configs', 'active' => 'admin.email.configs*', 'perm' => 'email.configure', 'ready' => true],
         ['label' => 'Templates', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.templates', 'ready' => true],
         ['label' => 'Queue', 'route' => 'admin.email.queue', 'active' => 'admin.email.queue*', 'perm' => 'email.queue', 'ready' => true],
         ['label' => 'Logs', 'route' => 'admin.email.logs', 'active' => 'admin.email.logs*', 'perm' => 'email.logs', 'ready' => true],
