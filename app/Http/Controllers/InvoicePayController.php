@@ -36,6 +36,8 @@ class InvoicePayController extends Controller
                 'address' => $invoice->bill_to_address,
                 // The page shows the form only when this is missing.
                 'has_address' => filled($invoice->bill_to_address),
+                // Older invoices are exempt; the page must not gate them.
+                'address_required' => $invoice->requiresBillingAddress(),
             ],
             'items' => $invoice->items->map(fn ($i) => [
                 'description' => $i->description,
@@ -161,7 +163,7 @@ class InvoicePayController extends Controller
         // gateway URLs are guessable from the token, and Stripe collecting an address at checkout
         // is not the same thing: that address never reaches the invoice, so the record we keep and
         // the receipt the payer gets would name different places.
-        abort_if(blank($invoice->bill_to_address), 409, 'This invoice needs a billing address before it can be paid.');
+        abort_if($invoice->needsBillingAddress(), 409, 'This invoice needs a billing address before it can be paid.');
 
         $amount = $invoice->payableAmount();
 
@@ -315,7 +317,7 @@ class InvoicePayController extends Controller
         // gateway URLs are guessable from the token, and Stripe collecting an address at checkout
         // is not the same thing: that address never reaches the invoice, so the record we keep and
         // the receipt the payer gets would name different places.
-        abort_if(blank($invoice->bill_to_address), 409, 'This invoice needs a billing address before it can be paid.');
+        abort_if($invoice->needsBillingAddress(), 409, 'This invoice needs a billing address before it can be paid.');
 
         $amount = $invoice->payableAmount();
 

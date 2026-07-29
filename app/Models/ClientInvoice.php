@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasPrivacy;
+use App\Support\InvoiceSerial;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class ClientInvoice extends Model
 {
@@ -30,7 +33,7 @@ class ClientInvoice extends Model
     {
         // Every invoice must have a pay-link token — never rely on the caller to set it.
         static::creating(function (self $invoice) {
-            $invoice->public_token = $invoice->public_token ?: \Illuminate\Support\Str::random(40);
+            $invoice->public_token = $invoice->public_token ?: Str::random(40);
         });
     }
 
@@ -65,13 +68,13 @@ class ClientInvoice extends Model
      */
     public static function nextNumber(): string
     {
-        return \App\Support\InvoiceSerial::next();
+        return InvoiceSerial::next();
     }
 
     /** The likely next number for display on the create form — does NOT consume the serial. */
     public static function previewNumber(): string
     {
-        return \App\Support\InvoiceSerial::peek();
+        return InvoiceSerial::peek();
     }
 
     /**
@@ -192,6 +195,32 @@ class ClientInvoice extends Model
     }
 
     /** Public pay page — served on the FRONTEND domain (website), not the admin. */
+    /**
+     * Whether this invoice has to carry a billing address before it can be paid.
+     *
+     * Only invoices raised on or after the cutoff. The ones that predate it were payable without
+     * one yesterday, and none of their clients has an address on file to copy across — so the
+     * choice was between freezing bills people are about to settle and inventing addresses onto
+     * financial records. Neither is worth it to collect a field retroactively.
+     */
+    public function requiresBillingAddress(): bool
+    {
+        $from = config('invoices.billing_address_required_from');
+
+        if (! $from) {
+            return true;
+        }
+
+        return $this->created_at !== null
+            && $this->created_at->gte(Carbon::parse($from));
+    }
+
+    /** Payable right now, or waiting on an address the payer still has to give us. */
+    public function needsBillingAddress(): bool
+    {
+        return $this->requiresBillingAddress() && blank($this->bill_to_address);
+    }
+
     public function payUrl(): string
     {
         return rtrim((string) config('services.frontend_url'), '/').'/invoice/pay/'.$this->public_token;
