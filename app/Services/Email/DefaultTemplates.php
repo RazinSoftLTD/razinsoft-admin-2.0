@@ -277,6 +277,23 @@ class DefaultTemplates
     private static function foodGetBody(): string
     {
         return <<<'HTML'
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="margin:0 0 22px;padding:0 0 16px;border-bottom:1px solid #e2e8f0">
+  <tr>
+    <td style="vertical-align:middle">
+      <a href="https://www.razinsoft.com" style="text-decoration:none;color:#0f172a">
+        <img src="{{company_logo}}" alt="{{company_name}}" width="150"
+             style="display:block;width:150px;max-width:60%;height:auto;border:0;
+                    font-size:19px;font-weight:700;color:#0f172a;text-decoration:none">
+      </a>
+    </td>
+    <td align="right" style="vertical-align:middle">
+      <a href="https://www.razinsoft.com"
+         style="font-size:13px;color:#64748b;text-decoration:none">www.razinsoft.com</a>
+    </td>
+  </tr>
+</table>
+
 <p style="margin:0 0 18px">Hello,</p>
 
 <p style="margin:0 0 18px">
