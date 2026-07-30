@@ -336,7 +336,7 @@ class DefaultTemplates
       <p style="margin:0 0 8px;font-size:13px;color:#64748b">Business Development Team</p>
       <p style="margin:0;font-size:13px;line-height:1.8;color:#334155">
         hello@razinsoft.com<br>
-        +880 1712 345 678<br>
+        <a href="tel:+8801711257498" style="color:#334155;text-decoration:none">+880 1711 257498</a><br>
         <a href="https://www.razinsoft.com" style="color:#334155">www.razinsoft.com</a>
       </p>
     </td>
