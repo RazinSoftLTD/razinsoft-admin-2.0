@@ -24,6 +24,11 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('maps-leads', [MapsLeadDashboardController::class, 'index'])->name('maps-leads.dashboard');
         Route::get('maps-leads/runs', [MapsLeadDashboardController::class, 'runs'])->name('maps-leads.runs');
+        // Poll target for the list's live indicator. Throttled because the page
+        // calls it on a timer for as long as it is left open.
+        Route::get('maps-leads/live', [MapsLeadDashboardController::class, 'live'])
+            ->middleware('throttle:120,1')
+            ->name('maps-leads.live');
         Route::get('maps-leads/export/csv', [MapsLeadDashboardController::class, 'exportCsv'])->name('maps-leads.export.csv');
         Route::patch('maps-leads/{lead}', [MapsLeadDashboardController::class, 'update'])->name('maps-leads.update');
     });

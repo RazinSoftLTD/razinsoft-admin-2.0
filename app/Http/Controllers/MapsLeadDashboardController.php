@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\MapsLeadsExport;
 use App\Models\MapsLead;
 use App\Models\MapsImportRun;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -59,6 +60,30 @@ class MapsLeadDashboardController extends Controller
     {
         return view('maps-leads.runs', [
             'runs' => MapsImportRun::query()->latest('id')->paginate(30),
+        ]);
+    }
+
+    /**
+     * Cheap poll target for the list's live indicator.
+     *
+     * Deliberately two aggregates and nothing else: the page asks every few
+     * seconds while a collection is running, so it must stay far cheaper than
+     * re-rendering the table. `latest` is what actually detects new arrivals -
+     * the count alone would miss an insert that coincided with a deletion.
+     *
+     * The same filters as the list are applied, so a filtered view only reports
+     * rows the operator would actually see.
+     */
+    public function live(Request $request): JsonResponse
+    {
+        $query = MapsLead::query()
+            ->search($request->query('q'))
+            ->filter($request->only(self::FILTER_KEYS));
+
+        return response()->json([
+            'total' => (clone $query)->count(),
+            'latest' => (clone $query)->max('id'),
+            'collecting' => MapsImportRun::where('last_seen_at', '>=', now()->subMinute())->exists(),
         ]);
     }
 

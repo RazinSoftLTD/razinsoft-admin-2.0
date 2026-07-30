@@ -41,6 +41,14 @@
         .rsm-dash .muted { color:var(--muted); }
         .rsm-dash .nowrap { white-space:nowrap; }
         .rsm-dash .toolbar { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+        .rsm-dash .live { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); cursor:pointer; }
+        .rsm-dash .rsm-pip { width:7px; height:7px; border-radius:50%; background:#cbd5e1; }
+        .rsm-dash .rsm-pip.on { background:var(--green); animation:rsm-blink 1.8s ease-in-out infinite; }
+        .rsm-dash .rsm-pip.busy { background:#f59e0b; }
+        @keyframes rsm-blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+        @media (prefers-reduced-motion: reduce) { .rsm-dash .rsm-pip.on { animation:none; } }
+        .rsm-dash .newbar { display:flex; align-items:center; gap:12px; margin-bottom:14px; padding:9px 12px;
+                            background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:13px; }
     </style>
 @endpush
 
@@ -48,8 +56,23 @@
     <div class="rsm-dash">
         <div class="toolbar">
             <a class="sub" href="{{ route('admin.maps-leads.runs') }}">Import history</a>
+
+            {{-- Live updates. On by default so a running collection is visible
+                 without touching anything; the choice is remembered per browser. --}}
+            <label class="live" title="Check for newly collected leads every few seconds">
+                <input type="checkbox" id="rsm-live" checked>
+                <span class="rsm-pip" id="rsm-pip"></span>
+                <span id="rsm-live-label">Live</span>
+            </label>
+
             <span style="flex:1"></span>
             <a class="btn" href="{{ route('admin.maps-leads.export.csv', request()->query()) }}">Export CSV</a>
+        </div>
+
+        {{-- Shown instead of yanking the page out from under the reader. --}}
+        <div class="newbar" id="rsm-newbar" hidden>
+            <span id="rsm-newbar-text"></span>
+            <button class="btn btn--primary" type="button" id="rsm-newbar-load">Show them</button>
         </div>
 
         @if (session('status'))
@@ -198,4 +221,105 @@
 
         <div style="margin-top:14px">{{ $leads->links() }}</div>
     </div>
+
+    <script>
+        /*
+         * Live updates for the lead list.
+         *
+         * Polls a count-only endpoint rather than re-rendering the table, and
+         * never reloads under the reader: when new leads appear it offers a
+         * button instead. The one exception is the top of page 1 with nothing
+         * selected, where a silent refresh is what someone watching a run
+         * actually wants.
+         *
+         * Polling backs off when the tab is hidden and stops on repeated
+         * failure, so a forgotten tab cannot sit there hammering the server.
+         */
+        (function () {
+            const pip = document.getElementById('rsm-pip');
+            const toggle = document.getElementById('rsm-live');
+            const label = document.getElementById('rsm-live-label');
+            const bar = document.getElementById('rsm-newbar');
+            const barText = document.getElementById('rsm-newbar-text');
+            const barLoad = document.getElementById('rsm-newbar-load');
+
+            const endpoint = @json(route('admin.maps-leads.live')) + window.location.search;
+            const onFirstPage = !new URLSearchParams(window.location.search).get('page');
+
+            let known = { total: {{ $leads->total() }}, latest: {{ $leads->first()->id ?? 'null' }} };
+            let failures = 0;
+            let timer = null;
+
+            const remember = (on) => { try { localStorage.setItem('rsm-live', on ? '1' : '0'); } catch (e) {} };
+            const recalled = () => { try { return localStorage.getItem('rsm-live') !== '0'; } catch (e) { return true; } };
+
+            function announce(total) {
+                const n = total - known.total;
+                barText.textContent = n > 0
+                    ? `${n} new lead${n === 1 ? '' : 's'} collected.`
+                    : 'The list has changed.';
+                bar.hidden = false;
+            }
+
+            async function poll() {
+                if (!toggle.checked) return;
+
+                try {
+                    const res = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+                    if (!res.ok) throw new Error(res.status);
+                    const data = await res.json();
+                    failures = 0;
+
+                    pip.className = 'rsm-pip ' + (data.collecting ? 'busy' : 'on');
+                    label.textContent = data.collecting ? 'Collecting' : 'Live';
+
+                    const changed = data.latest !== known.latest || data.total !== known.total;
+
+                    if (changed) {
+                        // Safe to refresh silently only if nothing would be lost.
+                        const undisturbed = onFirstPage
+                            && window.scrollY < 80
+                            && !document.querySelector('.rsm-dash select:focus, .rsm-dash input:focus');
+
+                        if (undisturbed) {
+                            window.location.reload();
+                            return;
+                        }
+                        announce(data.total);
+                    }
+                } catch (e) {
+                    // Server restarted, network blip, or the session expired.
+                    if (++failures >= 5) {
+                        toggle.checked = false;
+                        label.textContent = 'Live off';
+                        pip.className = 'rsm-pip';
+                        return;
+                    }
+                } finally {
+                    schedule();
+                }
+            }
+
+            function schedule() {
+                clearTimeout(timer);
+                if (!toggle.checked) return;
+                // Hidden tabs check rarely; a visible one keeps up with a run.
+                timer = setTimeout(poll, document.hidden ? 60000 : 8000);
+            }
+
+            toggle.checked = recalled();
+            toggle.addEventListener('change', () => {
+                remember(toggle.checked);
+                pip.className = 'rsm-pip' + (toggle.checked ? ' on' : '');
+                label.textContent = toggle.checked ? 'Live' : 'Live off';
+                if (toggle.checked) poll(); else clearTimeout(timer);
+            });
+
+            barLoad.addEventListener('click', () => window.location.reload());
+            document.addEventListener('visibilitychange', schedule);
+
+            pip.className = 'rsm-pip' + (toggle.checked ? ' on' : '');
+            schedule();
+        })();
+    </script>
 @endsection
