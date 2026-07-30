@@ -41,6 +41,11 @@ class MapsLeadDashboardController extends Controller
             'statuses' => MapsLead::STATUSES,
             'countries' => MapsLead::query()->whereNotNull('search_country')->distinct()->orderBy('search_country')->pluck('search_country'),
             'cities' => MapsLead::query()->whereNotNull('search_city')->distinct()->orderBy('search_city')->pluck('search_city'),
+            // The business categories actually collected, so the filter offers
+            // real choices instead of asking the operator to guess the wording.
+            'categories' => MapsLead::query()
+                ->whereNotNull('category')->where('category', '!=', '')
+                ->distinct()->orderBy('category')->pluck('category'),
             'summary' => [
                 'total' => MapsLead::count(),
                 'with_phone' => MapsLead::whereNotNull('phone')->where('phone', '!=', '')->count(),

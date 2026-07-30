@@ -84,7 +84,12 @@
                 </select>
             </label>
             <label>Category
-                <input type="text" name="category" value="{{ $filters['category'] ?? '' }}">
+                <select name="category">
+                    <option value="">All</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category }}" @selected(($filters['category'] ?? '') === $category)>{{ $category }}</option>
+                    @endforeach
+                </select>
             </label>
             <label>Status
                 <select name="status">
@@ -113,9 +118,11 @@
                 <thead>
                 <tr>
                     <th>Business</th>
+                    <th>Category</th>
                     <th>Contact</th>
                     <th>Location</th>
                     <th class="nowrap">Rating</th>
+                    <th class="nowrap">Created</th>
                     <th>Status</th>
                     <th></th>
                 </tr>
@@ -125,8 +132,18 @@
                     <tr>
                         <td>
                             <div class="name">{{ $lead->name }}</div>
-                            <div class="sub">{{ $lead->category }}</div>
                             <a class="sub" href="{{ $lead->maps_url }}" target="_blank" rel="noopener noreferrer">Open in Maps</a>
+                        </td>
+                        <td>
+                            @if ($lead->category)
+                                <span class="tag">{{ $lead->category }}</span>
+                            @else
+                                <span class="muted">-</span>
+                            @endif
+                            @if ($lead->search_category && $lead->search_category !== $lead->category)
+                                {{-- What was searched for, when Maps filed the business under something else. --}}
+                                <div class="sub">searched: {{ $lead->search_category }}</div>
+                            @endif
                         </td>
                         <td>
                             @if ($lead->phone)
@@ -152,6 +169,13 @@
                                 <span class="muted">-</span>
                             @endif
                         </td>
+                        <td class="nowrap">
+                            {{-- Exact date on hover; the relative line is what is usually wanted. --}}
+                            <div title="{{ $lead->created_at?->format('d M Y, g:i a') }}">
+                                {{ $lead->created_at?->format('d M Y') ?? '-' }}
+                            </div>
+                            <div class="sub">{{ $lead->created_at?->diffForHumans() }}</div>
+                        </td>
                         <td><span class="tag tag--{{ $lead->status }}">{{ ucfirst($lead->status) }}</span></td>
                         <td>
                             <form method="post" action="{{ route('admin.maps-leads.update', $lead) }}" style="display:flex;gap:5px">
@@ -166,7 +190,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="muted" style="padding:22px;text-align:center">No leads match these filters.</td></tr>
+                    <tr><td colspan="8" class="muted" style="padding:22px;text-align:center">No leads match these filters.</td></tr>
                 @endforelse
                 </tbody>
             </table>
