@@ -18,11 +18,6 @@
         .rsm-dash .card { padding:12px 14px; background:#fff; border:1px solid var(--line); border-radius:10px; }
         .rsm-dash .card b { display:block; font-size:22px; }
         .rsm-dash .card span { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
-        .rsm-dash form.filters { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-bottom:16px;
-                                 padding:14px; background:#fff; border:1px solid var(--line); border-radius:10px; }
-        .rsm-dash form.filters label { display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--muted);
-                                       text-transform:uppercase; letter-spacing:.4px; }
-        .rsm-dash input, .rsm-dash select { padding:6px 8px; border:1px solid var(--line); border-radius:7px; font:inherit; background:#fff; }
         .rsm-dash .btn { padding:7px 13px; border:1px solid var(--line); border-radius:7px; background:#fff;
                          font:inherit; font-weight:600; cursor:pointer; text-decoration:none; color:inherit; }
         .rsm-dash .btn--primary { background:var(--green); border-color:var(--green); color:#fff; }
@@ -53,7 +48,16 @@
 @endpush
 
 @section('content')
-    <div class="rsm-dash">
+    @php
+        // Drives the count badge on the Filters button, so it is obvious at a
+        // glance that a narrowed list is not the whole list.
+        $activeFilters = count(array_filter(
+            request()->only(['q', 'country', 'city', 'category', 'status', 'min_rating', 'min_reviews', 'has_phone', 'has_website', 'from', 'to']),
+            fn ($v) => $v !== null && $v !== '',
+        ));
+    @endphp
+
+    <div class="rsm-dash" x-data="{ filtersOpen: false }" @keydown.escape.window="filtersOpen = false">
         <div class="toolbar">
             <a class="sub" href="{{ route('admin.maps-leads.runs') }}">Import history</a>
 
@@ -66,6 +70,18 @@
             </label>
 
             <span style="flex:1"></span>
+
+            <button type="button" @click="filtersOpen = true"
+                    class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M6 12h12M9 18h6"/></svg>
+                Filters
+                @if ($activeFilters)<span class="grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1.5 text-[11px] font-bold text-white">{{ $activeFilters }}</span>@endif
+            </button>
+
+            @if ($activeFilters)
+                <a href="{{ route('admin.maps-leads.dashboard') }}" title="Clear filters" class="sub">Clear</a>
+            @endif
+
             <a class="btn" href="{{ route('admin.maps-leads.export.csv', request()->query()) }}">Export CSV</a>
         </div>
 
@@ -86,55 +102,6 @@
             <div class="card"><b>{{ number_format($summary['runs']) }}</b><span>Import runs</span></div>
         </div>
 
-        <form class="filters" method="get">
-            <label>Search
-                <input type="search" name="q" value="{{ $search }}" placeholder="name, phone, address">
-            </label>
-            <label>Country
-                <select name="country">
-                    <option value="">All</option>
-                    @foreach ($countries as $country)
-                        <option value="{{ $country }}" @selected(($filters['country'] ?? '') === $country)>{{ $country }}</option>
-                    @endforeach
-                </select>
-            </label>
-            <label>City
-                <select name="city">
-                    <option value="">All</option>
-                    @foreach ($cities as $city)
-                        <option value="{{ $city }}" @selected(($filters['city'] ?? '') === $city)>{{ $city }}</option>
-                    @endforeach
-                </select>
-            </label>
-            <label>Category
-                <select name="category">
-                    <option value="">All</option>
-                    @foreach ($categories as $category)
-                        <option value="{{ $category }}" @selected(($filters['category'] ?? '') === $category)>{{ $category }}</option>
-                    @endforeach
-                </select>
-            </label>
-            <label>Status
-                <select name="status">
-                    <option value="">All</option>
-                    @foreach ($statuses as $status)
-                        <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst($status) }}</option>
-                    @endforeach
-                </select>
-            </label>
-            <label>Min rating
-                <input type="number" name="min_rating" step="0.1" min="0" max="5" value="{{ $filters['min_rating'] ?? '' }}">
-            </label>
-            <label>Has phone
-                <select name="has_phone">
-                    <option value="">Any</option>
-                    <option value="1" @selected(($filters['has_phone'] ?? '') === '1')>Yes</option>
-                    <option value="0" @selected(($filters['has_phone'] ?? '') === '0')>No</option>
-                </select>
-            </label>
-            <button class="btn btn--primary" type="submit">Filter</button>
-            <a class="btn" href="{{ route('admin.maps-leads.dashboard') }}">Reset</a>
-        </form>
 
         <div class="wrap">
             <table>
@@ -220,6 +187,135 @@
         </div>
 
         <div style="margin-top:14px">{{ $leads->links() }}</div>
+
+        {{--
+          Filter drawer. Same shape as the CRM lead list's, so the two behave
+          identically: backdrop click, Escape, or the X closes it.
+
+          The fields were an inline bar above the table, which ran out of room
+          once there were seven of them and left the labels overlapping.
+        --}}
+        <div x-show="filtersOpen" x-cloak class="fixed inset-0 z-40">
+            <div x-show="filtersOpen" x-transition.opacity @click="filtersOpen = false" class="absolute inset-0 bg-black/30"></div>
+            <div x-show="filtersOpen"
+                 x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                 x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+                 class="absolute right-0 top-0 flex h-full w-80 max-w-full flex-col bg-white shadow-2xl">
+
+                <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Filter Maps Leads</h2>
+                    <button type="button" @click="filtersOpen = false" class="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                    </button>
+                </div>
+
+                <form id="maps-lead-filters" method="GET" class="flex-1 space-y-4 overflow-y-auto p-5">
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Search</label>
+                        <input type="search" name="q" value="{{ $search }}" placeholder="name, phone, address"
+                               class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Country</label>
+                        <select name="country" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                            <option value="">All countries</option>
+                            @foreach ($countries as $country)
+                                <option value="{{ $country }}" @selected(($filters['country'] ?? '') === $country)>{{ $country }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">City</label>
+                        <select name="city" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                            <option value="">All cities</option>
+                            @foreach ($cities as $city)
+                                <option value="{{ $city }}" @selected(($filters['city'] ?? '') === $city)>{{ $city }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Category</label>
+                        <select name="category" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                            <option value="">All categories</option>
+                            @foreach ($categories as $category)
+                                <option value="{{ $category }}" @selected(($filters['category'] ?? '') === $category)>{{ $category }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Status</label>
+                        <select name="status" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                            <option value="">All statuses</option>
+                            @foreach ($statuses as $status)
+                                <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst($status) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="border-t border-gray-100 pt-4">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Quality</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Min rating</label>
+                                <input type="number" name="min_rating" step="0.1" min="0" max="5" value="{{ $filters['min_rating'] ?? '' }}"
+                                       class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Min reviews</label>
+                                <input type="number" name="min_reviews" min="0" value="{{ $filters['min_reviews'] ?? '' }}"
+                                       class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Has phone</label>
+                            <select name="has_phone" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                                <option value="">Any</option>
+                                <option value="1" @selected(($filters['has_phone'] ?? '') === '1')>Yes</option>
+                                <option value="0" @selected(($filters['has_phone'] ?? '') === '0')>No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Has website</label>
+                            <select name="has_website" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                                <option value="">Any</option>
+                                <option value="1" @selected(($filters['has_website'] ?? '') === '1')>Yes</option>
+                                <option value="0" @selected(($filters['has_website'] ?? '') === '0')>No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100 pt-4">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Collected between</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">From</label>
+                                <input type="date" name="from" value="{{ $filters['from'] ?? '' }}"
+                                       class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">To</label>
+                                <input type="date" name="to" value="{{ $filters['to'] ?? '' }}"
+                                       class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="flex gap-3 border-t border-gray-100 p-5">
+                    <a href="{{ route('admin.maps-leads.dashboard') }}"
+                       class="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Reset</a>
+                    <button type="submit" form="maps-lead-filters"
+                            class="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Apply Filters</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
