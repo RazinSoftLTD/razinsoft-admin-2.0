@@ -279,34 +279,45 @@ class DefaultTemplates
         return <<<'HTML'
 <p style="margin:0 0 18px">Hello,</p>
 
-<p style="margin:0 0 18px">I came across <strong>{{business_name}}</strong> on Google Maps.</p>
-
 <p style="margin:0 0 18px">
-  <strong style="color:#2563eb">FoodGet</strong> is a restaurant management system that keeps
-  orders, billing and sales in one place.
+  I recently came across <strong>{{business_name}}</strong> and wanted to introduce
+  <strong style="color:#2563eb">FoodGet</strong>.
 </p>
 
-<p style="margin:0 0 26px">
-  May I share a quick
-  <a href="https://www.razinsoft.com" style="color:#2563eb;font-weight:700;text-decoration:underline">10-minute review</a>?
+<p style="margin:0 0 14px">
+  FoodGet is a complete Restaurant Management System designed to help restaurants
+  manage everything from one place, including:
 </p>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-       style="margin:0 0 26px;background:#eff6ff;border-radius:12px">
+       style="margin:0 0 22px;background:#eff6ff;border-radius:12px">
   <tr>
-    <td style="padding:18px 14px">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">POS &amp; Billing</td>
-          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">QR Menu</td>
-          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">Kitchen Display</td>
-          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">Reports</td>
-          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">Staff</td>
-        </tr>
-      </table>
+    <td style="padding:18px 22px;font-size:14px;line-height:2;color:#1e3a8a">
+      &#10004;&nbsp; POS &amp; Billing<br>
+      &#10004;&nbsp; Online Orders<br>
+      &#10004;&nbsp; Kitchen Management<br>
+      &#10004;&nbsp; Table Reservations<br>
+      &#10004;&nbsp; Inventory Management<br>
+      &#10004;&nbsp; Sales &amp; Financial Reports<br>
+      &#10004;&nbsp; Customer &amp; Loyalty Management
     </td>
   </tr>
 </table>
+
+<p style="margin:0 0 18px">
+  Whether you run a small cafe or a multi-branch restaurant, FoodGet helps save
+  time, reduce operational costs, and improve customer service.
+</p>
+
+<p style="margin:0 0 18px">
+  I would be glad to offer you a
+  <a href="https://www.razinsoft.com" style="color:#2563eb;font-weight:700;text-decoration:underline">live demo</a>
+  at no cost, so you can see how FoodGet simplifies your day-to-day operations.
+</p>
+
+<p style="margin:0 0 26px">
+  Would you be available for a quick <strong>10-minute demo</strong> this week?
+</p>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
        style="margin:0 0 26px;background:#ecfdf5;border-radius:12px">
@@ -332,8 +343,8 @@ class DefaultTemplates
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px">
   <tr>
     <td style="padding-left:14px;border-left:3px solid #2563eb">
-      <p style="margin:0 0 2px;font-size:16px;font-weight:700;color:#2563eb">{{company_name}}</p>
-      <p style="margin:0 0 8px;font-size:13px;color:#64748b">Business Development Team</p>
+      <p style="margin:0 0 2px;font-size:16px;font-weight:700;color:#2563eb">FoodGet Team</p>
+      <p style="margin:0 0 8px;font-size:13px;color:#64748b">{{company_name}} - Business Development</p>
       <p style="margin:0;font-size:13px;line-height:1.8;color:#334155">
         hello@razinsoft.com<br>
         <a href="tel:+8801711257498" style="color:#334155;text-decoration:none">+880 1711 257498</a><br>
