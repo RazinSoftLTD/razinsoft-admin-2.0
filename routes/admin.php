@@ -842,6 +842,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('logs/{log}/cancel', [$el, 'cancel'])->whereNumber('log')->name('logs.cancel');
         Route::post('logs/{log}/resend', [$el, 'resend'])->whereNumber('log')->name('logs.resend');
         Route::delete('logs/{log}', [$el, 'destroy'])->whereNumber('log')->name('logs.destroy');
+        // Outreach automation: the switches that drive lead emailing, which used
+        // to be reachable only through tinker.
+        $oa = \App\Http\Controllers\Admin\MapsOutreachController::class;
+        Route::get('automation', [$oa, 'edit'])->name('automation');
+        Route::put('automation', [$oa, 'update'])->name('automation.update');
+
         Route::get('suppressions', [$el, 'suppressions'])->name('suppressions');
         Route::post('suppressions', [$el, 'addSuppression'])->name('suppressions.store');
         Route::delete('suppressions/{suppression}', [$el, 'removeSuppression'])->whereNumber('suppression')->name('suppressions.destroy');

@@ -88,6 +88,26 @@
             ['label' => 'Import History', 'route' => 'admin.maps-leads.runs', 'active' => 'admin.maps-leads.runs', 'icon' => $ic['reports'] ?? $ic['analytics']],
         ]],
 
+        /*
+         * Everything to do with sending mail, in the order the work happens:
+         * write it, aim it, let it run, then read what came back.
+         *
+         * These pages existed already but only one of them was in the menu, so
+         * templates, campaigns, logs and analytics were reachable only by
+         * knowing the URL.
+         */
+        ['type' => 'group', 'label' => 'Email Manager', 'icon' => $ic['messaging'], 'items' => [
+            ['label' => 'Campaigns', 'route' => 'admin.email.campaigns', 'active' => 'admin.email.campaigns*', 'perm' => 'email.configure', 'icon' => $ic['marketing']],
+            ['label' => 'Templates', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.configure', 'icon' => $ic['article']],
+            ['label' => 'Automation', 'route' => 'admin.email.automation', 'active' => 'admin.email.automation*', 'perm' => 'email.configure', 'icon' => $ic['workspace']],
+            ['label' => 'Queue', 'route' => 'admin.email.queue', 'active' => 'admin.email.queue', 'perm' => 'email.configure', 'icon' => $ic['tasks']],
+            ['label' => 'Sent Log', 'route' => 'admin.email.logs', 'active' => 'admin.email.logs*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
+            ['label' => 'Analytics', 'route' => 'admin.email.analytics', 'active' => 'admin.email.analytics', 'perm' => 'email.configure', 'icon' => $ic['analytics']],
+            ['label' => 'Suppressions', 'route' => 'admin.email.suppressions', 'active' => 'admin.email.suppressions*', 'perm' => 'email.configure', 'icon' => $ic['separation']],
+            ['label' => 'Notification Rules', 'route' => 'admin.email.rules', 'active' => 'admin.email.rules*', 'perm' => 'email.configure', 'icon' => $ic['settings']],
+            ['label' => 'SMTP Accounts', 'route' => 'admin.email.configs', 'active' => 'admin.email.configs*', 'perm' => 'email.configure', 'icon' => $ic['country']],
+        ]],
+
         ['type' => 'group', 'label' => 'Communication', 'icon' => $ic['chat'], 'items' => [
             ['label' => 'Messenger', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::whereIn('account_id', \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id'))->where('unread_count', '>', 0)->count() ?: null],
@@ -169,7 +189,6 @@
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
             ['label' => 'Invoice Configuration', 'route' => 'admin.invoice-config', 'active' => 'admin.invoice-config*', 'perm' => 'invoices.configure', 'icon' => $ic['invoice']],
             ['label' => 'Trash', 'route' => 'admin.bin', 'active' => 'admin.bin*', 'admin' => true, 'icon' => $ic['settings']],
-            ['label' => 'Email Settings', 'route' => 'admin.email.configs', 'active' => 'admin.email.*', 'perm' => 'email.configure', 'icon' => $ic['messaging']],
             ['label' => 'Meta Conversions API', 'route' => 'admin.meta-capi', 'active' => 'admin.meta-capi*', 'admin' => true, 'icon' => $ic['settings']],
         ]],
     ];
