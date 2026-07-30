@@ -82,6 +82,10 @@
         // MARKETING BRANCH: Leads / Follow-ups / Deals / Tickets / Analytics removed — this
         // deployment is for the marketing team; only the client book stays.
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
+            // Collecting prospects is this panel's work, so Maps Leads stays. The CRM
+            // Leads/Follow-ups/Deals entries that sit beside it elsewhere do not — they were
+            // removed from this deployment and must not come back with it.
+            ['label' => 'Maps Leads', 'route' => 'admin.maps-leads.dashboard', 'active' => 'admin.maps-leads.*', 'icon' => $ic['country']],
             ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
         ]],
 

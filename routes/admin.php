@@ -929,3 +929,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
     });
 });
+
+// ---- Google Maps lead collector dashboard. Its own maps_* tables; unrelated
+//      to the CRM `leads` feature above. ----
+require __DIR__.'/web-leads.php';
