@@ -42,6 +42,7 @@
         .rsm-dash .rsm-pip.busy { background:#f59e0b; }
         @keyframes rsm-blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
         @media (prefers-reduced-motion: reduce) { .rsm-dash .rsm-pip.on { animation:none; } }
+        .rsm-dash .score { font-weight:700; font-size:14px; font-variant-numeric:tabular-nums; }
         .rsm-dash .eng { display:flex; flex-wrap:wrap; gap:4px; }
         .rsm-dash .eng__pill { padding:1px 6px; border-radius:999px; background:#eef2f7;
                                font-size:10px; font-weight:700; }
@@ -59,7 +60,7 @@
         // Drives the count badge on the Filters button, so it is obvious at a
         // glance that a narrowed list is not the whole list.
         $activeFilters = count(array_filter(
-            request()->only(['q', 'country', 'city', 'category', 'status', 'min_rating', 'min_reviews', 'has_phone', 'has_website', 'from', 'to', 'engagement']),
+            request()->only(['q', 'country', 'city', 'category', 'status', 'min_rating', 'min_reviews', 'has_phone', 'has_website', 'from', 'to', 'engagement', 'product']),
             fn ($v) => $v !== null && $v !== '',
         ));
     @endphp
@@ -75,6 +76,11 @@
                 <span class="rsm-pip" id="rsm-pip"></span>
                 <span id="rsm-live-label">Live</span>
             </label>
+
+            {{-- Turns the list into a work queue: highest-scoring prospects first. --}}
+            <a class="sub" href="{{ request()->fullUrlWithQuery(['sort' => $sort === 'score' ? null : 'score', 'page' => null]) }}">
+                @if ($sort === 'score')&#10003; @endif Best first
+            </a>
 
             <span style="flex:1"></span>
 
@@ -138,6 +144,10 @@
                             @else
                                 <span class="muted">-</span>
                             @endif
+                            @php $fit = $lead->product(); @endphp
+                            @if ($fit)
+                                <div class="sub" title="Prospect for this product">{{ $fit }}</div>
+                            @endif
                             @if ($lead->search_category && $lead->search_category !== $lead->category)
                                 {{-- What was searched for, when Maps filed the business under something else. --}}
                                 <div class="sub">searched: {{ $lead->search_category }}</div>
@@ -192,6 +202,7 @@
                         --}}
                         <td class="nowrap">
                             @php $eng = $lead->engagement(); @endphp
+                            <div class="score" title="How worth chasing: clicks, opens, reachability and how established the business is">{{ $lead->score }}</div>
                             @if ($eng['sent'] === 0)
                                 <span class="muted">not contacted</span>
                             @else
@@ -303,6 +314,17 @@
                             <option value="">All statuses</option>
                             @foreach ($statuses as $status)
                                 <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst($status) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Which of our products this lead's trade is a prospect for. --}}
+                    <div class="border-t border-gray-100 pt-4">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Product fit</label>
+                        <select name="product" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                            <option value="">Any product</option>
+                            @foreach ($products as $p)
+                                <option value="{{ $p }}" @selected(($filters['product'] ?? '') === $p)>{{ $p }}</option>
                             @endforeach
                         </select>
                     </div>

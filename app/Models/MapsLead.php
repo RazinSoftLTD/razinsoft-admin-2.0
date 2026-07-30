@@ -129,6 +129,104 @@ class MapsLead extends Model
         return $this->hasMany(MapsCollectionLog::class, 'lead_id');
     }
 
+    /* ------------------------------------------------ product fit + score -- */
+
+    /**
+     * Which product this lead's business category is a prospect for, or null.
+     * The mapping lives in config/maps-products.php.
+     */
+    public function product(): ?string
+    {
+        $category = mb_strtolower(trim((string) $this->category));
+        if ($category === '') {
+            return null;
+        }
+
+        $map = config('maps-products', []);
+
+        foreach ($map as $product => $categories) {
+            foreach ($categories as $candidate) {
+                if (mb_strtolower($candidate) === $category) {
+                    return $product;
+                }
+            }
+        }
+
+        /*
+         * Google files businesses under far more categories than we list -
+         * "Biryani restaurant" and "Biryani house" are both real, neither is in
+         * the map. So fall back to a containment match: a category that contains
+         * a known one is the same kind of business.
+         *
+         * Longest known category first, so "fast food restaurant" is preferred
+         * over the bare "restaurant" it contains.
+         */
+        $known = [];
+        foreach ($map as $product => $categories) {
+            foreach ($categories as $candidate) {
+                $known[mb_strtolower($candidate)] = $product;
+            }
+        }
+        uksort($known, fn ($a, $b) => mb_strlen($b) <=> mb_strlen($a));
+
+        foreach ($known as $candidate => $product) {
+            if (str_contains($category, $candidate)) {
+                return $product;
+            }
+        }
+
+        return null;
+    }
+
+    /** Restrict to leads whose category is a prospect for the given product. */
+    public function scopeProduct(Builder $query, ?string $product): Builder
+    {
+        $categories = config("maps-products.{$product}");
+
+        // An unknown product must not silently mean "everyone".
+        return $product ? $query->whereIn('category', $categories ?? ['\0']) : $query;
+    }
+
+    /**
+     * Add a `score` column ranking how worth chasing each lead is, and make it
+     * sortable.
+     *
+     * Weighted by how much each signal actually tells us:
+     *
+     *   clicked a link   50  they came to our site - the only proof of interest
+     *   opened           15  read it, did nothing yet
+     *   has an email     10  reachable at all without a phone call
+     *   has a website     8  a business that already buys software
+     *   has a phone       5  fallback channel
+     *   ratings        0-12  a busy, well-reviewed business can afford us
+     *
+     * Correlated subqueries rather than joins so the count stays right when a
+     * lead has several messages, and so the expression can be used in ORDER BY
+     * for a paginated list.
+     */
+    public function scopeWithScore(Builder $query): Builder
+    {
+        $logs = 'select coalesce(sum(%s), 0) from email_logs'
+            .' where email_logs.related_id = maps_leads.id'
+            ." and email_logs.related_type = '".addslashes(self::class)."'";
+
+        $clicks = sprintf($logs, 'click_count');
+        $opens = sprintf($logs, 'open_count');
+
+        return $query->select('maps_leads.*')->selectRaw(
+            '('
+            .' case when ('.$clicks.') > 0 then 50 else 0 end'
+            .' + case when ('.$opens.') > 0 then 15 else 0 end'
+            ." + case when email is not null and email != '' then 10 else 0 end"
+            ." + case when website is not null and website != '' then 8 else 0 end"
+            ." + case when phone is not null and phone != '' then 5 else 0 end"
+            .' + case when coalesce(rating, 0) >= 4 then 6 else 0 end'
+            .' + case when coalesce(review_count, 0) >= 50 then 6'
+            .'        when coalesce(review_count, 0) >= 10 then 3 else 0 end'
+            .') as score',
+        );
+    }
+
     /**
      * Every message sent to this lead, whether by the collector's automatic
      * outreach or by a campaign.

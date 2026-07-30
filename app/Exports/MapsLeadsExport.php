@@ -32,6 +32,7 @@ class MapsLeadsExport
             'Country', 'City', 'Search category', 'Search query',
             'Google Maps URL', 'Place key', 'Times seen', 'Status',
             'First run', 'Last run', 'Collected at', 'Created at',
+            'Product fit', 'Outreach sent at', 'Emails sent', 'Opens', 'Clicks',
         ];
     }
 
@@ -68,6 +69,12 @@ class MapsLeadsExport
             $lead->last_run_id,
             $lead->collected_at?->toDateTimeString(),
             $lead->created_at?->toDateTimeString(),
+            // Engagement, so the export can be worked offline as a call list.
+            $lead->product(),
+            $lead->outreach_sent_at?->toDateTimeString(),
+            $lead->engagement()['sent'],
+            $lead->engagement()['opens'],
+            $lead->engagement()['clicks'],
         ];
     }
 

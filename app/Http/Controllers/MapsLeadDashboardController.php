@@ -21,7 +21,7 @@ class MapsLeadDashboardController extends Controller
     private const FILTER_KEYS = [
         'country', 'city', 'category', 'status', 'run_id',
         'min_rating', 'min_reviews', 'has_phone', 'has_website', 'from', 'to',
-        'engagement',
+        'engagement', 'product',
     ];
 
     public function index(Request $request): View
@@ -29,13 +29,21 @@ class MapsLeadDashboardController extends Controller
         $filters = $request->only(self::FILTER_KEYS);
         $search = $request->query('q');
 
+        // "Best first" is what makes the list a work queue rather than a log:
+        // highest-scoring prospects at the top. Newest stays the default so a
+        // running collection still reads naturally.
+        $sort = $request->query('sort') === 'score' ? 'score' : 'newest';
+
         $leads = MapsLead::query()
             ->search($search)
             ->filter($filters)
+            ->product($filters['product'] ?? null)
+            ->withScore()
             // The Engagement column reads these; without it the list would run
             // a query per row.
             ->with('emailLogs:id,related_type,related_id,open_count,click_count,first_opened_at,first_clicked_at')
-            ->latest('id')
+            ->when($sort === 'score', fn ($q) => $q->orderByDesc('score')->orderByDesc('id'))
+            ->when($sort === 'newest', fn ($q) => $q->latest('maps_leads.id'))
             ->paginate(50)
             ->withQueryString();
 
@@ -44,6 +52,8 @@ class MapsLeadDashboardController extends Controller
             'filters' => $filters,
             'search' => $search,
             'statuses' => MapsLead::STATUSES,
+            'sort' => $sort,
+            'products' => array_keys(config('maps-products', [])),
             'countries' => MapsLead::query()->whereNotNull('search_country')->distinct()->orderBy('search_country')->pluck('search_country'),
             'cities' => MapsLead::query()->whereNotNull('search_city')->distinct()->orderBy('search_city')->pluck('search_city'),
             // The business categories actually collected, so the filter offers
