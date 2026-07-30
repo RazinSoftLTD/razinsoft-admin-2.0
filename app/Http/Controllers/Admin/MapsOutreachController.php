@@ -32,6 +32,7 @@ class MapsOutreachController extends Controller
             'countries' => MapsLead::query()
                 ->whereNotNull('search_country')->where('search_country', '!=', '')
                 ->distinct()->orderBy('search_country')->pluck('search_country'),
+            'products' => array_keys(config('maps-products', [])),
             'checks' => $this->readiness($settings),
             'funnel' => $this->funnel(),
         ]);
@@ -47,6 +48,8 @@ class MapsOutreachController extends Controller
             'email_config_id' => ['nullable', 'integer', 'exists:email_configs,id'],
             'daily_limit' => ['required', 'integer', 'min:1', 'max:2000'],
             'min_gap_seconds' => ['required', 'integer', 'min:10', 'max:3600'],
+            'product_templates' => ['nullable', 'array'],
+            'product_templates.*' => ['nullable', 'string', 'exists:email_templates,key'],
             'allowed_countries' => ['nullable', 'array'],
             'allowed_countries.*' => ['string', 'max:120'],
         ]);
@@ -61,6 +64,9 @@ class MapsOutreachController extends Controller
             'daily_limit' => $data['daily_limit'],
             'min_gap_seconds' => $data['min_gap_seconds'],
             'allowed_countries' => array_values(array_filter($data['allowed_countries'] ?? [])),
+            // Drop the blanks: an unmapped product falls back to the general
+            // template, which is not the same as mapping it to nothing.
+            'product_templates' => array_filter($data['product_templates'] ?? []),
         ]);
 
         return back()->with('status', 'Outreach settings saved.');

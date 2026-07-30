@@ -75,8 +75,12 @@ class SendMapsLeadOutreach implements ShouldQueue
             return;
         }
 
+        // The letter follows the trade: a pharmacy and a restaurant get different
+        // openings, because one message for both reads as a blast.
+        $template = $settings->templateFor($lead->product());
+
         $log = $mailer->sendTemplate(
-            $settings->template_key,
+            $template,
             $lead->email,
             $this->variables($lead),
             [
@@ -103,7 +107,7 @@ class SendMapsLeadOutreach implements ShouldQueue
             'run_id' => $lead->last_run_id,
             'level' => 'info',
             'event' => 'outreach.sent',
-            'message' => "Outreach queued to {$lead->email} ({$lead->name})",
+            'message' => "Outreach queued to {$lead->email} ({$lead->name}) using {$template}",
             'place_key' => $lead->place_key,
             'lead_id' => $lead->id,
         ]);

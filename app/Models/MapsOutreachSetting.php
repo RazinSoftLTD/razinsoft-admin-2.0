@@ -22,6 +22,7 @@ class MapsOutreachSetting extends Model
         'discover_emails' => 'boolean',
         'auto_send' => 'boolean',
         'allowed_countries' => 'array',
+        'product_templates' => 'array',
         'quota_date' => 'date',
         'last_sent_at' => 'datetime',
     ];
@@ -45,6 +46,37 @@ class MapsOutreachSetting extends Model
             'min_gap_seconds' => 90,
             'quota_used' => 0,
         ]);
+    }
+
+    /**
+     * The template to use for a lead in the given product line.
+     *
+     * A restaurant and a pharmacy should not receive the same letter, so each
+     * product maps to its own. Falls back to the general template when a product
+     * has no mapping, is unknown, or when the mapped template has since been
+     * switched off — a disabled template would otherwise silently stop that
+     * product's outreach with no indication why.
+     *
+     * @param  string|null  $product  from MapsLead::product()
+     */
+    public function templateFor(?string $product): string
+    {
+        $mapped = $product ? ($this->product_templates[$product] ?? null) : null;
+
+        if ($mapped && EmailTemplate::where('key', $mapped)->where('is_active', true)->exists()) {
+            return $mapped;
+        }
+
+        return $this->template_key;
+    }
+
+    /**
+     * The default template key for a product, used to pre-fill the mapping form.
+     * Matches the keys DefaultTemplates::mapsOutreach() ships.
+     */
+    public static function suggestedTemplate(string $product): string
+    {
+        return 'maps_outreach_'.str_replace([' & ', ' '], ['_', '_'], mb_strtolower($product));
     }
 
     /** Whether email lookups should run at all. */

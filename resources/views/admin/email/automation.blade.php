@@ -40,7 +40,8 @@
                     border-radius:9px; font-size:13px; }
         .oa .flash { margin-bottom:16px; padding:10px 13px; background:#dcfce7;
                      border-left:3px solid var(--green); border-radius:7px; font-size:13px; }
-        .oa .actions { margin-top:6px; }
+        .oa .tmap { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+        .oa .actions { margin-top:16px; }
         .oa .btn { padding:9px 18px; border:0; border-radius:8px; background:var(--green);
                    color:#fff; font:inherit; font-weight:600; cursor:pointer; }
     </style>
@@ -155,6 +156,10 @@
                         </select>
                     </label>
 
+                    <p style="margin:0 0 14px;font-size:12px;color:var(--muted)">
+                        Used when a lead's trade has no letter of its own below.
+                    </p>
+
                     <label class="field">
                         <span>Send from</span>
                         <select name="email_config_id">
@@ -189,6 +194,37 @@
                             strict about unsolicited mail.
                         </p>
                     @endif
+                </div>
+            </div>
+
+            {{--
+              One letter per product line. A restaurant owner and a pharmacist
+              recognise different problems, and a single message written for both
+              recognises neither - which is what makes it read as a blast.
+
+              A lead's product comes from its Google Maps category
+              (config/maps-products.php). Left blank, it gets the general
+              template above.
+            --}}
+            <div class="box" style="margin-top:16px">
+                <h2>A different letter per trade</h2>
+
+                <div class="tmap">
+                    @foreach ($products as $product)
+                        @php $suggested = \App\Models\MapsOutreachSetting::suggestedTemplate($product); @endphp
+                        <label class="field" style="margin:0">
+                            <span>{{ $product }}</span>
+                            <select name="product_templates[{{ $product }}]">
+                                <option value="">General template</option>
+                                @foreach ($templates as $t)
+                                    <option value="{{ $t->key }}"
+                                        @selected(($settings->product_templates[$product] ?? '') === $t->key)>
+                                        {{ $t->name }}{{ $t->key === $suggested ? ' - suggested' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </label>
+                    @endforeach
                 </div>
             </div>
 

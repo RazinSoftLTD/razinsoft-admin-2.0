@@ -19,7 +19,7 @@ class DefaultTemplates
      */
     public static function all(): array
     {
-        return [
+        return array_merge(self::mapsOutreach(), [
             // ---- Account -------------------------------------------------
             self::make('welcome_client', 'Welcome Email', 'Account',
                 'Welcome to {{company_name}}',
@@ -247,6 +247,295 @@ class DefaultTemplates
                 '<p>Hi {{customer_name}},</p>
                  <p>We have planned maintenance on <strong>{{maintenance_date}}</strong>, {{maintenance_window}}. The service may be briefly unavailable during that window.</p>
                  <p>{{maintenance_note}}</p>'),
+        ]);
+    }
+
+    /**
+     * One outreach template per product line.
+     *
+     * A restaurant and a pharmacy have nothing in common except that we sell to
+     * both, so a single letter for all of them reads as a blast and gets treated
+     * as one. Each of these opens on a problem that trade actually recognises,
+     * then says what we do about it in one line.
+     *
+     * Keys follow maps_outreach_<product>. MapsOutreachSetting maps a lead's
+     * product to one of these and falls back to maps_lead_outreach.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function mapsOutreach(): array
+    {
+        return [
+            self::make('maps_outreach_restaurant_management', 'Outreach: Restaurant Management', 'Marketing',
+                'Restaurant software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for Restaurant Management. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most restaurant owners we speak to are still taking orders on paper and adding up the takings by hand at closing.
+                    We build software that handles order taking, kitchen tickets, table billing and a daily sales figure you can trust.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_pos_inventory', 'Outreach: POS & Inventory', 'Marketing',
+                'POS software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for POS & Inventory. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most shop owners we speak to are still unable to say what is on the shelf without counting it.
+                    We build software that handles billing, live stock counts, purchase records and profit per item.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_ecommerce', 'Outreach: eCommerce', 'Marketing',
+                'eCommerce software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for eCommerce. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most business owners we speak to are still selling through a Facebook page and losing orders in the inbox.
+                    We build software that handles an online store with real orders, stock and delivery status in one place.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_pharmacy_management', 'Outreach: Pharmacy Management', 'Marketing',
+                'Pharmacy software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for Pharmacy Management. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most pharmacy owners we speak to are still tracking expiry dates and batch numbers across several registers.
+                    We build software that handles batch and expiry tracking, fast billing, and reorder alerts before a line runs out.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_hospital_management', 'Outreach: Hospital Management', 'Marketing',
+                'Hospital software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for Hospital Management. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most clinic owners we speak to are still keeping patient files in cabinets and appointments in a diary.
+                    We build software that handles patient records, appointments, billing and test reports in one system.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_school_management', 'Outreach: School Management', 'Marketing',
+                'School software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for School Management. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most school owners we speak to are still keeping attendance, fee collection and result sheets in separate books.
+                    We build software that handles admissions, attendance, fees, exams and results, with parents able to see progress.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_university_management', 'Outreach: University Management', 'Marketing',
+                'University software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for University Management. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most institution owners we speak to are still handling semester registration and results on spreadsheets.
+                    We build software that handles admissions, course registration, semester results and fee tracking.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_lms_training', 'Outreach: LMS & Training', 'Marketing',
+                'LMS software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for LMS & Training. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most centre owners we speak to are still tracking batches, who has paid, and who has fallen behind.
+                    We build software that handles online classes, course material, batch tracking and fee records.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_laundry_management', 'Outreach: Laundry Management', 'Marketing',
+                'Laundry software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for Laundry Management. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most laundry owners we speak to are still matching tickets to garments and remembering what is due when.
+                    We build software that handles order tickets, item tracking, pickup and delivery scheduling, and customer accounts.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_ride_sharing', 'Outreach: Ride Sharing', 'Marketing',
+                'Ride Sharing software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for Ride Sharing. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most service owners we speak to are still coordinating drivers and fares over phone calls.
+                    We build software that handles booking, driver assignment, live trip tracking and fare settlement.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_on-demand_services', 'Outreach: On-Demand Services', 'Marketing',
+                'On-Demand Services software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for On-Demand Services. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most business owners we speak to are still taking jobs by phone and juggling which staff member is free.
+                    We build software that handles job booking, staff scheduling, and a record of every customer served.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_garments_management', 'Outreach: Garments Management', 'Marketing',
+                'Garments software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for Garments Management. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most factory owners we speak to are still following an order through cutting, sewing and finishing on paper.
+                    We build software that handles order and production tracking by line, material planning, and delivery schedules.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_erp_manufacturing', 'Outreach: ERP & Manufacturing', 'Marketing',
+                'ERP software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for ERP & Manufacturing. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most business owners we speak to are still keeping production, stock, purchase and accounts in separate books.
+                    We build software that handles one system across production, inventory, purchase, sales and accounts.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_wellness_meditation', 'Outreach: Wellness & Meditation', 'Marketing',
+                'Wellness software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for Wellness & Meditation. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most studio owners we speak to are still tracking memberships and class bookings in a notebook.
+                    We build software that handles memberships, class schedules, bookings and renewal reminders.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+            self::make('maps_outreach_ai_digital_solutions', 'Outreach: AI & Digital Solutions', 'Marketing',
+                'AI software for {{business_name}}',
+                'Sent to Maps leads whose category is a prospect for AI & Digital Solutions. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}.</p>
+                 <p>Most business owners we speak to are still doing manual work that software could handle quietly in the background.
+                    We build software that handles custom software and AI automation built around how you already work.</p>
+                 <p>Is that costing you time at the moment? If so I can show you what we have
+                    built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
         ];
     }
 
