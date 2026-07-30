@@ -44,17 +44,6 @@
         @media (prefers-reduced-motion: reduce) { .rsm-dash .rsm-pip.on { animation:none; } }
         .rsm-dash .newbar { display:flex; align-items:center; gap:12px; margin-bottom:14px; padding:9px 12px;
                             background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:13px; }
-        .rsm-dash .breakdown { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-                               gap:12px; margin-bottom:16px; }
-        .rsm-dash .panelbox { padding:12px 14px; background:#fff; border:1px solid var(--line); border-radius:10px; }
-        .rsm-dash .panelbox h3 { margin:0 0 8px; font-size:11px; text-transform:uppercase;
-                                 letter-spacing:.4px; color:var(--muted); }
-        .rsm-dash .panelbox ul { margin:0; padding:0; list-style:none; }
-        .rsm-dash .panelbox li { display:flex; align-items:baseline; gap:10px; padding:3px 0; font-size:13px; }
-        .rsm-dash .panelbox li a { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
-                                   color:inherit; text-decoration:none; }
-        .rsm-dash .panelbox li a:hover { color:var(--green); text-decoration:underline; }
-        .rsm-dash .panelbox li b { font-variant-numeric:tabular-nums; }
     </style>
 @endpush
 
@@ -113,46 +102,6 @@
             <div class="card"><b>{{ number_format($summary['runs']) }}</b><span>Import runs</span></div>
         </div>
 
-
-        {{--
-          Where the current selection came from. A run sweeps several cities in
-          one go now, so the split by place and by category is the thing the
-          plain list cannot show. Every row is a link that adds its own filter.
-        --}}
-        @if ($byPlace->isNotEmpty())
-            <div class="breakdown">
-                <section class="panelbox">
-                    <h3>By country &amp; city</h3>
-                    <ul>
-                        @foreach ($byPlace as $row)
-                            <li>
-                                <a href="{{ request()->fullUrlWithQuery([
-                                    'country' => $row['values']['search_country'],
-                                    'city' => $row['values']['search_city'],
-                                    'page' => null,
-                                ]) }}">{{ $row['label'] }}</a>
-                                <b>{{ number_format($row['total']) }}</b>
-                            </li>
-                        @endforeach
-                    </ul>
-                </section>
-
-                <section class="panelbox">
-                    <h3>By category</h3>
-                    <ul>
-                        @foreach ($byCategory as $row)
-                            <li>
-                                <a href="{{ request()->fullUrlWithQuery([
-                                    'category' => $row['values']['category'],
-                                    'page' => null,
-                                ]) }}">{{ $row['label'] }}</a>
-                                <b>{{ number_format($row['total']) }}</b>
-                            </li>
-                        @endforeach
-                    </ul>
-                </section>
-            </div>
-        @endif
 
         <div class="wrap">
             <table>
