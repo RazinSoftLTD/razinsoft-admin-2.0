@@ -38,6 +38,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('login', [LoginController::class, 'attempt'])->name('login.attempt');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
+    // ---- Forgot password. Throttled: this form takes an email address and sends mail, so it is
+    //      both a way to guess at accounts and a way to use us to spam someone's inbox. ----
+    $pr = \App\Http\Controllers\Admin\Auth\PasswordResetController::class;
+    Route::get('forgot-password', [$pr, 'showRequest'])->name('password.request');
+    Route::post('forgot-password', [$pr, 'sendLink'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('reset-password/{token}', [$pr, 'showReset'])->name('password.reset');
+    Route::post('reset-password', [$pr, 'reset'])->middleware('throttle:6,1')->name('password.update');
+
     // ---- Panel: admin + staff. Every route is gated by a `permission:module.action` key.
     //      Model-bound wildcards use whereNumber() so string paths (create/import/…) never clash. ----
     Route::middleware(['staff', 'log.activity'])->group(function () {

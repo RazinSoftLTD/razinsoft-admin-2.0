@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in · RazinSoft Admin</title>
+    <title>Set a new password · RazinSoft Admin</title>
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     @vite(['resources/css/app.css'])
 </head>
@@ -15,25 +15,27 @@
         </div>
 
         <div class="rounded-2xl border border-gray-100 bg-white p-7 shadow-sm">
-            <h1 class="text-xl font-bold">Welcome back 👋</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Sign in to the admin panel.</p>
+            <h1 class="text-xl font-bold">Set a new password</h1>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">Choose a password of at least 8 characters.</p>
 
             @if ($errors->any())
                 <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{{ $errors->first() }}</p>
             @endif
 
-            <form method="POST" action="{{ route('admin.login.attempt') }}" class="mt-6 space-y-4">
+            <form method="POST" action="{{ route('admin.password.update') }}" class="mt-6 space-y-4">
                 @csrf
+                <input type="hidden" name="token" value="{{ $token }}">
+
                 <div>
-                    <label for="email" class="mb-1.5 block text-sm font-medium">Email or User ID</label>
-                    <input id="email" name="email" type="text" required autofocus value="{{ old('email') }}"
-                           class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-                           placeholder="Email or User ID">
+                    <label for="email" class="mb-1.5 block text-sm font-medium">Email address</label>
+                    <input id="email" name="email" type="email" required value="{{ old('email', $email) }}"
+                           class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
                 </div>
+
                 <div>
-                    <label for="password" class="mb-1.5 block text-sm font-medium">Password</label>
+                    <label for="password" class="mb-1.5 block text-sm font-medium">New password</label>
                     <div class="relative">
-                        <input id="password" name="password" type="password" required
+                        <input id="password" name="password" type="password" required autofocus
                                class="h-11 w-full rounded-lg border border-gray-200 pl-3 pr-10 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                                placeholder="••••••••">
                         <button type="button" id="pw-toggle" title="Show / hide"
@@ -43,44 +45,24 @@
                         </button>
                     </div>
                 </div>
-                <div class="flex items-center justify-between gap-3">
-                    <label class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
-                        <input type="checkbox" name="remember" class="h-4 w-4 rounded border-gray-300 accent-[var(--color-primary)]"> Remember me
-                    </label>
-                    <a href="{{ route('admin.password.request') }}" class="text-sm font-semibold text-[var(--color-primary)] hover:underline">Forgot password?</a>
+
+                <div>
+                    <label for="password_confirmation" class="mb-1.5 block text-sm font-medium">Confirm new password</label>
+                    <input id="password_confirmation" name="password_confirmation" type="password" required
+                           class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                           placeholder="••••••••">
                 </div>
+
                 <button type="submit" class="h-11 w-full rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">
-                    Sign in
+                    Reset password
                 </button>
             </form>
+
+            <p class="mt-5 text-center text-sm text-[var(--color-muted)]">
+                <a href="{{ route('admin.login') }}" class="font-semibold text-[var(--color-primary)] hover:underline">Back to sign in</a>
+            </p>
         </div>
     </div>
-
-    {{-- Shown once, after a reset lands back here (?reset=1). Plain JS rather than Alpine: this
-         page is outside the panel layout and does not load it. --}}
-    @if (request()->boolean('reset'))
-        <div id="reset-done" class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-            <div class="w-full max-w-sm rounded-2xl bg-white p-7 text-center shadow-xl">
-                <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600">
-                    <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
-                </span>
-                <h2 class="mt-4 text-lg font-bold">Password reset</h2>
-                <p class="mt-1 text-sm text-[var(--color-muted)]">Your password has been reset successfully. Please sign in with your new password.</p>
-                <button type="button" id="reset-done-ok"
-                        class="mt-5 h-11 w-full rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)]">
-                    Login now
-                </button>
-            </div>
-        </div>
-        <script>
-            document.getElementById('reset-done-ok').addEventListener('click', function () {
-                document.getElementById('reset-done').remove();
-                // Drop ?reset=1 so a refresh does not show the confirmation again.
-                history.replaceState({}, '', window.location.pathname);
-                document.getElementById('email')?.focus();
-            });
-        </script>
-    @endif
 
     <script>
         (function () {
@@ -88,12 +70,12 @@
             const btn = document.getElementById('pw-toggle');
             const eye = document.getElementById('pw-eye');
             const eyeOff = document.getElementById('pw-eye-off');
-            if (!input || !btn) return;
+            if (!btn) return;
             btn.addEventListener('click', function () {
                 const show = input.type === 'password';
                 input.type = show ? 'text' : 'password';
-                if (eye) eye.classList.toggle('hidden', show);
-                if (eyeOff) eyeOff.classList.toggle('hidden', !show);
+                eye.classList.toggle('hidden', show);
+                eyeOff.classList.toggle('hidden', !show);
             });
         })();
     </script>
