@@ -25,6 +25,8 @@ class MapsLead extends Model
         'business_status', 'opening_hours', 'source', 'search_country', 'search_city',
         'search_category', 'search_query', 'position', 'first_run_id', 'last_run_id',
         'times_seen', 'collected_at', 'status', 'notes', 'assigned_to',
+        'email', 'email_source', 'email_status', 'email_checked_at', 'email_attempts',
+        'outreach_status', 'outreach_sent_at', 'outreach_error',
     ];
 
     protected $casts = [
@@ -36,6 +38,9 @@ class MapsLead extends Model
         'position' => 'integer',
         'times_seen' => 'integer',
         'collected_at' => 'datetime',
+        'email_checked_at' => 'datetime',
+        'email_attempts' => 'integer',
+        'outreach_sent_at' => 'datetime',
     ];
 
     public const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost'];
@@ -104,5 +109,26 @@ class MapsLead extends Model
     public function logs()
     {
         return $this->hasMany(MapsCollectionLog::class, 'lead_id');
+    }
+
+    /**
+     * The lead's unsubscribe handle, created on first use.
+     *
+     * Random rather than derived from the id, so one lead's opt-out link cannot
+     * be edited into another lead's link.
+     */
+    public function unsubscribeToken(): string
+    {
+        if (blank($this->unsubscribe_token)) {
+            $this->forceFill(['unsubscribe_token' => \Illuminate\Support\Str::random(40)])->save();
+        }
+
+        return $this->unsubscribe_token;
+    }
+
+    /** Has a usable address and has not been contacted yet. */
+    public function awaitingOutreach(): bool
+    {
+        return filled($this->email) && ! $this->outreach_sent_at;
     }
 }

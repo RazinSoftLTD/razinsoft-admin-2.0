@@ -208,6 +208,38 @@ class DefaultTemplates
                 '<p>Hi {{customer_name}},</p>
                  <div>{{campaign_body}}</div>'),
 
+            /*
+             * First contact with a business found on Google Maps.
+             *
+             * Written to be the kind of mail a small business owner might actually
+             * answer: it says where we got their details, what we do in one line,
+             * and asks a question instead of pitching. No offers, no urgency, no
+             * attachments — all of which mark a message as bulk to both filters
+             * and readers.
+             *
+             * The unsubscribe line is part of the body on purpose. This is
+             * unsolicited mail, so an opt-out is not optional, and burying it in a
+             * shared footer makes it easy to lose when the template is edited.
+             */
+            self::make('maps_lead_outreach', 'Business Outreach (Maps Lead)', 'Marketing',
+                'Software for {{business_name}}?',
+                'First contact with a business collected from Google Maps. Carries a required unsubscribe link.',
+                'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
+                '<p>Hello,</p>
+                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
+                    {{business_category}} businesses in {{business_city}}, and thought I would get in touch.</p>
+                 <p>We are {{company_name}} — we build software for businesses like yours: point of sale
+                    and inventory, booking, and custom systems.</p>
+                 <p>Is managing this side of the business currently costing you time? If so I am happy to
+                    show you what we have built for similar businesses. If not, no reply needed.</p>
+                 <p>Best regards,<br>{{company_name}}</p>
+                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
+                           font-size:12px;color:#94a3b8">
+                    You received this because {{business_name}} is listed publicly on Google Maps.
+                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
+                    and we will not contact this address again.
+                 </p>'),
+
             self::make('maintenance_notice', 'Maintenance Notice', 'System',
                 'Planned maintenance on {{maintenance_date}}',
                 'Sent before planned downtime.',

@@ -27,3 +27,11 @@ Route::prefix('admin')
         Route::get('maps-leads/export/csv', [MapsLeadDashboardController::class, 'exportCsv'])->name('maps-leads.export.csv');
         Route::patch('maps-leads/{lead}', [MapsLeadDashboardController::class, 'update'])->name('maps-leads.update');
     });
+
+/*
+| Public opt-out for outreach messages. No auth and no `admin` prefix: it is
+| opened from an email by a recipient who has no account here. The random token
+| is the authorisation, and the action only ever adds to the suppression list.
+*/
+Route::get('outreach/unsubscribe/{token}', \App\Http\Controllers\OutreachUnsubscribeController::class)
+    ->name('outreach.unsubscribe');

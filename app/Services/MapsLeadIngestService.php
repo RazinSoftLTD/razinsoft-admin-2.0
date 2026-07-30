@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\DiscoverMapsLeadEmail;
 use App\Models\MapsLead;
 use App\Models\MapsImportRun;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -61,7 +62,7 @@ class MapsLeadIngestService
         // withTrashed() on purpose: a soft-deleted lead still counts as a
         // duplicate and is refreshed, but stays deleted. An operator who removed
         // a business does not want it back on the next run.
-        return DB::transaction(function () use ($leadData, $attributes, $runId) {
+        $result = DB::transaction(function () use ($leadData, $attributes, $runId) {
             $existing = MapsLead::withTrashed()
                 ->where('place_key', $leadData['place_key'])
                 ->lockForUpdate()
@@ -94,6 +95,15 @@ class MapsLeadIngestService
 
             return ['duplicate' => false, 'lead' => $lead];
         });
+
+        // Look up an email for genuinely new leads only, and only once the row is
+        // committed - the job runs in another process and must be able to read it.
+        // MapsOutreachSetting decides whether anything actually happens.
+        if (! $result['duplicate'] && filled($result['lead']->website)) {
+            DiscoverMapsLeadEmail::dispatch($result['lead']->id)->afterCommit();
+        }
+
+        return $result;
     }
 
     /**
