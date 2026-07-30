@@ -141,6 +141,24 @@
                             @else
                                 <div class="muted">no phone shown</div>
                             @endif
+
+                            {{--
+                              Maps never publishes an email, so this is whatever
+                              the lookup found on the business's own website. The
+                              status is worth showing when it found nothing: "not
+                              looked up yet" and "the site lists none" are very
+                              different things to act on.
+                            --}}
+                            @if ($lead->email)
+                                <div><a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a></div>
+                            @elseif ($lead->email_status === 'pending')
+                                <div class="muted">email not looked up</div>
+                            @elseif ($lead->email_status)
+                                <div class="muted" title="{{ $lead->email_checked_at?->format('d M Y, g:i a') }}">
+                                    no email ({{ str_replace('_', ' ', $lead->email_status) }})
+                                </div>
+                            @endif
+
                             @if ($lead->website)
                                 <a class="sub" href="{{ $lead->website }}" target="_blank" rel="noopener noreferrer">
                                     {{ parse_url($lead->website, PHP_URL_HOST) }}

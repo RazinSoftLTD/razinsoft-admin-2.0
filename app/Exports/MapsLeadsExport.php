@@ -26,7 +26,7 @@ class MapsLeadsExport
     public static function headings(): array
     {
         return [
-            'ID', 'Name', 'Category', 'Address', 'Phone', 'Website',
+            'ID', 'Name', 'Category', 'Address', 'Phone', 'Email', 'Website',
             'Rating', 'Reviews', 'Latitude', 'Longitude', 'Opening hours',
             'Business status', 'Plus code', 'Price level',
             'Country', 'City', 'Search category', 'Search query',
@@ -46,6 +46,7 @@ class MapsLeadsExport
             $lead->category,
             $lead->address,
             $lead->phone,
+            $lead->email,
             $lead->website,
             $lead->rating,
             $lead->review_count,
