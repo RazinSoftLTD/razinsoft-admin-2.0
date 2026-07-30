@@ -81,6 +81,24 @@ class MapsLead extends Model
             ->when($filters['run_id'] ?? null, fn (Builder $q, $v) => $q->where('last_run_id', $v))
             ->when($filters['min_rating'] ?? null, fn (Builder $q, $v) => $q->where('rating', '>=', (float) $v))
             ->when($filters['min_reviews'] ?? null, fn (Builder $q, $v) => $q->where('review_count', '>=', (int) $v))
+            /*
+             * Interest shown so far. "clicked" is the strongest signal we have —
+             * a click means they actually opened our site — so it is the segment
+             * worth retargeting, and "sent" minus "opened" is the segment worth
+             * a second attempt.
+             */
+            ->when($filters['engagement'] ?? null, function (Builder $q, $v) {
+                return match ($v) {
+                    'clicked' => $q->whereHas('emailLogs', fn ($l) => $l->whereNotNull('first_clicked_at')),
+                    'opened' => $q->whereHas('emailLogs', fn ($l) => $l->whereNotNull('first_opened_at')),
+                    'sent' => $q->whereNotNull('outreach_sent_at'),
+                    'silent' => $q->whereNotNull('outreach_sent_at')
+                        ->whereDoesntHave('emailLogs', fn ($l) => $l->whereNotNull('first_opened_at')),
+                    'not_sent' => $q->whereNull('outreach_sent_at'),
+                    'has_email' => $q->whereNotNull('email')->where('email', '!=', ''),
+                    default => $q,
+                };
+            })
             // filled() rather than a null check: an "Any" dropdown submits an
             // empty string, which must mean "no filter" and not "has none".
             ->when(filled($filters['has_phone'] ?? null), function (Builder $q) use ($filters) {
@@ -109,6 +127,42 @@ class MapsLead extends Model
     public function logs()
     {
         return $this->hasMany(MapsCollectionLog::class, 'lead_id');
+    }
+
+    /**
+     * Every message sent to this lead, whether by the collector's automatic
+     * outreach or by a campaign.
+     *
+     * Both paths set the log's `related` to the lead, so one polymorphic
+     * relation covers them and the open/click counts already on email_logs
+     * become this lead's engagement history for free.
+     */
+    public function emailLogs()
+    {
+        return $this->morphMany(\App\Models\EmailLog::class, 'related')->latest('id');
+    }
+
+    /** Campaign rows that included this lead. */
+    public function campaignRecipients()
+    {
+        return $this->hasMany(\App\Models\EmailCampaignRecipient::class, 'maps_lead_id');
+    }
+
+    /**
+     * Interest shown so far, from the mail already sent.
+     *
+     * @return array{sent: int, opens: int, clicks: int, last: ?\Illuminate\Support\Carbon}
+     */
+    public function engagement(): array
+    {
+        $logs = $this->relationLoaded('emailLogs') ? $this->emailLogs : $this->emailLogs()->get();
+
+        return [
+            'sent' => $logs->count(),
+            'opens' => (int) $logs->sum('open_count'),
+            'clicks' => (int) $logs->sum('click_count'),
+            'last' => $logs->max('first_clicked_at') ?: $logs->max('first_opened_at'),
+        ];
     }
 
     /**

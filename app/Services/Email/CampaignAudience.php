@@ -3,6 +3,7 @@
 namespace App\Services\Email;
 
 use App\Models\EmailSuppression;
+use App\Models\MapsLead;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -24,7 +25,21 @@ class CampaignAudience
         'country' => 'By country',
         'company' => 'By company',
         'product' => 'Bought a specific product',
+
+        // --- collected Google Maps leads, not account holders ---------------
+        'maps_category' => 'Maps leads: by business category',
+        'maps_city' => 'Maps leads: by city',
+        'maps_country' => 'Maps leads: by country',
+        'maps_engaged' => 'Maps leads: opened or clicked before',
     ];
+
+    /** Audience types that resolve to maps_leads rows rather than users. */
+    public const MAPS_TYPES = ['maps_category', 'maps_city', 'maps_country', 'maps_engaged'];
+
+    public static function isMaps(?string $type): bool
+    {
+        return in_array($type, self::MAPS_TYPES, true);
+    }
 
     /**
      * Resolve a stored audience filter to recipients.
@@ -34,6 +49,10 @@ class CampaignAudience
      */
     public function resolve(array $audience): Collection
     {
+        if (self::isMaps($audience['type'] ?? null)) {
+            return $this->resolveMapsLeads($audience);
+        }
+
         $values = array_filter((array) ($audience['values'] ?? []));
 
         $query = User::clients()
@@ -60,6 +79,54 @@ class CampaignAudience
         return $recipients->reject(fn (User $u) => in_array(mb_strtolower($u->email), $blocked, true))->values();
     }
 
+    /**
+     * Resolve a Maps-lead audience.
+     *
+     * Only leads with a discovered address are eligible, and only ones not
+     * already contacted — the collector's own outreach may have mailed some of
+     * them, and a campaign must not be the second unsolicited message.
+     *
+     * @param  array{type: string, values?: array}  $audience
+     * @return Collection<int, MapsLead>
+     */
+    private function resolveMapsLeads(array $audience): Collection
+    {
+        $values = array_filter((array) ($audience['values'] ?? []));
+        $type = $audience['type'];
+
+        $query = MapsLead::query()
+            ->whereNotNull('email')->where('email', '!=', '');
+
+        if ($type === 'maps_engaged') {
+            /*
+             * Retargeting: leads that opened or clicked something we sent. These
+             * have deliberately already been contacted — that is the point — so
+             * the first-contact guard below does not apply to them.
+             */
+            $query->whereHas('emailLogs', function ($q) {
+                $q->whereNotNull('first_opened_at')->orWhereNotNull('first_clicked_at');
+            });
+        } else {
+            // First contact: never mail a lead twice without meaning to.
+            $query->whereNull('outreach_sent_at');
+
+            $query = match ($type) {
+                'maps_category' => $query->whereIn('category', $values),
+                'maps_city' => $query->whereIn('search_city', $values),
+                'maps_country' => $query->whereIn('search_country', $values),
+                default => $query,
+            };
+        }
+
+        $leads = $query->get(['id', 'name', 'email', 'category', 'search_city', 'search_country']);
+
+        $blocked = EmailSuppression::filter($leads->pluck('email')->all());
+
+        return $leads
+            ->reject(fn (MapsLead $l) => in_array(mb_strtolower($l->email), $blocked, true))
+            ->values();
+    }
+
     public function count(array $audience): int
     {
         return $this->resolve($audience)->count();
@@ -77,6 +144,35 @@ class CampaignAudience
             'company' => User::clients()->whereNotNull('company')->where('company', '!=', '')
                 ->distinct()->orderBy('company')->limit(200)->pluck('company')->all(),
             'product' => \App\Models\Product::orderBy('name')->pluck('name', 'id')->all(),
+
+            /*
+             * Maps-lead choices are read from leads that actually have an email
+             * address, so the form never offers a category whose leads are all
+             * unreachable — picking one and getting nobody looks like a bug.
+             */
+            'maps_category' => $this->mapsOptions('category'),
+            'maps_city' => $this->mapsOptions('search_city'),
+            'maps_country' => $this->mapsOptions('search_country'),
         ];
+    }
+
+    /**
+     * Distinct values of one maps_leads column among mailable, uncontacted leads,
+     * each with how many leads it would reach.
+     *
+     * @return array<string, string> value => "Label (n)"
+     */
+    private function mapsOptions(string $column): array
+    {
+        return MapsLead::query()
+            ->whereNotNull('email')->where('email', '!=', '')
+            ->whereNull('outreach_sent_at')
+            ->whereNotNull($column)->where($column, '!=', '')
+            ->selectRaw("{$column} as value, COUNT(*) as total")
+            ->groupBy($column)
+            ->orderByDesc('total')
+            ->get()
+            ->mapWithKeys(fn ($r) => [$r->value => "{$r->value} ({$r->total})"])
+            ->all();
     }
 }

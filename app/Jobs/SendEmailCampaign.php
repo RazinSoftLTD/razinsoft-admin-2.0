@@ -59,13 +59,23 @@ class SendEmailCampaign implements ShouldQueue
         foreach ($pending as $recipient) {
             $body = $this->bodyFor($campaign, $recipient->name);
 
+            /*
+             * A Maps lead's log points at the lead, not the campaign, so the
+             * lead's own engagement history is a single relation. Campaign
+             * progress and stats read email_campaign_recipients, which links
+             * both ways, so nothing is lost by doing this.
+             */
+            $lead = $recipient->maps_lead_id
+                ? \App\Models\MapsLead::find($recipient->maps_lead_id)
+                : null;
+
             $log = $dispatcher->send($recipient->email, $body['subject'], $body['html'], $body['text'], [
                 'to_name' => $recipient->name,
                 'config_id' => $campaign->email_config_id,
                 'template_id' => $campaign->email_template_id,
                 'user_id' => $recipient->user_id,
-                'module' => 'campaign',
-                'related' => $campaign,
+                'module' => $lead ? 'maps-leads' : 'campaign',
+                'related' => $lead ?: $campaign,
                 'created_by' => $campaign->created_by,
                 // Each recipient gets their own copy; the dedupe check is about accidental
                 // double-sends, not about a campaign reaching many people.
@@ -78,6 +88,11 @@ class SendEmailCampaign implements ShouldQueue
                 // appeared after the list was built.
                 'status' => $log ? 'queued' : 'skipped',
             ]);
+
+            // Mark the lead as contacted so no other path mails it again.
+            if ($log && $lead && ! $lead->outreach_sent_at) {
+                $lead->forceFill(['outreach_status' => 'sent', 'outreach_sent_at' => now()])->save();
+            }
         }
 
         // More to go: come back after a gap rather than flooding the provider.
@@ -94,12 +109,22 @@ class SendEmailCampaign implements ShouldQueue
     {
         $people = $audience->resolve($campaign->audience ?? ['type' => 'all']);
 
+        // A Maps-lead audience resolves to maps_leads rows; anything else to users.
+        // The id therefore belongs in a different column, and putting a lead id in
+        // user_id would break the foreign key and misattribute the mail.
+        $isMaps = CampaignAudience::isMaps($campaign->audience['type'] ?? null);
+
         foreach ($people as $person) {
             // insertOrIgnore semantics via firstOrCreate: the unique index on (campaign, email)
             // means a re-run can never add someone twice.
             $campaign->recipients()->firstOrCreate(
                 ['email' => mb_strtolower($person->email)],
-                ['user_id' => $person->id, 'name' => $person->name, 'status' => 'pending'],
+                [
+                    'user_id' => $isMaps ? null : $person->id,
+                    'maps_lead_id' => $isMaps ? $person->id : null,
+                    'name' => $person->name,
+                    'status' => 'pending',
+                ],
             );
         }
 

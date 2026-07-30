@@ -21,6 +21,7 @@ class MapsLeadDashboardController extends Controller
     private const FILTER_KEYS = [
         'country', 'city', 'category', 'status', 'run_id',
         'min_rating', 'min_reviews', 'has_phone', 'has_website', 'from', 'to',
+        'engagement',
     ];
 
     public function index(Request $request): View
@@ -31,6 +32,9 @@ class MapsLeadDashboardController extends Controller
         $leads = MapsLead::query()
             ->search($search)
             ->filter($filters)
+            // The Engagement column reads these; without it the list would run
+            // a query per row.
+            ->with('emailLogs:id,related_type,related_id,open_count,click_count,first_opened_at,first_clicked_at')
             ->latest('id')
             ->paginate(50)
             ->withQueryString();

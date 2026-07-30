@@ -42,6 +42,13 @@
         .rsm-dash .rsm-pip.busy { background:#f59e0b; }
         @keyframes rsm-blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
         @media (prefers-reduced-motion: reduce) { .rsm-dash .rsm-pip.on { animation:none; } }
+        .rsm-dash .eng { display:flex; flex-wrap:wrap; gap:4px; }
+        .rsm-dash .eng__pill { padding:1px 6px; border-radius:999px; background:#eef2f7;
+                               font-size:10px; font-weight:700; }
+        /* click > open > delivered-but-ignored, warmest first */
+        .rsm-dash .eng__pill--hot { background:#dcfce7; color:#15803d; }
+        .rsm-dash .eng__pill--warm { background:#fef3c7; color:#a16207; }
+        .rsm-dash .eng__pill--cold { background:#f1f5f9; color:var(--muted); }
         .rsm-dash .newbar { display:flex; align-items:center; gap:12px; margin-bottom:14px; padding:9px 12px;
                             background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:13px; }
     </style>
@@ -52,7 +59,7 @@
         // Drives the count badge on the Filters button, so it is obvious at a
         // glance that a narrowed list is not the whole list.
         $activeFilters = count(array_filter(
-            request()->only(['q', 'country', 'city', 'category', 'status', 'min_rating', 'min_reviews', 'has_phone', 'has_website', 'from', 'to']),
+            request()->only(['q', 'country', 'city', 'category', 'status', 'min_rating', 'min_reviews', 'has_phone', 'has_website', 'from', 'to', 'engagement']),
             fn ($v) => $v !== null && $v !== '',
         ));
     @endphp
@@ -112,6 +119,7 @@
                     <th>Contact</th>
                     <th>Location</th>
                     <th class="nowrap">Rating</th>
+                    <th class="nowrap">Engagement</th>
                     <th class="nowrap">Created</th>
                     <th>Status</th>
                     <th></th>
@@ -177,6 +185,31 @@
                                 <span class="muted">-</span>
                             @endif
                         </td>
+                        {{--
+                          What this lead has done with the mail we sent. A click
+                          is the strongest signal available: it means they opened
+                          our site, so those are the ones worth retargeting.
+                        --}}
+                        <td class="nowrap">
+                            @php $eng = $lead->engagement(); @endphp
+                            @if ($eng['sent'] === 0)
+                                <span class="muted">not contacted</span>
+                            @else
+                                <div class="eng">
+                                    <span class="eng__pill" title="Messages sent">{{ $eng['sent'] }} sent</span>
+                                    @if ($eng['clicks'] > 0)
+                                        <span class="eng__pill eng__pill--hot" title="Clicked through to the site">{{ $eng['clicks'] }} click{{ $eng['clicks'] === 1 ? '' : 's' }}</span>
+                                    @elseif ($eng['opens'] > 0)
+                                        <span class="eng__pill eng__pill--warm" title="Opened, not clicked">{{ $eng['opens'] }} open{{ $eng['opens'] === 1 ? '' : 's' }}</span>
+                                    @else
+                                        <span class="eng__pill eng__pill--cold" title="Delivered but never opened">no open</span>
+                                    @endif
+                                </div>
+                                @if ($eng['last'])
+                                    <div class="sub">{{ $eng['last']->diffForHumans() }}</div>
+                                @endif
+                            @endif
+                        </td>
                         <td class="nowrap">
                             {{-- Exact date on hover; the relative line is what is usually wanted. --}}
                             <div title="{{ $lead->created_at?->format('d M Y, g:i a') }}">
@@ -198,7 +231,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="muted" style="padding:22px;text-align:center">No leads match these filters.</td></tr>
+                    <tr><td colspan="9" class="muted" style="padding:22px;text-align:center">No leads match these filters.</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -270,6 +303,28 @@
                             <option value="">All statuses</option>
                             @foreach ($statuses as $status)
                                 <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst($status) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{--
+                      Segments for follow-up. "Clicked" is the retargeting list:
+                      a click means they reached our site. "Sent, never opened"
+                      is the list worth a second attempt.
+                    --}}
+                    <div class="border-t border-gray-100 pt-4">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Engagement</label>
+                        <select name="engagement" class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                            @foreach ([
+                                '' => 'Any',
+                                'clicked' => 'Clicked a link (retarget these)',
+                                'opened' => 'Opened the email',
+                                'silent' => 'Sent, never opened',
+                                'sent' => 'Contacted at all',
+                                'not_sent' => 'Never contacted',
+                                'has_email' => 'Has an email address',
+                            ] as $k => $label)
+                                <option value="{{ $k }}" @selected(($filters['engagement'] ?? '') === $k)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
