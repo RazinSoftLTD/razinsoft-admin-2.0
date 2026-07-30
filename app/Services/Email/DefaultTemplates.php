@@ -15,6 +15,14 @@ namespace App\Services\Email;
 class DefaultTemplates
 {
     /**
+     * Footer line for unsolicited outreach. The shell's default claims the
+     * reader has an account with us, which is not true of a business found on
+     * Maps — and it would sit directly beneath the template's own, accurate
+     * disclosure.
+     */
+    private const OUTREACH_NOTE = 'Sent because this business is listed publicly on Google Maps. It is not a newsletter and you are not on a mailing list.';
+
+    /**
      * @return array<int, array{key: string, name: string, category: string, subject: string, description: string, variables: string, body: string}>
      */
     public static function all(): array
@@ -251,6 +259,99 @@ class DefaultTemplates
     }
 
     /**
+     * The FoodGet pitch sent to restaurants.
+     *
+     * Laid out with tables and inline styles because that is what mail clients
+     * render consistently; the feature strip is styled cells rather than icons,
+     * since images are blocked by default in most clients and a row of broken
+     * boxes reads worse than plain labels.
+     *
+     * Two links matter and both are rewritten for click tracking on the way out:
+     * the product link, and the WhatsApp button. A click on either is what tells
+     * us the lead actually reached us.
+     *
+     * The closing line is a working unsubscribe, not an invitation to reply.
+     * This is unsolicited mail, so a one-click opt-out is what keeps it lawful
+     * and keeps the sending domain out of trouble.
+     */
+    private static function foodGetBody(): string
+    {
+        return <<<'HTML'
+<p style="margin:0 0 18px">Hello,</p>
+
+<p style="margin:0 0 18px">I came across <strong>{{business_name}}</strong> on Google Maps.</p>
+
+<p style="margin:0 0 18px">
+  <strong style="color:#2563eb">FoodGet</strong> is a restaurant management system that keeps
+  orders, billing and sales in one place.
+</p>
+
+<p style="margin:0 0 26px">
+  May I share a quick
+  <a href="https://www.razinsoft.com" style="color:#2563eb;font-weight:700;text-decoration:underline">10-minute review</a>?
+</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="margin:0 0 26px;background:#eff6ff;border-radius:12px">
+  <tr>
+    <td style="padding:18px 14px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">POS &amp; Billing</td>
+          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">QR Menu</td>
+          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">Kitchen Display</td>
+          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">Reports</td>
+          <td align="center" style="padding:4px 6px;font-size:12px;font-weight:700;color:#1e3a8a">Staff</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="margin:0 0 26px;background:#ecfdf5;border-radius:12px">
+  <tr>
+    <td style="padding:18px 20px">
+      <p style="margin:0 0 3px;font-size:15px;font-weight:700;color:#065f46">
+        Prefer WhatsApp? We are there.
+      </p>
+      <p style="margin:0 0 14px;font-size:13px;color:#047857">
+        Message us and we will reply the same day.
+      </p>
+      <a href="https://api.whatsapp.com/send?phone=8801711257498&amp;text=Thank%20you%20for%20choosing%20FoodGet%2C%20your%20complete%20restaurant%20management%20solution."
+         style="display:inline-block;padding:11px 20px;background:#16a34a;color:#ffffff;
+                text-decoration:none;border-radius:8px;font-weight:700;font-size:14px">
+        Chat on WhatsApp
+      </a>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 6px">Best regards,</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px">
+  <tr>
+    <td style="padding-left:14px;border-left:3px solid #2563eb">
+      <p style="margin:0 0 2px;font-size:16px;font-weight:700;color:#2563eb">{{company_name}}</p>
+      <p style="margin:0 0 8px;font-size:13px;color:#64748b">Business Development Team</p>
+      <p style="margin:0;font-size:13px;line-height:1.8;color:#334155">
+        hello@razinsoft.com<br>
+        +880 1712 345 678<br>
+        <a href="https://www.razinsoft.com" style="color:#334155">www.razinsoft.com</a>
+      </p>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0;padding-top:14px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.7;color:#94a3b8">
+  You received this because {{business_name}} is listed publicly on Google Maps.
+  <a href="{{unsubscribe_url}}" style="color:#94a3b8;text-decoration:underline">Unsubscribe</a>
+  and we will not contact this address again.
+</p>
+HTML;
+    }
+
+    /**
      * One outreach template per product line.
      *
      * A restaurant and a pharmacy have nothing in common except that we sell to
@@ -267,23 +368,12 @@ class DefaultTemplates
     {
         return [
             self::make('maps_outreach_restaurant_management', 'Outreach: Restaurant Management', 'Marketing',
-                'Restaurant software for {{business_name}}',
-                'Sent to Maps leads whose category is a prospect for Restaurant Management. Carries a required unsubscribe link.',
+                'FoodGet - restaurant management for {{business_name}}',
+                'First contact with a restaurant collected from Google Maps. Pitches FoodGet, with a WhatsApp button and a required unsubscribe link.',
                 'business_name, business_category, business_city, business_country, business_website, business_phone, unsubscribe_url',
-                '<p>Hello,</p>
-                 <p>I came across <strong>{{business_name}}</strong> on Google Maps while looking at
-                    {{business_category}} businesses in {{business_city}}.</p>
-                 <p>Most restaurant owners we speak to are still taking orders on paper and adding up the takings by hand at closing.
-                    We build software that handles order taking, kitchen tickets, table billing and a daily sales figure you can trust.</p>
-                 <p>Is that costing you time at the moment? If so I can show you what we have
-                    built for similar businesses. If not, no reply needed.</p>
-                 <p>Best regards,<br>{{company_name}}</p>
-                 <p style="margin-top:26px;padding-top:14px;border-top:1px solid #e2e8f0;
-                           font-size:12px;color:#94a3b8">
-                    You received this because {{business_name}} is listed publicly on Google Maps.
-                    <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
-                    and we will not contact this address again.
-                 </p>'),
+                self::foodGetBody(),
+                footerNote: self::OUTREACH_NOTE),
+
             self::make('maps_outreach_pos_inventory', 'Outreach: POS & Inventory', 'Marketing',
                 'POS software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for POS & Inventory. Carries a required unsubscribe link.',
@@ -301,7 +391,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_ecommerce', 'Outreach: eCommerce', 'Marketing',
                 'eCommerce software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for eCommerce. Carries a required unsubscribe link.',
@@ -319,7 +410,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_pharmacy_management', 'Outreach: Pharmacy Management', 'Marketing',
                 'Pharmacy software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for Pharmacy Management. Carries a required unsubscribe link.',
@@ -337,7 +429,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_hospital_management', 'Outreach: Hospital Management', 'Marketing',
                 'Hospital software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for Hospital Management. Carries a required unsubscribe link.',
@@ -355,7 +448,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_school_management', 'Outreach: School Management', 'Marketing',
                 'School software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for School Management. Carries a required unsubscribe link.',
@@ -373,7 +467,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_university_management', 'Outreach: University Management', 'Marketing',
                 'University software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for University Management. Carries a required unsubscribe link.',
@@ -391,7 +486,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_lms_training', 'Outreach: LMS & Training', 'Marketing',
                 'LMS software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for LMS & Training. Carries a required unsubscribe link.',
@@ -409,7 +505,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_laundry_management', 'Outreach: Laundry Management', 'Marketing',
                 'Laundry software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for Laundry Management. Carries a required unsubscribe link.',
@@ -427,7 +524,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_ride_sharing', 'Outreach: Ride Sharing', 'Marketing',
                 'Ride Sharing software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for Ride Sharing. Carries a required unsubscribe link.',
@@ -445,7 +543,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_on-demand_services', 'Outreach: On-Demand Services', 'Marketing',
                 'On-Demand Services software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for On-Demand Services. Carries a required unsubscribe link.',
@@ -463,7 +562,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_garments_management', 'Outreach: Garments Management', 'Marketing',
                 'Garments software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for Garments Management. Carries a required unsubscribe link.',
@@ -481,7 +581,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_erp_manufacturing', 'Outreach: ERP & Manufacturing', 'Marketing',
                 'ERP software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for ERP & Manufacturing. Carries a required unsubscribe link.',
@@ -499,7 +600,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_wellness_meditation', 'Outreach: Wellness & Meditation', 'Marketing',
                 'Wellness software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for Wellness & Meditation. Carries a required unsubscribe link.',
@@ -517,7 +619,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
             self::make('maps_outreach_ai_digital_solutions', 'Outreach: AI & Digital Solutions', 'Marketing',
                 'AI software for {{business_name}}',
                 'Sent to Maps leads whose category is a prospect for AI & Digital Solutions. Carries a required unsubscribe link.',
@@ -535,7 +638,8 @@ class DefaultTemplates
                     You received this because {{business_name}} is listed publicly on Google Maps.
                     <a href="{{unsubscribe_url}}" style="color:#94a3b8">Unsubscribe</a>
                     and we will not contact this address again.
-                 </p>'),
+                 </p>',
+                footerNote: self::OUTREACH_NOTE),
         ];
     }
 
@@ -685,10 +789,10 @@ class DefaultTemplates
         HTML;
     }
 
-    private static function make(string $key, string $name, string $category, string $subject, string $description, string $variables, string $body, bool $fullBleed = false): array
+    private static function make(string $key, string $name, string $category, string $subject, string $description, string $variables, string $body, bool $fullBleed = false, ?string $footerNote = null): array
     {
         return compact('key', 'name', 'category', 'subject', 'description', 'variables')
-            + ['body' => $body, 'full_bleed' => $fullBleed];
+            + ['body' => $body, 'full_bleed' => $fullBleed, 'footer_note' => $footerNote];
     }
 
     /**
@@ -702,8 +806,17 @@ class DefaultTemplates
      * The preheader is the grey line a mail client shows next to the subject. Left empty it picks
      * up whatever text comes first, which usually reads badly.
      */
-    public static function wrap(string $body, string $preheader = '', bool $fullBleed = false): string
-    {
+    public static function wrap(
+        string $body,
+        string $preheader = '',
+        bool $fullBleed = false,
+        ?string $footerNote = null,
+    ): string {
+        // Accurate for account mail, false for anything sent to a stranger —
+        // and a false line sits directly under the outreach templates' own
+        // disclosure, contradicting it. So each template may supply its own.
+        $footerNote ??= 'You are receiving this because you have an account with us.';
+
         $year = '{{current_year}}';
         $social = self::socialRow();
 
@@ -794,7 +907,7 @@ class DefaultTemplates
                 <tr><td align="center" style="padding-top:16px;border-top:1px solid #eef2f7">
                   <p style="margin:0 0 4px;font-size:12px;color:#94a3b8">&copy; {$year} {{company_name}}. All rights reserved.</p>
                   <p style="margin:0 0 4px;font-size:12px;color:#94a3b8">{{company_address}}</p>
-                  <p style="margin:0;font-size:12px;color:#94a3b8">You are receiving this because you have an account with us.</p>
+                  <p style="margin:0;font-size:12px;color:#94a3b8">{$footerNote}</p>
                 </td></tr>
               </table>
             </td></tr>
