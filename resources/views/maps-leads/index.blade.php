@@ -167,8 +167,22 @@
                               looked up yet" and "the site lists none" are very
                               different things to act on.
                             --}}
-                            @if ($lead->email)
+                            {{-- Shared inboxes first, then named individuals: only
+                                 the former are ever mailed automatically. --}}
+                            @forelse ($lead->emails as $address)
+                                <div>
+                                    <a href="mailto:{{ $address->email }}"
+                                       title="{{ $address->is_generic ? 'Shared inbox - outreach may use this' : 'A named person - outreach never mails this' }}">{{ $address->email }}</a>
+                                    @unless ($address->is_generic)
+                                        <span class="sub">person</span>
+                                    @endunless
+                                </div>
+                            @empty
+                            @endforelse
+
+                            @if ($lead->emails->isEmpty() && $lead->email)
                                 <div><a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a></div>
+                            @elseif ($lead->emails->isNotEmpty())
                             @elseif ($lead->email_status === 'pending')
                                 <div class="muted">email not looked up</div>
                             @elseif ($lead->email_status)

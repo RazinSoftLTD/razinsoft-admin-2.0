@@ -50,11 +50,36 @@ class DiscoverMapsLeadEmail implements ShouldQueue
             return;
         }
 
-        $result = $finder->find($lead->website);
+        $result = $finder->findAll($lead->website);
+
+        /*
+         * Keep every address, not just the one we will write to. The rest are
+         * what an operator falls back on when the generic inbox goes unanswered,
+         * and having them recorded is the difference between a lead with one
+         * dead address and a lead with three live ones.
+         */
+        foreach ($result['emails'] as $row) {
+            \App\Models\MapsLeadEmail::updateOrCreate(
+                ['maps_lead_id' => $lead->id, 'email' => $row['email']],
+                [
+                    'source_url' => $row['source_url'],
+                    'is_generic' => $row['is_generic'],
+                    'same_domain' => $row['same_domain'],
+                ],
+            );
+        }
+
+        /*
+         * The address on the lead itself is the one outreach uses, so it must be
+         * a shared inbox. Mailing rahim@company.com unsolicited is a different
+         * thing entirely from mailing info@company.com, both legally and in how
+         * it is received.
+         */
+        $primary = collect($result['emails'])->firstWhere('is_generic', true);
 
         $lead->forceFill([
-            'email' => $result['email'],
-            'email_source' => $result['email'] ? 'website' : null,
+            'email' => $primary['email'] ?? null,
+            'email_source' => $primary ? 'website' : null,
             'email_status' => $result['status'],
             'email_checked_at' => now(),
             'email_attempts' => $lead->email_attempts + 1,
@@ -62,16 +87,22 @@ class DiscoverMapsLeadEmail implements ShouldQueue
 
         RecordMapsCollectionEvent::dispatch([
             'run_id' => $lead->last_run_id,
-            'level' => $result['email'] ? 'info' : 'debug',
+            'level' => $result['emails'] ? 'info' : 'debug',
             'event' => 'email.lookup',
-            'message' => $result['email']
-                ? "Found {$result['email']} for {$lead->name}"
+            'message' => $result['emails']
+                ? sprintf(
+                    'Found %d address(es) for %s across %d page(s)%s',
+                    count($result['emails']),
+                    $lead->name,
+                    $result['pages'],
+                    $primary ? ": using {$primary['email']}" : ' - none is a shared inbox, so none will be mailed',
+                )
                 : "No email for {$lead->name}: {$result['note']}",
             'place_key' => $lead->place_key,
             'lead_id' => $lead->id,
         ]);
 
-        if (! $result['email']) {
+        if (! $primary) {
             return;
         }
 

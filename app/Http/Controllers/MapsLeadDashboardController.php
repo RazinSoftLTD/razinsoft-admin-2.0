@@ -41,6 +41,7 @@ class MapsLeadDashboardController extends Controller
             ->withScore()
             // The Engagement column reads these; without it the list would run
             // a query per row.
+            ->with('emails')
             ->with('emailLogs:id,related_type,related_id,open_count,click_count,first_opened_at,first_clicked_at')
             ->when($sort === 'score', fn ($q) => $q->orderByDesc('score')->orderByDesc('id'))
             ->when($sort === 'newest', fn ($q) => $q->latest('maps_leads.id'))

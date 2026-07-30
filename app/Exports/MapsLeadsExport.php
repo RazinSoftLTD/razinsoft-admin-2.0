@@ -33,6 +33,7 @@ class MapsLeadsExport
             'Google Maps URL', 'Place key', 'Times seen', 'Status',
             'First run', 'Last run', 'Collected at', 'Created at',
             'Product fit', 'Outreach sent at', 'Emails sent', 'Opens', 'Clicks',
+            'All emails', 'Shared inboxes',
         ];
     }
 
@@ -75,6 +76,9 @@ class MapsLeadsExport
             $lead->engagement()['sent'],
             $lead->engagement()['opens'],
             $lead->engagement()['clicks'],
+            // Every address found, and the subset outreach is allowed to use.
+            $lead->emails->pluck('email')->implode(', '),
+            $lead->emails->where('is_generic', true)->pluck('email')->implode(', '),
         ];
     }
 

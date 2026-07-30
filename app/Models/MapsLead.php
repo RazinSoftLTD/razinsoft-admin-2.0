@@ -228,6 +228,20 @@ class MapsLead extends Model
     }
 
     /**
+     * Every address found on this lead's site, best first.
+     *
+     * `email` on the lead itself is the one outreach uses; this is everything,
+     * including the named-individual addresses that outreach must not touch.
+     */
+    public function emails()
+    {
+        return $this->hasMany(MapsLeadEmail::class, 'maps_lead_id')
+            ->orderByDesc('same_domain')
+            ->orderByDesc('is_generic')
+            ->orderBy('email');
+    }
+
+    /**
      * Every message sent to this lead, whether by the collector's automatic
      * outreach or by a campaign.
      *

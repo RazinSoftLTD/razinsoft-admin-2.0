@@ -7,104 +7,168 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Finds a contact address on a business's own website.
+ * Collects the contact addresses published on a business's own website.
  *
- * Google Maps never publishes an email, so the only place to look is the site
- * the listing links to. This reads the pages a visitor would open to find a
- * contact address - the homepage and the usual contact/about paths - and takes
- * the address printed there.
+ * Google Maps never shows an email, so the site the listing links to is the only
+ * place to look. This walks that site the way someone hunting for a contact
+ * address would: start at the homepage, prefer anything that looks like a
+ * contact or about page, and stop once the obvious places are exhausted.
  *
- * Deliberately narrow: a handful of pages per site, a short timeout, a response
- * size cap, and one address returned. It is a lookup, not a crawl.
+ * Bounded on purpose - a page cap, a total time budget, one host only, and a
+ * pause between requests. It is a look around a site, not a crawler, and a small
+ * business host will not tolerate being hammered.
  */
 class MapsLeadEmailFinder
 {
-    /** Paths tried after the homepage, in order. */
-    private const PATHS = ['/contact', '/contact-us', '/contact.html', '/about', '/about-us'];
+    /** Pages to open per site. */
+    private const MAX_PAGES = 25;
 
-    /** Give up on a slow site rather than holding a queue worker. */
+    /** Whole-site budget. A slow host must not hold a queue worker indefinitely. */
+    private const MAX_SECONDS = 60;
+
+    /** Per-request timeout. */
     private const TIMEOUT = 8;
 
-    /** Stop reading a response after this much; contact details are never deep in a huge page. */
+    /** Politeness gap between requests to the same host, in microseconds. */
+    private const GAP_US = 400000;
+
+    /** Stop reading a response here; contact details are never deep in a huge page. */
     private const MAX_BYTES = 512000;
 
+    /** Tried first, before any link found on the page. */
+    private const SEED_PATHS = [
+        '/contact', '/contact-us', '/contact_us', '/contacts', '/contact.html',
+        '/about', '/about-us', '/about.html', '/support', '/help', '/team',
+        '/reach-us', '/get-in-touch', '/impressum',
+    ];
+
+    /** A link whose text or href looks like one of these is worth following. */
+    private const LINK_HINTS = [
+        'contact', 'about', 'support', 'help', 'team', 'reach', 'touch',
+        'enquir', 'inquir', 'impressum', 'kontakt',
+    ];
+
     /**
-     * Local parts that are never worth mailing - automated senders, or addresses
-     * that exist to be ignored.
+     * Local parts that are a shared business inbox rather than a person. Only
+     * these are offered for outreach.
      */
-    private const REJECT_LOCAL = [
+    private const GENERIC_LOCALS = [
+        'info', 'contact', 'hello', 'hi', 'enquiry', 'enquiries', 'inquiry', 'inquiries',
+        'sales', 'admin', 'office', 'support', 'help', 'mail', 'email', 'team',
+        'booking', 'bookings', 'reservations', 'order', 'orders', 'service',
+        'customercare', 'care', 'general', 'business', 'marketing', 'hr', 'careers', 'jobs',
+    ];
+
+    /** Automated senders and addresses that exist to be ignored. */
+    private const REJECT_LOCALS = [
         'noreply', 'no-reply', 'donotreply', 'do-not-reply', 'bounce', 'bounces',
         'mailer-daemon', 'postmaster', 'abuse', 'spam', 'unsubscribe', 'privacy',
     ];
 
-    /** Domains that show up in boilerplate and template markup, never real contacts. */
+    /** Domains that appear in boilerplate and tracking snippets, never as contacts. */
     private const REJECT_DOMAINS = [
         'example.com', 'example.org', 'domain.com', 'yourdomain.com', 'email.com',
         'sentry.io', 'wordpress.com', 'wix.com', 'squarespace.com', 'godaddy.com',
         'cloudflare.com', 'google.com', 'gstatic.com', 'schema.org', 'w3.org',
-        'facebook.com', 'sentry-cdn.com',
+        'facebook.com', 'sentry-cdn.com', 'shopify.com', 'jquery.com', 'bootstrapcdn.com',
     ];
 
-    /** Preferred local parts, best first - a shared inbox beats a personal one. */
-    private const PREFER_LOCAL = ['info', 'contact', 'hello', 'enquiry', 'enquiries', 'inquiry', 'sales', 'admin', 'office', 'support', 'mail'];
-
     /**
-     * Look for an address on the given site.
+     * Find every publishable address on the site.
      *
-     * @return array{email: ?string, status: string, note: ?string}
+     * @return array{emails: array<int, array{email: string, source_url: string, is_generic: bool, same_domain: bool}>, status: string, note: ?string, pages: int}
      *         status: found | not_found | unreachable | invalid_url | disallowed
      */
-    public function find(?string $website): array
+    public function findAll(?string $website): array
     {
         $base = $this->normaliseBase($website);
 
         if (! $base) {
-            return ['email' => null, 'status' => 'invalid_url', 'note' => 'no usable website URL'];
+            return $this->result([], 'invalid_url', 'no usable website URL', 0);
         }
 
         $host = parse_url($base, PHP_URL_HOST);
 
         if ($this->isDisallowedHost($host)) {
-            return ['email' => null, 'status' => 'disallowed', 'note' => "not a business site: {$host}"];
+            return $this->result([], 'disallowed', "not a business site: {$host}", 0);
         }
 
-        $candidates = [];
-        $reached = false;
+        $root = $this->rootDomain($host);
+        $deadline = microtime(true) + self::MAX_SECONDS;
 
-        foreach ($this->urlsToTry($base) as $url) {
+        $queue = array_merge([$base], array_map(fn ($p) => rtrim($base, '/').$p, self::SEED_PATHS));
+        $visited = [];
+        /** @var array<string, array> $found keyed by address, so a repeat keeps the first page it was seen on */
+        $found = [];
+        $reached = 0;
+
+        while ($queue && count($visited) < self::MAX_PAGES && microtime(true) < $deadline) {
+            $url = array_shift($queue);
+            $key = rtrim(strtok($url, '#'), '/');
+
+            if (isset($visited[$key])) {
+                continue;
+            }
+            $visited[$key] = true;
+
             $html = $this->fetch($url);
-
             if ($html === null) {
                 continue;
             }
+            $reached++;
 
-            $reached = true;
-            $found = $this->extract($html, $host);
-            $candidates = array_merge($candidates, $found);
-
-            // The homepage often carries the address in the footer; stop as soon
-            // as something on the site's own domain turns up.
-            if ($this->bestOnHost($candidates, $host)) {
-                break;
+            foreach ($this->extract($html) as $email) {
+                if (! isset($found[$email])) {
+                    $found[$email] = $this->describe($email, $url, $root);
+                }
             }
+
+            // Only follow links from the homepage: the seeds already cover the
+            // usual pages, and following from everywhere turns this into a crawl.
+            if ($key === rtrim($base, '/')) {
+                foreach ($this->contactLinks($html, $base, $host) as $link) {
+                    if (! isset($visited[rtrim($link, '/')])) {
+                        $queue[] = $link;
+                    }
+                }
+            }
+
+            usleep(self::GAP_US);
         }
 
-        if (! $reached) {
-            return ['email' => null, 'status' => 'unreachable', 'note' => "could not load {$host}"];
+        if ($reached === 0) {
+            return $this->result([], 'unreachable', "could not load {$host}", 0);
         }
 
-        $email = $this->pick($candidates, $host);
+        $emails = $this->sort(array_values($found));
 
-        return $email
-            ? ['email' => $email, 'status' => 'found', 'note' => null]
-            : ['email' => null, 'status' => 'not_found', 'note' => "no address published on {$host}"];
+        return $emails
+            ? $this->result($emails, 'found', null, count($visited))
+            : $this->result([], 'not_found', "no address published on {$host}", count($visited));
     }
 
-    /** Homepage first, then the usual contact paths. */
-    private function urlsToTry(string $base): array
+    /**
+     * Backwards-compatible single-address lookup: the best one, or null.
+     *
+     * @return array{email: ?string, status: string, note: ?string}
+     */
+    public function find(?string $website): array
     {
-        return array_merge([$base], array_map(fn ($p) => rtrim($base, '/').$p, self::PATHS));
+        $result = $this->findAll($website);
+
+        return [
+            'email' => $result['emails'][0]['email'] ?? null,
+            'status' => $result['status'],
+            'note' => $result['note'],
+        ];
     }
+
+    private function result(array $emails, string $status, ?string $note, int $pages): array
+    {
+        return compact('emails', 'status', 'note', 'pages');
+    }
+
+    /* ------------------------------------------------------------- fetching */
 
     /** Turn whatever Maps gave us into a scheme + host origin, or null. */
     private function normaliseBase(?string $website): ?string
@@ -130,7 +194,8 @@ class MapsLeadEmailFinder
 
     /**
      * Social profiles and marketplace pages are common "websites" on Maps
-     * listings. They have no contact address to read and are not ours to crawl.
+     * listings. They publish no contact address we can read, and they are not
+     * ours to crawl.
      */
     private function isDisallowedHost(?string $host): bool
     {
@@ -147,10 +212,7 @@ class MapsLeadEmailFinder
         return false;
     }
 
-    /**
-     * Fetch one page. Every failure is swallowed and reported as null: an
-     * unreachable site is an ordinary outcome here, not an error.
-     */
+    /** Fetch one page. Every failure is an ordinary outcome here, not an error. */
     private function fetch(string $url): ?string
     {
         try {
@@ -181,12 +243,66 @@ class MapsLeadEmailFinder
     }
 
     /**
-     * Pull addresses out of a page. `mailto:` links come first because a link is
-     * a deliberate publication, whereas loose text can be anything.
+     * Same-host links whose text or address suggests a contact page.
      *
      * @return array<int, string>
      */
-    private function extract(string $html, ?string $host): array
+    private function contactLinks(string $html, string $base, ?string $host): array
+    {
+        if (! preg_match_all('/<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is', $html, $m, PREG_SET_ORDER)) {
+            return [];
+        }
+
+        $links = [];
+
+        foreach ($m as [, $href, $text]) {
+            $haystack = mb_strtolower($href.' '.strip_tags($text));
+
+            $looksRight = false;
+            foreach (self::LINK_HINTS as $hint) {
+                if (str_contains($haystack, $hint)) {
+                    $looksRight = true;
+                    break;
+                }
+            }
+            if (! $looksRight) {
+                continue;
+            }
+
+            $url = $this->absolute($href, $base);
+            if ($url && parse_url($url, PHP_URL_HOST) === $host) {
+                $links[$url] = true;
+            }
+        }
+
+        return array_keys($links);
+    }
+
+    /** Resolve an href against the site root. Relative-to-current is not needed: only homepage links are followed. */
+    private function absolute(string $href, string $base): ?string
+    {
+        $href = trim($href);
+
+        if ($href === '' || Str::startsWith($href, ['#', 'mailto:', 'tel:', 'javascript:', 'data:'])) {
+            return null;
+        }
+
+        if (Str::startsWith($href, ['http://', 'https://'])) {
+            return $href;
+        }
+
+        return rtrim($base, '/').'/'.ltrim($href, '/');
+    }
+
+    /* ------------------------------------------------------------ extraction */
+
+    /**
+     * Addresses on one page. `mailto:` links come first because a link is a
+     * deliberate publication, whereas loose text can be anything.
+     *
+     * @return array<int, string>
+     */
+    private function extract(string $html): array
     {
         $found = [];
 
@@ -199,7 +315,7 @@ class MapsLeadEmailFinder
         }
 
         // Plain text addresses, including the "info [at] example.com" dodge.
-        $text = preg_replace('/\s*(?:\[at\]|\(at\))\s*/i', '@', strip_tags($html)) ?? '';
+        $text = preg_replace('/\s*(?:\[at\]|\(at\)|\s+at\s+)\s*/i', '@', strip_tags($html)) ?? '';
 
         if (preg_match_all('/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/', $text, $m)) {
             foreach ($m[0] as $raw) {
@@ -228,7 +344,7 @@ class MapsLeadEmailFinder
             return null;
         }
 
-        if (in_array($local, self::REJECT_LOCAL, true)) {
+        if (in_array($local, self::REJECT_LOCALS, true)) {
             return null;
         }
 
@@ -246,51 +362,60 @@ class MapsLeadEmailFinder
         return $email;
     }
 
-    /** First candidate whose domain matches the site being read. */
-    private function bestOnHost(array $candidates, ?string $host): ?string
+    /**
+     * Classify one address.
+     *
+     * @return array{email: string, source_url: string, is_generic: bool, same_domain: bool}
+     */
+    private function describe(string $email, string $sourceUrl, ?string $root): array
     {
-        $root = $this->rootDomain($host);
+        [$local, $domain] = explode('@', $email, 2);
 
-        foreach ($candidates as $email) {
-            if ($root && str_ends_with(explode('@', $email)[1], $root)) {
-                return $email;
-            }
-        }
+        // "info", "info.dhaka" and "sales-bd" are all shared inboxes.
+        $head = preg_split('/[.\-_+]/', $local)[0] ?? $local;
 
-        return null;
+        return [
+            'email' => $email,
+            'source_url' => Str::limit($sourceUrl, 490, ''),
+            'is_generic' => in_array($local, self::GENERIC_LOCALS, true)
+                || in_array($head, self::GENERIC_LOCALS, true),
+            'same_domain' => (bool) ($root && str_ends_with($domain, $root)),
+        ];
     }
 
     /**
-     * Choose one address: same-domain first, then a preferred shared inbox, then
-     * whatever is left.
+     * Best first: an address on the business's own domain beats a gmail one, and
+     * a shared inbox beats a named person. The first entry is what outreach uses.
      */
-    private function pick(array $candidates, ?string $host): ?string
+    private function sort(array $emails): array
     {
-        if ($candidates === []) {
-            return null;
-        }
+        usort($emails, function ($a, $b) {
+            return [$b['same_domain'], $b['is_generic'], $a['email']]
+                <=> [$a['same_domain'], $a['is_generic'], $b['email']];
+        });
 
-        $root = $this->rootDomain($host);
-
-        $onDomain = array_values(array_filter(
-            $candidates,
-            fn ($e) => $root && str_ends_with(explode('@', $e)[1], $root),
-        ));
-
-        $pool = $onDomain !== [] ? $onDomain : $candidates;
-
-        foreach (self::PREFER_LOCAL as $preferred) {
-            foreach ($pool as $email) {
-                if (explode('@', $email)[0] === $preferred) {
-                    return $email;
-                }
-            }
-        }
-
-        return $pool[0];
+        return $emails;
     }
 
-    /** "www.shop.example.co" -> "example.co" (good enough for a suffix match). */
+/**
+     * Compound public suffixes. Without these "clinic.com.bd" reduces to
+     * "com.bd", and every .com.bd address in the country counts as the same
+     * business - which matters here, where most sites sit under one of these.
+     */
+    private const COMPOUND_SUFFIXES = [
+        'com.bd', 'net.bd', 'org.bd', 'edu.bd', 'gov.bd', 'ac.bd', 'info.bd',
+        'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'me.uk', 'net.uk',
+        'com.au', 'net.au', 'org.au', 'edu.au', 'com.pk', 'com.np', 'com.lk',
+        'co.in', 'net.in', 'org.in', 'com.my', 'com.sg', 'com.ph', 'com.tr',
+        'com.br', 'com.mx', 'co.za', 'co.nz', 'co.jp', 'co.kr', 'com.cn',
+    ];
+
+    /**
+     * The registrable domain: "www.shop.clinic.com.bd" -> "clinic.com.bd".
+     *
+     * Not a full public-suffix implementation - just enough of one that a
+     * shared country suffix is never mistaken for a shared business.
+     */
     private function rootDomain(?string $host): ?string
     {
         $parts = explode('.', mb_strtolower((string) $host));
@@ -299,6 +424,12 @@ class MapsLeadEmailFinder
             return null;
         }
 
-        return implode('.', array_slice($parts, -2));
+        $lastTwo = implode('.', array_slice($parts, -2));
+
+        if (in_array($lastTwo, self::COMPOUND_SUFFIXES, true) && count($parts) >= 3) {
+            return implode('.', array_slice($parts, -3));
+        }
+
+        return $lastTwo;
     }
 }

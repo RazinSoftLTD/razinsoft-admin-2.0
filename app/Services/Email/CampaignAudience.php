@@ -94,6 +94,12 @@ class CampaignAudience
         $values = array_filter((array) ($audience['values'] ?? []));
         $type = $audience['type'];
 
+        /*
+         * `maps_leads.email` is only ever set to a shared inbox - the discovery
+         * job puts named-individual addresses in maps_lead_emails and leaves
+         * this column null - so filtering on it keeps campaigns off people's
+         * personal addresses without needing a second check here.
+         */
         $query = MapsLead::query()
             ->whereNotNull('email')->where('email', '!=', '');
 
