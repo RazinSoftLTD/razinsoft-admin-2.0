@@ -53,7 +53,46 @@ class MapsLeadDashboardController extends Controller
                 'with_website' => MapsLead::whereNotNull('website')->where('website', '!=', '')->count(),
                 'runs' => MapsImportRun::count(),
             ],
+            // How the current selection splits up. A run now sweeps several
+            // cities in one go, so "how much did each city and each category
+            // actually yield" is the question the plain list cannot answer.
+            // City first so the label reads the way the table's Location column
+            // does: "Dhaka, Bangladesh".
+            'byPlace' => $this->breakdown($search, $filters, ['search_city', 'search_country']),
+            'byCategory' => $this->breakdown($search, $filters, ['category']),
         ]);
+    }
+
+    /**
+     * Count the current selection grouped by the given columns.
+     *
+     * Runs over the same filters as the list, so the breakdown always describes
+     * what is on screen rather than the whole table. Capped at 12 rows: this is
+     * a "where did the leads come from" summary, not a second listing.
+     *
+     * @param  string[]  $columns
+     * @return \Illuminate\Support\Collection
+     */
+    private function breakdown(?string $search, array $filters, array $columns)
+    {
+        return MapsLead::query()
+            ->search($search)
+            ->filter($filters)
+            ->selectRaw(implode(', ', $columns).', COUNT(*) as total')
+            ->groupBy($columns)
+            ->orderByDesc('total')
+            ->limit(12)
+            ->get()
+            ->map(function ($row) use ($columns) {
+                $parts = array_filter(array_map(fn ($c) => $row->{$c}, $columns));
+
+                return [
+                    'label' => $parts ? implode(', ', $parts) : 'Not recorded',
+                    'total' => (int) $row->total,
+                    // Enough to rebuild the filter when the row is clicked.
+                    'values' => array_combine($columns, array_map(fn ($c) => $row->{$c}, $columns)),
+                ];
+            });
     }
 
     public function runs(): View
