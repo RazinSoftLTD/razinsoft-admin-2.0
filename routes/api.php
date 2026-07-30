@@ -125,3 +125,8 @@ Route::middleware(['auth:sanctum', 'client.active'])->group(function () {
 // ---- Bounce / complaint reports from the sending provider. Public by necessity, so it is
 //      guarded by a shared secret (EMAIL_WEBHOOK_SECRET) rather than the session. ----
 Route::post('/email/webhook', \App\Http\Controllers\Api\EmailWebhookController::class)->name('email.webhook');
+
+// ---- Google Maps lead collector (Chrome extension ingest + management).
+//      Separate file, /api/v1 prefix, and its own maps_* tables: this has nothing
+//      to do with the CRM `leads` table. Requires a token with `leads:write`. ----
+require __DIR__.'/api-leads.php';

@@ -70,6 +70,8 @@
 
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
             ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => ['admin.leads.index', 'admin.leads.show', 'admin.leads.edit', 'admin.leads.create', 'admin.leads.import.form'], 'perm' => 'leads.view', 'icon' => $ic['leads']],
+            // Google Maps collector output. Separate maps_leads table, not the CRM leads above.
+            ['label' => 'Maps Leads', 'route' => 'admin.maps-leads.dashboard', 'active' => 'admin.maps-leads.*', 'icon' => $ic['country']],
             ['label' => 'Follow-ups', 'route' => 'admin.follow-ups.index', 'active' => 'admin.follow-ups.*', 'perm' => 'follow_ups.view', 'icon' => $ic['followups']],
             ['label' => 'Deals', 'route' => 'admin.deals.index', 'active' => 'admin.deals.*', 'perm' => 'deals.view', 'icon' => $ic['deals']],
             ['label' => 'Clients', 'route' => 'admin.clients.index', 'active' => 'admin.clients.*', 'perm' => 'clients.view', 'icon' => $ic['clients']],
