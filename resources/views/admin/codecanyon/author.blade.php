@@ -22,16 +22,41 @@
         @if ($author->is_own)<span class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600">Our account</span>@endif
     </div>
 
+    @if (session('status'))<div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
+    @if ($errors->any())<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ $errors->first() }}</div>@endif
+
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-2xl border {{ $soldToday ? 'border-emerald-200 bg-emerald-50' : 'border-gray-100 bg-white' }} p-5 shadow-sm">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-sm {{ $soldToday ? 'text-emerald-700' : 'text-[var(--color-muted)]' }}">Sold today</p>
+                @if (auth()->user()->allows('codecanyon', 'manage'))
+                    <form method="POST" action="{{ route('admin.codecanyon.compare-sync') }}">
+                        @csrf
+                        <input type="hidden" name="author" value="{{ $author->id }}">
+                        <button title="Refresh this author from Envato" class="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-[var(--color-heading)] hover:bg-gray-50">Sync now</button>
+                    </form>
+                @endif
+            </div>
+            <p class="mt-1 text-2xl font-bold {{ $soldToday ? 'text-emerald-700' : 'text-[var(--color-heading)]' }}">
+                {{ $soldToday ? '+'.number_format($soldToday) : '0' }}
+            </p>
+            <p class="mt-0.5 text-xs text-[var(--color-muted)]">
+                @if ($todayPartial)
+                    Counted from today's first sync — no reading from yesterday to compare against.
+                @else
+                    Against yesterday's closing figure.
+                @endif
+            </p>
+        </div>
         @foreach ([
-            ['Lifetime sales', number_format((int) $author->total_sales)],
-            ['Products tracked', $author->products->count()],
-            ['Est. revenue', $money($author->estimatedRevenue())],
-            ['Followers', number_format((int) $author->followers)],
-        ] as [$label, $value])
+            ['Profile sales', number_format((int) $author->total_sales), "Envato's total for the account — includes retired items and their other marketplaces."],
+            ['Portfolio sales', number_format((int) $author->products->sum('number_of_sales')), 'Across the '.$author->products->count().' items currently listed.'],
+            ['Est. revenue', $money($author->estimatedRevenue()), 'Sales × current price — the API never exposes real earnings.'],
+        ] as [$label, $value, $note])
             <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                 <p class="text-sm text-[var(--color-muted)]">{{ $label }}</p>
                 <p class="mt-1 text-2xl font-bold text-[var(--color-heading)]">{{ $value }}</p>
+                <p class="mt-0.5 text-xs text-[var(--color-muted)]">{{ $note }}</p>
             </div>
         @endforeach
     </div>
@@ -55,6 +80,8 @@
                 <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
                     <tr>
                         <th class="px-5 py-3 font-semibold">Product</th>
+                        <th class="px-5 py-3 font-semibold">Today</th>
+                        <th class="px-5 py-3 font-semibold">Last 7d</th>
                         <th class="px-5 py-3 font-semibold">Sales</th>
                         <th class="px-5 py-3 font-semibold">Rating</th>
                         <th class="px-5 py-3 font-semibold">Price</th>
@@ -64,11 +91,20 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($author->products as $p)
-                        <tr class="hover:bg-gray-50">
+                        @php $soldToday = $today[$p->id]['sold'] ?? 0; @endphp
+                        <tr class="hover:bg-gray-50 {{ $soldToday ? 'bg-emerald-50/40' : '' }}">
                             <td class="px-5 py-3">
                                 <a href="{{ route('admin.codecanyon.product', $p) }}" class="block max-w-md truncate font-semibold text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $p->name }}</a>
                                 <span class="text-xs text-[var(--color-muted)]">{{ $p->categoryLabel() }}</span>
                             </td>
+                            <td class="px-5 py-3">
+                                @if ($soldToday)
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-700">+{{ $soldToday }}</span>
+                                @else
+                                    <span class="text-gray-300">0</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3 text-[var(--color-muted)]">{{ ($week[$p->id] ?? 0) ?: '—' }}</td>
                             <td class="px-5 py-3 font-semibold text-[var(--color-heading)]">{{ number_format($p->number_of_sales) }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $p->rating ? number_format((float) $p->rating, 2) : '—' }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">${{ number_format($p->price(), 2) }}</td>
@@ -76,7 +112,7 @@
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $p->item_updated_at?->diffForHumans() ?? '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">No products synced yet.</td></tr>
+                        <tr><td colspan="8" class="px-5 py-12 text-center text-gray-400">No products synced yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

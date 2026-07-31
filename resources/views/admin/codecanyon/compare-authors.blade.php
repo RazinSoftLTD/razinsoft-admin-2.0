@@ -109,7 +109,10 @@
     <div class="mt-6 rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div class="border-b border-gray-100 px-5 py-4">
             <h3 class="text-lg font-bold text-[var(--color-heading)]">Standings</h3>
-            <p class="text-xs text-[var(--color-muted)]">Ranked by sales inside the selected window.</p>
+            <p class="text-xs text-[var(--color-muted)]">
+                Ranked by sales inside the selected window. <strong>Today</strong> updates on every sync — press <em>Sync now</em> for the latest.
+                The column beside it names what sold today; with no sales yet it falls back to the window's best seller.
+            </p>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
@@ -117,8 +120,9 @@
                     <tr>
                         <th class="px-5 py-3 font-semibold">#</th>
                         <th class="px-5 py-3 font-semibold">Author</th>
+                        <th class="px-5 py-3 font-semibold text-right">Today</th>
                         <th class="px-5 py-3 font-semibold text-right">Sold ({{ $days }}d)</th>
-                        <th class="px-5 py-3 font-semibold">Best seller in window</th>
+                        <th class="px-5 py-3 font-semibold">What sold today</th>
                         <th class="px-5 py-3 font-semibold text-right">Products</th>
                         <th class="px-5 py-3 font-semibold text-right">Portfolio sales</th>
                         <th class="px-5 py-3 font-semibold text-right">Est. revenue</th>
@@ -137,9 +141,30 @@
                                     <span class="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">Us</span>
                                 @endif
                             </td>
+                            <td class="px-5 py-3 text-right">
+                                @if ($row['today'] > 0)
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-700">+{{ number_format($row['today']) }}</span>
+                                @else
+                                    <span class="text-gray-300">0</span>
+                                @endif
+                                @if ($row['today_partial'])
+                                    <span class="block text-[11px] text-[var(--color-muted)]" title="No reading from yesterday to measure against, so this counts from today's first sync">since first sync</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3 text-right text-lg font-bold text-[var(--color-heading)]">{{ number_format($row['sold']) }}</td>
                             <td class="px-5 py-3">
-                                @if ($row['top'] && $row['top_sold'])
+                                @if ($row['today_products']->isNotEmpty())
+                                    {{-- What actually moved today beats the window's best seller when there is news. --}}
+                                    @foreach ($row['today_products']->take(2) as $t)
+                                        <div class="truncate">
+                                            <a href="{{ route('admin.codecanyon.product', $t['product']) }}" class="text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $t['product']->name }}</a>
+                                            <span class="font-semibold text-emerald-700">+{{ $t['sold'] }}</span>
+                                        </div>
+                                    @endforeach
+                                    @if ($row['today_products']->count() > 2)
+                                        <span class="text-xs text-[var(--color-muted)]">+{{ $row['today_products']->count() - 2 }} more today</span>
+                                    @endif
+                                @elseif ($row['top'] && $row['top_sold'])
                                     <a href="{{ route('admin.codecanyon.product', $row['top']) }}" class="text-[var(--color-heading)] hover:text-[var(--color-primary)]">{{ $row['top']->name }}</a>
                                     <span class="text-[var(--color-muted)]">— {{ $row['top_sold'] }}</span>
                                 @else

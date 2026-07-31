@@ -39,6 +39,7 @@ class CodeCanyonCompareController extends Controller
         $rows = $authors->map(function (EnvatoAuthor $author) use ($compare, $from, $to) {
             $perProduct = $compare->perProduct($author->products, $from, $to);
             $sold = array_sum($perProduct);
+            $today = $compare->today($author->products);
 
             // Which single item carried the period. Answering "who sold more" is
             // only half the question; "on the back of what" is the other half.
@@ -48,6 +49,16 @@ class CodeCanyonCompareController extends Controller
             return [
                 'author' => $author,
                 'sold' => $sold,
+                'today' => array_sum(array_column($today, 'sold')),
+                // Partial when no product has yesterday's close to measure against.
+                'today_partial' => $today && ! collect($today)->contains(fn ($t) => $t['since'] === 'yesterday'),
+                // Which items moved today, best first — the answer to "sold what?".
+                'today_products' => collect($today)
+                    ->filter(fn ($t) => $t['sold'] > 0)
+                    ->sortByDesc('sold')
+                    ->map(fn ($t, $id) => ['product' => $author->products->firstWhere('id', $id), 'sold' => $t['sold']])
+                    ->filter(fn ($r) => (bool) $r['product'])
+                    ->values(),
                 'products' => $author->products->count(),
                 // Two different truths, deliberately kept apart: the portfolio sum
                 // covers the items we track, while Envato's profile figure counts

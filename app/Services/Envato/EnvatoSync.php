@@ -104,15 +104,20 @@ class EnvatoSync
         );
 
         // One row per day — the API gives no history, so this is what builds the trend.
-        $product->snapshots()->updateOrCreate(
-            ['captured_on' => today()],
-            [
-                'number_of_sales' => $product->number_of_sales,
-                'rating' => $product->rating,
-                'rating_count' => $product->rating_count,
-                'price_cents' => $product->price_cents,
-            ]
-        );
+        // Later runs the same day overwrite the row, which keeps the last reading
+        // before midnight as the day's close.
+        $snapshot = $product->snapshots()->firstOrNew(['captured_on' => today()]);
+
+        // Written once, on the first reading of the day, and never again: it is the
+        // line today's sales are measured from before the day has a close.
+        $snapshot->opening_sales ??= $product->number_of_sales;
+
+        $snapshot->fill([
+            'number_of_sales' => $product->number_of_sales,
+            'rating' => $product->rating,
+            'rating_count' => $product->rating_count,
+            'price_cents' => $product->price_cents,
+        ])->save();
 
         return $product;
     }

@@ -103,6 +103,67 @@ class SalesCompare
     }
 
     /**
+     * What each product has sold so far today, and where that is measured from.
+     *
+     * Preferring yesterday's close makes this a true full-day figure. Falling back
+     * to today's opening covers the first day of tracking and any day after a
+     * missed sync — partial, and flagged as such, but far better than a blank.
+     *
+     * @return array<int, array{sold: int, since: string, from: string}>
+     *         keyed by product id; `since` is 'yesterday' or 'opening'
+     */
+    public function today($products): array
+    {
+        $ids = $products instanceof Collection ? $products->pluck('id')->all() : (array) $products;
+
+        if (! $ids) {
+            return [];
+        }
+
+        $rows = DB::table('envato_snapshots')
+            ->whereIn('envato_product_id', $ids)
+            ->whereDate('captured_on', '>=', today()->copy()->subDay()->toDateString())
+            ->whereDate('captured_on', '<=', today()->toDateString())
+            ->get(['envato_product_id', 'captured_on', 'number_of_sales', 'opening_sales', 'created_at']);
+
+        $yesterday = today()->copy()->subDay()->toDateString();
+        $closes = [];
+        $todays = [];
+
+        foreach ($rows as $row) {
+            $id = (int) $row->envato_product_id;
+            if (Carbon::parse($row->captured_on)->toDateString() === $yesterday) {
+                $closes[$id] = (int) $row->number_of_sales;
+            } else {
+                $todays[$id] = $row;
+            }
+        }
+
+        $out = [];
+        foreach ($todays as $id => $row) {
+            $baseline = $closes[$id] ?? $row->opening_sales;
+            if ($baseline === null) {
+                continue;
+            }
+
+            $out[$id] = [
+                // A total that drops means a reset or delisting, not a negative sale.
+                'sold' => max(0, (int) $row->number_of_sales - (int) $baseline),
+                'since' => isset($closes[$id]) ? 'yesterday' : 'opening',
+                'from' => (string) $row->created_at,
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Total sold today across a set of products. */
+    public function soldToday($products): int
+    {
+        return array_sum(array_column($this->today($products), 'sold'));
+    }
+
+    /**
      * Whether we have any snapshot history at all yet.
      *
      * Worth checking before drawing an empty chart: "no sales" and "the sync has

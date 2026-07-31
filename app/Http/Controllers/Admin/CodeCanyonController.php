@@ -52,11 +52,21 @@ class CodeCanyonController extends Controller
         ]);
     }
 
-    public function author(EnvatoAuthor $author)
+    public function author(EnvatoAuthor $author, \App\Services\Envato\SalesCompare $compare)
     {
         $author->load(['products' => fn ($q) => $q->orderByDesc('number_of_sales'), 'products.niche']);
 
-        return view('admin.codecanyon.author', ['author' => $author]);
+        $today = $compare->today($author->products);
+
+        return view('admin.codecanyon.author', [
+            'author' => $author,
+            'today' => $today,
+            'soldToday' => array_sum(array_column($today, 'sold')),
+            // Partial while no product has yesterday's close to measure against.
+            'todayPartial' => $today && ! collect($today)->contains(fn ($t) => $t['since'] === 'yesterday'),
+            // Last 7 days per product, so the portfolio shows recent form next to today.
+            'week' => $compare->perProduct($author->products, today()->copy()->subDays(6), today()),
+        ]);
     }
 
     public function product(EnvatoProduct $product)
