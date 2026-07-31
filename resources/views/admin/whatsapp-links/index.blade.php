@@ -19,23 +19,24 @@
 
         <form method="POST" action="{{ route('admin.whatsapp-links.store') }}" class="mt-4 grid gap-3 sm:grid-cols-12">
             @csrf
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-4">
                 <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">WhatsApp number <span class="text-red-500">*</span></label>
                 <input type="text" name="number" required value="{{ old('number') }}" placeholder="01711257498"
                        class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
             </div>
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-8">
                 <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Label</label>
                 <input type="text" name="label" value="{{ old('label') }}" placeholder="Facebook ad — August"
                        class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
             </div>
-            <div class="sm:col-span-4">
+
+            <div class="sm:col-span-12">
                 <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">First message</label>
-                <input type="text" name="message" value="{{ old('message') }}" placeholder="Hi, I saw your ad and want to know more"
-                       class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                @include('admin.whatsapp-links._message-editor', ['value' => old('message')])
             </div>
-            <div class="sm:col-span-2 sm:self-end">
-                <button class="h-11 w-full rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+
+            <div class="sm:col-span-12">
+                <button class="h-11 rounded-lg bg-[var(--color-primary)] px-6 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
                     Create link
                 </button>
             </div>
@@ -123,7 +124,7 @@
 
     <div class="grid gap-6 lg:grid-cols-3">
         {{-- Links --}}
-        <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
+        <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2" x-data="{ editing: null }">
             <div class="border-b border-gray-100 px-6 py-4">
                 <h2 class="text-sm font-bold text-[var(--color-heading)]">Your links</h2>
                 <p class="text-xs text-[var(--color-muted)]">Copy a link and put it in an ad, a post or an email signature.</p>
@@ -166,6 +167,10 @@
                                            class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-emerald-600">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2a10 10 0 0 0-8.6 15L2 22l5-1.4A10 10 0 1 0 12 2Z"/></svg>
                                         </a>
+                                        <button type="button" @click="editing = {{ $l->id }}" title="Edit number or message — the link stays the same"
+                                                class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
+                                        </button>
                                         <form method="POST" action="{{ route('admin.whatsapp-links.toggle', $l) }}">
                                             @csrf
                                             <button class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="{{ $l->is_active ? 'Stop counting' : 'Start counting' }}">
@@ -188,6 +193,45 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Edit: changes where the link points, never the link itself. --}}
+            @foreach ($links as $l)
+                <div x-show="editing === {{ $l->id }}" x-cloak
+                     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                     @click.self="editing = null" @keydown.escape.window="editing = null">
+                    <div class="max-h-full w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+                        <h3 class="text-lg font-bold text-[var(--color-heading)]">Edit link</h3>
+                        <p class="mt-1 text-xs text-[var(--color-muted)]">
+                            The short link stays <span class="font-mono text-[var(--color-primary)]">{{ $l->shortUrl() }}</span> —
+                            anything already sharing it keeps working, it just points somewhere new.
+                        </p>
+
+                        <form method="POST" action="{{ route('admin.whatsapp-links.update', $l) }}" class="mt-4 space-y-3">
+                            @csrf @method('PUT')
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">WhatsApp number <span class="text-red-500">*</span></label>
+                                <input type="text" name="number" required value="{{ $l->number }}"
+                                       class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Label</label>
+                                <input type="text" name="label" value="{{ $l->label }}"
+                                       class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">First message</label>
+                                @include('admin.whatsapp-links._message-editor', ['value' => $l->message])
+                            </div>
+
+                            <div class="flex justify-end gap-2 pt-2">
+                                <button type="button" @click="editing = null"
+                                        class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
+                                <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endforeach
         </div>
 
         {{-- Countries --}}

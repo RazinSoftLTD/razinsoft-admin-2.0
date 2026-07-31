@@ -96,6 +96,35 @@ class WhatsappLinkController extends Controller
         return back()->with('status', 'Link ready: '.$link->shortUrl());
     }
 
+    /**
+     * Change the number or the message without changing the link.
+     *
+     * That is the whole point of editing rather than replacing: the short link is already printed
+     * on an ad, a card or a post, so the code must survive. Only what it forwards to changes.
+     */
+    public function update(Request $request, WhatsappLink $whatsappLink)
+    {
+        $data = $request->validate([
+            'label' => ['nullable', 'string', 'max:120'],
+            'number' => ['required', 'string', 'max:32'],
+            'message' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $parsed = Phone::normalize($data['number'], null, '+880');
+
+        if (! $parsed) {
+            return back()->withErrors(['number' => 'That does not look like a valid phone number.']);
+        }
+
+        $whatsappLink->update([
+            'label' => $data['label'] ?? null,
+            'number' => $parsed['dial'].$parsed['number'],
+            'message' => $data['message'] ?? null,
+        ]);
+
+        return back()->with('status', 'Updated. The link itself is unchanged — anything already sharing it keeps working.');
+    }
+
     public function toggle(Request $request, WhatsappLink $whatsappLink)
     {
         $whatsappLink->update(['is_active' => ! $whatsappLink->is_active]);
