@@ -127,7 +127,10 @@
         <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2" x-data="{ editing: null }">
             <div class="border-b border-gray-100 px-6 py-4">
                 <h2 class="text-sm font-bold text-[var(--color-heading)]">Your links</h2>
-                <p class="text-xs text-[var(--color-muted)]">Copy a link and put it in an ad, a post or an email signature.</p>
+                <p class="text-xs text-[var(--color-muted)]">
+                    Copy a link and put it in an ad, a post or an email signature. The globe button hands a link to the
+                    website's floating WhatsApp button, so those clicks are counted here too.
+                </p>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
@@ -150,6 +153,11 @@
                                     @unless ($l->is_active)
                                         <span class="mt-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">Retired — not counting</span>
                                     @endunless
+                                    @if ($l->is_site_button)
+                                        <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
+                                            On the website
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-3">
                                     <span class="block text-[var(--color-heading)]">{{ $l->number }}</span>
@@ -167,6 +175,23 @@
                                            class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-emerald-600">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2a10 10 0 0 0-8.6 15L2 22l5-1.4A10 10 0 1 0 12 2Z"/></svg>
                                         </a>
+                                        @if ($l->is_site_button)
+                                            <form method="POST" action="{{ route('admin.whatsapp-links.site-button.clear') }}">
+                                                @csrf
+                                                <button title="Stop using this on the website's floating button"
+                                                        class="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12a9.5 9.5 0 1 0 19 0 9.5 9.5 0 0 0-19 0Zm0 0h19M12 2.5c2.5 2.6 2.5 16.4 0 19M12 2.5c-2.5 2.6-2.5 16.4 0 19"/></svg>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <form method="POST" action="{{ route('admin.whatsapp-links.use-on-site', $l) }}">
+                                                @csrf
+                                                <button title="Use this link for the website's floating WhatsApp button"
+                                                        class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-emerald-600">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12a9.5 9.5 0 1 0 19 0 9.5 9.5 0 0 0-19 0Zm0 0h19M12 2.5c2.5 2.6 2.5 16.4 0 19M12 2.5c-2.5 2.6-2.5 16.4 0 19"/></svg>
+                                                </button>
+                                            </form>
+                                        @endif
                                         <button type="button" @click="editing = {{ $l->id }}" title="Edit number or message — the link stays the same"
                                                 class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>

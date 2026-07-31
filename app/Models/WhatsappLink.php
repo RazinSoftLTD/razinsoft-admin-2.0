@@ -12,7 +12,13 @@ class WhatsappLink extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean', 'is_site_button' => 'boolean'];
+
+    /** The link the website's floating button points at, if one is set. */
+    public static function siteButton(): ?self
+    {
+        return static::where('is_site_button', true)->where('is_active', true)->first();
+    }
 
     public function clicks(): HasMany
     {

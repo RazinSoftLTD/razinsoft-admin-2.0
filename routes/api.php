@@ -28,6 +28,8 @@ Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 
 Route::get('/jobs', [\App\Http\Controllers\Api\JobController::class, 'index']);
+// What the website's floating WhatsApp button points at (set in Activity → WhatsApp Button).
+Route::get('/whatsapp-button', \App\Http\Controllers\Api\WhatsappButtonController::class);
 Route::get('/promotion/active', [\App\Http\Controllers\Api\PromotionController::class, 'active']);
 
 // ---- Contact form (public) ----

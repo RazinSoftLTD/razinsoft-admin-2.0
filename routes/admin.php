@@ -368,6 +368,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('whatsapp-links', [$wl, 'index'])->name('whatsapp-links');
             Route::post('whatsapp-links', [$wl, 'store'])->name('whatsapp-links.store');
             Route::put('whatsapp-links/{whatsappLink}', [$wl, 'update'])->whereNumber('whatsappLink')->name('whatsapp-links.update');
+            Route::post('whatsapp-links/{whatsappLink}/use-on-site', [$wl, 'useOnSite'])->whereNumber('whatsappLink')->name('whatsapp-links.use-on-site');
+            Route::post('whatsapp-links/site-button/clear', [$wl, 'clearSiteButton'])->name('whatsapp-links.site-button.clear');
             Route::post('whatsapp-links/{whatsappLink}/toggle', [$wl, 'toggle'])->whereNumber('whatsappLink')->name('whatsapp-links.toggle');
             Route::delete('whatsapp-links/{whatsappLink}', [$wl, 'destroy'])->whereNumber('whatsappLink')->name('whatsapp-links.destroy');
             Route::get('client-activity/errors', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'errors'])->name('client-activity.errors');

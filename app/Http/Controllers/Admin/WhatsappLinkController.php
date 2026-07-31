@@ -8,6 +8,7 @@ use App\Models\WhatsappLinkClick;
 use App\Support\Phone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Activity → WhatsApp Button: build a link that opens a chat, then see how often it was followed.
@@ -123,6 +124,31 @@ class WhatsappLinkController extends Controller
         ]);
 
         return back()->with('status', 'Updated. The link itself is unchanged — anything already sharing it keeps working.');
+    }
+
+    /**
+     * Point the website's floating button at this link.
+     *
+     * Exactly one at a time: the site asks for "the" button and has to get one answer, so choosing
+     * a new one clears the last. Doing it in a transaction keeps that true even if two people press
+     * it at once.
+     */
+    public function useOnSite(WhatsappLink $whatsappLink)
+    {
+        DB::transaction(function () use ($whatsappLink) {
+            WhatsappLink::where('id', '!=', $whatsappLink->id)->update(['is_site_button' => false]);
+            $whatsappLink->update(['is_site_button' => true, 'is_active' => true]);
+        });
+
+        return back()->with('status', 'The website\'s floating WhatsApp button now uses this link — its clicks are counted here.');
+    }
+
+    /** Take the floating button off the site's links entirely. */
+    public function clearSiteButton()
+    {
+        WhatsappLink::where('is_site_button', true)->update(['is_site_button' => false]);
+
+        return back()->with('status', 'The website button falls back to its built-in number.');
     }
 
     public function toggle(Request $request, WhatsappLink $whatsappLink)
