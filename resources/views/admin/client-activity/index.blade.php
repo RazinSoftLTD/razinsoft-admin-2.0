@@ -180,7 +180,7 @@
     {{-- ===== Unique visitors over the same period ===== --}}
     @php $vt = $visitorTrend; @endphp
     <div class="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div class="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
                 <h2 class="text-sm font-bold text-[var(--color-heading)]">Unique visitors</h2>
                 <p class="text-xs text-[var(--color-muted)]">
@@ -188,41 +188,90 @@
                     Follows the period chosen above.
                 </p>
             </div>
-            <div class="flex flex-wrap gap-6">
+
+            <div class="flex flex-wrap items-end gap-6">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Unique in this period</p>
-                    <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($vt['total']) }}</p>
+                    <div class="flex items-baseline gap-2">
+                        <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($vt['total']) }}</p>
+                        @if ($vt['change'] !== null)
+                            @php $up = $vt['change'] >= 0; @endphp
+                            <span class="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold {{ $up ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500' }}">
+                                {{ $up ? '▲' : '▼' }} {{ abs($vt['change']) }}%
+                            </span>
+                        @endif
+                    </div>
+                    @if ($vt['previousLabel'])
+                        <p class="text-[11px] text-[var(--color-muted)]">{{ number_format($vt['previousTotal']) }} in {{ $vt['previousLabel'] }}</p>
+                    @endif
                 </div>
-                @if ($vt['busiest'] && $vt['busiest']['count'] > 0)
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">First-time</p>
+                    <p class="text-lg font-bold text-[var(--color-primary)]">{{ number_format($vt['new']) }}</p>
+                    <p class="text-[11px] text-[var(--color-muted)]">{{ number_format($vt['total'] - $vt['new']) }} returning</p>
+                </div>
+                @if ($vt['busiest'])
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Busiest</p>
                         <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($vt['busiest']['count']) }}</p>
-                        <p class="text-xs text-[var(--color-muted)]">{{ $vt['busiest']['full'] }}</p>
+                        <p class="text-[11px] text-[var(--color-muted)]">{{ $vt['busiest']['full'] }}</p>
                     </div>
                 @endif
             </div>
         </div>
 
         @if (collect($vt['buckets'])->sum('count') > 0)
+            @php $plot = 110; @endphp
             <div class="overflow-x-auto">
-                <div class="flex min-w-full items-end gap-1" style="min-width: {{ count($vt['buckets']) * 26 }}px; height: 130px;">
-                    @foreach ($vt['buckets'] as $b)
-                        <div class="flex flex-1 flex-col items-center justify-end" style="min-width: 22px;"
-                             title="{{ $b['full'] }} — {{ $b['count'] }} unique visitor(s)">
-                            @if ($b['count'] > 0)
-                                <span class="text-[9px] font-bold text-[var(--color-primary)]">{{ $b['count'] }}</span>
-                            @endif
-                            <span class="w-full rounded-t bg-[var(--color-primary)]"
-                                  style="height: {{ $b['count'] > 0 ? max(3, round($b['count'] / $vt['peak'] * 96)) : 0 }}px"></span>
-                            <span class="mt-1 block text-[9px] text-gray-400">{{ $b['label'] }}</span>
+                <div class="relative" style="min-width: {{ count($vt['buckets']) * 26 }}px;">
+                    {{-- Average line, so a bar can be read as above or below normal at a glance. --}}
+                    @if ($vt['average'] > 0)
+                        <div class="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-gray-300"
+                             style="bottom: {{ round($vt['average'] / $vt['peak'] * $plot) + 18 }}px">
+                            <span class="absolute right-0 -top-4 rounded bg-white px-1 text-[10px] font-semibold text-gray-400">
+                                avg {{ $vt['average'] }}
+                            </span>
                         </div>
-                    @endforeach
+                    @endif
+
+                    <div class="flex items-end gap-1" style="height: {{ $plot + 34 }}px;">
+                        @foreach ($vt['buckets'] as $b)
+                            <div class="group flex flex-1 flex-col items-center justify-end" style="min-width: 22px;"
+                                 title="{{ $b['full'] }} — {{ $b['count'] }} unique ({{ $b['new'] }} first-time, {{ $b['returning'] }} returning)">
+                                @if ($b['count'] > 0)
+                                    <span class="text-[9px] font-bold text-[var(--color-heading)]">{{ $b['count'] }}</span>
+                                @endif
+
+                                {{-- Stacked: returning sits under first-time, so the darker part is
+                                     always the people who had never been here before. --}}
+                                <span class="flex w-full flex-col justify-end overflow-hidden rounded-t {{ $b['isToday'] ? 'ring-2 ring-[var(--color-primary)]' : '' }}"
+                                      style="height: {{ $b['count'] > 0 ? max(3, round($b['count'] / $vt['peak'] * $plot)) : 0 }}px">
+                                    @if ($b['new'] > 0)
+                                        <span class="w-full bg-[var(--color-primary)]"
+                                              style="height: {{ round($b['new'] / max(1, $b['count']) * 100) }}%"></span>
+                                    @endif
+                                    @if ($b['returning'] > 0)
+                                        <span class="w-full bg-[var(--color-primary-soft)]"
+                                              style="height: {{ round($b['returning'] / max(1, $b['count']) * 100) }}%"></span>
+                                    @endif
+                                </span>
+
+                                <span class="mt-1 block text-[9px] {{ $b['isToday'] ? 'font-bold text-[var(--color-primary)]' : ($b['isWeekend'] ? 'text-gray-300' : 'text-gray-400') }}">
+                                    {{ $b['label'] }}
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
-            <p class="mt-3 text-[11px] text-[var(--color-muted)]">
-                The total is distinct across the whole period, so it is smaller than the bars added together —
-                someone who visits on three days is one person.
-            </p>
+
+            <div class="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-[var(--color-muted)]">
+                <span class="flex items-center gap-1.5"><span class="h-2 w-3 rounded-sm bg-[var(--color-primary)]"></span> First-time</span>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-3 rounded-sm bg-[var(--color-primary-soft)]"></span> Returning</span>
+                <span class="ml-auto">
+                    Distinct across the period, so smaller than the bars added together — one person visiting three days is one person.
+                </span>
+            </div>
         @else
             <p class="py-8 text-center text-sm text-gray-400">No visits recorded in this period.</p>
         @endif

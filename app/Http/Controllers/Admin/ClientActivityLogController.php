@@ -346,11 +346,16 @@ class ClientActivityLogController extends Controller
     }
 
     /**
-     * Unique visitors per day, month or year — following whatever period the growth chart is on.
+     * Unique visitors per bucket, split into first-time and returning, with the previous period
+     * alongside for comparison.
      *
      * Distinct counts cannot be added up: the same person visiting on three days is three daily
      * figures but one monthly one. So this pulls the distinct (day, visitor) pairs once and counts
      * uniques per bucket in PHP, which is the only way to get a truthful monthly or yearly number.
+     *
+     * "New" means their first visit ever landed in that bucket — judged against every visit on
+     * record, not just the window on screen, so someone who first came last year is returning even
+     * when this month is all you are looking at.
      */
     private function visitorTrend(array $growth): array
     {
@@ -360,24 +365,49 @@ class ClientActivityLogController extends Controller
             ->groupBy('d', 'v')
             ->get();
 
-        // bucket key => set of visitors
+        $firstSeen = [];
+        foreach ($pairs as $row) {
+            $firstSeen[$row->v] = min($firstSeen[$row->v] ?? $row->d, $row->d);
+        }
+
+        $bucketOf = function (Carbon $date, int $year, ?int $month) use ($growth) {
+            return match ($growth['view']) {
+                'daily' => ($date->year === $year && $date->month === $month) ? $date->toDateString() : null,
+                'monthly' => $date->year === $year ? $date->month : null,
+                default => $date->year,
+            };
+        };
+
+        // Same shape one period back, for the comparison line.
+        $previous = match ($growth['view']) {
+            'daily' => Carbon::create($growth['year'], $growth['month'], 1)->subMonth(),
+            'monthly' => Carbon::create($growth['year'], 1, 1)->subYear(),
+            default => null,
+        };
+
         $seen = [];
+        $seenPrev = [];
 
         foreach ($pairs as $row) {
             $date = Carbon::parse($row->d);
 
-            $key = match ($growth['view']) {
-                'daily' => ($date->year === $growth['year'] && $date->month === $growth['month']) ? $date->toDateString() : null,
-                'monthly' => $date->year === $growth['year'] ? $date->month : null,
-                default => $date->year,
-            };
-
-            if ($key === null) {
-                continue;
+            if (($key = $bucketOf($date, $growth['year'], $growth['month'])) !== null) {
+                $isNew = ($firstSeen[$row->v] ?? null) === $row->d;
+                $seen[$key][$row->v] = ($seen[$key][$row->v] ?? false) || $isNew;
             }
 
-            $seen[$key][$row->v] = true;
+            if ($previous && $bucketOf($date, $previous->year, $previous->month) !== null) {
+                $seenPrev[$row->v] = true;
+            }
         }
+
+        $make = function ($key, string $label, string $full) use ($seen) {
+            $set = $seen[$key] ?? [];
+            $new = count(array_filter($set));
+
+            return ['label' => $label, 'full' => $full, 'count' => count($set),
+                'new' => $new, 'returning' => count($set) - $new];
+        };
 
         $buckets = [];
 
@@ -385,32 +415,38 @@ class ClientActivityLogController extends Controller
             $start = Carbon::create($growth['year'], $growth['month'], 1);
             foreach (range(1, $start->daysInMonth) as $day) {
                 $date = $start->copy()->day($day);
-                $buckets[] = [
-                    'label' => $date->format('j'),
-                    'full' => $date->format('D, d M Y'),
-                    'count' => count($seen[$date->toDateString()] ?? []),
-                ];
+                $b = $make($date->toDateString(), $date->format('j'), $date->format('D, d M Y'));
+                $b['isToday'] = $date->isToday();
+                $b['isWeekend'] = $date->isWeekend();
+                $buckets[] = $b;
             }
         } elseif ($growth['view'] === 'monthly') {
             foreach (range(1, 12) as $m) {
-                $buckets[] = [
-                    'label' => Carbon::create($growth['year'], $m, 1)->format('M'),
-                    'full' => Carbon::create($growth['year'], $m, 1)->format('F Y'),
-                    'count' => count($seen[$m] ?? []),
-                ];
+                $d = Carbon::create($growth['year'], $m, 1);
+                $buckets[] = $make($m, $d->format('M'), $d->format('F Y')) + ['isToday' => $d->isSameMonth(now()), 'isWeekend' => false];
             }
         } else {
             foreach (collect(array_keys($seen))->sort() as $y) {
-                $buckets[] = ['label' => (string) $y, 'full' => (string) $y, 'count' => count($seen[$y])];
+                $buckets[] = $make($y, (string) $y, (string) $y) + ['isToday' => $y === now()->year, 'isWeekend' => false];
             }
         }
+
+        $total = count(array_reduce($seen, fn ($carry, $set) => $carry + $set, []));
+        $prevTotal = count($seenPrev);
+        $active = collect($buckets)->filter(fn ($b) => $b['count'] > 0);
 
         return [
             'buckets' => $buckets,
             'peak' => max(1, (int) (collect($buckets)->max('count') ?: 1)),
-            // Distinct across the whole window, not the sum of the bars — see the note above.
-            'total' => count(array_reduce($seen, fn ($carry, $set) => $carry + $set, [])),
-            'busiest' => collect($buckets)->sortByDesc('count')->first(),
+            'total' => $total,
+            'new' => count(array_filter(array_reduce($seen, fn ($carry, $set) => $carry + $set, []))),
+            // Averaged over the buckets that saw anyone: a month-to-date view should not be dragged
+            // down by days that have not happened yet.
+            'average' => $active->count() ? round($active->avg('count'), 1) : 0,
+            'busiest' => $active->sortByDesc('count')->first(),
+            'previousTotal' => $prevTotal,
+            'previousLabel' => $previous ? ($growth['view'] === 'daily' ? $previous->format('F Y') : (string) $previous->year) : null,
+            'change' => $prevTotal > 0 ? round(($total - $prevTotal) / $prevTotal * 100) : null,
         ];
     }
 
