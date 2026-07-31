@@ -47,7 +47,10 @@ class WhatsappLinkController extends Controller
             'clicks as clicks_window' => fn ($q) => $q
                 ->when($from, fn ($w) => $w->where('clicked_at', '>=', $from))
                 ->when($to, fn ($w) => $w->where('clicked_at', '<=', $to)),
-        ])->where('code', '!=', WhatsappLink::SITE_BUTTON_CODE)->latest('id')->get();
+        ])
+            // The website's own link leads the list — it is the one that is always in use.
+            ->orderByRaw("CASE WHEN code = ? THEN 0 ELSE 1 END", [WhatsappLink::SITE_BUTTON_CODE])
+            ->latest('id')->get();
 
         $recent = WhatsappLinkClick::with('link:id,label,code')
             ->when($request->query('link'), fn ($q, $id) => $q->where('link_id', $id))
