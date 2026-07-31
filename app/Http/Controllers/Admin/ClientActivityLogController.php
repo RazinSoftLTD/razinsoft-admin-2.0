@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClientActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -54,6 +55,7 @@ class ClientActivityLogController extends Controller
             ->whereIn('id', $visitors->pluck('last_id'))->get()->keyBy('id');
 
         return view('admin.client-activity.index', [
+            'growth' => $this->growth($request),
             'totalErrors' => $totalErrors,
             'totalVisits' => $totalVisits,
             'uniqueVisitors' => $uniqueVisitors,
@@ -256,6 +258,90 @@ class ClientActivityLogController extends Controller
                 ->groupBy('path')->orderByDesc('visits')->limit(10)->get(),
             'timeline' => $scope()->latest('id')->paginate(30)->withQueryString(),
         ]);
+    }
+
+    /**
+     * How the client base moved: how many joined and how many were removed, per day, month or year.
+     *
+     * Grouped by DATE() in SQL and rolled up in PHP rather than with DATE_FORMAT/strftime, because
+     * those differ between MySQL and SQLite and this has to work on both. Client rows number in the
+     * hundreds, so the rollup costs nothing.
+     */
+    private function growth(Request $request): array
+    {
+        $view = in_array($request->query('growth'), ['daily', 'monthly', 'yearly'], true)
+            ? $request->query('growth') : 'daily';
+
+        $year = (int) ($request->query('gyear') ?: now()->year);
+        $month = (int) ($request->query('gmonth') ?: now()->month);
+
+        $dateCounts = function (string $column) {
+            return User::clients()->withTrashed()
+                ->whereNotNull($column)
+                ->selectRaw("DATE({$column}) as d, COUNT(*) as c")
+                ->groupBy('d')->pluck('c', 'd');
+        };
+
+        $joined = $dateCounts('created_at');
+        $left = $dateCounts('deleted_at');
+
+        // Everything before the window, so the running total starts from the real figure.
+        $openingFor = function (Carbon $start) use ($joined, $left) {
+            $before = fn ($set) => collect($set)->filter(fn ($c, $d) => Carbon::parse($d)->lt($start))->sum();
+
+            return $before($joined) - $before($left);
+        };
+
+        $buckets = [];
+
+        if ($view === 'daily') {
+            $start = Carbon::create($year, $month, 1)->startOfDay();
+            $running = $openingFor($start);
+            foreach (range(1, $start->daysInMonth) as $day) {
+                $date = $start->copy()->day($day);
+                $key = $date->toDateString();
+                $in = (int) ($joined[$key] ?? 0);
+                $out = (int) ($left[$key] ?? 0);
+                $running += $in - $out;
+                $buckets[] = ['label' => $date->format('j'), 'full' => $date->format('D, d M Y'),
+                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running];
+            }
+        } elseif ($view === 'monthly') {
+            $start = Carbon::create($year, 1, 1)->startOfDay();
+            $running = $openingFor($start);
+            foreach (range(1, 12) as $m) {
+                $in = (int) collect($joined)->filter(fn ($c, $d) => Carbon::parse($d)->year === $year && Carbon::parse($d)->month === $m)->sum();
+                $out = (int) collect($left)->filter(fn ($c, $d) => Carbon::parse($d)->year === $year && Carbon::parse($d)->month === $m)->sum();
+                $running += $in - $out;
+                $buckets[] = ['label' => Carbon::create($year, $m, 1)->format('M'), 'full' => Carbon::create($year, $m, 1)->format('F Y'),
+                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running];
+            }
+        } else {
+            $years = collect($joined)->keys()->merge(collect($left)->keys())
+                ->map(fn ($d) => (int) Carbon::parse($d)->year)->unique()->sort()->values();
+            $running = 0;
+            foreach ($years as $y) {
+                $in = (int) collect($joined)->filter(fn ($c, $d) => Carbon::parse($d)->year === $y)->sum();
+                $out = (int) collect($left)->filter(fn ($c, $d) => Carbon::parse($d)->year === $y)->sum();
+                $running += $in - $out;
+                $buckets[] = ['label' => (string) $y, 'full' => (string) $y,
+                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running];
+            }
+        }
+
+        return [
+            'view' => $view,
+            'year' => $year,
+            'month' => $month,
+            'buckets' => $buckets,
+            'joined' => array_sum(array_column($buckets, 'in')),
+            'left' => array_sum(array_column($buckets, 'out')),
+            'net' => array_sum(array_column($buckets, 'net')),
+            'closing' => $buckets ? end($buckets)['total'] : 0,
+            'years' => User::clients()->withTrashed()->selectRaw('DATE(created_at) as d')
+                ->whereNotNull('created_at')->pluck('d')
+                ->map(fn ($d) => (int) Carbon::parse($d)->year)->unique()->sortDesc()->values(),
+        ];
     }
 
     private function applyDates($q, Request $request): void

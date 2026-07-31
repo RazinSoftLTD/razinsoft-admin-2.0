@@ -70,6 +70,113 @@
         </a>
     </div>
 
+    {{-- ===== Client growth: who joined and who left ===== --}}
+    @php
+        $g = $growth;
+        // One scale for both directions so a bar's height means the same thing either way.
+        $peak = max(1, collect($g['buckets'])->flatMap(fn ($b) => [$b['in'], $b['out']])->max() ?: 1);
+        $keep = request()->only(['date_range', 'from', 'to']);
+    @endphp
+
+    <div class="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">Client growth</h2>
+                <p class="text-xs text-[var(--color-muted)]">
+                    How many clients joined and how many were removed, and where that leaves the total.
+                </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                {{-- Day / month / year --}}
+                <div class="flex overflow-hidden rounded-lg border border-gray-200">
+                    @foreach (['daily' => 'Daily', 'monthly' => 'Monthly', 'yearly' => 'Yearly'] as $key => $label)
+                        <a href="{{ route('admin.client-activity', array_merge($keep, ['growth' => $key, 'gyear' => $g['year'], 'gmonth' => $g['month']])) }}"
+                           class="px-3 py-2 text-xs font-semibold transition {{ $g['view'] === $key ? 'bg-[var(--color-primary)] text-white' : 'bg-white text-[var(--color-muted)] hover:bg-gray-50' }}">
+                            {{ $label }}
+                        </a>
+                    @endforeach
+                </div>
+
+                {{-- Which month / year is being shown --}}
+                @if ($g['view'] !== 'yearly')
+                    <form method="GET" class="flex items-center gap-2">
+                        @foreach ($keep as $k => $v)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endforeach
+                        <input type="hidden" name="growth" value="{{ $g['view'] }}">
+                        @if ($g['view'] === 'daily')
+                            <select name="gmonth" onchange="this.form.submit()" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs">
+                                @foreach (range(1, 12) as $m)
+                                    <option value="{{ $m }}" @selected($g['month'] === $m)>{{ \Illuminate\Support\Carbon::create(null, $m, 1)->format('F') }}</option>
+                                @endforeach
+                            </select>
+                        @endif
+                        <select name="gyear" onchange="this.form.submit()" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs">
+                            @foreach ($g['years']->count() ? $g['years'] : collect([now()->year]) as $y)
+                                <option value="{{ $y }}" @selected($g['year'] === (int) $y)>{{ $y }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                @endif
+            </div>
+        </div>
+
+        {{-- Totals for what is on screen --}}
+        <div class="mb-5 flex flex-wrap gap-6">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Joined</p>
+                <p class="text-lg font-bold text-emerald-600">+{{ number_format($g['joined']) }}</p>
+            </div>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Removed</p>
+                <p class="text-lg font-bold text-red-500">−{{ number_format($g['left']) }}</p>
+            </div>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Net change</p>
+                <p class="text-lg font-bold {{ $g['net'] >= 0 ? 'text-emerald-600' : 'text-red-500' }}">
+                    {{ $g['net'] >= 0 ? '+' : '' }}{{ number_format($g['net']) }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Total at the end</p>
+                <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($g['closing']) }}</p>
+            </div>
+        </div>
+
+        {{-- Bars: joined above the line, removed below it. Plain CSS — admin deploys do not rebuild
+             assets, so a charting library would be dead weight that never loads. --}}
+        <div class="overflow-x-auto">
+            <div class="flex min-w-full items-stretch gap-1" style="min-width: {{ count($g['buckets']) * 26 }}px;">
+                @foreach ($g['buckets'] as $b)
+                    <div class="flex flex-1 flex-col items-center" style="min-width: 22px;"
+                         title="{{ $b['full'] }} — joined {{ $b['in'] }}, removed {{ $b['out'] }}, total {{ $b['total'] }}">
+                        {{-- joined --}}
+                        <div class="flex w-full flex-col justify-end" style="height: 90px;">
+                            @if ($b['in'] > 0)
+                                <span class="block text-center text-[9px] font-bold text-emerald-600">{{ $b['in'] }}</span>
+                            @endif
+                            <span class="w-full rounded-t bg-emerald-500" style="height: {{ $b['in'] > 0 ? max(3, round($b['in'] / $peak * 74)) : 0 }}px"></span>
+                        </div>
+                        <span class="h-px w-full bg-gray-200"></span>
+                        {{-- removed --}}
+                        <div class="flex w-full flex-col justify-start" style="height: 34px;">
+                            <span class="w-full rounded-b bg-red-400" style="height: {{ $b['out'] > 0 ? max(3, round($b['out'] / $peak * 26)) : 0 }}px"></span>
+                            @if ($b['out'] > 0)
+                                <span class="block text-center text-[9px] font-bold text-red-500">{{ $b['out'] }}</span>
+                            @endif
+                        </div>
+                        <span class="mt-1 block text-[9px] text-gray-400">{{ $b['label'] }}</span>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+        <div class="mt-3 flex items-center gap-4 text-[11px] text-[var(--color-muted)]">
+            <span class="flex items-center gap-1.5"><span class="h-2 w-3 rounded-sm bg-emerald-500"></span> Joined</span>
+            <span class="flex items-center gap-1.5"><span class="h-2 w-3 rounded-sm bg-red-400"></span> Removed</span>
+            <span class="ml-auto">Hover a bar for the exact numbers.</span>
+        </div>
+    </div>
+
     {{-- ===== Reports: top pages + top countries ===== --}}
     <div class="mb-6 grid gap-6 lg:grid-cols-2">
         {{-- Top pages --}}
