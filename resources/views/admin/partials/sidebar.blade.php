@@ -97,6 +97,7 @@
          * knowing the URL.
          */
         ['type' => 'group', 'label' => 'Email Manager', 'icon' => $ic['messaging'], 'items' => [
+            ['label' => 'Send to Maps Leads', 'route' => 'admin.email.maps-campaign', 'active' => 'admin.email.maps-campaign*', 'perm' => 'email.configure', 'icon' => $ic['country']],
             ['label' => 'Campaigns', 'route' => 'admin.email.campaigns', 'active' => 'admin.email.campaigns*', 'perm' => 'email.configure', 'icon' => $ic['marketing']],
             ['label' => 'Templates', 'route' => 'admin.email.templates', 'active' => 'admin.email.templates*', 'perm' => 'email.configure', 'icon' => $ic['article']],
             ['label' => 'Automation', 'route' => 'admin.email.automation', 'active' => 'admin.email.automation*', 'perm' => 'email.configure', 'icon' => $ic['workspace']],

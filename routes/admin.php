@@ -842,6 +842,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('logs/{log}/cancel', [$el, 'cancel'])->whereNumber('log')->name('logs.cancel');
         Route::post('logs/{log}/resend', [$el, 'resend'])->whereNumber('log')->name('logs.resend');
         Route::delete('logs/{log}', [$el, 'destroy'])->whereNumber('log')->name('logs.destroy');
+        // One-click outreach to Maps leads: one campaign per product line, each
+        // with its own letter.
+        $mc = \App\Http\Controllers\Admin\MapsCampaignController::class;
+        Route::get('maps-campaign', [$mc, 'index'])->name('maps-campaign');
+        Route::post('maps-campaign', [$mc, 'send'])->name('maps-campaign.send');
+
         // Outreach automation: the switches that drive lead emailing, which used
         // to be reachable only through tinker.
         $oa = \App\Http\Controllers\Admin\MapsOutreachController::class;
