@@ -50,7 +50,7 @@
         </div>
         @foreach ([
             ['Profile sales', number_format((int) $author->total_sales), "Envato's total for the account — includes retired items and their other marketplaces."],
-            ['Portfolio sales', number_format((int) $author->products->sum('number_of_sales')), 'Across the '.$author->products->count().' items currently listed.'],
+            ['Products tracked', number_format($author->products->count()), 'Items currently listed on CodeCanyon.'],
             ['Est. revenue', $money($author->estimatedRevenue()), 'Sales × current price — the API never exposes real earnings.'],
         ] as [$label, $value, $note])
             <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">

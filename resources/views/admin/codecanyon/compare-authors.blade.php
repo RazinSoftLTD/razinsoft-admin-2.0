@@ -124,7 +124,7 @@
                         <th class="px-5 py-3 font-semibold text-right">Sold ({{ $days }}d)</th>
                         <th class="px-5 py-3 font-semibold">What sold today</th>
                         <th class="px-5 py-3 font-semibold text-right">Products</th>
-                        <th class="px-5 py-3 font-semibold text-right">Portfolio sales</th>
+                        <th class="px-5 py-3 font-semibold text-right">Profile sales</th>
                         <th class="px-5 py-3 font-semibold text-right">Est. revenue</th>
                         <th class="px-5 py-3 font-semibold text-right">Synced</th>
                     </tr>
@@ -172,14 +172,7 @@
                                 @endif
                             </td>
                             <td class="px-5 py-3 text-right">{{ $row['products'] }}</td>
-                            <td class="px-5 py-3 text-right">
-                                {{ number_format($row['lifetime']) }}
-                                @if ($row['profile_sales'] !== $row['lifetime'])
-                                    <span class="block text-xs text-[var(--color-muted)]" title="Envato's profile total — includes retired items and their other marketplaces">
-                                        profile: {{ number_format($row['profile_sales']) }}
-                                    </span>
-                                @endif
-                            </td>
+                            <td class="px-5 py-3 text-right">{{ number_format($row['profile_sales']) }}</td>
                             <td class="px-5 py-3 text-right">{{ $money($row['revenue']) }}</td>
                             <td class="px-5 py-3 text-right whitespace-nowrap">
                                 <span class="text-xs text-[var(--color-muted)]">{{ $row['author']->synced_at ? $row['author']->synced_at->diffForHumans(short: true) : 'never' }}</span>
@@ -200,8 +193,7 @@
             </table>
         </div>
         <p class="border-t border-gray-100 px-5 py-3 text-xs text-[var(--color-muted)]">
-            <strong>Portfolio sales</strong> adds up the items currently listed on CodeCanyon.
-            <strong>Profile</strong> is Envato's own total for the account — it also counts retired items and their other marketplaces, so the two rarely match.
+            <strong>Profile sales</strong> is Envato's own total for the account, so it also counts retired items and their other marketplaces.
             Revenue is <strong>estimated</strong> (sales × current price) — the API never exposes real earnings.
         </p>
     </div>
