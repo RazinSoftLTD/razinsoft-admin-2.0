@@ -124,7 +124,18 @@
         <div class="mb-5 flex flex-wrap gap-6">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Joined</p>
-                <p class="text-lg font-bold text-emerald-600">+{{ number_format($g['joined']) }}</p>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-lg font-bold text-emerald-600">+{{ number_format($g['joined']) }}</p>
+                    @if ($g['change'] !== null)
+                        @php $up = $g['change'] >= 0; @endphp
+                        <span class="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold {{ $up ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500' }}">
+                            {{ $up ? '▲' : '▼' }} {{ abs($g['change']) }}%
+                        </span>
+                    @endif
+                </div>
+                @if ($g['previousLabel'])
+                    <p class="text-[11px] text-[var(--color-muted)]">{{ number_format($g['previousJoined']) }} in {{ $g['previousLabel'] }}</p>
+                @endif
             </div>
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Removed</p>
@@ -140,33 +151,53 @@
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Total at the end</p>
                 <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($g['closing']) }}</p>
             </div>
+            @if ($g['busiest'] && $g['busiest']['in'] > 0)
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Best</p>
+                    <p class="text-lg font-bold text-[var(--color-heading)]">+{{ number_format($g['busiest']['in']) }}</p>
+                    <p class="text-[11px] text-[var(--color-muted)]">{{ $g['busiest']['full'] }}</p>
+                </div>
+            @endif
         </div>
 
         {{-- Bars: joined above the line, removed below it. Plain CSS — admin deploys do not rebuild
              assets, so a charting library would be dead weight that never loads. --}}
         <div class="overflow-x-auto">
-            <div class="flex min-w-full items-stretch gap-1" style="min-width: {{ count($g['buckets']) * 26 }}px;">
-                @foreach ($g['buckets'] as $b)
-                    <div class="flex flex-1 flex-col items-center" style="min-width: 22px;"
-                         title="{{ $b['full'] }} — joined {{ $b['in'] }}, removed {{ $b['out'] }}, total {{ $b['total'] }}">
-                        {{-- joined --}}
-                        <div class="flex w-full flex-col justify-end" style="height: 90px;">
-                            @if ($b['in'] > 0)
-                                <span class="block text-center text-[9px] font-bold text-emerald-600">{{ $b['in'] }}</span>
-                            @endif
-                            <span class="w-full rounded-t bg-emerald-500" style="height: {{ $b['in'] > 0 ? max(3, round($b['in'] / $peak * 74)) : 0 }}px"></span>
-                        </div>
-                        <span class="h-px w-full bg-gray-200"></span>
-                        {{-- removed --}}
-                        <div class="flex w-full flex-col justify-start" style="height: 34px;">
-                            <span class="w-full rounded-b bg-red-400" style="height: {{ $b['out'] > 0 ? max(3, round($b['out'] / $peak * 26)) : 0 }}px"></span>
-                            @if ($b['out'] > 0)
-                                <span class="block text-center text-[9px] font-bold text-red-500">{{ $b['out'] }}</span>
-                            @endif
-                        </div>
-                        <span class="mt-1 block text-[9px] text-gray-400">{{ $b['label'] }}</span>
+            <div class="relative" style="min-width: {{ count($g['buckets']) * 26 }}px;">
+                {{-- Average joined, so a bar reads as above or below a normal day at a glance. --}}
+                @if ($g['average'] > 0)
+                    <div class="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-gray-300"
+                         style="top: {{ 90 - round($g['average'] / $peak * 74) }}px">
+                        <span class="absolute right-0 -top-4 rounded bg-white px-1 text-[10px] font-semibold text-gray-400">avg {{ $g['average'] }}</span>
                     </div>
-                @endforeach
+                @endif
+
+                <div class="flex items-stretch gap-1">
+                    @foreach ($g['buckets'] as $b)
+                        <div class="flex flex-1 flex-col items-center" style="min-width: 22px;"
+                             title="{{ $b['full'] }} — joined {{ $b['in'] }}, removed {{ $b['out'] }}, total {{ $b['total'] }}">
+                            {{-- joined --}}
+                            <div class="flex w-full flex-col justify-end" style="height: 90px;">
+                                @if ($b['in'] > 0)
+                                    <span class="block text-center text-[9px] font-bold text-emerald-600">{{ $b['in'] }}</span>
+                                @endif
+                                <span class="w-full rounded-t bg-emerald-500 {{ $b['isToday'] ? 'ring-2 ring-[var(--color-primary)]' : '' }}"
+                                      style="height: {{ $b['in'] > 0 ? max(3, round($b['in'] / $peak * 74)) : 0 }}px"></span>
+                            </div>
+                            <span class="h-px w-full bg-gray-200"></span>
+                            {{-- removed --}}
+                            <div class="flex w-full flex-col justify-start" style="height: 34px;">
+                                <span class="w-full rounded-b bg-red-400" style="height: {{ $b['out'] > 0 ? max(3, round($b['out'] / $peak * 26)) : 0 }}px"></span>
+                                @if ($b['out'] > 0)
+                                    <span class="block text-center text-[9px] font-bold text-red-500">{{ $b['out'] }}</span>
+                                @endif
+                            </div>
+                            <span class="mt-1 block text-[9px] {{ $b['isToday'] ? 'font-bold text-[var(--color-primary)]' : ($b['isWeekend'] ? 'text-gray-300' : 'text-gray-400') }}">
+                                {{ $b['label'] }}
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
 

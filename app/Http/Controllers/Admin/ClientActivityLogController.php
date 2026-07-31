@@ -305,7 +305,8 @@ class ClientActivityLogController extends Controller
                 $out = (int) ($left[$key] ?? 0);
                 $running += $in - $out;
                 $buckets[] = ['label' => $date->format('j'), 'full' => $date->format('D, d M Y'),
-                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running];
+                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running,
+                    'isToday' => $date->isToday(), 'isWeekend' => $date->isWeekend()];
             }
         } elseif ($view === 'monthly') {
             $start = Carbon::create($year, 1, 1)->startOfDay();
@@ -315,7 +316,8 @@ class ClientActivityLogController extends Controller
                 $out = (int) collect($left)->filter(fn ($c, $d) => Carbon::parse($d)->year === $year && Carbon::parse($d)->month === $m)->sum();
                 $running += $in - $out;
                 $buckets[] = ['label' => Carbon::create($year, $m, 1)->format('M'), 'full' => Carbon::create($year, $m, 1)->format('F Y'),
-                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running];
+                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running,
+                    'isToday' => Carbon::create($year, $m, 1)->isSameMonth(now()), 'isWeekend' => false];
             }
         } else {
             $years = collect($joined)->keys()->merge(collect($left)->keys())
@@ -326,19 +328,48 @@ class ClientActivityLogController extends Controller
                 $out = (int) collect($left)->filter(fn ($c, $d) => Carbon::parse($d)->year === $y)->sum();
                 $running += $in - $out;
                 $buckets[] = ['label' => (string) $y, 'full' => (string) $y,
-                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running];
+                    'in' => $in, 'out' => $out, 'net' => $in - $out, 'total' => $running,
+                    'isToday' => $y === now()->year, 'isWeekend' => false];
             }
         }
+
+        // The same span, one period back — a count on its own says nothing about direction.
+        $previous = match ($view) {
+            'daily' => Carbon::create($year, $month, 1)->subMonth(),
+            'monthly' => Carbon::create($year, 1, 1)->subYear(),
+            default => null,
+        };
+
+        $previousJoined = 0;
+        if ($previous) {
+            $previousJoined = (int) collect($joined)->filter(function ($c, $d) use ($view, $previous) {
+                $date = Carbon::parse($d);
+
+                return $view === 'daily'
+                    ? $date->isSameMonth($previous)
+                    : $date->year === $previous->year;
+            })->sum();
+        }
+
+        $joinedTotal = array_sum(array_column($buckets, 'in'));
+        // Averaged over buckets that saw anyone, so a month in progress is not dragged down by days
+        // that have not happened yet.
+        $active = collect($buckets)->filter(fn ($b) => $b['in'] > 0 || $b['out'] > 0);
 
         return [
             'view' => $view,
             'year' => $year,
             'month' => $month,
             'buckets' => $buckets,
-            'joined' => array_sum(array_column($buckets, 'in')),
+            'joined' => $joinedTotal,
             'left' => array_sum(array_column($buckets, 'out')),
             'net' => array_sum(array_column($buckets, 'net')),
             'closing' => $buckets ? end($buckets)['total'] : 0,
+            'average' => $active->count() ? round($active->avg('in'), 1) : 0,
+            'busiest' => $active->sortByDesc('in')->first(),
+            'previousJoined' => $previousJoined,
+            'previousLabel' => $previous ? ($view === 'daily' ? $previous->format('F Y') : (string) $previous->year) : null,
+            'change' => $previousJoined > 0 ? round(($joinedTotal - $previousJoined) / $previousJoined * 100) : null,
             'years' => User::clients()->withTrashed()->selectRaw('DATE(created_at) as d')
                 ->whereNotNull('created_at')->pluck('d')
                 ->map(fn ($d) => (int) Carbon::parse($d)->year)->unique()->sortDesc()->values(),
