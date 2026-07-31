@@ -14,10 +14,33 @@ class WhatsappLink extends Model
 
     protected $casts = ['is_active' => 'boolean', 'is_site_button' => 'boolean'];
 
-    /** The link the website's floating button points at, if one is set. */
-    public static function siteButton(): ?self
+    /** The reserved code for the website's floating button — readable, and never reassigned. */
+    public const SITE_BUTTON_CODE = 'website';
+
+    /**
+     * The one link the website's floating button uses.
+     *
+     * Always exists: it is created on first look rather than toggled onto some other link, so the
+     * site has a permanent address to point at and editing this row is the only thing that changes
+     * what the button does. It cannot be deleted or retired — see the controller.
+     */
+    public static function siteButton(): self
     {
-        return static::where('is_site_button', true)->where('is_active', true)->first();
+        return static::firstOrCreate(
+            ['code' => self::SITE_BUTTON_CODE],
+            [
+                'label' => 'Website floating button',
+                'number' => '+8801937203743',
+                'message' => "Hello RazinSoft, I would like to know more about your services.",
+                'is_site_button' => true,
+                'is_active' => true,
+            ],
+        );
+    }
+
+    public function isSiteButton(): bool
+    {
+        return $this->code === self::SITE_BUTTON_CODE;
     }
 
     public function clicks(): HasMany

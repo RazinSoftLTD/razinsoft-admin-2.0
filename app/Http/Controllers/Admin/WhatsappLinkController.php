@@ -30,6 +30,9 @@ class WhatsappLinkController extends Controller
 
     public function index(Request $request)
     {
+        // Touch it here so the row exists the first time anyone opens this page.
+        $siteButton = WhatsappLink::siteButton();
+
         [$from, $to, $range] = $this->window($request);
 
         $clicksInWindow = function ($linkId = null) use ($from, $to) {
@@ -44,7 +47,7 @@ class WhatsappLinkController extends Controller
             'clicks as clicks_window' => fn ($q) => $q
                 ->when($from, fn ($w) => $w->where('clicked_at', '>=', $from))
                 ->when($to, fn ($w) => $w->where('clicked_at', '<=', $to)),
-        ])->latest('id')->get();
+        ])->where('code', '!=', WhatsappLink::SITE_BUTTON_CODE)->latest('id')->get();
 
         $recent = WhatsappLinkClick::with('link:id,label,code')
             ->when($request->query('link'), fn ($q, $id) => $q->where('link_id', $id))
@@ -54,6 +57,7 @@ class WhatsappLinkController extends Controller
             ->paginate(25)->withQueryString();
 
         return view('admin.whatsapp-links.index', [
+            'siteButton' => $siteButton,
             'links' => $links,
             'recent' => $recent,
             'ranges' => self::RANGES,
@@ -126,33 +130,14 @@ class WhatsappLinkController extends Controller
         return back()->with('status', 'Updated. The link itself is unchanged — anything already sharing it keeps working.');
     }
 
-    /**
-     * Point the website's floating button at this link.
-     *
-     * Exactly one at a time: the site asks for "the" button and has to get one answer, so choosing
-     * a new one clears the last. Doing it in a transaction keeps that true even if two people press
-     * it at once.
-     */
-    public function useOnSite(WhatsappLink $whatsappLink)
-    {
-        DB::transaction(function () use ($whatsappLink) {
-            WhatsappLink::where('id', '!=', $whatsappLink->id)->update(['is_site_button' => false]);
-            $whatsappLink->update(['is_site_button' => true, 'is_active' => true]);
-        });
-
-        return back()->with('status', 'The website\'s floating WhatsApp button now uses this link — its clicks are counted here.');
-    }
-
-    /** Take the floating button off the site's links entirely. */
-    public function clearSiteButton()
-    {
-        WhatsappLink::where('is_site_button', true)->update(['is_site_button' => false]);
-
-        return back()->with('status', 'The website button falls back to its built-in number.');
-    }
-
     public function toggle(Request $request, WhatsappLink $whatsappLink)
     {
+        // The website's button has to keep working; retiring it would leave every page of the site
+        // pointing at a link that no longer counts.
+        if ($whatsappLink->isSiteButton()) {
+            return back()->with('error', 'The website button cannot be retired — edit its number or message instead.');
+        }
+
         $whatsappLink->update(['is_active' => ! $whatsappLink->is_active]);
 
         return back()->with('status', $whatsappLink->is_active
@@ -162,6 +147,10 @@ class WhatsappLinkController extends Controller
 
     public function destroy(WhatsappLink $whatsappLink)
     {
+        if ($whatsappLink->isSiteButton()) {
+            return back()->with('error', 'The website button cannot be deleted — it is what the site points at.');
+        }
+
         $whatsappLink->delete();   // clicks cascade
 
         return back()->with('status', 'Link and its click history deleted.');
