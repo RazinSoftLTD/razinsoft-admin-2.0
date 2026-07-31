@@ -9,6 +9,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// ---- WhatsApp button links. The short hop that lets a shared link be counted before it
+//      hands the visitor to WhatsApp. Public and unauthenticated by nature. ----
+Route::get('wa/{code}', \App\Http\Controllers\WhatsappLinkRedirectController::class)
+    ->where('code', '[A-Za-z0-9]+')->name('wa.link');
+
 // ---- Public invoice pay (token-guarded, no login). The page lives on the frontend;
 //      these backend routes redirect there + handle Stripe checkout/recording. ----
 Route::get('invoice/pay/{token}', [InvoicePayController::class, 'show'])->name('pay.invoice.show');

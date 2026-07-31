@@ -363,6 +363,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:activity.client')->group(function () {
             Route::get('client-activity', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'index'])->name('client-activity');
             Route::get('client-activity/details', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'details'])->name('client-activity.details');
+            // WhatsApp button: build a chat link and see how often it was followed.
+            $wl = \App\Http\Controllers\Admin\WhatsappLinkController::class;
+            Route::get('whatsapp-links', [$wl, 'index'])->name('whatsapp-links');
+            Route::post('whatsapp-links', [$wl, 'store'])->name('whatsapp-links.store');
+            Route::post('whatsapp-links/{whatsappLink}/toggle', [$wl, 'toggle'])->whereNumber('whatsappLink')->name('whatsapp-links.toggle');
+            Route::delete('whatsapp-links/{whatsappLink}', [$wl, 'destroy'])->whereNumber('whatsappLink')->name('whatsapp-links.destroy');
             Route::get('client-activity/errors', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'errors'])->name('client-activity.errors');
             Route::get('client-activity/clients', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'clients'])->name('client-activity.clients');
             // Super-admin-only; the controller enforces that (permission alone is not enough here).
