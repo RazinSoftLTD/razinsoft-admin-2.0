@@ -771,6 +771,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('codecanyon', [$cc, 'index'])->name('codecanyon.index');
             Route::get('codecanyon/authors/{author}', [$cc, 'author'])->whereNumber('author')->name('codecanyon.author');
             Route::get('codecanyon/products/{product}', [$cc, 'product'])->whereNumber('product')->name('codecanyon.product');
+
+            $ccc = \App\Http\Controllers\Admin\CodeCanyonCompareController::class;
+            Route::get('codecanyon/compare/authors', [$ccc, 'authors'])->name('codecanyon.compare-authors');
+            Route::get('codecanyon/compare/projects', [$ccc, 'projects'])->name('codecanyon.compare-projects');
         });
         Route::middleware('permission:codecanyon.manage')->group(function () {
             $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
@@ -782,6 +786,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('codecanyon/niches', [$cc, 'storeNiche'])->name('codecanyon.niches.store');
             Route::delete('codecanyon/niches/{niche}', [$cc, 'destroyNiche'])->whereNumber('niche')->name('codecanyon.niches.destroy');
             Route::post('codecanyon/sync', [$cc, 'sync'])->name('codecanyon.sync');
+
+            $ccc = \App\Http\Controllers\Admin\CodeCanyonCompareController::class;
+            Route::post('codecanyon/projects', [$ccc, 'storeProject'])->name('codecanyon.projects.store');
+            Route::put('codecanyon/projects/{project}', [$ccc, 'updateProject'])->whereNumber('project')->name('codecanyon.projects.update');
+            Route::delete('codecanyon/projects/{project}', [$ccc, 'destroyProject'])->whereNumber('project')->name('codecanyon.projects.destroy');
         });
         Route::middleware('permission:codecanyon.settings')->group(function () {
             $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;

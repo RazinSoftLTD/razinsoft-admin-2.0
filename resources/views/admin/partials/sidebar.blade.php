@@ -174,7 +174,12 @@
             ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.products', 'icon' => $ic['products']],
             ['label' => 'Cart', 'route' => 'admin.cart-activity', 'active' => 'admin.cart-activity*', 'perm' => 'activity.cart', 'icon' => $ic['orders']],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp-activity', 'active' => 'admin.whatsapp-activity*', 'perm' => 'whatsapp.activity', 'icon' => $ic['whatsapp']],
-            ['label' => 'CodeCanyon', 'route' => 'admin.codecanyon.index', 'active' => 'admin.codecanyon.*', 'perm' => 'codecanyon.view', 'icon' => $ic['products']],
+        ]],
+
+        ['type' => 'group', 'label' => 'CodeCanyon Manager', 'icon' => $ic['products'], 'items' => [
+            ['label' => 'Overview', 'route' => 'admin.codecanyon.index', 'active' => ['admin.codecanyon.index', 'admin.codecanyon.author', 'admin.codecanyon.product'], 'perm' => 'codecanyon.view', 'icon' => $ic['reports']],
+            ['label' => 'Author Compare', 'route' => 'admin.codecanyon.compare-authors', 'active' => 'admin.codecanyon.compare-authors', 'perm' => 'codecanyon.view', 'icon' => $ic['author']],
+            ['label' => 'Product Compare', 'route' => 'admin.codecanyon.compare-projects', 'active' => 'admin.codecanyon.compare-projects', 'perm' => 'codecanyon.view', 'icon' => $ic['products']],
         ]],
 
         ['type' => 'group', 'label' => 'Settings', 'icon' => $ic['settings'], 'items' => [
