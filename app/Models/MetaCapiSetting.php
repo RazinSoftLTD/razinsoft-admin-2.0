@@ -13,6 +13,10 @@ class MetaCapiSetting extends Model
         'Lead' => 'A contact form or meeting booking comes in',
         'CompleteRegistration' => 'A customer creates an account',
         'InitiateCheckout' => 'Checkout is started',
+        // Lead quality, sent back after a human has judged the lead. This is what lets Meta learn
+        // which ads bring people worth talking to, rather than only which ads bring form fills.
+        'QualifiedLead' => 'A lead is marked Qualified',
+        'UnqualifiedLead' => 'A lead is marked Unqualified',
     ];
 
     protected $guarded = [];

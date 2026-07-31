@@ -38,6 +38,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Mirror invoice payments into the Finance module's income, whichever screen recorded them.
         \App\Models\InvoicePayment::observe(\App\Observers\InvoicePaymentObserver::class);
+        // Reports lead quality (qualified / unqualified) back to Meta.
+        \App\Models\Lead::observe(\App\Observers\LeadObserver::class);
 
         // Password-reset emails link to the website's reset page (not the API host).
         ResetPassword::createUrlUsing(function ($user, string $token) {

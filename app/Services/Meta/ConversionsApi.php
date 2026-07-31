@@ -98,6 +98,9 @@ class ConversionsApi
             'order_id' => $custom['order_id'] ?? null,
             'content_name' => $custom['content_name'] ?? null,
             'content_type' => $custom['content_type'] ?? null,
+            // Carries the lead's channel (WhatsApp, Website, Facebook…) so ad reporting can tell
+            // which source produces leads worth talking to.
+            'content_category' => $custom['content_category'] ?? null,
             'contents' => $custom['contents'] ?? null,
             'num_items' => $custom['num_items'] ?? null,
         ], fn ($v) => $v !== null);
