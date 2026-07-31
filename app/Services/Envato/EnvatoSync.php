@@ -10,7 +10,15 @@ use Illuminate\Support\Carbon;
 /** Pulls watched authors + products from the official API and records a daily snapshot. */
 class EnvatoSync
 {
-    public function __construct(private EnvatoClient $api) {}
+    private EnvatoClient $api;
+
+    public function __construct(EnvatoClient $api)
+    {
+        // A sync reads past the cache by definition: its job is to record what the
+        // numbers are *now*. Serving it a cached reading meant a sale could sit
+        // invisible for up to the cache TTL even after a manual "Sync now".
+        $this->api = $api->withoutCache();
+    }
 
     /** Refresh every watched author and their portfolio. Returns [authors, products]. */
     public function all(): array

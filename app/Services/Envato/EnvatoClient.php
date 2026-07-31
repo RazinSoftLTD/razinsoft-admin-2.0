@@ -20,9 +20,28 @@ class EnvatoClient
     /** Public catalog data barely moves; caching keeps us well under the dynamic rate limit. */
     private const CACHE_TTL = 1800; // 30 min
 
+    /** Set when this instance must ignore the read cache — see withoutCache(). */
+    private bool $bypassCache = false;
+
     public function __construct(private ?string $token = null)
     {
         $this->token = $token ?: EnvatoSetting::current()->personal_token;
+    }
+
+    /**
+     * A copy of this client that always hits the API.
+     *
+     * The cache exists to keep page views off the wire, but a sync is the one
+     * operation whose entire purpose is to fetch the current numbers. Serving it
+     * a half-hour-old reading means a sale made minutes ago is missing from the
+     * dashboard even right after "Sync now" — which reads as a bug, and is one.
+     */
+    public function withoutCache(): static
+    {
+        $copy = clone $this;
+        $copy->bypassCache = true;
+
+        return $copy;
     }
 
     public function configured(): bool
@@ -116,15 +135,19 @@ class EnvatoClient
             throw new RuntimeException('Envato personal token is not set. Add it under Settings → CodeCanyon Config.');
         }
 
+        // $cacheable says the endpoint may be cached at all; bypassCache only skips
+        // *reading* it, so a fresh call still leaves the next page view up to date.
+        $cacheable = $cache;
         $key = 'envato:'.md5($path.serialize($query));
-        if ($cache && ($hit = Cache::get($key)) !== null) {
+
+        if ($cacheable && ! $this->bypassCache && ($hit = Cache::get($key)) !== null) {
             return $hit;
         }
 
         $response = $this->request($path, $query);
         $data = $response->json() ?? [];
 
-        if ($cache) {
+        if ($cacheable) {
             Cache::put($key, $data, self::CACHE_TTL);
         }
 

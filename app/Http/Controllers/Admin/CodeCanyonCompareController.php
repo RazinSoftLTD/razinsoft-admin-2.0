@@ -49,7 +49,12 @@ class CodeCanyonCompareController extends Controller
                 'author' => $author,
                 'sold' => $sold,
                 'products' => $author->products->count(),
+                // Two different truths, deliberately kept apart: the portfolio sum
+                // covers the items we track, while Envato's profile figure counts
+                // everything the author ever sold — including retired items and
+                // their other marketplaces. They will not agree, and shouldn't.
                 'lifetime' => (int) $author->products->sum('number_of_sales'),
+                'profile_sales' => (int) $author->total_sales,
                 'revenue' => $author->products->sum(fn ($p) => $p->estimatedRevenue()),
                 'top' => $top,
                 'top_sold' => $topId ? $perProduct[$topId] : 0,
