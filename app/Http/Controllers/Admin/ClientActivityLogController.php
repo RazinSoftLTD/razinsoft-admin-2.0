@@ -55,7 +55,8 @@ class ClientActivityLogController extends Controller
             ->whereIn('id', $visitors->pluck('last_id'))->get()->keyBy('id');
 
         return view('admin.client-activity.index', [
-            'growth' => $this->growth($request),
+            'growth' => $growth = $this->growth($request),
+            'visitorTrend' => $this->visitorTrend($growth),
             'totalErrors' => $totalErrors,
             'totalVisits' => $totalVisits,
             'uniqueVisitors' => $uniqueVisitors,
@@ -341,6 +342,75 @@ class ClientActivityLogController extends Controller
             'years' => User::clients()->withTrashed()->selectRaw('DATE(created_at) as d')
                 ->whereNotNull('created_at')->pluck('d')
                 ->map(fn ($d) => (int) Carbon::parse($d)->year)->unique()->sortDesc()->values(),
+        ];
+    }
+
+    /**
+     * Unique visitors per day, month or year — following whatever period the growth chart is on.
+     *
+     * Distinct counts cannot be added up: the same person visiting on three days is three daily
+     * figures but one monthly one. So this pulls the distinct (day, visitor) pairs once and counts
+     * uniques per bucket in PHP, which is the only way to get a truthful monthly or yearly number.
+     */
+    private function visitorTrend(array $growth): array
+    {
+        $pairs = ClientActivityLog::query()
+            ->whereNull('error_code')
+            ->selectRaw('DATE(created_at) as d, '.self::VISITOR_KEY.' as v')
+            ->groupBy('d', 'v')
+            ->get();
+
+        // bucket key => set of visitors
+        $seen = [];
+
+        foreach ($pairs as $row) {
+            $date = Carbon::parse($row->d);
+
+            $key = match ($growth['view']) {
+                'daily' => ($date->year === $growth['year'] && $date->month === $growth['month']) ? $date->toDateString() : null,
+                'monthly' => $date->year === $growth['year'] ? $date->month : null,
+                default => $date->year,
+            };
+
+            if ($key === null) {
+                continue;
+            }
+
+            $seen[$key][$row->v] = true;
+        }
+
+        $buckets = [];
+
+        if ($growth['view'] === 'daily') {
+            $start = Carbon::create($growth['year'], $growth['month'], 1);
+            foreach (range(1, $start->daysInMonth) as $day) {
+                $date = $start->copy()->day($day);
+                $buckets[] = [
+                    'label' => $date->format('j'),
+                    'full' => $date->format('D, d M Y'),
+                    'count' => count($seen[$date->toDateString()] ?? []),
+                ];
+            }
+        } elseif ($growth['view'] === 'monthly') {
+            foreach (range(1, 12) as $m) {
+                $buckets[] = [
+                    'label' => Carbon::create($growth['year'], $m, 1)->format('M'),
+                    'full' => Carbon::create($growth['year'], $m, 1)->format('F Y'),
+                    'count' => count($seen[$m] ?? []),
+                ];
+            }
+        } else {
+            foreach (collect(array_keys($seen))->sort() as $y) {
+                $buckets[] = ['label' => (string) $y, 'full' => (string) $y, 'count' => count($seen[$y])];
+            }
+        }
+
+        return [
+            'buckets' => $buckets,
+            'peak' => max(1, (int) (collect($buckets)->max('count') ?: 1)),
+            // Distinct across the whole window, not the sum of the bars — see the note above.
+            'total' => count(array_reduce($seen, fn ($carry, $set) => $carry + $set, [])),
+            'busiest' => collect($buckets)->sortByDesc('count')->first(),
         ];
     }
 

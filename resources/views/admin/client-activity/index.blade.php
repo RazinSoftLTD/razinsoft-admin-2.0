@@ -177,6 +177,57 @@
         </div>
     </div>
 
+    {{-- ===== Unique visitors over the same period ===== --}}
+    @php $vt = $visitorTrend; @endphp
+    <div class="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">Unique visitors</h2>
+                <p class="text-xs text-[var(--color-muted)]">
+                    People, not visits — someone who came back three times in a day counts once.
+                    Follows the period chosen above.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-6">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Unique in this period</p>
+                    <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($vt['total']) }}</p>
+                </div>
+                @if ($vt['busiest'] && $vt['busiest']['count'] > 0)
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Busiest</p>
+                        <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($vt['busiest']['count']) }}</p>
+                        <p class="text-xs text-[var(--color-muted)]">{{ $vt['busiest']['full'] }}</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        @if (collect($vt['buckets'])->sum('count') > 0)
+            <div class="overflow-x-auto">
+                <div class="flex min-w-full items-end gap-1" style="min-width: {{ count($vt['buckets']) * 26 }}px; height: 130px;">
+                    @foreach ($vt['buckets'] as $b)
+                        <div class="flex flex-1 flex-col items-center justify-end" style="min-width: 22px;"
+                             title="{{ $b['full'] }} — {{ $b['count'] }} unique visitor(s)">
+                            @if ($b['count'] > 0)
+                                <span class="text-[9px] font-bold text-[var(--color-primary)]">{{ $b['count'] }}</span>
+                            @endif
+                            <span class="w-full rounded-t bg-[var(--color-primary)]"
+                                  style="height: {{ $b['count'] > 0 ? max(3, round($b['count'] / $vt['peak'] * 96)) : 0 }}px"></span>
+                            <span class="mt-1 block text-[9px] text-gray-400">{{ $b['label'] }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            <p class="mt-3 text-[11px] text-[var(--color-muted)]">
+                The total is distinct across the whole period, so it is smaller than the bars added together —
+                someone who visits on three days is one person.
+            </p>
+        @else
+            <p class="py-8 text-center text-sm text-gray-400">No visits recorded in this period.</p>
+        @endif
+    </div>
+
     {{-- ===== Reports: top pages + top countries ===== --}}
     <div class="mb-6 grid gap-6 lg:grid-cols-2">
         {{-- Top pages --}}
