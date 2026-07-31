@@ -17,4 +17,6 @@ Schedule::command('clients:purge-bin')->dailyAt('03:10');
 Schedule::command('projects:purge-bin')->dailyAt('03:20');
 
 // Envato gives no sales history — this daily run is what records it for the CodeCanyon dashboard.
-Schedule::command('codecanyon:sync')->dailyAt('04:00')->withoutOverlapping();
+Schedule::command('codecanyon:sync --now')->dailyAt('04:00')->withoutOverlapping();
+// A day whose snapshot was never taken can never be filled in, so keep trying until one lands.
+Schedule::command('codecanyon:sync --catch-up --now')->hourly()->between('05:00', '23:00')->withoutOverlapping();

@@ -9,6 +9,7 @@ use App\Models\EnvatoProduct;
 use App\Models\EnvatoSetting;
 use App\Services\Envato\EnvatoClient;
 use App\Services\Envato\EnvatoSync;
+use App\Services\Envato\SyncRunner;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -147,17 +148,18 @@ class CodeCanyonController extends Controller
         return back()->with('status', 'Niche removed.');
     }
 
-    public function sync(EnvatoSync $sync)
+    /** Queued, and recorded on envato_sync_runs — same path the schedule and Author Compare use. */
+    public function sync(Request $request, SyncRunner $runner)
     {
-        try {
-            [$authors, $products] = $sync->all();
-        } catch (Throwable $e) {
-            EnvatoSetting::current()->update(['last_error' => $e->getMessage()]);
+        $run = $runner->queue('manual', null, $request->user()->id);
 
-            return back()->withErrors(['sync' => $e->getMessage()]);
+        if (! $run) {
+            return back()->withErrors(['sync' => 'Add your Envato personal token under Settings → CodeCanyon Config first.']);
         }
 
-        return back()->with('status', "Synced {$authors} author(s) and {$products} product(s).");
+        return back()->with('status', $run->isActive()
+            ? 'Sync started — refresh in a moment to see the new numbers.'
+            : "A sync is already {$run->status}.");
     }
 
     // ---------------------------------------------------------------- settings

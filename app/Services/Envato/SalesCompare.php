@@ -37,9 +37,14 @@ class SalesCompare
 
         // One extra day at the front: the first day in range needs the snapshot
         // before it to have anything to subtract from.
+        //
+        // whereDate, not whereBetween: the column is declared `date` but the model's
+        // date cast writes "Y-m-d 00:00:00", and on SQLite that is compared as a
+        // string — a bare "Y-m-d" upper bound would silently drop the newest day.
         $rows = DB::table('envato_snapshots')
             ->whereIn('envato_product_id', $ids)
-            ->whereBetween('captured_on', [$from->copy()->subDay()->toDateString(), $to->toDateString()])
+            ->whereDate('captured_on', '>=', $from->copy()->subDay()->toDateString())
+            ->whereDate('captured_on', '<=', $to->toDateString())
             ->orderBy('envato_product_id')
             ->orderBy('captured_on')
             ->get(['envato_product_id', 'captured_on', 'number_of_sales']);

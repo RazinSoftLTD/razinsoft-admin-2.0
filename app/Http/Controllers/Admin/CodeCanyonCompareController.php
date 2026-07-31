@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\EnvatoAuthor;
 use App\Models\EnvatoProduct;
 use App\Models\EnvatoProject;
+use App\Models\EnvatoSetting;
+use App\Models\EnvatoSyncRun;
 use App\Services\Envato\SalesCompare;
+use App\Services\Envato\SyncRunner;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -26,7 +30,7 @@ class CodeCanyonCompareController extends Controller
     /** Windows offered on both screens. */
     private const RANGES = [7 => 'Last 7 days', 30 => 'Last 30 days', 90 => 'Last 90 days'];
 
-    public function authors(Request $request, SalesCompare $compare): View
+    public function authors(Request $request, SalesCompare $compare, SyncRunner $runner): View
     {
         [$from, $to, $days] = $this->window($request);
 
@@ -62,6 +66,9 @@ class CodeCanyonCompareController extends Controller
             'to' => $to,
             'hasHistory' => $compare->hasHistory(),
             'dates' => $this->dateAxis($rows->pluck('daily')->all()),
+            'sync' => $this->syncState($runner, $from, $to),
+            'runs' => EnvatoSyncRun::with('author', 'triggeredBy')->latest('id')->limit(8)->get(),
+            'canManage' => $request->user()->allows('codecanyon', 'manage'),
         ]);
     }
 
@@ -100,6 +107,82 @@ class CodeCanyonCompareController extends Controller
             // for anything the sync has never seen.
             'available' => EnvatoProduct::with('author')->orderBy('name')->get(),
         ]);
+    }
+
+    /* ----------------------------------------------------------------- sync */
+
+    /** Refresh the whole watchlist, or one author when `author` is given. */
+    public function sync(Request $request, SyncRunner $runner)
+    {
+        $author = $request->filled('author')
+            ? EnvatoAuthor::find((int) $request->input('author'))
+            : null;
+
+        $run = $runner->queue($author ? 'author' : 'manual', $author, $request->user()->id);
+
+        if (! $run) {
+            return back()->withErrors(['sync' => 'Add your Envato personal token under Settings → CodeCanyon Config first.']);
+        }
+
+        return back()->with('status', $run->isActive()
+            ? ($author ? "Refreshing {$author->username}…" : 'Sync started — the page updates when it finishes.')
+            : "A sync is already {$run->status}.");
+    }
+
+    /**
+     * Sync state as JSON, for the page to poll while a run is in flight.
+     *
+     * Polling rather than pushing: a sync takes a minute at most and this saves
+     * standing up a broadcast channel for one screen.
+     */
+    public function syncStatus(Request $request, SyncRunner $runner): JsonResponse
+    {
+        [$from, $to] = $this->window($request);
+
+        $state = $this->syncState($runner, $from, $to);
+
+        return response()->json([
+            'active' => $state['active'],
+            'stalled' => $state['stalled'],
+            'status' => $state['last']?->status,
+            'message' => $state['message'],
+            'last_synced_human' => $state['last_synced']?->diffForHumans(),
+        ]);
+    }
+
+    /**
+     * Everything the page needs to say about syncing.
+     *
+     * @return array<string, mixed>
+     */
+    private function syncState(SyncRunner $runner, Carbon $from, Carbon $to): array
+    {
+        $settings = EnvatoSetting::current();
+        $last = EnvatoSyncRun::latest('id')->first();
+        $missing = $runner->missingDays($from, $to);
+
+        $message = match (true) {
+            ! $settings->isConfigured() => 'No Envato token — connect the API to start syncing.',
+            (bool) $last?->looksStalled() => 'Queued, but nothing has picked it up. Is the queue worker running?',
+            (bool) $last?->isActive() => 'Sync in progress…',
+            $last?->status === 'failed' => 'Last sync failed: '.$last->error,
+            ! $runner->capturedToday() => "Today's snapshot has not been taken yet.",
+            default => "Today's snapshot is recorded.",
+        };
+
+        return [
+            'configured' => $settings->isConfigured(),
+            'auto' => (bool) $settings->auto_sync,
+            'last_synced' => $settings->last_synced_at,
+            'captured_today' => $runner->capturedToday(),
+            'last' => $last,
+            'active' => (bool) $last?->isActive() && ! $last->looksStalled(),
+            'stalled' => (bool) $last?->looksStalled(),
+            'missing' => $missing,
+            'covered' => $from->diffInDays($to) + 1 - count($missing),
+            'total_days' => $from->diffInDays($to) + 1,
+            'message' => $message,
+        ];
     }
 
     /* ---------------------------------------------------------- projects CRUD */

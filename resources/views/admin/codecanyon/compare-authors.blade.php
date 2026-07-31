@@ -12,13 +12,82 @@
                 {{ $from->format('d M Y') }} to {{ $to->format('d M Y') }}.
             </p>
         </div>
-        <div class="flex rounded-lg border border-gray-200 bg-white p-1 text-sm">
-            @foreach ($ranges as $value => $label)
-                <a href="{{ route('admin.codecanyon.compare-authors', ['days' => $value]) }}"
-                   class="rounded-md px-3 py-1.5 font-semibold transition {{ $days === $value ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
-                    {{ $label }}
-                </a>
-            @endforeach
+        <div class="flex flex-wrap items-center gap-2">
+            <div class="flex rounded-lg border border-gray-200 bg-white p-1 text-sm">
+                @foreach ($ranges as $value => $label)
+                    <a href="{{ route('admin.codecanyon.compare-authors', ['days' => $value]) }}"
+                       class="rounded-md px-3 py-1.5 font-semibold transition {{ $days === $value ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
+                        {{ $label }}
+                    </a>
+                @endforeach
+            </div>
+            @if ($canManage && $sync['configured'])
+                <form method="POST" action="{{ route('admin.codecanyon.compare-sync') }}">
+                    @csrf
+                    <button @disabled($sync['active'])
+                            class="inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60">
+                        <svg class="h-4 w-4 {{ $sync['active'] ? 'animate-spin' : '' }}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4"/></svg>
+                        {{ $sync['active'] ? 'Syncing…' : 'Sync now' }}
+                    </button>
+                </form>
+            @endif
+        </div>
+    </div>
+
+    @if (session('status'))<div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ session('status') }}</div>@endif
+    @if ($errors->any())<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ $errors->first() }}</div>@endif
+
+    {{-- ===== Sync ===== --}}
+    @php
+        $tone = match (true) {
+            ! $sync['configured'], $sync['stalled'], $sync['last']?->status === 'failed' => ['border-red-200', 'bg-red-50', 'text-red-700'],
+            $sync['active'] => ['border-sky-200', 'bg-sky-50', 'text-sky-700'],
+            $sync['captured_today'] => ['border-emerald-200', 'bg-emerald-50', 'text-emerald-700'],
+            default => ['border-amber-200', 'bg-amber-50', 'text-amber-800'],
+        };
+    @endphp
+    <div class="rounded-2xl border {{ $tone[0] }} {{ $tone[1] }} p-5"
+         @if ($sync['active'])
+             {{-- Reload once the run finishes, so the freshly captured day appears without a manual refresh. --}}
+             x-data="{
+                 poll() {
+                     fetch('{{ route('admin.codecanyon.sync-status', ['days' => $days]) }}', { headers: { 'Accept': 'application/json' } })
+                         .then(r => r.json())
+                         .then(s => s.active ? setTimeout(() => this.poll(), 4000) : window.location.reload())
+                         .catch(() => setTimeout(() => this.poll(), 8000));
+                 }
+             }" x-init="setTimeout(() => poll(), 4000)"
+         @endif>
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <p class="text-sm font-semibold {{ $tone[2] }}">{{ $sync['message'] }}</p>
+                <p class="mt-1 text-xs text-[var(--color-muted)]">
+                    Last sync:
+                    <strong>{{ $sync['last_synced'] ? $sync['last_synced']->diffForHumans() : 'never' }}</strong>
+                    · Auto-sync: <strong>{{ $sync['auto'] ? 'on, daily at 04:00' : 'off' }}</strong>
+                    · Coverage in this window: <strong>{{ $sync['covered'] }} of {{ $sync['total_days'] }} days</strong>
+                </p>
+                @if ($sync['stalled'])
+                    <p class="mt-2 text-xs text-red-700">
+                        Start a worker with <code class="rounded bg-white/70 px-1 py-0.5">php artisan queue:work</code>,
+                        or run <code class="rounded bg-white/70 px-1 py-0.5">php artisan codecanyon:sync --now --force</code> directly.
+                    </p>
+                @endif
+                @if (! $sync['configured'])
+                    <p class="mt-2 text-xs">
+                        <a href="{{ route('admin.codecanyon-settings') }}" class="font-semibold underline">Settings → CodeCanyon Config</a>
+                    </p>
+                @endif
+            </div>
+            @if ($sync['missing'])
+                <div class="text-right">
+                    <p class="text-xs font-semibold text-[var(--color-muted)]">Days with no snapshot</p>
+                    <p class="mt-1 max-w-xs text-xs text-[var(--color-muted)]">
+                        {{ collect($sync['missing'])->map(fn ($d) => \Illuminate\Support\Carbon::parse($d)->format('d M'))->join(', ') }}
+                    </p>
+                    <p class="mt-1 text-[11px] text-[var(--color-muted)]">Envato serves only today's numbers, so past gaps cannot be filled in.</p>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -53,6 +122,7 @@
                         <th class="px-5 py-3 font-semibold text-right">Products</th>
                         <th class="px-5 py-3 font-semibold text-right">Lifetime sales</th>
                         <th class="px-5 py-3 font-semibold text-right">Est. revenue</th>
+                        <th class="px-5 py-3 font-semibold text-right">Synced</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -79,6 +149,19 @@
                             <td class="px-5 py-3 text-right">{{ $row['products'] }}</td>
                             <td class="px-5 py-3 text-right">{{ number_format($row['lifetime']) }}</td>
                             <td class="px-5 py-3 text-right">{{ $money($row['revenue']) }}</td>
+                            <td class="px-5 py-3 text-right whitespace-nowrap">
+                                <span class="text-xs text-[var(--color-muted)]">{{ $row['author']->synced_at ? $row['author']->synced_at->diffForHumans(short: true) : 'never' }}</span>
+                                @if ($canManage && $sync['configured'])
+                                    <form method="POST" action="{{ route('admin.codecanyon.compare-sync') }}" class="ml-2 inline">
+                                        @csrf
+                                        <input type="hidden" name="author" value="{{ $row['author']->id }}">
+                                        <button @disabled($sync['active']) title="Refresh just this author"
+                                                class="rounded-lg border border-gray-200 px-2 py-1 text-xs font-semibold text-[var(--color-heading)] hover:bg-gray-50 disabled:opacity-50">
+                                            Refresh
+                                        </button>
+                                    </form>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -136,5 +219,59 @@
                 @endif
             </div>
         @endforeach
+    </div>
+
+    {{-- ===== Sync history ===== --}}
+    <div class="mt-6 rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div class="border-b border-gray-100 px-5 py-4">
+            <h3 class="text-lg font-bold text-[var(--color-heading)]">Sync history</h3>
+            <p class="text-xs text-[var(--color-muted)]">Every attempt, so a gap in the grid above always has an explanation.</p>
+        </div>
+        @if ($runs->isEmpty())
+            <p class="px-5 py-8 text-center text-sm text-[var(--color-muted)]">No sync has run yet.</p>
+        @else
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
+                        <tr>
+                            <th class="px-5 py-3 font-semibold">When</th>
+                            <th class="px-5 py-3 font-semibold">Trigger</th>
+                            <th class="px-5 py-3 font-semibold">Scope</th>
+                            <th class="px-5 py-3 font-semibold">Status</th>
+                            <th class="px-5 py-3 text-right font-semibold">Products</th>
+                            <th class="px-5 py-3 text-right font-semibold">Snapshots</th>
+                            <th class="px-5 py-3 text-right font-semibold">Took</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($runs as $run)
+                            <tr>
+                                <td class="px-5 py-3 whitespace-nowrap">
+                                    {{ $run->created_at->format('d M, H:i') }}
+                                    @if ($run->triggeredBy)<span class="block text-xs text-[var(--color-muted)]">by {{ $run->triggeredBy->name }}</span>@endif
+                                </td>
+                                <td class="px-5 py-3">{{ $run->label() }}</td>
+                                <td class="px-5 py-3 text-[var(--color-muted)]">{{ $run->author?->username ?: 'Whole watchlist' }}</td>
+                                <td class="px-5 py-3">
+                                    @php
+                                        $badge = match ($run->status) {
+                                            'success' => 'bg-emerald-50 text-emerald-700',
+                                            'failed' => 'bg-red-50 text-red-700',
+                                            'running' => 'bg-sky-50 text-sky-700',
+                                            default => 'bg-gray-100 text-gray-600',
+                                        };
+                                    @endphp
+                                    <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $badge }}">{{ ucfirst($run->status) }}</span>
+                                    @if ($run->error)<p class="mt-1 max-w-md text-xs text-red-600">{{ $run->error }}</p>@endif
+                                </td>
+                                <td class="px-5 py-3 text-right">{{ $run->products_synced }}</td>
+                                <td class="px-5 py-3 text-right">{{ $run->snapshots_written }}</td>
+                                <td class="px-5 py-3 text-right text-[var(--color-muted)]">{{ $run->durationForHumans() ?: '—' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </div>
 @endsection

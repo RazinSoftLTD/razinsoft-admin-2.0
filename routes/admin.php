@@ -775,6 +775,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             $ccc = \App\Http\Controllers\Admin\CodeCanyonCompareController::class;
             Route::get('codecanyon/compare/authors', [$ccc, 'authors'])->name('codecanyon.compare-authors');
             Route::get('codecanyon/compare/projects', [$ccc, 'projects'])->name('codecanyon.compare-projects');
+            Route::get('codecanyon/compare/sync-status', [$ccc, 'syncStatus'])->name('codecanyon.sync-status');
         });
         Route::middleware('permission:codecanyon.manage')->group(function () {
             $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
@@ -788,6 +789,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('codecanyon/sync', [$cc, 'sync'])->name('codecanyon.sync');
 
             $ccc = \App\Http\Controllers\Admin\CodeCanyonCompareController::class;
+            Route::post('codecanyon/compare/sync', [$ccc, 'sync'])->name('codecanyon.compare-sync');
             Route::post('codecanyon/projects', [$ccc, 'storeProject'])->name('codecanyon.projects.store');
             Route::put('codecanyon/projects/{project}', [$ccc, 'updateProject'])->whereNumber('project')->name('codecanyon.projects.update');
             Route::delete('codecanyon/projects/{project}', [$ccc, 'destroyProject'])->whereNumber('project')->name('codecanyon.projects.destroy');
