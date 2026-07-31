@@ -32,7 +32,7 @@ class ConversionsApi
      * @param  array<string, mixed>  $custom     value, currency, contents…
      * @param  array<string, mixed>  $user       email, phone, first_name, last_name, city, country…
      */
-    public function send(string $event, string $eventId, array $custom = [], array $user = [], ?Request $request = null): bool
+    public function send(string $event, string $eventId, array $custom = [], array $user = [], ?Request $request = null, ?\DateTimeInterface $occurredAt = null): bool
     {
         if (! $this->settings->sends($event)) {
             return false;
@@ -41,7 +41,10 @@ class ConversionsApi
         $payload = [
             'data' => [array_filter([
                 'event_name' => $event,
-                'event_time' => now()->timestamp,
+                // Defaults to now, which is right for anything happening as it is sent. Backfills
+                // pass the real time — Meta rejects anything older than seven days, so the caller
+                // is responsible for not offering it something it will refuse.
+                'event_time' => ($occurredAt ?? now())->getTimestamp(),
                 // The deduplication key. The browser pixel must send the same one.
                 'event_id' => $eventId,
                 'action_source' => 'website',
