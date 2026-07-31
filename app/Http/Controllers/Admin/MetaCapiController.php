@@ -14,7 +14,19 @@ class MetaCapiController extends Controller
     {
         $this->can($request);
 
-        return view('admin.settings.meta-capi', ['settings' => MetaCapiSetting::current()]);
+        return view('admin.settings.meta-capi', [
+            'settings' => MetaCapiSetting::current(),
+            'logs' => \App\Models\MetaCapiLog::latest('sent_at')
+                ->when($request->query('event'), fn ($q, $e) => $q->where('event', $e))
+                ->when($request->query('status'), fn ($q, $st) => $q->where('status', $st))
+                ->paginate(25)->withQueryString(),
+            'logStats' => [
+                'sent' => \App\Models\MetaCapiLog::where('status', 'sent')->count(),
+                'failed' => \App\Models\MetaCapiLog::failed()->count(),
+                'today' => \App\Models\MetaCapiLog::whereDate('sent_at', today())->count(),
+            ],
+            'logEvents' => \App\Models\MetaCapiLog::distinct()->orderBy('event')->pluck('event'),
+        ]);
     }
 
     public function update(Request $request)

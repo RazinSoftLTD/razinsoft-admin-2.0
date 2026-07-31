@@ -104,7 +104,99 @@
                 <tr><td style="padding:2px 0">Lead (contact)</td><td style="padding:2px 0"><code class="rounded bg-white px-1">contact-&lt;id&gt;</code></td></tr>
                 <tr><td style="padding:2px 0">Lead (meeting)</td><td style="padding:2px 0"><code class="rounded bg-white px-1">meeting-&lt;id&gt;</code></td></tr>
                 <tr><td style="padding:2px 0">CompleteRegistration</td><td style="padding:2px 0"><code class="rounded bg-white px-1">signup-&lt;user id&gt;</code></td></tr>
+                <tr><td style="padding:2px 0">Qualified / Unqualified lead</td><td style="padding:2px 0"><code class="rounded bg-white px-1">lead-&lt;id&gt;-&lt;status&gt;</code></td></tr>
             </table>
         </div>
     </div>
+
+    {{-- What has actually been sent. The settings above only ever showed the last result. --}}
+    <div class="mt-6 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-gray-100 px-6 py-4">
+            <div>
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">Event log</h2>
+                <p class="text-xs text-[var(--color-muted)]">Every event handed to Meta, and what came back.</p>
+            </div>
+            <div class="flex flex-wrap items-end gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Sent</p>
+                    <p class="text-lg font-bold text-emerald-600">{{ number_format($logStats['sent']) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Failed</p>
+                    <p class="text-lg font-bold {{ $logStats['failed'] ? 'text-red-500' : 'text-[var(--color-heading)]' }}">{{ number_format($logStats['failed']) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Today</p>
+                    <p class="text-lg font-bold text-[var(--color-heading)]">{{ number_format($logStats['today']) }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-b border-gray-100 px-6 py-3">
+            <form method="GET" class="flex flex-wrap items-end gap-2">
+                <select name="event" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                    <option value="">Every event</option>
+                    @foreach ($logEvents as $e)
+                        <option value="{{ $e }}" @selected(request('event') === $e)>{{ $e }}</option>
+                    @endforeach
+                </select>
+                <select name="status" class="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm">
+                    <option value="">Sent and failed</option>
+                    <option value="sent" @selected(request('status') === 'sent')>Sent only</option>
+                    <option value="failed" @selected(request('status') === 'failed')>Failed only</option>
+                </select>
+                <button class="h-9 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Filter</button>
+                <a href="{{ route('admin.meta-capi') }}" class="h-9 rounded-lg border border-gray-200 px-4 text-sm font-semibold leading-9 text-[var(--color-muted)] hover:bg-gray-50">Clear</a>
+            </form>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
+                    <tr>
+                        <th class="px-5 py-3 font-semibold">When</th>
+                        <th class="px-5 py-3 font-semibold">Event</th>
+                        <th class="px-5 py-3 font-semibold">About</th>
+                        <th class="px-5 py-3 font-semibold">Source</th>
+                        <th class="px-5 py-3 font-semibold">Result</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($logs as $log)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-3 text-[var(--color-muted)]">
+                                {{ optional($log->sent_at)->format('d M Y, h:i A') }}
+                                <span class="block text-xs text-gray-400">{{ optional($log->sent_at)->diffForHumans() }}</span>
+                            </td>
+                            <td class="px-5 py-3">
+                                <span class="font-medium text-[var(--color-heading)]">{{ $log->event }}</span>
+                                <span class="block font-mono text-[11px] text-gray-400">{{ $log->event_id }}</span>
+                            </td>
+                            <td class="px-5 py-3 text-[var(--color-muted)]">
+                                {{ $log->subject ?: '—' }}
+                                @if ($log->backfilled)
+                                    <span class="ml-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">backfill</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3 text-[var(--color-muted)]">{{ $log->source ?: '—' }}</td>
+                            <td class="px-5 py-3">
+                                @if ($log->status === 'sent')
+                                    <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Sent</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">Failed</span>
+                                    @if ($log->error)
+                                        <span class="mt-1 block max-w-md truncate text-[11px] text-red-500" title="{{ $log->error }}">{{ $log->error }}</span>
+                                    @endif
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">Nothing sent yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4">{{ $logs->links() }}</div>
 @endsection

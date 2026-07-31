@@ -100,6 +100,9 @@ class BackfillLeadQuality extends Command
         $bar = $this->output->createProgressBar($total);
         $sent = $skipped = $failed = 0;
 
+        // Tags every row this run writes, so the log separates a bulk catch-up from live traffic.
+        ConversionsApi::$backfilling = true;
+
         $query->chunkById(100, function ($leads) use (&$sent, &$skipped, &$failed, $bar, $dry, $clamp, $oldest) {
             foreach ($leads as $lead) {
                 $bar->advance();
@@ -149,6 +152,8 @@ class BackfillLeadQuality extends Command
                 usleep(500_000);
             }
         });
+
+        ConversionsApi::$backfilling = false;
 
         $bar->finish();
         $this->newLine(2);

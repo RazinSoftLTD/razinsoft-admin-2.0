@@ -21,6 +21,9 @@ class ConversionsApi
 {
     public function __construct(private MetaCapiSetting $settings) {}
 
+    /** @var array<string, mixed> */
+    private array $pending = [];
+
     public static function make(): self
     {
         return new self(MetaCapiSetting::current());
@@ -32,11 +35,22 @@ class ConversionsApi
      * @param  array<string, mixed>  $custom     value, currency, contents…
      * @param  array<string, mixed>  $user       email, phone, first_name, last_name, city, country…
      */
+    /** Set while a backfill is running, so the log can tell those rows from live traffic. */
+    public static bool $backfilling = false;
+
     public function send(string $event, string $eventId, array $custom = [], array $user = [], ?Request $request = null, ?\DateTimeInterface $occurredAt = null): bool
     {
         if (! $this->settings->sends($event)) {
             return false;
         }
+
+        // Held for the log, which is written in post() where the outcome is known.
+        $this->pending = [
+            'event' => $event,
+            'event_id' => $eventId,
+            'subject' => $custom['content_name'] ?? null,
+            'source' => $custom['content_category'] ?? null,
+        ];
 
         $payload = [
             'data' => [array_filter([
@@ -121,18 +135,36 @@ class ConversionsApi
         } catch (\Throwable $e) {
             // Tracking must never break the thing it is tracking.
             $this->record(false, $e->getMessage());
+            $this->log(false, $e->getMessage());
             Log::warning('Meta CAPI unreachable.', ['event' => $event, 'error' => $e->getMessage()]);
 
             return false;
         }
 
-        $this->record($res->successful(), $res->successful() ? null : ($res->json('error.message') ?: 'Rejected.'));
+        $error = $res->successful() ? null : ($res->json('error.message') ?: 'Rejected.');
+        $this->record($res->successful(), $error);
+        $this->log($res->successful(), $error);
 
         if (! $res->successful()) {
             Log::warning('Meta CAPI rejected an event.', ['event' => $event, 'error' => $res->json('error')]);
         }
 
         return $res->successful();
+    }
+
+    /** History, one row per event. Never allowed to break the send it is describing. */
+    private function log(bool $ok, ?string $error): void
+    {
+        try {
+            \App\Models\MetaCapiLog::create($this->pending + [
+                'status' => $ok ? 'sent' : 'failed',
+                'error' => $error ? mb_substr($error, 0, 500) : null,
+                'backfilled' => self::$backfilling,
+                'sent_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function record(bool $ok, ?string $error): void
