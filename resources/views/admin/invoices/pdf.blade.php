@@ -76,14 +76,21 @@
         'phone' => '+8801711257498',
         'address' => ['RMR Center 1/1 (A&B) Shyamoli', 'Ring Road, Dhaka - 1207.', 'Bangladesh'],
     ];
-    $bank = [
-        'Razinsoft Limited' => null,
+    // Blank entries are dropped, so a detail we do not have never prints as an empty row.
+    $bankName = 'Razinsoft Limited';
+    $bank = array_filter([
         'A/C:' => '1111070003744',
         'Bank:' => 'Eastern Bank PLC',
         'Branch:' => 'Shyamoli',
         'Routing #:' => '095264301',
         'Address:' => 'Shyamoli Ring Road',
-    ];
+    ], fn ($v) => filled($v));
+
+    // Off for an invoice paid by card — an account number there is just clutter. The columns that
+    // remain share the width out between them rather than leaving a gap where this one was.
+    $showBank = $invoice->show_bank_details && ($bank || filled($bankName));
+    $footCols = $showBank ? 3 : 2;
+    $footWidth = round(100 / $footCols, 2).'%';
 
     $iconPath = public_path('images/razinsoft-icon-print.png');
     $logoPath = public_path('images/razinsoft-logo-print.png');
@@ -292,26 +299,27 @@
 {{-- ============ NOTES / BANK / TERMS ============ --}}
 <table class="foot">
   <tr>
-    <td style="width:38%">
+    <td style="width:{{ $footWidth }}">
       <div class="label">Notes</div>
       <div style="margin-top:5px">{!! $invoice->notes ? $invoice->formattedNotes() : '—' !!}</div>
     </td>
-    <td style="width:32%">
-      <div class="label">Bank Info</div>
-      <table class="bank">
-        @foreach ($bank as $key => $value)
-          <tr>
-            @if ($value === null)
-              <td colspan="2" style="font-weight:bold;color:#14337a;padding-bottom:3px">{{ $key }}</td>
-            @else
+    @if ($showBank)
+      <td style="width:{{ $footWidth }}">
+        <div class="label">Bank Info</div>
+        @if (filled($bankName))
+          <div style="font-weight:bold;color:#14337a;margin-top:5px">{{ $bankName }}</div>
+        @endif
+        <table class="bank">
+          @foreach ($bank as $key => $value)
+            <tr>
               <td class="muted">{{ $key }}</td>
               <td>{{ $value }}</td>
-            @endif
-          </tr>
-        @endforeach
-      </table>
-    </td>
-    <td style="width:30%;padding-right:0">
+            </tr>
+          @endforeach
+        </table>
+      </td>
+    @endif
+    <td style="width:{{ $footWidth }};padding-right:0">
       <div class="label">Terms</div>
       <div style="margin-top:5px">{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</div>
     </td>

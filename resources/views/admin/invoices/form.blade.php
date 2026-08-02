@@ -259,6 +259,17 @@
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Terms &amp; Conditions</label>
                             <textarea name="terms" rows="3" x-model="terms" placeholder="Payment terms…" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
+
+                            {{-- An invoice settled by card has no use for an account number; one paid
+                                 by transfer does. Per invoice, not a global setting. --}}
+                            <label class="mt-4 flex cursor-pointer items-start gap-3">
+                                <input type="checkbox" name="show_bank_details" value="1" @checked(old('show_bank_details', $invoice->exists ? $invoice->show_bank_details : true))
+                                       class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]">
+                                <span>
+                                    <span class="block text-sm font-semibold text-[var(--color-heading)]">Show bank details</span>
+                                    <span class="mt-0.5 block text-xs text-[var(--color-muted)]">Prints our account details on the invoice and the PDF.</span>
+                                </span>
+                            </label>
                         </div>
                     </div>
                     <div class="mt-5 grid gap-5 sm:grid-cols-2">

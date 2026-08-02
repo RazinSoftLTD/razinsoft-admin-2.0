@@ -94,13 +94,17 @@
                     'phone' => '+8801711257498',
                     'address' => ['RMR Center 1/1 (A&B) Shyamoli', 'Ring Road, Dhaka - 1207.', 'Bangladesh'],
                 ];
-                $bank = [
+                // Blank entries are dropped, so a detail we do not have never shows as an empty row.
+                $bankName = 'Razinsoft Limited';
+                $bank = array_filter([
                     'A/C:' => '1111070003744',
                     'Bank:' => 'Eastern Bank PLC',
                     'Branch:' => 'Shyamoli',
                     'Routing #:' => '095264301',
                     'Address:' => 'Shyamoli Ring Road',
-                ];
+                ], fn ($v) => filled($v));
+                // Off for an invoice paid by card. The remaining columns just share the row.
+                $showBank = $invoice->show_bank_details && ($bank || filled($bankName));
                 $due = $invoice->amountDue();
                 $paidOff = $due <= 0;
                 $statusText = $paidOff ? 'PAID' : ($invoice->amount_paid > 0 ? 'PARTIALLY PAID' : 'UNPAID');
@@ -225,15 +229,19 @@
                     <div class="inv-label">Notes</div>
                     <div class="invoice-notes" style="margin-top:5px">{!! $invoice->notes ? $invoice->formattedNotes() : '—' !!}</div>
                 </div>
-                <div>
-                    <div class="inv-label">Bank Info</div>
-                    <div style="font-weight:700;color:var(--inv-navy);margin-top:5px">Razinsoft Limited</div>
-                    <table class="inv-bank">
-                        @foreach ($bank as $key => $value)
-                            <tr><td style="color:var(--color-muted)">{{ $key }}</td><td>{{ $value }}</td></tr>
-                        @endforeach
-                    </table>
-                </div>
+                @if ($showBank)
+                    <div>
+                        <div class="inv-label">Bank Info</div>
+                        @if (filled($bankName))
+                            <div style="font-weight:700;color:var(--inv-navy);margin-top:5px">{{ $bankName }}</div>
+                        @endif
+                        <table class="inv-bank">
+                            @foreach ($bank as $key => $value)
+                                <tr><td style="color:var(--color-muted)">{{ $key }}</td><td>{{ $value }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
                 <div>
                     <div class="inv-label">Terms</div>
                     <div style="margin-top:5px">{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</div>

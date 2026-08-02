@@ -374,6 +374,7 @@ class ClientInvoiceController extends Controller
             'currency' => $data['currency'],
             'notes' => $data['notes'] ?? null,
             'terms' => $data['terms'] ?? null,
+            'show_bank_details' => $request->boolean('show_bank_details'),
             // No longer on the form — keep whatever the invoice already has (payments record their own method).
             'payment_method' => $data['payment_method'] ?? $invoice->payment_method,
             'status' => $data['status'] ?? 'draft',
@@ -484,6 +485,7 @@ class ClientInvoiceController extends Controller
             'status' => ['nullable', 'in:draft,sent'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'terms' => ['nullable', 'string', 'max:2000'],
+            'show_bank_details' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', 'string', 'max:60'],
             'discount_type' => ['nullable', 'in:flat,percent'],
             'discount_value' => ['nullable', 'numeric', 'min:0', 'required_with:discount_type'],

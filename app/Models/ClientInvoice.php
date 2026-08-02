@@ -27,6 +27,7 @@ class ClientInvoice extends Model
         'amount_paid' => 'decimal:2',
         'pay_methods' => 'array',
         'is_private' => 'boolean',
+        'show_bank_details' => 'boolean',
     ];
 
     protected static function booted(): void
