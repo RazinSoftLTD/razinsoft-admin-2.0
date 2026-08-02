@@ -47,6 +47,33 @@ class InvoiceRichText
         return preg_replace('#^(<br\s*/?>)+|(<br\s*/?>)+$#i', '', trim($html));
     }
 
+    /**
+     * The list items out of a sub-description, or an empty array when it is not a list.
+     *
+     * A long feature list reads far better set in two numbered columns than as one column running
+     * down the page, and that needs the items separately rather than pre-flattened into <br>s.
+     *
+     * @return string[] each already formatted as safe inline HTML
+     */
+    public static function listItems(string $html): array
+    {
+        if (! preg_match_all('#<li[^>]*>(.*?)</li>#is', $html, $m)) {
+            return [];
+        }
+
+        // Anything outside the list would be dropped by taking only the items, so leave those
+        // sub-descriptions to the normal formatter rather than silently losing half of one.
+        $outside = trim(strip_tags(preg_replace('#<(ul|ol)[^>]*>.*?</(ul|ol)>#is', '', $html)));
+        if ($outside !== '') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            fn ($item) => self::format($item),
+            $m[1]
+        ), fn ($item) => $item !== ''));
+    }
+
     /** Plain-text fields — escaped first, then given the same line breaks and spacing. */
     public static function formatPlain(string $text): string
     {

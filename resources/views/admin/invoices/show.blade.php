@@ -34,78 +34,167 @@
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
-        {{-- Invoice document --}}
-        <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
+        {{-- Invoice document. Styled with plain CSS rather than utility classes: the admin ships a
+             pre-built stylesheet and does not recompile on deploy, so a class that is not already
+             in it would simply do nothing. It also has to match the PDF, and this way one glance
+             at either file shows the same structure. --}}
+        <div class="inv-doc rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
+            <style>
+                .inv-doc { --inv-navy: #14337a; --inv-blue: #1d4ed8; --inv-line: #dbe2ee; color: #1f2937; overflow: hidden; }
+                .inv-doc .inv-pad { padding: 28px 32px; }
+                .inv-label { font-size: 10px; font-weight: 700; color: var(--inv-blue); text-transform: uppercase; letter-spacing: .06em; }
+                .inv-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+                .inv-head > div:first-child { flex: 1 1 240px; }
+                .inv-head > div:last-child { flex: 0 0 auto; margin-left: auto; }
+                .inv-contact { margin-top: 12px; font-size: 12.5px; color: #4b5563; }
+                .inv-contact > div { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }
+                .inv-contact svg { width: 15px; height: 15px; flex: 0 0 15px; margin-top: 2px; color: var(--inv-blue); }
+                .inv-title { font-size: 32px; font-weight: 800; letter-spacing: .02em; color: var(--inv-navy); line-height: 1; }
+                .inv-rule { height: 3px; width: 120px; background: var(--inv-blue); margin: 6px 0 0 auto; }
+                .inv-meta { border-collapse: collapse; margin: 16px 0 0 auto; font-size: 12px; }
+                .inv-meta td { border: 1px solid var(--inv-line); padding: 8px 14px; }
+                .inv-meta td.k { font-weight: 700; color: var(--inv-navy); }
+                .inv-meta td.v { font-weight: 700; color: var(--inv-blue); }
+                .inv-parties { display: flex; flex-wrap: wrap; gap: 28px; }
+                .inv-parties > div { flex: 1 1 200px; font-size: 13px; line-height: 1.65; }
+                .inv-parties > div + div { border-left: 1px solid var(--inv-line); padding-left: 28px; }
+                .inv-who { font-weight: 700; color: var(--inv-navy); margin-top: 6px; }
+                .inv-status { display: inline-block; border-radius: 6px; padding: 9px 24px; font-size: 14px; font-weight: 700; letter-spacing: .04em; }
+
+                .inv-items { width: 100%; border-collapse: collapse; font-size: 13px; }
+                .inv-items th { background: var(--inv-blue); color: #fff; padding: 10px 8px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--inv-blue); }
+                .inv-items td { border: 1px solid var(--inv-line); padding: 10px 8px; vertical-align: middle; text-align: center; }
+                .inv-items td.desc { text-align: left; vertical-align: top; }
+                .inv-items .t { font-weight: 700; color: var(--inv-navy); }
+                .inv-items .amt { font-weight: 700; color: var(--inv-navy); }
+                .inv-detail { margin-top: 6px; font-size: 11.5px; line-height: 1.6; color: #4b5563; }
+                .inv-list { margin: 8px 0 0; padding-left: 22px; list-style: decimal outside; font-size: 12px; line-height: 1.7; color: #4b5563; }
+                .inv-list li { padding-left: 2px; }
+
+                .inv-totals { width: 320px; margin-left: auto; border-collapse: collapse; font-size: 13px; }
+                .inv-totals td { padding: 7px 12px; }
+                .inv-totals td.r { text-align: right; }
+                .inv-totals tr.line td { border-top: 1px solid var(--inv-line); font-weight: 700; color: var(--inv-navy); }
+                .inv-totals tr.due td { background: #e8effc; color: var(--inv-navy); font-weight: 700; font-size: 15px; padding: 11px 12px; }
+                .inv-totals tr.due td:first-child { text-transform: uppercase; letter-spacing: .04em; }
+
+                .inv-foot { display: flex; flex-wrap: wrap; gap: 28px; border-top: 1px solid #f3f4f6; font-size: 12px; line-height: 1.7; color: #4b5563; }
+                .inv-foot > div { flex: 1 1 180px; }
+                .inv-bank { border-collapse: collapse; margin-top: 4px; font-size: 12px; }
+                .inv-bank td { padding: 1px 12px 1px 0; }
+                .inv-thanks { border-top: 1px solid var(--inv-line); margin: 0 32px; padding: 14px 0 24px; text-align: center; color: var(--inv-blue); font-weight: 700; font-size: 13px; }
+            </style>
+
+            @php
+                // Kept in step with the PDF by hand — both read from the same shape, so a change to
+                // one is obvious in the other.
+                $us = [
+                    'name' => 'RazinSoft',
+                    'email' => 'info@razinsoft.com',
+                    'phone' => '+8801711257498',
+                    'address' => ['RMR Center 1/1 (A&B) Shyamoli', 'Ring Road, Dhaka - 1207.', 'Bangladesh'],
+                ];
+                $bank = [
+                    'A/C:' => '1111070003744',
+                    'Bank:' => 'Eastern Bank PLC',
+                    'Branch:' => 'Shyamoli',
+                    'Routing #:' => '095264301',
+                    'Address:' => 'Shyamoli Ring Road',
+                ];
+                $due = $invoice->amountDue();
+                $paidOff = $due <= 0;
+                $statusText = $paidOff ? 'PAID' : ($invoice->amount_paid > 0 ? 'PARTIALLY PAID' : 'UNPAID');
+                $statusColour = $paidOff || $invoice->amount_paid > 0 ? '#047857' : '#dc2626';
+                $num = fn ($v) => rtrim(rtrim(number_format($v, 2), '0'), '.');
+            @endphp
+
             {{-- Header --}}
-            <div class="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 p-8">
+            <div class="inv-pad inv-head">
                 <div>
-                    <img src="{{ asset('images/razinsoft-logo.png') }}" alt="RazinSoft" class="h-9 w-auto">
-                    <p class="mt-2 text-xs text-[var(--color-muted)]">RazinSoft Ltd. · support@razinsoft.com</p>
+                    <img src="{{ asset('images/razinsoft-logo.png') }}" alt="{{ $us['name'] }}" class="h-9 w-auto">
+                    <div class="inv-contact">
+                        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6 8.5-6"/></svg>{{ $us['email'] }}</div>
+                        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"/></svg>{{ $us['phone'] }}</div>
+                        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>{{ implode(', ', $us['address']) }}</div>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <span class="inline-flex rounded-md bg-[var(--color-primary-soft)] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[var(--color-primary)]">Invoice</span>
-                    <p class="mt-2 text-lg font-bold text-[var(--color-heading)]">{{ $invoice->invoice_number }}</p>
+                    <div class="inv-title">INVOICE</div>
+                    <div class="inv-rule"></div>
+                    <table class="inv-meta">
+                        <tr><td class="k">Invoice Number</td><td class="v">{{ $invoice->invoice_number }}</td></tr>
+                        <tr><td class="k">Invoice Date</td><td>{{ $invoice->invoice_date->format('d F, Y') }}</td></tr>
+                        @if ($invoice->due_date)
+                            <tr><td class="k">Due Date</td><td class="v">{{ $invoice->due_date->format('d F, Y') }}</td></tr>
+                        @endif
+                    </table>
                 </div>
             </div>
 
-            {{-- Meta: Bill To + dates --}}
-            <div class="grid gap-6 p-8 sm:grid-cols-2">
+            {{-- Billed from / to --}}
+            <div class="inv-pad inv-parties" style="padding-top:0">
                 <div>
-                    <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Bill To</p>
-                    @if ($invoice->client)
-                        <a href="{{ route('admin.clients.show', $invoice->client_id) }}" class="mt-1.5 inline-block font-semibold text-[var(--color-primary)] hover:underline">{{ $invoice->bill_to_name ?: $invoice->client->name }}</a>
-                    @else
-                        <p class="mt-1.5 font-semibold text-[var(--color-heading)]">{{ $invoice->bill_to_name ?: '—' }}</p>
-                    @endif
-                    @if ($invoice->bill_to_company)<p class="text-sm text-[var(--color-muted)]">{{ $invoice->bill_to_company }}</p>@endif
-                    @if ($invoice->bill_to_address)<p class="text-sm leading-relaxed text-[var(--color-muted)]">{{ $invoice->bill_to_address }}</p>@endif
-                    @if ($invoice->bill_to_email)<p class="text-sm text-[var(--color-muted)]">{{ $invoice->bill_to_email }}</p>@endif
-                    @if ($invoice->bill_to_phone)<p class="text-sm text-[var(--color-muted)]">{{ $invoice->bill_to_phone }}</p>@endif
+                    <div class="inv-label">Billed From</div>
+                    <div class="inv-who">{{ $us['name'] }}</div>
+                    <div>{{ $us['email'] }}<br>{{ $us['phone'] }}<br>{!! implode('<br>', array_map('e', $us['address'])) !!}</div>
                 </div>
-                <div class="sm:text-right">
-                    <div class="inline-grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:text-left">
-                        <span class="text-gray-400">Issue Date</span>
-                        <span class="font-medium text-[var(--color-heading)]">{{ $invoice->invoice_date->format('d M Y') }}</span>
-                        @if ($invoice->due_date)
-                            <span class="text-gray-400">Due Date</span>
-                            <span class="font-medium text-[var(--color-heading)]">{{ $invoice->due_date->format('d M Y') }}</span>
-                        @endif
-                        <span class="text-gray-400">Status</span>
-                        <span><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $statusBadge[$invoice->status] ?? '' }}">{{ \App\Models\ClientInvoice::STATUSES[$invoice->status] ?? $invoice->status }}</span></span>
+                <div>
+                    <div class="inv-label">Billed To</div>
+                    @if ($invoice->client)
+                        <a href="{{ route('admin.clients.show', $invoice->client_id) }}" class="inv-who" style="display:block;text-decoration:none">{{ $invoice->bill_to_name ?: $invoice->client->name }}</a>
+                    @else
+                        <div class="inv-who">{{ $invoice->bill_to_name ?: '—' }}</div>
+                    @endif
+                    <div>
+                        @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
+                        @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
+                        @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
+                        @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
                     </div>
+                </div>
+                <div style="flex:0 0 auto;border-left:none;padding-left:0" class="text-right">
+                    <span class="inv-status" style="border:1px solid {{ $statusColour }};color:{{ $statusColour }}">{{ $statusText }}</span>
                 </div>
             </div>
 
             {{-- Items --}}
-            <div class="px-8">
+            <div style="padding:0 32px">
                 <div class="overflow-x-auto">
-                    <table class="w-full border border-gray-200 text-sm">
+                    <table class="inv-items">
                         <thead>
-                            <tr class="border-b border-gray-200 bg-gray-50 text-xs font-semibold text-[var(--color-heading)]">
-                                <th class="px-4 py-2.5 text-left font-semibold">Description</th>
-                                <th class="border-l border-gray-200 px-4 py-2.5 text-center font-semibold">Quantity</th>
-                                <th class="border-l border-gray-200 px-4 py-2.5 text-right font-semibold">Unit Price</th>
-                                <th class="border-l border-gray-200 px-4 py-2.5 text-right font-semibold">Tax</th>
-                                <th class="border-l border-gray-200 px-4 py-2.5 text-right font-semibold">Amount ({{ $invoice->currency }})</th>
+                            <tr>
+                                <th style="width:42%;text-align:left">Description</th>
+                                <th style="width:7%">Qty</th>
+                                <th style="width:15%">Unit</th>
+                                <th style="width:12%">Unit Price<br>({{ $invoice->currency }})</th>
+                                <th style="width:10%">Tax<br>({{ $invoice->currency }})</th>
+                                <th style="width:14%">Amount<br>({{ $invoice->currency }})</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            {{-- Each item, with its own sub-description on the row underneath. They used
-                                 to be collected into a second loop at the end of the table, which left
-                                 every description stacked together with nothing tying it to its item. --}}
+                        <tbody>
                             @foreach ($invoice->items as $item)
+                                @php
+                                    // Numbered once a list is long enough that a reader needs to keep
+                                    // their place in it. The PDF sets the same list in two columns;
+                                    // that is a page-height problem, and this page scrolls.
+                                    $listItems = $item->subDescriptionItems();
+                                    $numbered = count($listItems) > 8;
+                                @endphp
                                 <tr>
-                                    <td class="px-4 py-3 font-medium text-[var(--color-heading)]">{{ $item->description }}</td>
-                                    <td class="border-l border-gray-200 px-4 py-3 text-center text-[var(--color-muted)]">{{ rtrim(rtrim(number_format($item->qty, 2), '0'), '.') }}<span class="block text-[11px] text-gray-400">{{ $item->unit ?: 'Items' }}</span></td>
-                                    <td class="border-l border-gray-200 px-4 py-3 text-right text-[var(--color-muted)]">{{ number_format($item->unit_price, 2) }}</td>
-                                    <td class="border-l border-gray-200 px-4 py-3 text-right text-[var(--color-muted)]">@if ($item->tax_percent > 0){{ rtrim(rtrim(number_format($item->tax_percent, 2), '0'), '.') }}%@endif</td>
-                                    <td class="border-l border-gray-200 px-4 py-3 text-right font-medium text-[var(--color-heading)]">{{ number_format($item->amount, 2) }}</td>
+                                    <td class="desc">
+                                        <div class="t">{{ $item->description }}</div>
+                                        @if ($numbered)
+                                            <ol class="inv-list">@foreach ($listItems as $line)<li>{!! $line !!}</li>@endforeach</ol>
+                                        @elseif ($item->sub_description)
+                                            <div class="invoice-subdesc inv-detail">{!! $item->formattedSubDescription() !!}</div>
+                                        @endif
+                                    </td>
+                                    <td>{{ $num($item->qty) }}</td>
+                                    <td>{{ $item->unit ?: '—' }}</td>
+                                    <td>{{ number_format($item->unit_price, 2) }}</td>
+                                    <td>{{ $item->tax_percent > 0 ? $num($item->tax_percent).'%' : '—' }}</td>
+                                    <td class="amt">{{ number_format($item->amount, 2) }}</td>
                                 </tr>
-                                @if ($item->sub_description)
-                                    <tr>
-                                        <td colspan="5" class="invoice-subdesc px-4 pb-3 pl-7 text-xs leading-relaxed text-[var(--color-muted)]">{!! $item->formattedSubDescription() !!}</td>
-                                    </tr>
-                                @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -113,36 +202,45 @@
             </div>
 
             {{-- Totals --}}
-            <div class="flex justify-end px-8 pt-5">
-                <div class="w-full max-w-xs space-y-2 text-sm">
-                    <div class="flex justify-between"><span class="text-[var(--color-muted)]">Sub Total</span><span class="text-[var(--color-heading)]">{{ $cur }}{{ number_format($invoice->subtotal, 2) }}</span></div>
+            <div style="padding:16px 32px 0">
+                <table class="inv-totals">
+                    <tr><td style="color:var(--color-muted)">Sub Total</td><td class="r">{{ $cur }}{{ number_format($invoice->subtotal, 2) }}</td></tr>
                     @if ($invoice->discount_total > 0)
-                        <div class="flex justify-between"><span class="text-[var(--color-muted)]">Discount{{ $invoice->discount_type === 'percent' && $invoice->discount_value > 0 ? ': '.rtrim(rtrim(number_format($invoice->discount_value, 2), '0'), '.').'%' : '' }}</span><span class="text-[var(--color-heading)]">−{{ $cur }}{{ number_format($invoice->discount_total, 2) }}</span></div>
+                        <tr><td style="color:var(--color-muted)">Discount{{ $invoice->discount_type === 'percent' && $invoice->discount_value > 0 ? ' ('.$num($invoice->discount_value).'%)' : '' }}</td><td class="r" style="color:#dc2626">−{{ $cur }}{{ number_format($invoice->discount_total, 2) }}</td></tr>
                     @endif
                     @if ($invoice->tax_total > 0)
-                        <div class="flex justify-between"><span class="text-[var(--color-muted)]">Tax</span><span class="text-[var(--color-heading)]">{{ $cur }}{{ number_format($invoice->tax_total, 2) }}</span></div>
+                        <tr><td style="color:var(--color-muted)">Tax</td><td class="r">{{ $cur }}{{ number_format($invoice->tax_total, 2) }}</td></tr>
                     @endif
-                    <div class="flex justify-between border-t border-gray-100 pt-2 font-semibold text-[var(--color-heading)]"><span>Total</span><span>{{ $cur }}{{ number_format($invoice->total, 2) }}</span></div>
-                    @if ($invoice->amount_paid > 0)<div class="flex justify-between text-emerald-600"><span>Paid</span><span>−{{ $cur }}{{ number_format($invoice->amount_paid, 2) }}</span></div>@endif
-                    <div class="mt-1 flex justify-between rounded-lg bg-[var(--color-primary-soft)] px-4 py-3 text-base font-bold text-[var(--color-primary)]"><span>Total Due</span><span>{{ $cur }}{{ number_format($invoice->amountDue(), 2) }} {{ $invoice->currency }}</span></div>
+                    <tr class="line"><td>Total</td><td class="r">{{ $cur }}{{ number_format($invoice->total, 2) }}</td></tr>
+                    @if ($invoice->amount_paid > 0)
+                        <tr><td style="color:#047857;font-weight:700">Paid</td><td class="r" style="color:#047857;font-weight:700">−{{ $cur }}{{ number_format($invoice->amount_paid, 2) }}</td></tr>
+                    @endif
+                    <tr class="due"><td>Total Due</td><td class="r">{{ $cur }}{{ number_format($due, 2) }} {{ $invoice->currency }}</td></tr>
+                </table>
+            </div>
+
+            {{-- Notes / Bank / Terms --}}
+            <div class="inv-pad inv-foot" style="margin-top:24px">
+                <div>
+                    <div class="inv-label">Notes</div>
+                    <div class="invoice-notes" style="margin-top:5px">{!! $invoice->notes ? $invoice->formattedNotes() : '—' !!}</div>
+                </div>
+                <div>
+                    <div class="inv-label">Bank Info</div>
+                    <div style="font-weight:700;color:var(--inv-navy);margin-top:5px">Razinsoft Limited</div>
+                    <table class="inv-bank">
+                        @foreach ($bank as $key => $value)
+                            <tr><td style="color:var(--color-muted)">{{ $key }}</td><td>{{ $value }}</td></tr>
+                        @endforeach
+                    </table>
+                </div>
+                <div>
+                    <div class="inv-label">Terms</div>
+                    <div style="margin-top:5px">{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</div>
                 </div>
             </div>
 
-            {{-- Notes / Terms --}}
-            @if ($invoice->notes || $invoice->terms)
-                <div class="mt-6 grid gap-6 border-t border-gray-100 p-8 text-xs leading-relaxed text-[var(--color-muted)] sm:grid-cols-2">
-                    <div>
-                        <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Notes</p>
-                        <p class="invoice-notes">{!! $invoice->notes ? $invoice->formattedNotes() : '—' !!}</p>
-                    </div>
-                    <div>
-                        <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Terms</p>
-                        <p>{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</p>
-                    </div>
-                </div>
-            @else
-                <div class="pb-8"></div>
-            @endif
+            <div class="inv-thanks">Thank you for your business!</div>
         </div>
 
         {{-- Side: summary + pay link + payments + activity --}}

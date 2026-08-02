@@ -34,4 +34,10 @@ class ClientInvoiceItem extends Model
     {
         return \App\Support\InvoiceRichText::format((string) $this->sub_description);
     }
+
+    /** The sub-description's list items, so a long one can be set in columns. Empty if not a list. */
+    public function subDescriptionItems(): array
+    {
+        return \App\Support\InvoiceRichText::listItems((string) $this->sub_description);
+    }
 }
