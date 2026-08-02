@@ -66,7 +66,7 @@
                 .inv-status { display: inline-block; border-radius: 6px; padding: 9px 24px; font-size: 14px; font-weight: 700; letter-spacing: .04em; }
 
                 .inv-table { border: 1px solid var(--inv-line); border-radius: 12px; overflow: hidden; }
-                .inv-items { width: 100%; border-collapse: collapse; font-size: 13px; }
+                .inv-items { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
                 .inv-items th { background: var(--inv-head); color: #fff; padding: 11px 8px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border: none; }
                 .inv-items th + th { border-left: 1px solid rgba(255, 255, 255, .14); }
                 .inv-items td { border-top: 1px solid var(--inv-line); border-left: 1px solid var(--inv-line); padding: 11px 8px; vertical-align: middle; text-align: center; }
@@ -174,12 +174,12 @@
                     <table class="inv-items">
                         <thead>
                             <tr>
-                                <th style="width:42%;text-align:left">Description</th>
+                                <th style="width:43%;text-align:left">Description</th>
                                 <th style="width:7%">Qty</th>
                                 <th style="width:15%">Unit</th>
                                 <th style="width:12%">Unit Price<br>({{ $invoice->currency }})</th>
                                 <th style="width:10%">Tax<br>({{ $invoice->currency }})</th>
-                                <th style="width:14%">Amount<br>({{ $invoice->currency }})</th>
+                                <th style="width:13%">Amount<br>({{ $invoice->currency }})</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -20,7 +20,10 @@
   table.plain > tr > td, table.plain td { border: none; vertical-align: top; }
 
   /* Items */
-  table.items { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  /* Fixed layout: the declared widths hold whatever the cells contain, so the column lines land
+     in the same place on every row — and in the same place as the on-screen invoice, which uses
+     the same widths. Auto layout let long content nudge them. */
+  table.items { width: 100%; border-collapse: collapse; margin-top: 16px; table-layout: fixed; }
   table.items th {
     background: #2e5288; color: #fff; padding: 10px 8px;
     font-size: 9.5px; font-weight: bold; text-transform: uppercase; letter-spacing: .5px;
