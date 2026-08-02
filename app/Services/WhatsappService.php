@@ -64,9 +64,27 @@ class WhatsappService
         $this->provider()->resync();
     }
 
+    /**
+     * Graph credentials for whichever number this service is bound to.
+     *
+     * Cloud API numbers keep their own token on the account so several can be connected at once;
+     * the global settings row only carries them for an older single-number setup. Reading the
+     * global row unconditionally meant media downloads authenticated with whatever that row held —
+     * nothing at all, once the accounts took over.
+     *
+     * @return array{0: string, 1: ?string} [base url, access token]
+     */
+    private function graph(): array
+    {
+        $version = $this->account?->api_version ?: ($this->settings->api_version ?: 'v21.0');
+        $token = $this->account?->access_token ?: $this->settings->access_token;
+
+        return ['https://graph.facebook.com/'.$version, $token];
+    }
+
     private function base(): string
     {
-        return 'https://graph.facebook.com/'.($this->settings->api_version ?: 'v21.0');
+        return $this->graph()[0];
     }
 
     /** Verify the connection via the active driver. Returns [ok, message, number]. */
@@ -138,13 +156,34 @@ class WhatsappService
     /** Download an inbound media object by its id and store it on the public disk. Returns [path, mime]. */
     public function downloadMedia(string $mediaId): ?array
     {
+        [$base, $token] = $this->graph();
+
+        if (blank($token)) {
+            \Log::warning('WhatsApp: no access token to fetch media with.', [
+                'media_id' => $mediaId, 'account_id' => $this->account?->id,
+            ]);
+
+            return null;
+        }
+
         try {
-            $meta = Http::withToken($this->settings->access_token)->get($this->base().'/'.$mediaId);
+            $meta = Http::withToken($token)->get($base.'/'.$mediaId);
             if (! $meta->successful() || ! $meta->json('url')) {
+                // Silence here is why this went unnoticed: the message saved with no attachment and
+                // nothing said why.
+                \Log::warning('WhatsApp: could not resolve media.', [
+                    'media_id' => $mediaId, 'account_id' => $this->account?->id,
+                    'status' => $meta->status(), 'error' => $meta->json('error.message'),
+                ]);
+
                 return null;
             }
-            $bin = Http::withToken($this->settings->access_token)->get($meta->json('url'));
+            $bin = Http::withToken($token)->get($meta->json('url'));
             if (! $bin->successful()) {
+                \Log::warning('WhatsApp: could not download media.', [
+                    'media_id' => $mediaId, 'account_id' => $this->account?->id, 'status' => $bin->status(),
+                ]);
+
                 return null;
             }
             $mime = $meta->json('mime_type') ?: $bin->header('Content-Type');
@@ -154,7 +193,11 @@ class WhatsappService
             Storage::disk('public')->put($path, $bin->body());
 
             return [$path, $mime];
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            \Log::warning('WhatsApp: media download threw.', [
+                'media_id' => $mediaId, 'account_id' => $this->account?->id, 'error' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }

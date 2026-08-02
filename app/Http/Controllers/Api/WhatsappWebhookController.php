@@ -110,7 +110,8 @@ class WhatsappWebhookController extends Controller
         [$type, $body, $mediaId, $mediaName] = $this->parse($msg);
         $mediaPath = $mediaMime = null;
         if ($mediaId) {
-            if ($stored = app(WhatsappService::class)->downloadMedia($mediaId)) {
+            // Bound to the account the message arrived on: its token is the one Meta will accept.
+            if ($stored = WhatsappService::for($account)->downloadMedia($mediaId)) {
                 [$mediaPath, $mediaMime] = $stored;
             }
         }
