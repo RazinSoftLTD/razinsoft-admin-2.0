@@ -49,9 +49,11 @@
                 .inv-label { font-size: 10px; font-weight: 700; color: var(--inv-blue); text-transform: uppercase; letter-spacing: .06em; }
                 .inv-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
                 /* Bases small enough that all three columns fit one row inside the card; they
-                   grow into the space. At 220px+ bases the meta box wrapped onto its own row. */
-                .inv-head > div:first-child { flex: 1 1 150px; }
-                .inv-head > .inv-billto { flex: 1 1 150px; padding-top: 26px; border-left: 1px solid var(--inv-line); padding-left: 22px; }
+                   grow into the space. At 220px+ bases the meta box wrapped onto its own row.
+                   The company block takes the larger share — it carries the logo and the address —
+                   and BILLED TO's top padding sits its label level with the email row opposite. */
+                .inv-head > div:first-child { flex: 1.35 1 150px; }
+                .inv-head > .inv-billto { flex: 1 1 150px; padding-top: 50px; border-left: 1px solid var(--inv-line); padding-left: 24px; }
                 .inv-head > div:last-child { flex: 0 0 auto; margin-left: auto; }
                 .inv-contact { margin-top: 12px; font-size: 12.5px; color: #4b5563; }
                 .inv-contact > div { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }
@@ -98,7 +100,7 @@
                     'name' => 'RazinSoft',
                     'email' => 'info@razinsoft.com',
                     'phone' => '+8801711257498',
-                    'address' => ['RMR Center 1/1 (A&B) Shyamoli', 'Ring Road, Dhaka - 1207.', 'Bangladesh'],
+                    'address' => ['RMR Center 1/1 (A&B) Shyamoli, Ring Road', 'Dhaka - 1207, Bangladesh'],
                 ];
                 // Blank entries are dropped, so a detail we do not have never shows as an empty row.
                 $bankName = 'Razinsoft Limited';
@@ -125,7 +127,7 @@
                     <div class="inv-contact">
                         <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6 8.5-6"/></svg>{{ $us['email'] }}</div>
                         <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"/></svg>{{ $us['phone'] }}</div>
-                        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>{{ implode(', ', $us['address']) }}</div>
+                        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg><span>{!! implode('<br>', array_map('e', $us['address'])) !!}</span></div>
                     </div>
                 </div>
                 {{-- The client rides in the header's centre: from, to and what, one line of sight. --}}
@@ -136,7 +138,7 @@
                     @else
                         <div class="inv-who" style="font-size:14px">{{ $invoice->bill_to_name ?: '—' }}</div>
                     @endif
-                    <div style="margin-top:2px;font-size:12.5px;line-height:1.65;color:#4b5563">
+                    <div style="margin-top:4px;font-size:12.5px;line-height:1.8;color:#4b5563">
                         @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
                         @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
                         @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif

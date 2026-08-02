@@ -80,7 +80,7 @@
         'name' => 'RazinSoft',
         'email' => 'info@razinsoft.com',
         'phone' => '+8801711257498',
-        'address' => ['RMR Center 1/1 (A&B) Shyamoli', 'Ring Road, Dhaka - 1207.', 'Bangladesh'],
+        'address' => ['RMR Center 1/1 (A&B) Shyamoli, Ring Road', 'Dhaka - 1207, Bangladesh'],
     ];
     // Blank entries are dropped, so a detail we do not have never prints as an empty row.
     $bankName = 'Razinsoft Limited';
@@ -111,7 +111,7 @@
 {{-- ============ HEADER: who we are (left) / what this is (right) ============ --}}
 <table class="plain">
   <tr>
-    <td style="width:34%">
+    <td style="width:37%">
       <table class="plain">
         <tr>
           @if ($logoSrc)
@@ -141,10 +141,12 @@
 
     {{-- The client rides in the header's centre column: the page opens with who it is from,
          who it is to, and what it is, in one line of sight. --}}
-    <td style="width:30%;padding-top:26px;border-left:1px solid #e4e8ef;padding-left:16px">
+    {{-- padding-top puts the BILLED TO label on the same line as the email row opposite,
+         so the two columns read as one aligned band rather than two floating blocks. --}}
+    <td style="width:27%;padding-top:31px;border-left:1px solid #e4e8ef;padding-left:18px">
       <div class="label">Billed To</div>
-      <div style="font-weight:bold;font-size:12px;color:#16305c;margin-top:5px">{{ $invoice->bill_to_name ?: '—' }}</div>
-      <div style="margin-top:2px;font-size:10px;line-height:1.6">
+      <div style="font-weight:bold;font-size:12px;color:#16305c;margin-top:6px">{{ $invoice->bill_to_name ?: '—' }}</div>
+      <div style="margin-top:3px;font-size:10px;line-height:1.75">
         @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
         @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
         @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
