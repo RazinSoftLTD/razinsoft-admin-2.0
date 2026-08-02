@@ -158,6 +158,10 @@
           <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;font-size:10px" class="blue">{{ $invoice->due_date->format('d F, Y') }}</td>
         </tr>
         @endif
+        <tr>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;color:#16305c;font-size:10px">Payment Status</td>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;font-size:10px;color:{{ $statusColour }}">{{ $statusText }}</td>
+        </tr>
       </table>
     </td>
   </tr>
@@ -181,9 +185,6 @@
       @if ($invoice->due_date)
         <div style="margin-top:8px;font-size:10px" class="muted">Due Date: <span style="font-weight:bold" class="blue">{{ $invoice->due_date->format('d F, Y') }}</span></div>
       @endif
-      <div style="margin-top:10px">
-        <span style="display:inline-block;border:1px solid {{ $statusColour }};color:{{ $statusColour }};border-radius:6px;padding:8px 22px;font-size:13px;font-weight:bold;letter-spacing:.5px">{{ $statusText }}</span>
-      </div>
     </td>
   </tr>
 </table>

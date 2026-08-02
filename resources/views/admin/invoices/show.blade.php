@@ -60,7 +60,6 @@
                 .inv-meta td.k { font-weight: 700; color: var(--inv-navy); }
                 .inv-meta td.v { font-weight: 700; color: var(--inv-blue); }
                 .inv-who { font-weight: 700; color: var(--inv-navy); margin-top: 6px; }
-                .inv-status { display: inline-block; border-radius: 6px; padding: 9px 24px; font-size: 14px; font-weight: 700; letter-spacing: .04em; }
 
                 .inv-table { border: 1px solid var(--inv-line); border-radius: 12px; overflow: hidden; }
                 .inv-items { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
@@ -135,6 +134,7 @@
                         @if ($invoice->due_date)
                             <tr><td class="k">Due Date</td><td class="v">{{ $invoice->due_date->format('d F, Y') }}</td></tr>
                         @endif
+                        <tr><td class="k">Payment Status</td><td style="font-weight:700;color:{{ $statusColour }}">{{ $statusText }}</td></tr>
                     </table>
                 </div>
             </div>
@@ -156,9 +156,6 @@
                 @if ($invoice->due_date)
                     <div style="margin-top:8px;font-size:12px;color:var(--color-muted)">Due Date: <span style="font-weight:700;color:var(--inv-blue)">{{ $invoice->due_date->format('d F, Y') }}</span></div>
                 @endif
-                <div style="margin-top:10px">
-                    <span class="inv-status" style="border:1px solid {{ $statusColour }};color:{{ $statusColour }}">{{ $statusText }}</span>
-                </div>
             </div>
 
             {{-- Items --}}
