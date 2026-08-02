@@ -141,7 +141,7 @@
 
     {{-- The client rides in the header's centre column: the page opens with who it is from,
          who it is to, and what it is, in one line of sight. --}}
-    <td style="width:30%;padding-top:6px;border-left:1px solid #e4e8ef;padding-left:16px">
+    <td style="width:30%;padding-top:26px;border-left:1px solid #e4e8ef;padding-left:16px">
       <div class="label">Billed To</div>
       <div style="font-weight:bold;font-size:12px;color:#16305c;margin-top:5px">{{ $invoice->bill_to_name ?: '—' }}</div>
       <div style="margin-top:2px;font-size:10px;line-height:1.6">
@@ -150,9 +150,6 @@
         @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
         @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
       </div>
-      @if ($invoice->due_date)
-        <div style="margin-top:7px;font-size:9.5px" class="muted">Due Date: <span style="font-weight:bold" class="blue">{{ $invoice->due_date->format('d F, Y') }}</span></div>
-      @endif
     </td>
 
     <td style="width:36%" class="right">

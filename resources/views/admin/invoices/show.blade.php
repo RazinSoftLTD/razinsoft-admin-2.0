@@ -51,7 +51,7 @@
                 /* Bases small enough that all three columns fit one row inside the card; they
                    grow into the space. At 220px+ bases the meta box wrapped onto its own row. */
                 .inv-head > div:first-child { flex: 1 1 150px; }
-                .inv-head > .inv-billto { flex: 1 1 150px; padding-top: 4px; border-left: 1px solid var(--inv-line); padding-left: 22px; }
+                .inv-head > .inv-billto { flex: 1 1 150px; padding-top: 26px; border-left: 1px solid var(--inv-line); padding-left: 22px; }
                 .inv-head > div:last-child { flex: 0 0 auto; margin-left: auto; }
                 .inv-contact { margin-top: 12px; font-size: 12.5px; color: #4b5563; }
                 .inv-contact > div { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }
@@ -142,9 +142,6 @@
                         @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
                         @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
                     </div>
-                    @if ($invoice->due_date)
-                        <div style="margin-top:7px;font-size:12px;color:var(--color-muted)">Due Date: <span style="font-weight:700;color:var(--inv-blue)">{{ $invoice->due_date->format('d F, Y') }}</span></div>
-                    @endif
                 </div>
 
                 <div class="text-right">
