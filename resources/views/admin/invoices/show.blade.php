@@ -87,7 +87,9 @@
                 .inv-totals tr.due td:first-child { text-transform: uppercase; letter-spacing: .04em; }
 
                 .inv-foot { display: flex; flex-wrap: wrap; gap: 28px; border-top: 1px solid #f3f4f6; font-size: 12px; line-height: 1.7; color: #4b5563; }
-                .inv-foot > div { flex: 1 1 180px; }
+                .inv-foot > div { flex: 1 1 170px; }
+                /* Notes is the column that grows, so it takes the biggest share of the row. */
+                .inv-foot > div:first-child { flex: 1.6 1 220px; }
                 .inv-bank { border-collapse: collapse; margin-top: 4px; font-size: 12px; }
                 .inv-bank td { padding: 1px 12px 1px 0; }
                 .inv-thanks { border-top: 1px solid var(--inv-line); margin: 0 32px; padding: 14px 0 24px; text-align: center; color: var(--inv-blue); font-weight: 700; font-size: 13px; }
@@ -222,11 +224,15 @@
                 </table>
             </div>
 
-            {{-- Notes / Bank / Terms --}}
+            {{-- Notes / Terms / Bank — notes first and widest, bank on the right edge --}}
             <div class="inv-pad inv-foot" style="margin-top:24px">
                 <div>
                     <div class="inv-label">Notes</div>
                     <div class="invoice-notes" style="margin-top:5px">{!! $invoice->notes ? $invoice->formattedNotes() : '—' !!}</div>
+                </div>
+                <div>
+                    <div class="inv-label">Terms</div>
+                    <div style="margin-top:5px">{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</div>
                 </div>
                 @if ($showBank)
                     <div>
@@ -241,10 +247,6 @@
                         </table>
                     </div>
                 @endif
-                <div>
-                    <div class="inv-label">Terms</div>
-                    <div style="margin-top:5px">{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</div>
-                </div>
             </div>
 
             <div class="inv-thanks">Thank you for your business!</div>

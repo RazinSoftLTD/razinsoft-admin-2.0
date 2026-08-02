@@ -94,9 +94,9 @@
 
     // Off for an invoice paid by card — an account number there is just clutter. The columns that
     // remain share the width out between them rather than leaving a gap where this one was.
+    // Notes takes the largest share either way: it is the column that grows.
     $showBank = $invoice->show_bank_details && ($bank || filled($bankName));
-    $footCols = $showBank ? 3 : 2;
-    $footWidth = round(100 / $footCols, 2).'%';
+    [$wNotes, $wTerms] = $showBank ? ['42%', '28%'] : ['58%', '42%'];
 
     $iconPath = public_path('images/razinsoft-icon-print.png');
     $logoPath = public_path('images/razinsoft-logo-print.png');
@@ -300,12 +300,16 @@
 {{-- ============ NOTES / BANK / TERMS ============ --}}
 <table class="foot">
   <tr>
-    <td style="width:{{ $footWidth }}">
+    <td style="width:{{ $wNotes }}">
       <div class="label">Notes</div>
       <div style="margin-top:5px">{!! $invoice->notes ? $invoice->formattedNotes() : '—' !!}</div>
     </td>
+    <td style="width:{{ $wTerms }}{{ $showBank ? '' : ';padding-right:0' }}">
+      <div class="label">Terms</div>
+      <div style="margin-top:5px">{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</div>
+    </td>
     @if ($showBank)
-      <td style="width:{{ $footWidth }}">
+      <td style="width:30%;padding-right:0">
         <div class="label">Bank Info</div>
         @if (filled($bankName))
           <div style="font-weight:bold;color:#16305c;margin-top:5px">{{ $bankName }}</div>
@@ -320,10 +324,6 @@
         </table>
       </td>
     @endif
-    <td style="width:{{ $footWidth }};padding-right:0">
-      <div class="label">Terms</div>
-      <div style="margin-top:5px">{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</div>
-    </td>
   </tr>
 </table>
 
