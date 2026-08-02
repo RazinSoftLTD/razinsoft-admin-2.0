@@ -111,7 +111,7 @@
 {{-- ============ HEADER: who we are (left) / what this is (right) ============ --}}
 <table class="plain">
   <tr>
-    <td style="width:56%">
+    <td style="width:34%">
       <table class="plain">
         <tr>
           @if ($logoSrc)
@@ -139,7 +139,23 @@
       </table>
     </td>
 
-    <td style="width:44%" class="right">
+    {{-- The client rides in the header's centre column: the page opens with who it is from,
+         who it is to, and what it is, in one line of sight. --}}
+    <td style="width:30%;text-align:center;padding-top:6px">
+      <div class="label">Billed To</div>
+      <div style="font-weight:bold;font-size:12px;color:#16305c;margin-top:5px">{{ $invoice->bill_to_name ?: '—' }}</div>
+      <div style="margin-top:2px;font-size:10px;line-height:1.6">
+        @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
+        @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
+        @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
+        @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
+      </div>
+      @if ($invoice->due_date)
+        <div style="margin-top:7px;font-size:9.5px" class="muted">Due Date: <span style="font-weight:bold" class="blue">{{ $invoice->due_date->format('d F, Y') }}</span></div>
+      @endif
+    </td>
+
+    <td style="width:36%" class="right">
       <div style="font-size:30px;font-weight:bold;letter-spacing:1px" class="navy">INVOICE</div>
       <div style="height:3px;background:#2b5aa0;width:120px;margin-left:auto;margin-top:3px"></div>
 
@@ -163,28 +179,6 @@
           <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;font-size:10px;color:{{ $statusColour }}">{{ $statusText }}</td>
         </tr>
       </table>
-    </td>
-  </tr>
-</table>
-
-{{-- ============ BILLED TO ============
-     One centred block, not a from/to pair: the company's own details already head the page, so
-     repeating them here as BILLED FROM said the same thing twice. Due date and payment status sit
-     under the client, which is where the eye goes to answer "who owes this, and is it settled?" --}}
-<table class="plain" style="margin-top:24px">
-  <tr>
-    <td style="text-align:center">
-      <div class="label">Billed To</div>
-      <div style="font-weight:bold;font-size:13px;color:#16305c;margin-top:5px">{{ $invoice->bill_to_name ?: '—' }}</div>
-      <div style="margin-top:2px;line-height:1.6">
-        @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
-        @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
-        @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
-        @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
-      </div>
-      @if ($invoice->due_date)
-        <div style="margin-top:8px;font-size:10px" class="muted">Due Date: <span style="font-weight:bold" class="blue">{{ $invoice->due_date->format('d F, Y') }}</span></div>
-      @endif
     </td>
   </tr>
 </table>
