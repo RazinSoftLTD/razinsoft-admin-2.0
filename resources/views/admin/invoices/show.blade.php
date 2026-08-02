@@ -53,7 +53,7 @@
                    The company block takes the larger share — it carries the logo and the address —
                    and BILLED TO's top padding sits its label level with the email row opposite. */
                 .inv-head > div:first-child { flex: 1.35 1 150px; }
-                .inv-head > .inv-billto { flex: 1 1 150px; padding-top: 50px; border-left: 1px solid var(--inv-line); padding-left: 24px; }
+                .inv-head > .inv-billto { flex: 1 1 150px; padding-top: 26px; border-left: 1px solid var(--inv-line); padding-left: 24px; }
                 .inv-head > div:last-child { flex: 0 0 auto; margin-left: auto; }
                 .inv-contact { margin-top: 12px; font-size: 12.5px; color: #4b5563; }
                 .inv-contact > div { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }

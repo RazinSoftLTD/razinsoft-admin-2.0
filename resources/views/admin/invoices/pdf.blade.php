@@ -141,9 +141,9 @@
 
     {{-- The client rides in the header's centre column: the page opens with who it is from,
          who it is to, and what it is, in one line of sight. --}}
-    {{-- padding-top puts the BILLED TO label on the same line as the email row opposite,
-         so the two columns read as one aligned band rather than two floating blocks. --}}
-    <td style="width:27%;padding-top:31px;border-left:1px solid #e4e8ef;padding-left:18px">
+    {{-- Sits between the brand line and the email row opposite — high enough to read as part
+         of the header, low enough not to crowd the card's top edge. --}}
+    <td style="width:27%;padding-top:16px;border-left:1px solid #e4e8ef;padding-left:18px">
       <div class="label">Billed To</div>
       <div style="font-weight:bold;font-size:12px;color:#16305c;margin-top:6px">{{ $invoice->bill_to_name ?: '—' }}</div>
       <div style="margin-top:3px;font-size:10px;line-height:1.75">
