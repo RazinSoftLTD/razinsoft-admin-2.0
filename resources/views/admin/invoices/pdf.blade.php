@@ -27,12 +27,9 @@
     border: 1px solid #2e5288;
   }
   table.items td { padding: 8px 8px; border: 1px solid #e4e8ef; vertical-align: middle; }
-  /* DomPDF cannot clip a wrapper's overflow, so the corners are rounded on the corner cells
-     themselves. Kept small — a large radius here separates visibly from the cell's own border. */
-  table.items thead th:first-child { border-top-left-radius: 7px; }
-  table.items thead th:last-child { border-top-right-radius: 7px; }
-  table.items tbody tr:last-child td:first-child { border-bottom-left-radius: 7px; }
-  table.items tbody tr:last-child td:last-child { border-bottom-right-radius: 7px; }
+  /* No radius here, deliberately: DomPDF rounds the fill but not the border, which left a white
+     notch in each corner and a stub of border hanging past the head. Square corners render clean;
+     the on-screen invoice keeps its rounded ones, where the browser clips properly. */
   table.items td.desc { vertical-align: top; }
   .item-title { font-weight: bold; color: #16305c; font-size: 11px; }
   .item-detail { margin-top: 5px; font-size: 9px; line-height: 1.5; color: #4b5563; }
