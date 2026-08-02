@@ -348,7 +348,19 @@
                                 </form>
                             </div>
                             <dl class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-[var(--color-muted)]">
-                                @if ($p->reference)<dt class="text-gray-400">Txn ID</dt><dd class="text-[var(--color-heading)]">{{ $p->reference }}</dd>@endif
+                                @if ($p->reference)
+                                    <dt class="text-gray-400">Txn ID</dt>
+                                    {{-- Gateway references run past sixty unbroken characters, which no card can
+                                         hold on one line. Shown squeezed head…tail (the two ends are what identify
+                                         it at a glance); a click puts the whole thing on the clipboard. --}}
+                                    <dd x-data="{ copied: false, async copy() { try { await navigator.clipboard.writeText(@js($p->reference)); } catch (e) {} this.copied = true; setTimeout(() => this.copied = false, 1500); } }" class="min-w-0">
+                                        <button type="button" @click="copy()" class="inline-flex max-w-full items-center text-left" style="gap:6px" :title="copied ? 'Copied' : @js($p->reference)">
+                                            <span class="text-[var(--color-heading)]" style="font-family:ui-monospace,monospace;font-size:11px">{{ mb_strlen($p->reference) > 26 ? mb_substr($p->reference, 0, 14).'…'.mb_substr($p->reference, -8) : $p->reference }}</span>
+                                            <svg x-show="!copied" class="h-3 w-3 shrink-0 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                            <svg x-show="copied" x-cloak class="h-3 w-3 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
+                                        </button>
+                                    </dd>
+                                @endif
                                 @if ($p->bank_account)<dt class="text-gray-400">Bank</dt><dd>{{ $p->bank_account }}</dd>@endif
                                 @if ($p->project)<dt class="text-gray-400">Project</dt><dd>{{ $p->project->name }}</dd>@endif
                                 @if ($p->note)<dt class="text-gray-400">Remark</dt><dd>{{ $p->note }}</dd>@endif
