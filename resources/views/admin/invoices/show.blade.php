@@ -59,9 +59,6 @@
                 .inv-meta td { border: 1px solid var(--inv-line); padding: 8px 14px; }
                 .inv-meta td.k { font-weight: 700; color: var(--inv-navy); }
                 .inv-meta td.v { font-weight: 700; color: var(--inv-blue); }
-                .inv-parties { display: flex; flex-wrap: wrap; gap: 28px; }
-                .inv-parties > div { flex: 1 1 200px; font-size: 13px; line-height: 1.65; }
-                .inv-parties > div + div { border-left: 1px solid var(--inv-line); padding-left: 28px; }
                 .inv-who { font-weight: 700; color: var(--inv-navy); margin-top: 6px; }
                 .inv-status { display: inline-block; border-radius: 6px; padding: 9px 24px; font-size: 14px; font-weight: 700; letter-spacing: .04em; }
 
@@ -142,28 +139,24 @@
                 </div>
             </div>
 
-            {{-- Billed from / to --}}
-            <div class="inv-pad inv-parties" style="padding-top:0">
-                <div>
-                    <div class="inv-label">Billed From</div>
-                    <div class="inv-who">{{ $us['name'] }}</div>
-                    <div>{{ $us['email'] }}<br>{{ $us['phone'] }}<br>{!! implode('<br>', array_map('e', $us['address'])) !!}</div>
+            {{-- Billed To. No BILLED FROM twin: our details already head the page. --}}
+            <div class="inv-pad" style="padding-top:0;text-align:center">
+                <div class="inv-label">Billed To</div>
+                @if ($invoice->client)
+                    <a href="{{ route('admin.clients.show', $invoice->client_id) }}" class="inv-who" style="display:block;font-size:15px;text-decoration:none">{{ $invoice->bill_to_name ?: $invoice->client->name }}</a>
+                @else
+                    <div class="inv-who" style="font-size:15px">{{ $invoice->bill_to_name ?: '—' }}</div>
+                @endif
+                <div style="margin-top:2px;font-size:13px;line-height:1.65;color:#4b5563">
+                    @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
+                    @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
+                    @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
+                    @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
                 </div>
-                <div>
-                    <div class="inv-label">Billed To</div>
-                    @if ($invoice->client)
-                        <a href="{{ route('admin.clients.show', $invoice->client_id) }}" class="inv-who" style="display:block;text-decoration:none">{{ $invoice->bill_to_name ?: $invoice->client->name }}</a>
-                    @else
-                        <div class="inv-who">{{ $invoice->bill_to_name ?: '—' }}</div>
-                    @endif
-                    <div>
-                        @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
-                        @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
-                        @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
-                        @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
-                    </div>
-                </div>
-                <div style="flex:0 0 auto;border-left:none;padding-left:0" class="text-right">
+                @if ($invoice->due_date)
+                    <div style="margin-top:8px;font-size:12px;color:var(--color-muted)">Due Date: <span style="font-weight:700;color:var(--inv-blue)">{{ $invoice->due_date->format('d F, Y') }}</span></div>
+                @endif
+                <div style="margin-top:10px">
                     <span class="inv-status" style="border:1px solid {{ $statusColour }};color:{{ $statusColour }}">{{ $statusText }}</span>
                 </div>
             </div>

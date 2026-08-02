@@ -163,26 +163,27 @@
   </tr>
 </table>
 
-{{-- ============ BILLED FROM / BILLED TO / status ============ --}}
+{{-- ============ BILLED TO ============
+     One centred block, not a from/to pair: the company's own details already head the page, so
+     repeating them here as BILLED FROM said the same thing twice. Due date and payment status sit
+     under the client, which is where the eye goes to answer "who owes this, and is it settled?" --}}
 <table class="plain" style="margin-top:24px">
   <tr>
-    <td style="width:34%;padding-right:18px">
-      <div class="label">Billed From</div>
-      <div style="font-weight:bold;margin-top:5px;color:#16305c">{{ $us['name'] }}</div>
-      <div style="margin-top:3px;line-height:1.5">{{ $us['email'] }}<br>{{ $us['phone'] }}<br>{!! implode('<br>', array_map('e', $us['address'])) !!}</div>
-    </td>
-    <td style="width:38%;border-left:1px solid #e4e8ef;padding-left:18px">
+    <td style="text-align:center">
       <div class="label">Billed To</div>
-      <div style="font-weight:bold;margin-top:5px;color:#16305c">{{ $invoice->bill_to_name ?: '—' }}</div>
-      <div style="margin-top:3px;line-height:1.5">
+      <div style="font-weight:bold;font-size:13px;color:#16305c;margin-top:5px">{{ $invoice->bill_to_name ?: '—' }}</div>
+      <div style="margin-top:2px;line-height:1.6">
         @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
         @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
         @if ($invoice->bill_to_phone){{ $invoice->bill_to_phone }}<br>@endif
         @if ($invoice->bill_to_address){{ $invoice->bill_to_address }}@endif
       </div>
-    </td>
-    <td style="width:28%" class="right">
-      <span style="display:inline-block;border:1px solid {{ $statusColour }};color:{{ $statusColour }};border-radius:6px;padding:9px 24px;font-size:13px;font-weight:bold;letter-spacing:.5px">{{ $statusText }}</span>
+      @if ($invoice->due_date)
+        <div style="margin-top:8px;font-size:10px" class="muted">Due Date: <span style="font-weight:bold" class="blue">{{ $invoice->due_date->format('d F, Y') }}</span></div>
+      @endif
+      <div style="margin-top:10px">
+        <span style="display:inline-block;border:1px solid {{ $statusColour }};color:{{ $statusColour }};border-radius:6px;padding:8px 22px;font-size:13px;font-weight:bold;letter-spacing:.5px">{{ $statusText }}</span>
+      </div>
     </td>
   </tr>
 </table>
