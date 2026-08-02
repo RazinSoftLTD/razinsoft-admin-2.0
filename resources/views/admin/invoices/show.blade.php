@@ -137,7 +137,7 @@
                     </div>
                     <div>
                         <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Terms</p>
-                        <p>{{ $invoice->terms ?: '—' }}</p>
+                        <p>{!! $invoice->terms ? $invoice->formattedTerms() : '—' !!}</p>
                     </div>
                 </div>
             @else

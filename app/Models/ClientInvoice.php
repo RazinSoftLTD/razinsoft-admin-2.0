@@ -252,25 +252,18 @@ class ClientInvoice extends Model
     }
 
     /**
-     * Notes as safe inline HTML — bold/italic/underline kept, list items become
-     * "◉ " bullet lines and block tags become <br>. Mirrors the item sub-description
-     * formatter so DomPDF (PDF) and the web view render identically.
+     * Notes as safe inline HTML — bold/italic/underline kept, list items become "◉ " bullet lines
+     * and block tags become <br>. Shared with the item sub-description so the two cannot drift.
      */
     public function formattedNotes(): string
     {
-        $html = (string) $this->notes;
-        if ($html === '') {
-            return '';
-        }
+        return \App\Support\InvoiceRichText::format((string) $this->notes);
+    }
 
-        $html = preg_replace('#<li[^>]*>#i', '◉ ', $html);
-        $html = preg_replace('#</(p|li|ul|ol|div|h[1-6])>#i', '<br>', $html);
-        $html = preg_replace('#<(p|ul|ol|div|h[1-6])[^>]*>#i', '', $html);
-        $html = strip_tags($html, '<b><strong><i><em><u><br>');
-        $html = preg_replace('#(<br\s*/?>\s*){2,}#i', '<br>', $html);
-        $html = preg_replace('#^(<br\s*/?>)+|(<br\s*/?>)+$#i', '', trim($html));
-
-        return $html;
+    /** Terms are plain text, and lose their line breaks and indentation the same way notes did. */
+    public function formattedTerms(): string
+    {
+        return \App\Support\InvoiceRichText::formatPlain((string) $this->terms);
     }
 
     /** Recompute status from payments + due date. Call after payments change (C5). */

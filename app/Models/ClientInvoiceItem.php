@@ -32,18 +32,6 @@ class ClientInvoiceItem extends Model
      */
     public function formattedSubDescription(): string
     {
-        $html = (string) $this->sub_description;
-        if ($html === '') {
-            return '';
-        }
-
-        $html = preg_replace('#<li[^>]*>#i', '◉ ', $html);              // list bullets (matches the invoice design)
-        $html = preg_replace('#</(p|li|ul|ol|div|h[1-6])>#i', '<br>', $html); // block ends → break
-        $html = preg_replace('#<(p|ul|ol|div|h[1-6])[^>]*>#i', '', $html);    // drop block openers
-        $html = strip_tags($html, '<b><strong><i><em><u><br>');         // keep only inline formatting
-        $html = preg_replace('#(<br\s*/?>\s*){2,}#i', '<br>', $html);    // collapse blank lines
-        $html = preg_replace('#^(<br\s*/?>)+|(<br\s*/?>)+$#i', '', trim($html));
-
-        return $html;
+        return \App\Support\InvoiceRichText::format((string) $this->sub_description);
     }
 }
