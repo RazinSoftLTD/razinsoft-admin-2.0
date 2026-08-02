@@ -40,7 +40,7 @@
              at either file shows the same structure. --}}
         <div class="inv-doc rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
             <style>
-                .inv-doc { --inv-navy: #14337a; --inv-blue: #1d4ed8; --inv-line: #dbe2ee; color: #1f2937; overflow: hidden; }
+                .inv-doc { --inv-navy: #16305c; --inv-blue: #2b5aa0; --inv-line: #e4e8ef; color: #1f2937; overflow: hidden; }
                 .inv-doc .inv-pad { padding: 28px 32px; }
                 .inv-label { font-size: 10px; font-weight: 700; color: var(--inv-blue); text-transform: uppercase; letter-spacing: .06em; }
                 .inv-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
@@ -61,9 +61,12 @@
                 .inv-who { font-weight: 700; color: var(--inv-navy); margin-top: 6px; }
                 .inv-status { display: inline-block; border-radius: 6px; padding: 9px 24px; font-size: 14px; font-weight: 700; letter-spacing: .04em; }
 
+                .inv-table { border: 1px solid var(--inv-line); border-radius: 12px; overflow: hidden; }
                 .inv-items { width: 100%; border-collapse: collapse; font-size: 13px; }
-                .inv-items th { background: var(--inv-blue); color: #fff; padding: 10px 8px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--inv-blue); }
-                .inv-items td { border: 1px solid var(--inv-line); padding: 10px 8px; vertical-align: middle; text-align: center; }
+                .inv-items th { background: var(--inv-navy); color: #fff; padding: 11px 8px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border: none; }
+                .inv-items th + th { border-left: 1px solid rgba(255, 255, 255, .14); }
+                .inv-items td { border-top: 1px solid var(--inv-line); border-left: 1px solid var(--inv-line); padding: 11px 8px; vertical-align: middle; text-align: center; }
+                .inv-items td:first-child { border-left: none; }
                 .inv-items td.desc { text-align: left; vertical-align: top; }
                 .inv-items .t { font-weight: 700; color: var(--inv-navy); }
                 .inv-items .amt { font-weight: 700; color: var(--inv-navy); }
@@ -75,7 +78,7 @@
                 .inv-totals td { padding: 7px 12px; }
                 .inv-totals td.r { text-align: right; }
                 .inv-totals tr.line td { border-top: 1px solid var(--inv-line); font-weight: 700; color: var(--inv-navy); }
-                .inv-totals tr.due td { background: #e8effc; color: var(--inv-navy); font-weight: 700; font-size: 15px; padding: 11px 12px; }
+                .inv-totals tr.due td { background: #eef2f8; border-radius: 0; color: var(--inv-navy); font-weight: 700; font-size: 15px; padding: 11px 12px; }
                 .inv-totals tr.due td:first-child { text-transform: uppercase; letter-spacing: .04em; }
 
                 .inv-foot { display: flex; flex-wrap: wrap; gap: 28px; border-top: 1px solid #f3f4f6; font-size: 12px; line-height: 1.7; color: #4b5563; }
@@ -163,7 +166,7 @@
 
             {{-- Items --}}
             <div style="padding:0 32px">
-                <div class="overflow-x-auto">
+                <div class="inv-table overflow-x-auto">
                     <table class="inv-items">
                         <thead>
                             <tr>

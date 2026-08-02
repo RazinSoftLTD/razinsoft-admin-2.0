@@ -9,12 +9,12 @@
   * { font-family: DejaVu Sans, sans-serif; }
   body { color: #1f2937; font-size: 11px; margin: 0; }
 
-  .navy { color: #14337a; }
-  .blue { color: #1d4ed8; }
+  .navy { color: #16305c; }
+  .blue { color: #2b5aa0; }
   .muted { color: #6b7280; }
   .right { text-align: right; }
   .center { text-align: center; }
-  .label { font-size: 9px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: .6px; }
+  .label { font-size: 9px; font-weight: bold; color: #2b5aa0; text-transform: uppercase; letter-spacing: .6px; }
 
   table.plain { width: 100%; border-collapse: collapse; }
   table.plain > tr > td, table.plain td { border: none; vertical-align: top; }
@@ -22,13 +22,19 @@
   /* Items */
   table.items { width: 100%; border-collapse: collapse; margin-top: 16px; }
   table.items th {
-    background: #1d4ed8; color: #fff; padding: 9px 8px;
-    font-size: 9.5px; font-weight: bold; text-transform: uppercase; letter-spacing: .4px;
-    border: 1px solid #1d4ed8;
+    background: #16305c; color: #fff; padding: 10px 8px;
+    font-size: 9.5px; font-weight: bold; text-transform: uppercase; letter-spacing: .5px;
+    border: 1px solid #16305c;
   }
-  table.items td { padding: 8px 8px; border: 1px solid #dbe2ee; vertical-align: middle; }
+  table.items td { padding: 8px 8px; border: 1px solid #e4e8ef; vertical-align: middle; }
+  /* DomPDF cannot clip a wrapper's overflow, so the corners are rounded on the corner cells
+     themselves. Kept small — a large radius here separates visibly from the cell's own border. */
+  table.items thead th:first-child { border-top-left-radius: 7px; }
+  table.items thead th:last-child { border-top-right-radius: 7px; }
+  table.items tbody tr:last-child td:first-child { border-bottom-left-radius: 7px; }
+  table.items tbody tr:last-child td:last-child { border-bottom-right-radius: 7px; }
   table.items td.desc { vertical-align: top; }
-  .item-title { font-weight: bold; color: #14337a; font-size: 11px; }
+  .item-title { font-weight: bold; color: #16305c; font-size: 11px; }
   .item-detail { margin-top: 5px; font-size: 9px; line-height: 1.5; color: #4b5563; }
 
   /* Sub-description set as a numbered two-column table when the list is long. */
@@ -42,8 +48,8 @@
   /* Splitting a totals block across pages leaves a figure stranded from its label. */
   table.totals { width: 300px; margin-left: auto; margin-top: 14px; border-collapse: collapse; page-break-inside: avoid; }
   table.totals td { padding: 7px 12px; border: none; }
-  table.totals tr.line td { border-top: 1px solid #dbe2ee; }
-  table.totals tr.due td { background: #e8effc; color: #14337a; font-weight: bold; font-size: 13px; padding: 10px 12px; }
+  table.totals tr.line td { border-top: 1px solid #e4e8ef; }
+  table.totals tr.due td { background: #eef2f8; color: #16305c; font-weight: bold; font-size: 13px; padding: 10px 12px; }
 
   /* Footer columns */
   table.foot { width: 100%; border-collapse: collapse; margin-top: 24px; page-break-inside: avoid; }
@@ -51,7 +57,7 @@
   table.bank { border-collapse: collapse; margin-top: 4px; }
   table.bank td { border: none; padding: 1px 10px 1px 0; font-size: 9.5px; }
 
-  .thanks { margin-top: 22px; border-top: 1px solid #dbe2ee; padding-top: 10px; text-align: center; color: #1d4ed8; font-weight: bold; font-size: 11px; }
+  .thanks { margin-top: 22px; border-top: 1px solid #e4e8ef; padding-top: 10px; text-align: center; color: #2b5aa0; font-weight: bold; font-size: 11px; }
 </style>
 </head>
 @php
@@ -119,15 +125,15 @@
 
       <table class="plain" style="margin-top:10px">
         <tr>
-          <td style="width:16px;color:#1d4ed8">✉</td>
+          <td style="width:16px;color:#2b5aa0">✉</td>
           <td style="font-size:10px">{{ $us['email'] }}</td>
         </tr>
         <tr>
-          <td style="width:16px;color:#1d4ed8;padding-top:4px">☎</td>
+          <td style="width:16px;color:#2b5aa0;padding-top:4px">☎</td>
           <td style="font-size:10px;padding-top:4px">{{ $us['phone'] }}</td>
         </tr>
         <tr>
-          <td style="width:16px;color:#1d4ed8;padding-top:4px">⌂</td>
+          <td style="width:16px;color:#2b5aa0;padding-top:4px">⌂</td>
           <td style="font-size:10px;padding-top:4px;line-height:1.45">{!! implode('<br>', array_map('e', $us['address'])) !!}</td>
         </tr>
       </table>
@@ -135,21 +141,21 @@
 
     <td style="width:44%" class="right">
       <div style="font-size:30px;font-weight:bold;letter-spacing:1px" class="navy">INVOICE</div>
-      <div style="height:3px;background:#1d4ed8;width:120px;margin-left:auto;margin-top:3px"></div>
+      <div style="height:3px;background:#2b5aa0;width:120px;margin-left:auto;margin-top:3px"></div>
 
       <table style="border-collapse:collapse;margin-left:auto;margin-top:16px">
         <tr>
-          <td style="border:1px solid #dbe2ee;padding:8px 14px;font-weight:bold;color:#14337a;font-size:10px">Invoice Number</td>
-          <td style="border:1px solid #dbe2ee;padding:8px 14px;font-weight:bold;font-size:10px" class="blue">{{ $invoice->invoice_number }}</td>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;color:#16305c;font-size:10px">Invoice Number</td>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;font-size:10px" class="blue">{{ $invoice->invoice_number }}</td>
         </tr>
         <tr>
-          <td style="border:1px solid #dbe2ee;padding:8px 14px;font-weight:bold;color:#14337a;font-size:10px">Invoice Date</td>
-          <td style="border:1px solid #dbe2ee;padding:8px 14px;font-size:10px">{{ $invoice->invoice_date->format('d F, Y') }}</td>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;color:#16305c;font-size:10px">Invoice Date</td>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-size:10px">{{ $invoice->invoice_date->format('d F, Y') }}</td>
         </tr>
         @if ($invoice->due_date)
         <tr>
-          <td style="border:1px solid #dbe2ee;padding:8px 14px;font-weight:bold;color:#14337a;font-size:10px">Due Date</td>
-          <td style="border:1px solid #dbe2ee;padding:8px 14px;font-weight:bold;font-size:10px" class="blue">{{ $invoice->due_date->format('d F, Y') }}</td>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;color:#16305c;font-size:10px">Due Date</td>
+          <td style="border:1px solid #e4e8ef;padding:8px 14px;font-weight:bold;font-size:10px" class="blue">{{ $invoice->due_date->format('d F, Y') }}</td>
         </tr>
         @endif
       </table>
@@ -162,12 +168,12 @@
   <tr>
     <td style="width:34%;padding-right:18px">
       <div class="label">Billed From</div>
-      <div style="font-weight:bold;margin-top:5px;color:#14337a">{{ $us['name'] }}</div>
+      <div style="font-weight:bold;margin-top:5px;color:#16305c">{{ $us['name'] }}</div>
       <div style="margin-top:3px;line-height:1.5">{{ $us['email'] }}<br>{{ $us['phone'] }}<br>{!! implode('<br>', array_map('e', $us['address'])) !!}</div>
     </td>
-    <td style="width:38%;border-left:1px solid #dbe2ee;padding-left:18px">
+    <td style="width:38%;border-left:1px solid #e4e8ef;padding-left:18px">
       <div class="label">Billed To</div>
-      <div style="font-weight:bold;margin-top:5px;color:#14337a">{{ $invoice->bill_to_name ?: '—' }}</div>
+      <div style="font-weight:bold;margin-top:5px;color:#16305c">{{ $invoice->bill_to_name ?: '—' }}</div>
       <div style="margin-top:3px;line-height:1.5">
         @if ($invoice->bill_to_company){{ $invoice->bill_to_company }}<br>@endif
         @if ($invoice->bill_to_email){{ $invoice->bill_to_email }}<br>@endif
@@ -231,7 +237,7 @@
         <td class="center">{{ $item->unit ?: '—' }}</td>
         <td class="center">{{ number_format($item->unit_price, 2) }}</td>
         <td class="center">{{ $item->tax_percent > 0 ? $num($item->tax_percent).'%' : '—' }}</td>
-        <td class="center" style="font-weight:bold;color:#14337a">{{ number_format($item->amount, 2) }}</td>
+        <td class="center" style="font-weight:bold;color:#16305c">{{ number_format($item->amount, 2) }}</td>
       </tr>
     @endforeach
   </tbody>
@@ -256,8 +262,8 @@
     </tr>
   @endif
   <tr class="line">
-    <td style="font-weight:bold;color:#14337a">Total</td>
-    <td class="right" style="font-weight:bold;color:#14337a">{{ $cur }}{{ number_format($invoice->total, 2) }}</td>
+    <td style="font-weight:bold;color:#16305c">Total</td>
+    <td class="right" style="font-weight:bold;color:#16305c">{{ $cur }}{{ number_format($invoice->total, 2) }}</td>
   </tr>
   @if ($invoice->amount_paid > 0)
     <tr>
@@ -307,7 +313,7 @@
       <td style="width:{{ $footWidth }}">
         <div class="label">Bank Info</div>
         @if (filled($bankName))
-          <div style="font-weight:bold;color:#14337a;margin-top:5px">{{ $bankName }}</div>
+          <div style="font-weight:bold;color:#16305c;margin-top:5px">{{ $bankName }}</div>
         @endif
         <table class="bank">
           @foreach ($bank as $key => $value)
