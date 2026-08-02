@@ -20,7 +20,9 @@
             </h1>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('admin.invoices.pdf', $invoice) }}" target="_blank" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Download PDF</a>
+            {{-- ?download=1 sends it as an attachment. Without it the PDF opened inline and the browser
+                 named the saved file after the URL, not the invoice. --}}
+            <a href="{{ route('admin.invoices.pdf', $invoice) }}?download=1" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Download PDF</a>
             @if (auth()->user()->allows('invoices', 'send'))
                 <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}">
                     @csrf
@@ -40,7 +42,9 @@
              at either file shows the same structure. --}}
         <div class="inv-doc rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
             <style>
-                .inv-doc { --inv-navy: #16305c; --inv-blue: #2b5aa0; --inv-line: #e4e8ef; color: #1f2937; overflow: hidden; }
+                /* --inv-head sits a shade lighter than --inv-navy: as a filled band it reads much heavier than
+                   the same colour does as text, so matching them made the head dominate the page. */
+                .inv-doc { --inv-navy: #16305c; --inv-head: #2e5288; --inv-blue: #2b5aa0; --inv-line: #e4e8ef; color: #1f2937; overflow: hidden; }
                 .inv-doc .inv-pad { padding: 28px 32px; }
                 .inv-label { font-size: 10px; font-weight: 700; color: var(--inv-blue); text-transform: uppercase; letter-spacing: .06em; }
                 .inv-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
@@ -63,7 +67,7 @@
 
                 .inv-table { border: 1px solid var(--inv-line); border-radius: 12px; overflow: hidden; }
                 .inv-items { width: 100%; border-collapse: collapse; font-size: 13px; }
-                .inv-items th { background: var(--inv-navy); color: #fff; padding: 11px 8px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border: none; }
+                .inv-items th { background: var(--inv-head); color: #fff; padding: 11px 8px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border: none; }
                 .inv-items th + th { border-left: 1px solid rgba(255, 255, 255, .14); }
                 .inv-items td { border-top: 1px solid var(--inv-line); border-left: 1px solid var(--inv-line); padding: 11px 8px; vertical-align: middle; text-align: center; }
                 .inv-items td:first-child { border-left: none; }

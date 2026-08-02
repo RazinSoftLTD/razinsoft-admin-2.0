@@ -22,9 +22,9 @@
   /* Items */
   table.items { width: 100%; border-collapse: collapse; margin-top: 16px; }
   table.items th {
-    background: #16305c; color: #fff; padding: 10px 8px;
+    background: #2e5288; color: #fff; padding: 10px 8px;
     font-size: 9.5px; font-weight: bold; text-transform: uppercase; letter-spacing: .5px;
-    border: 1px solid #16305c;
+    border: 1px solid #2e5288;
   }
   table.items td { padding: 8px 8px; border: 1px solid #e4e8ef; vertical-align: middle; }
   /* DomPDF cannot clip a wrapper's overflow, so the corners are rounded on the corner cells
