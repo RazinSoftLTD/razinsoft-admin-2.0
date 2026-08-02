@@ -51,7 +51,7 @@
                 /* Bases small enough that all three columns fit one row inside the card; they
                    grow into the space. At 220px+ bases the meta box wrapped onto its own row. */
                 .inv-head > div:first-child { flex: 1 1 150px; }
-                .inv-head > .inv-billto { flex: 1 1 150px; text-align: center; padding-top: 4px; }
+                .inv-head > .inv-billto { flex: 1 1 150px; padding-top: 4px; border-left: 1px solid var(--inv-line); padding-left: 22px; }
                 .inv-head > div:last-child { flex: 0 0 auto; margin-left: auto; }
                 .inv-contact { margin-top: 12px; font-size: 12.5px; color: #4b5563; }
                 .inv-contact > div { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }
