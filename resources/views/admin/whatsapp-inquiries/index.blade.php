@@ -25,13 +25,26 @@
             <p class="mt-1 text-sm text-[var(--color-muted)]">CRM &rsaquo; WhatsApp Traffic &rsaquo; Before Leads</p>
         </div>
 
-        @if ($can('create'))
-            <button type="button" @click="editing = null; form = true"
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-                Record Enquiry
+        <div class="flex items-center gap-2">
+            @if ($can('create'))
+                <button type="button" @click="editing = null; form = true"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    Record Enquiry
+                </button>
+            @endif
+
+            {{-- Beside the button rather than in the figures row: recording an enquiry and narrowing
+                 the list are both things you do to the page, and they belong together. --}}
+            <button type="button" @click="panel = true" title="Insights & filters"
+                    style="height: 42px"
+                    class="relative grid w-11 place-items-center rounded-lg border border-gray-200 bg-white text-[var(--color-heading)] hover:bg-gray-50">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M6 12h12M9 18h6"/></svg>
+                @if ($activeFilters)
+                    <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
+                @endif
             </button>
-        @endif
+        </div>
     </div>
 
     {{-- Today's four figures, search and the filter on one line. The figures are not affected by
@@ -44,29 +57,21 @@
             ['Relevant', $today['relevant'], $pct($today['relevant'], $today['total']).'% of traffic', 'text-blue-600'],
             ['Converted Lead', $today['converted'], $pct($today['converted'], $today['relevant']).'% of relevant', 'text-purple-600'],
         ] as [$label, $value, $sub, $tone])
-            <div class="flex min-w-[10rem] flex-1 flex-col items-center justify-center rounded-xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+            <div style="min-width: 10rem" class="flex flex-1 flex-col items-center justify-center rounded-xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
                 <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{{ $label }}</p>
                 <p class="mt-1 text-xl font-bold {{ $tone }}">{{ is_int($value) ? number_format($value) : $value }}</p>
                 <p class="mt-0.5 text-[11px] text-[var(--color-muted)]">{{ $sub }}</p>
             </div>
         @endforeach
 
-        <form method="GET" class="relative min-w-[14rem] flex-1">
+        <form method="GET" style="min-width: 16rem" class="relative flex-1">
             @foreach (request()->except('search', 'page') as $k => $v)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endforeach
             <svg class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3-3"/></svg>
             <input name="search" type="text" value="{{ request('search') }}" autocomplete="off"
                    placeholder="Search number, name, interest…"
-                   class="h-full min-h-[4.25rem] w-full rounded-xl border border-gray-100 bg-white pl-11 pr-4 text-sm shadow-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                   style="min-height: 3rem" class="h-full w-full rounded-xl border border-gray-100 bg-white pl-11 pr-4 text-sm shadow-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
         </form>
 
-        {{-- Last, on the right: the day is read first, the filter is what you reach for after. --}}
-        <button type="button" @click="panel = true" title="Insights & filters"
-                class="relative grid w-14 shrink-0 place-items-center rounded-xl border border-gray-100 bg-white text-[var(--color-heading)] shadow-sm hover:bg-gray-50">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M6 12h12M9 18h6"/></svg>
-            @if ($activeFilters)
-                <span class="absolute right-1.5 top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
-            @endif
-        </button>
     </div>
 
     {{-- Insights & filters --}}
