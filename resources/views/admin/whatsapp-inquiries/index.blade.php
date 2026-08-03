@@ -17,57 +17,56 @@
 @endphp
 <div x-data="{ form: false, editing: null, panel: false }" @keydown.escape.window="form = false; panel = false">
 
-    {{-- Header --}}
-    <div class="mb-6 flex flex-wrap items-center gap-3">
+    {{-- Header. Title, the four figures, search, then the filter — reading order matches how the
+         page is used: see the day, look for something, narrow it down. --}}
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Traffic</h1>
             <p class="mt-1 text-sm text-[var(--color-muted)]">CRM &rsaquo; WhatsApp Traffic &rsaquo; Before Leads</p>
         </div>
 
-        <form method="GET" class="relative order-last w-full min-w-[12rem] flex-1 lg:order-none lg:mx-2 lg:w-auto">
+        @if ($can('create'))
+            <button type="button" @click="editing = null; form = true"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                Record Enquiry
+            </button>
+        @endif
+    </div>
+
+    {{-- Today's four figures, search and the filter on one line. The figures are not affected by
+         the filter: this row answers "what came in today", and narrowing the list below should not
+         change what it says. --}}
+    <div class="mb-4 flex flex-wrap items-stretch gap-3">
+        @foreach ([
+            ['Conversation Today', $today['total'], now()->format('d M Y'), 'text-[var(--color-heading)]'],
+            ['Conversion Rate', $pct($today['started'], $today['total']).'%', $today['started'].' of '.$today['total'].' replied', 'text-emerald-600'],
+            ['Relevant', $today['relevant'], $pct($today['relevant'], $today['total']).'% of traffic', 'text-blue-600'],
+            ['Converted Lead', $today['converted'], $pct($today['converted'], $today['relevant']).'% of relevant', 'text-purple-600'],
+        ] as [$label, $value, $sub, $tone])
+            <div class="flex min-w-[10rem] flex-1 flex-col items-center justify-center rounded-xl border border-gray-100 bg-white px-4 py-3 text-center shadow-sm">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{{ $label }}</p>
+                <p class="mt-1 text-xl font-bold {{ $tone }}">{{ is_int($value) ? number_format($value) : $value }}</p>
+                <p class="mt-0.5 text-[11px] text-[var(--color-muted)]">{{ $sub }}</p>
+            </div>
+        @endforeach
+
+        <form method="GET" class="relative min-w-[14rem] flex-1">
             @foreach (request()->except('search', 'page') as $k => $v)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endforeach
             <svg class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3-3"/></svg>
             <input name="search" type="text" value="{{ request('search') }}" autocomplete="off"
-                   placeholder="Search by number, name, interest or remark…"
-                   class="h-11 w-full rounded-lg border border-gray-200 bg-white pl-11 pr-4 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                   placeholder="Search number, name, interest…"
+                   class="h-full min-h-[4.25rem] w-full rounded-xl border border-gray-100 bg-white pl-11 pr-4 text-sm shadow-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
         </form>
 
-        <div class="flex items-center gap-2">
-            {{-- The day's figures and the filters live in a drawer: they are read once and then
-                 got in the way of the list, which is what the page is actually for. --}}
-            <button type="button" @click="panel = true" title="Insights & filters"
-                    class="relative grid h-11 w-11 place-items-center rounded-lg border border-gray-200 bg-white text-[var(--color-heading)] hover:bg-gray-50">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M6 12h12M9 18h6"/></svg>
-                @if ($activeFilters)
-                    <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
-                @endif
-            </button>
-
-            @if ($can('create'))
-                <button type="button" @click="editing = null; form = true"
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-                    Record Enquiry
-                </button>
+        {{-- Last, on the right: the day is read first, the filter is what you reach for after. --}}
+        <button type="button" @click="panel = true" title="Insights & filters"
+                class="relative grid w-14 shrink-0 place-items-center rounded-xl border border-gray-100 bg-white text-[var(--color-heading)] shadow-sm hover:bg-gray-50">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M6 12h12M9 18h6"/></svg>
+            @if ($activeFilters)
+                <span class="absolute right-1.5 top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
             @endif
-        </div>
-    </div>
-
-    {{-- Today at a glance. Deliberately not affected by the filters below: this line answers
-         "what came in today", and it should say the same thing whatever the list is showing. --}}
-    <div class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        @foreach ([
-            ['Enquiries today', $today['total'], null, 'text-[var(--color-heading)]'],
-            ['Conversations started', $today['started'], $pct($today['started'], $today['total']).'% replied', 'text-emerald-600'],
-            ['Relevant', $today['relevant'], $pct($today['relevant'], $today['total']).'% of traffic', 'text-blue-600'],
-            ['Converted to leads', $today['converted'], $pct($today['converted'], $today['relevant']).'% of relevant', 'text-purple-600'],
-        ] as [$label, $value, $sub, $tone])
-            <div class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $label }}</p>
-                <p class="mt-1.5 text-2xl font-bold {{ $tone }}">{{ number_format($value) }}</p>
-                <p class="mt-0.5 text-xs text-[var(--color-muted)]">{{ $sub ?? now()->format('d M Y') }}</p>
-            </div>
-        @endforeach
+        </button>
     </div>
 
     {{-- Insights & filters --}}
@@ -254,49 +253,75 @@
                                 <span class="line-clamp-2">{{ $row->remarks ?: '—' }}</span>
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">
-                                @if ($row->isConverted())
-                                    <a href="{{ route('admin.leads.show', $row->lead_id) }}" class="text-xs font-semibold text-[var(--color-primary)] hover:underline">
-                                        {{ $row->lead?->lead_code ?: 'View lead' }}
-                                    </a>
-                                @else
-                                    <div class="flex items-center justify-end gap-1.5">
-                                        @if ($can('convert') && auth()->user()->allows('leads', 'create') && $row->is_relevant)
-                                            <form method="POST" action="{{ route('admin.whatsapp-inquiries.convert', $row) }}">
-                                                @csrf
-                                                <button class="rounded-lg bg-[var(--color-primary-soft)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white">Convert</button>
-                                            </form>
-                                        @endif
-                                        @if ($can('edit'))
-                                            @php
-                                                // Built here rather than inline: Blade cannot parse
-                                                // @json with an array literal inside an attribute.
-                                                $rowJson = \Illuminate\Support\Js::from([
-                                                    'id' => $row->id,
-                                                    'inquiry_date' => $row->inquiry_date->toDateString(),
-                                                    'client_number' => $row->client_number,
-                                                    'client_name' => $row->client_name,
-                                                    'whatsapp_account_id' => $row->whatsapp_account_id,
-                                                    'conversation_started' => $row->conversation_started,
-                                                    'is_relevant' => $row->is_relevant,
-                                                    'interest' => $row->interest,
-                                                    'remarks' => $row->remarks,
-                                                ]);
-                                            @endphp
-                                            <button type="button" @click="editing = {{ $rowJson }}; form = true"
-                                                    class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Edit">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10-10a2.8 2.8 0 1 0-4-4L4 16v4Z"/></svg>
-                                            </button>
-                                        @endif
-                                        @if ($can('delete'))
-                                            <form method="POST" action="{{ route('admin.whatsapp-inquiries.destroy', $row) }}" onsubmit="return confirm('Remove this enquiry?')">
-                                                @csrf @method('DELETE')
-                                                <button class="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Remove">
-                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </div>
-                                @endif
+                                @php
+                                    $mi = 'flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50';
+                                    $miDanger = 'flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50';
+                                    // Built here rather than inline: Blade cannot parse @json with an
+                                    // array literal inside an attribute.
+                                    $rowJson = \Illuminate\Support\Js::from([
+                                        'id' => $row->id,
+                                        'inquiry_date' => $row->inquiry_date->toDateString(),
+                                        'client_number' => $row->client_number,
+                                        'client_name' => $row->client_name,
+                                        'whatsapp_account_id' => $row->whatsapp_account_id,
+                                        'conversation_started' => $row->conversation_started,
+                                        'is_relevant' => $row->is_relevant,
+                                        'interest' => $row->interest,
+                                        'remarks' => $row->remarks,
+                                    ]);
+                                @endphp
+                                {{-- One menu rather than three buttons in the row: the actions differ
+                                     per row (convert only applies to relevant, unconverted enquiries),
+                                     so a fixed strip of buttons left ragged gaps down the column. --}}
+                                <div x-data="rowMenu()" class="relative inline-block">
+                                    <button type="button" @click="toggle($event)" title="Actions"
+                                            class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+                                    </button>
+
+                                    {{-- Teleported and fixed-positioned: the table scrolls sideways, and
+                                         an overflow container clips a menu that is merely absolute. --}}
+                                    <template x-teleport="body">
+                                        <div x-show="open" x-cloak>
+                                            <div class="fixed inset-0 z-50" @click="open = false"></div>
+                                            <div x-ref="menu" :style="`position:fixed; top:${y}px; left:${x}px`"
+                                                 class="z-[60] w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl">
+                                                @if ($row->isConverted())
+                                                    <a href="{{ route('admin.leads.show', $row->lead_id) }}" class="{{ $mi }}">
+                                                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                                                        View lead {{ $row->lead?->lead_code }}
+                                                    </a>
+                                                @elseif ($can('convert') && auth()->user()->allows('leads', 'create') && $row->is_relevant)
+                                                    <form method="POST" action="{{ route('admin.whatsapp-inquiries.convert', $row) }}">
+                                                        @csrf
+                                                        <button class="{{ $mi }} font-semibold text-[var(--color-primary)]">
+                                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h13m0 0-5-5m5 5-5 5"/></svg>
+                                                            Convert to Lead
+                                                        </button>
+                                                    </form>
+                                                @endif
+
+                                                @if ($can('edit'))
+                                                    <button type="button" @click="open = false; editing = {{ $rowJson }}; form = true" class="{{ $mi }}">
+                                                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
+                                                        View / Edit
+                                                    </button>
+                                                @endif
+
+                                                @if ($can('delete'))
+                                                    <div class="my-1 border-t border-gray-100"></div>
+                                                    <form method="POST" action="{{ route('admin.whatsapp-inquiries.destroy', $row) }}" onsubmit="return confirm('Remove this enquiry?')">
+                                                        @csrf @method('DELETE')
+                                                        <button class="{{ $miDanger }}">
+                                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -396,4 +421,30 @@
         </div>
     </div>
 </div>
+    <style>[x-cloak]{display:none!important}</style>
+    <script>
+        function rowMenu() {
+            return {
+                open: false, x: 0, y: 0,
+                toggle(e) {
+                    if (this.open) { this.open = false; return; }
+                    const r = e.currentTarget.getBoundingClientRect();
+                    this.x = Math.max(8, r.right - 208);   // 208 = w-52
+                    this.y = r.bottom + 4;
+                    this.open = true;
+                    // Measure once rendered and flip upward when the last rows would push it
+                    // off the bottom of the window.
+                    this.$nextTick(() => {
+                        const m = this.$refs.menu;
+                        if (!m) return;
+                        const h = m.offsetHeight, vh = window.innerHeight;
+                        if (r.bottom + 4 + h > vh - 8) {
+                            const above = r.top - 4 - h;
+                            this.y = above >= 8 ? above : Math.max(8, vh - h - 8);
+                        }
+                    });
+                },
+            };
+        }
+    </script>
 @endsection
