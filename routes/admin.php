@@ -188,6 +188,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::middleware('permission:whatsapp_inquiries.edit')->group(function () {
             Route::put('whatsapp-inquiries/{whatsappInquiry}', [WhatsappInquiryController::class, 'update'])->whereNumber('whatsappInquiry')->name('whatsapp-inquiries.update');
+            Route::patch('whatsapp-inquiries/{whatsappInquiry}/status', [WhatsappInquiryController::class, 'status'])->whereNumber('whatsappInquiry')->name('whatsapp-inquiries.status');
         });
         Route::middleware('permission:whatsapp_inquiries.delete')->group(function () {
             Route::delete('whatsapp-inquiries/{whatsappInquiry}', [WhatsappInquiryController::class, 'destroy'])->whereNumber('whatsappInquiry')->name('whatsapp-inquiries.destroy');

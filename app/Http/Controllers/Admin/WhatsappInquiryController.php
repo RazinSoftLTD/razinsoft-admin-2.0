@@ -127,6 +127,25 @@ class WhatsappInquiryController extends Controller
         return back()->with('status', 'Enquiry updated.');
     }
 
+    /**
+     * Flip one of the two statuses from the list, without opening the form.
+     *
+     * Both change over the course of a day — someone replies, someone decides it is worth chasing —
+     * and making that a five-field edit meant it did not get done, which left the daily report
+     * measuring how diligently the form was filled in rather than how the team responded.
+     */
+    public function status(Request $request, WhatsappInquiry $whatsappInquiry)
+    {
+        $data = $request->validate([
+            'field' => ['required', Rule::in(['conversation_started', 'is_relevant'])],
+            'value' => ['required', 'boolean'],
+        ]);
+
+        $whatsappInquiry->update([$data['field'] => (bool) $data['value']]);
+
+        return back();
+    }
+
     public function destroy(WhatsappInquiry $whatsappInquiry)
     {
         $whatsappInquiry->delete();

@@ -162,7 +162,7 @@
                         <th class="px-4 py-3 text-left">#</th>
                         <th class="px-4 py-3 text-left">Date</th>
                         <th class="px-4 py-3 text-left">Client number</th>
-                        <th class="px-4 py-3 text-left">Our number</th>
+                        <th class="px-4 py-3 text-left">Contact Number</th>
                         <th class="px-4 py-3 text-center">Conversation</th>
                         <th class="px-4 py-3 text-center">Relevant</th>
                         <th class="px-4 py-3 text-left">Interested in</th>
@@ -185,16 +185,38 @@
                                 <span class="text-[var(--color-heading)]">{{ $row->account?->name ?? '—' }}</span>
                                 <span class="block text-xs text-gray-400">{{ $row->companyNumberLabel() }}</span>
                             </td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $row->conversation_started ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500' }}">
-                                    {{ $row->conversation_started ? 'Yes' : 'No' }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $row->is_relevant ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500' }}">
-                                    {{ $row->is_relevant ? 'Yes' : 'No' }}
-                                </span>
-                            </td>
+                            {{-- Both statuses flip in place. They change through the day — someone
+                                 replies, someone decides it is worth chasing — and burying that in
+                                 the edit form meant it did not get updated. --}}
+                            @php
+                                // Class names written out in full, never assembled from parts: this
+                                // app ships a pre-built stylesheet and Tailwind only keeps what it
+                                // can read literally in the source. The hover shades are inline for
+                                // the same reason — they are not in the built file at all.
+                                $onCls = ['conversation_started' => 'bg-emerald-50 text-emerald-700', 'is_relevant' => 'bg-blue-50 text-blue-700'];
+                                $onHover = ['conversation_started' => '#a7f3d0', 'is_relevant' => '#bfdbfe'];
+                            @endphp
+                            @foreach ([['conversation_started', $row->conversation_started], ['is_relevant', $row->is_relevant]] as [$field, $on])
+                                <td class="px-4 py-3 text-center">
+                                    @if ($can('edit'))
+                                        <form method="POST" action="{{ route('admin.whatsapp-inquiries.status', $row) }}" class="inline">
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="field" value="{{ $field }}">
+                                            <input type="hidden" name="value" value="{{ $on ? 0 : 1 }}">
+                                            <button type="submit"
+                                                    title="{{ $on ? 'Mark as No' : 'Mark as Yes' }}"
+                                                    onmouseover="this.style.backgroundColor='{{ $on ? $onHover[$field] : '#e5e7eb' }}'"
+                                                    onmouseout="this.style.backgroundColor=''"
+                                                    class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition {{ $on ? $onCls[$field] : 'bg-gray-100 text-gray-500' }}">
+                                                {{ $on ? 'Yes' : 'No' }}
+                                                <svg class="h-3 w-3 opacity-40" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 4v6h6M20 20v-6h-6M20 9A8 8 0 0 0 6 6M4 15a8 8 0 0 0 14 3"/></svg>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $on ? $onCls[$field] : 'bg-gray-100 text-gray-500' }}">{{ $on ? 'Yes' : 'No' }}</span>
+                                    @endif
+                                </td>
+                            @endforeach
                             <td class="px-4 py-3">{{ $row->interest ?: '—' }}</td>
                             <td class="max-w-[16rem] px-4 py-3 text-[var(--color-muted)]">
                                 <span class="line-clamp-2">{{ $row->remarks ?: '—' }}</span>
