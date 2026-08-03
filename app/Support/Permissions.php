@@ -58,6 +58,10 @@ class Permissions
      * `owner`/`creator` unlock the owned/added scopes for that module.
      */
     public const MODULES = [
+        // Sits in front of Leads: raw WhatsApp traffic, before anyone decides what is worth keeping.
+        // `convert` is the step that promotes one into a lead, so it can be withheld from whoever
+        // only logs the traffic.
+        'whatsapp_inquiries' => ['label' => 'WhatsApp Traffic', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'convert'], 'creator' => 'added_by'],
         'leads' => ['label' => 'Leads', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to', 'creator' => 'added_by'],
         // Follow-ups: view scope = owned (assigned sales exec) vs all (manager/admin). `complete`
         // covers Mark Done + Schedule Next; edit/delete apply to pending follow-ups only.

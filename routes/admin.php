@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\LeadFollowUpController;
 use App\Http\Controllers\Admin\InvoicePaymentController;
 use App\Http\Controllers\Admin\InvoiceTemplateController;
 use App\Http\Controllers\Admin\LeadController;
+use App\Http\Controllers\Admin\WhatsappInquiryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductRelationController;
@@ -178,6 +179,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         // ===== Leads =====
+        // WhatsApp traffic — the funnel step in front of Leads.
+        Route::middleware('permission:whatsapp_inquiries.view')->group(function () {
+            Route::get('whatsapp-inquiries', [WhatsappInquiryController::class, 'index'])->name('whatsapp-inquiries.index');
+        });
+        Route::middleware('permission:whatsapp_inquiries.create')->group(function () {
+            Route::post('whatsapp-inquiries', [WhatsappInquiryController::class, 'store'])->name('whatsapp-inquiries.store');
+        });
+        Route::middleware('permission:whatsapp_inquiries.edit')->group(function () {
+            Route::put('whatsapp-inquiries/{whatsappInquiry}', [WhatsappInquiryController::class, 'update'])->whereNumber('whatsappInquiry')->name('whatsapp-inquiries.update');
+        });
+        Route::middleware('permission:whatsapp_inquiries.delete')->group(function () {
+            Route::delete('whatsapp-inquiries/{whatsappInquiry}', [WhatsappInquiryController::class, 'destroy'])->whereNumber('whatsappInquiry')->name('whatsapp-inquiries.destroy');
+        });
+        // Promoting one into a lead needs both: the right to convert, and the right to make a lead.
+        Route::middleware(['permission:whatsapp_inquiries.convert', 'permission:leads.create'])->group(function () {
+            Route::post('whatsapp-inquiries/{whatsappInquiry}/convert', [WhatsappInquiryController::class, 'convert'])->whereNumber('whatsappInquiry')->name('whatsapp-inquiries.convert');
+        });
+
         Route::middleware('permission:leads.view')->group(function () {
             Route::get('leads/import/sample', [LeadController::class, 'importSample'])->name('leads.import.sample');
             Route::get('leads', [LeadController::class, 'index'])->name('leads.index');

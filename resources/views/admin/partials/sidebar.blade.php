@@ -19,6 +19,7 @@
         'crm' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M19 8v6 M22 11h-6',
         'clients' => 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1M16 15a4 4 0 0 1 4 4v1',
         'leads' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6M22 11h-6',
+        'watraffic' => 'M20 12a8 8 0 0 1-8 8H4l1.8-3A8 8 0 1 1 20 12ZM8.5 12h.01M12 12h.01M15.5 12h.01',
         'followup' => 'M12 8v4l3 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
         'deals' => 'M3 3v18h18 M7 14l4-4 3 3 5-6',
         'followups' => 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
@@ -69,6 +70,7 @@
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
+            ['label' => 'WhatsApp Traffic', 'route' => 'admin.whatsapp-inquiries.index', 'active' => 'admin.whatsapp-inquiries.*', 'perm' => 'whatsapp_inquiries.view', 'icon' => $ic['watraffic'], 'badge' => \App\Models\WhatsappInquiry::whereDate('inquiry_date', today())->count() ?: null],
             ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => ['admin.leads.index', 'admin.leads.show', 'admin.leads.edit', 'admin.leads.create', 'admin.leads.import.form'], 'perm' => 'leads.view', 'icon' => $ic['leads']],
             ['label' => 'Follow-ups', 'route' => 'admin.follow-ups.index', 'active' => 'admin.follow-ups.*', 'perm' => 'follow_ups.view', 'icon' => $ic['followups']],
             ['label' => 'Deals', 'route' => 'admin.deals.index', 'active' => 'admin.deals.*', 'perm' => 'deals.view', 'icon' => $ic['deals']],
