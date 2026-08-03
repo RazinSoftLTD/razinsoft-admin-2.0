@@ -10,7 +10,12 @@
 @endphp
 
 @section('content')
-<div x-data="{ form: false, editing: null }" @keydown.escape.window="form = false">
+@php
+    $activeFilters = collect(request()->only(['account', 'started', 'relevant', 'interest']))
+        ->filter(fn ($v) => $v !== null && $v !== '')->count()
+        + ($rangeIsToday ? 0 : 1);
+@endphp
+<div x-data="{ form: false, editing: null, panel: false }" @keydown.escape.window="form = false; panel = false">
 
     {{-- Header --}}
     <div class="mb-6 flex flex-wrap items-center gap-3">
@@ -27,13 +32,25 @@
                    class="h-11 w-full rounded-lg border border-gray-200 bg-white pl-11 pr-4 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
         </form>
 
-        @if ($can('create'))
-            <button type="button" @click="editing = null; form = true"
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-                Record Enquiry
+        <div class="flex items-center gap-2">
+            {{-- The day's figures and the filters live in a drawer: they are read once and then
+                 got in the way of the list, which is what the page is actually for. --}}
+            <button type="button" @click="panel = true" title="Insights & filters"
+                    class="relative grid h-11 w-11 place-items-center rounded-lg border border-gray-200 bg-white text-[var(--color-heading)] hover:bg-gray-50">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M6 12h12M9 18h6"/></svg>
+                @if ($activeFilters)
+                    <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
+                @endif
             </button>
-        @endif
+
+            @if ($can('create'))
+                <button type="button" @click="editing = null; form = true"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                    Record Enquiry
+                </button>
+            @endif
+        </div>
     </div>
 
     {{-- Today at a glance. Deliberately not affected by the filters below: this line answers
@@ -53,9 +70,22 @@
         @endforeach
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-3">
+    {{-- Insights & filters --}}
+    <div x-show="panel" x-cloak class="fixed inset-0 z-40">
+        <div x-show="panel" x-transition.opacity @click="panel = false" class="absolute inset-0 bg-black/30"></div>
+        <div x-show="panel"
+             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+             class="absolute right-0 top-0 flex h-full w-96 max-w-full flex-col bg-white shadow-2xl">
+            <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">Insights &amp; filters</h2>
+                <button type="button" @click="panel = false" class="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto">
         {{-- Per number, today. The reason the module exists: four numbers, four ad budgets. --}}
-        <div class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div class="border-b border-gray-100 p-5">
             <h2 class="text-sm font-bold text-[var(--color-heading)]">Today by number</h2>
             <div class="mt-3 space-y-2.5">
                 @forelse ($accounts as $a)
@@ -80,7 +110,7 @@
         </div>
 
         {{-- What they asked about, over whatever range is being viewed. --}}
-        <div class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div class="border-b border-gray-100 p-5">
             <h2 class="text-sm font-bold text-[var(--color-heading)]">Interested in</h2>
             <p class="mt-0.5 text-[11px] text-gray-400">{{ $rangeIsToday ? 'Today' : \Illuminate\Support\Carbon::parse($from)->format('d M').' – '.\Illuminate\Support\Carbon::parse($to)->format('d M Y') }}</p>
             <div class="mt-3 space-y-2">
@@ -99,7 +129,7 @@
         </div>
 
         {{-- Filters --}}
-        <form method="GET" class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+        <form method="GET" class="border-b border-gray-100 p-5">
             <h2 class="text-sm font-bold text-[var(--color-heading)]">Filter</h2>
             <div class="mt-3 space-y-3">
                 <div class="grid grid-cols-2 gap-2">
@@ -151,6 +181,8 @@
                 @endunless
             </div>
         </form>
+            </div>
+        </div>
     </div>
 
     {{-- The list --}}
