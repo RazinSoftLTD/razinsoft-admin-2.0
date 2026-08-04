@@ -80,7 +80,7 @@
         <div x-show="panel"
              x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
              x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
-             style="width: 24rem" class="absolute right-0 top-0 flex h-full max-w-full flex-col bg-white shadow-2xl">
+             class="absolute right-0 top-0 flex h-full w-96 max-w-full flex-col bg-white shadow-2xl">
             <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                 <h2 class="text-sm font-bold text-[var(--color-heading)]">Insights &amp; filters</h2>
                 <button type="button" @click="panel = false" class="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100">
