@@ -379,6 +379,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('project-config', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'index'])->name('project-config');
             Route::post('project-config/categories', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryStore'])->name('project-config.categories.store');
             Route::put('project-config/categories/{category}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryUpdate'])->whereNumber('category')->name('project-config.categories.update');
+            Route::patch('project-config/categories/{category}/menu', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryMenu'])->whereNumber('category')->name('project-config.categories.menu');
             Route::delete('project-config/categories/{category}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryDestroy'])->whereNumber('category')->name('project-config.categories.destroy');
             Route::post('project-config/columns', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnStore'])->name('project-config.columns.store');
             Route::put('project-config/columns/{column}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnUpdate'])->whereNumber('column')->name('project-config.columns.update');

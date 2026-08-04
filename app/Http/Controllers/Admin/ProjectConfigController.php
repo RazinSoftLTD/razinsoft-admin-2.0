@@ -24,7 +24,11 @@ class ProjectConfigController extends Controller
     public function categoryStore(Request $request)
     {
         $data = $request->validate(['name' => ['required', 'string', 'max:120', 'unique:project_categories,name']]);
-        ProjectCategory::create(['name' => $data['name'], 'position' => (int) ProjectCategory::max('position') + 1]);
+        ProjectCategory::create([
+            'name' => $data['name'],
+            'show_in_menu' => $request->boolean('show_in_menu'),
+            'position' => (int) ProjectCategory::max('position') + 1,
+        ]);
 
         return back()->with('status', 'Category added.');
     }
@@ -32,9 +36,24 @@ class ProjectConfigController extends Controller
     public function categoryUpdate(Request $request, ProjectCategory $category)
     {
         $data = $request->validate(['name' => ['required', 'string', 'max:120', 'unique:project_categories,name,'.$category->id]]);
-        $category->update($data);
+        $category->update($data + ['show_in_menu' => $request->boolean('show_in_menu')]);
 
         return back()->with('status', 'Category updated.');
+    }
+
+    /**
+     * Flip the sidebar shortcut on its own.
+     *
+     * Separate from the rename form because that is what people actually do here — deciding a
+     * category belongs in the menu has nothing to do with editing its name.
+     */
+    public function categoryMenu(Request $request, ProjectCategory $category)
+    {
+        $category->update(['show_in_menu' => $request->boolean('show_in_menu')]);
+
+        return back()->with('status', $category->show_in_menu
+            ? "\"{$category->name}\" now shows under Projects."
+            : "\"{$category->name}\" removed from the menu.");
     }
 
     public function categoryDestroy(ProjectCategory $category)

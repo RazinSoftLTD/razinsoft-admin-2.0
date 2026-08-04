@@ -30,6 +30,18 @@
                                 <span class="flex flex-1 items-center justify-between">
                                     <span class="text-sm text-[var(--color-heading)]">{{ $cat->name }}</span>
                                     <span class="flex items-center gap-1">
+                                        {{-- Its own form, submitted on change: deciding a category belongs
+                                             in the menu has nothing to do with renaming it. --}}
+                                        <form method="POST" action="{{ route('admin.project-config.categories.menu', $cat) }}" class="mr-2">
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="show_in_menu" value="0">
+                                            <label class="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-[var(--color-muted)]"
+                                                   title="Show this category under Workspace › Projects">
+                                                <input type="checkbox" name="show_in_menu" value="1" @checked($cat->show_in_menu)
+                                                       onchange="this.form.submit()" class="rounded border-gray-300">
+                                                Sub menu
+                                            </label>
+                                        </form>
                                         <button type="button" @click="edit = true" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.9 4.5a2.1 2.1 0 0 1 3 3L8 19.5l-4 1 1-4L16.9 4.5Z"/></svg></button>
                                         <form method="POST" action="{{ route('admin.project-config.categories.destroy', $cat) }}" onsubmit="return confirm('Remove this category?')">@csrf @method('DELETE')
                                             <button class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg></button>

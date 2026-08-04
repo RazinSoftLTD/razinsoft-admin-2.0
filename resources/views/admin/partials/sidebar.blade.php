@@ -87,7 +87,18 @@
         ]],
 
         ['type' => 'group', 'label' => 'Workspace', 'icon' => $ic['workspace'], 'items' => [
-            ['label' => 'Projects', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'perm' => 'projects.view', 'icon' => $ic['projects']],
+            ['label' => 'Projects', 'route' => 'admin.projects.index', 'active' => 'admin.projects.index', 'query' => ['category' => null], 'perm' => 'projects.view', 'icon' => $ic['projects']],
+            // Categories ticked as "Sub menu" in Settings › Project Config get their own entry, so
+            // a group of projects people look at daily is one click away instead of a filter.
+            ...\App\Models\ProjectCategory::inMenu()->map(fn ($c) => [
+                'label' => $c->name,
+                'route' => 'admin.projects.index',
+                'href' => route('admin.projects.index', ['category' => $c->name]),
+                'active' => 'admin.projects.index',
+                'query' => ['category' => $c->name],
+                'perm' => 'projects.view',
+                'icon' => $ic['tasks'] ?? $ic['projects'],
+            ])->all(),
             ['label' => 'Tasks', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*', 'perm' => 'projects.view', 'icon' => $ic['tasks'] ?? $ic['projects']],
         ]],
 
@@ -186,6 +197,15 @@
                 return false;
             }
         }
+        // Same for query params, which is how the per-category project entries are told apart.
+        // A null means the opposite: this entry is only current when the param is absent, which
+        // keeps plain "Projects" from lighting up alongside the category you are actually in.
+        foreach (($i['query'] ?? []) as $k => $v) {
+            $actual = request()->query($k);
+            if ($v === null ? filled($actual) : $actual !== $v) {
+                return false;
+            }
+        }
 
         return true;
     };
@@ -210,7 +230,7 @@
     @foreach ($nav as $entry)
         @if (($entry['type'] ?? 'link') === 'link')
             @php $active = $isItemActive($entry); $soon = ! empty($entry['soon']); @endphp
-            <a href="{{ $soon ? '#' : route($entry['route'], $entry['params'] ?? []) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
+            <a href="{{ $soon ? '#' : ($entry['href'] ?? route($entry['route'], $entry['params'] ?? [])) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ $active ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }} {{ $soon ? 'cursor-default opacity-60' : '' }}">
                 <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ $entry['icon'] }}"/>
@@ -236,7 +256,7 @@
                         <div class="ml-4 mt-1 space-y-1 border-l border-gray-100 pl-3" style="transition:opacity .3s ease, transform .3s cubic-bezier(.4,0,.2,1)" :class="open ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'">
                             @foreach ($entry['items'] as $item)
                                 @php $active = $isItemActive($item); $soon = ! empty($item['soon']); @endphp
-                                <a href="{{ $soon ? '#' : route($item['route'], $item['params'] ?? []) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
+                                <a href="{{ $soon ? '#' : ($item['href'] ?? route($item['route'], $item['params'] ?? [])) }}" @if ($soon) @click.prevent aria-disabled="true" @endif
                                    class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition {{ $active ? 'bg-[var(--color-primary)] text-white shadow-sm shadow-indigo-300' : 'text-[var(--color-muted)] hover:bg-gray-50 hover:text-[var(--color-heading)]' }} {{ $soon ? 'cursor-default opacity-60' : '' }}">
                                     <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="{{ $item['icon'] }}"/>
