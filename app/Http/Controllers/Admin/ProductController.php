@@ -82,6 +82,7 @@ class ProductController extends Controller
         $data = $this->handleImages($request, $data, $product);
 
         $product->update($data);
+        $this->saveSeo($request, $product);
 
         return redirect()->route('admin.products.show', $product)->with('status', 'Product updated.');
     }
@@ -195,6 +196,43 @@ class ProductController extends Controller
         $data['badge'] = ($data['badge'] ?? '') ?: null;
 
         return $data;
+    }
+
+    /**
+     * Save the product's search/social fields.
+     *
+     * Blank is stored as null rather than an empty string, because the website tells the two
+     * apart: null falls back to "{name} — {tagline}" and the hero image, an empty string would
+     * publish an empty title. Only runs when the form actually carried the section, so an older
+     * form or a partial post cannot wipe what is there.
+     */
+    private function saveSeo(Request $request, Product $product): void
+    {
+        if (! $request->has('seo_title')) {
+            return;
+        }
+
+        $data = $request->validate([
+            'seo_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:320'],
+            'focus_keyword' => ['nullable', 'string', 'max:255'],
+            'canonical_url' => ['nullable', 'string', 'max:255'],
+            // Rule::in, not the string form — these values contain the comma that separates rules.
+            'robots' => ['nullable', Rule::in(['index,follow', 'noindex,follow'])],
+            'og_title' => ['nullable', 'string', 'max:255'],
+            'og_description' => ['nullable', 'string', 'max:320'],
+            'og_image' => ['nullable', 'string', 'max:255'],
+            'brand' => ['nullable', 'string', 'max:255'],
+            'sku' => ['nullable', 'string', 'max:255'],
+            'operating_system' => ['nullable', 'string', 'max:255'],
+            'application_category' => ['nullable', 'string', 'max:255'],
+            'software_version' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $product->seo()->updateOrCreate([], array_map(
+            fn ($v) => is_string($v) && trim($v) === '' ? null : $v,
+            $data,
+        ));
     }
 
     /** Store uploaded thumbnail/hero on the public disk; keep existing path otherwise. */

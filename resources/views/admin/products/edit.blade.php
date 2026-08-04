@@ -6,11 +6,12 @@
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m15 18-6-6 6-6"/></svg> Back to product
     </a>
 
-    <h1 class="mb-4 text-xl font-bold text-[var(--color-heading)]">Edit general &amp; media</h1>
+    <h1 class="mb-4 text-xl font-bold text-[var(--color-heading)]">Edit general, media &amp; SEO</h1>
 
     <form method="POST" action="{{ route('admin.products.update', $product) }}" enctype="multipart/form-data" class="max-w-4xl">
         @csrf @method('PUT')
         @include('admin.products._general')
+        @include('admin.products._seo')
 
         <div class="mt-5 flex gap-3">
             <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save changes</button>
