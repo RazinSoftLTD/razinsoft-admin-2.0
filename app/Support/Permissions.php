@@ -83,6 +83,10 @@ class Permissions
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'members', 'milestones', 'files', 'prd', 'settings', 'columns', 'private'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
         // Tasks live inside projects but each part of a task is its own toggle.
         'tasks' => ['label' => 'Tasks', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'status', 'comments', 'attachments', 'time', 'subtasks'], 'owner' => 'assigned_to', 'creator' => 'created_by'],
+        // Separate from projects: a project ends, maintenance is the arrangement that runs after it.
+        // 'complete' is ticking off the day's work and 'renew' commits the client to another term —
+        // whoever does the work is not necessarily who agrees the next contract.
+        'maintenance' => ['label' => 'Maintenance', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'complete', 'renew'], 'owner' => 'assigned_to', 'creator' => 'created_by'],
         // invoices: base CRUD scoped via created_by (= added). The extra ops (payments/send/
         // cancel/duplicate) are individually scopable; configuration + bin are global none/all.
         'invoices' => ['label' => 'Invoices', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'finance', 'send', 'cancel', 'duplicate', 'configure', 'bin', 'private'], 'owner' => 'owner_id', 'creator' => 'created_by'],

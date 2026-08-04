@@ -89,6 +89,7 @@
         ['type' => 'group', 'label' => 'Workspace', 'icon' => $ic['workspace'], 'items' => [
             ['label' => 'Projects', 'route' => 'admin.projects.index', 'active' => 'admin.projects.*', 'perm' => 'projects.view', 'icon' => $ic['projects']],
             ['label' => 'Tasks', 'route' => 'admin.tasks.index', 'active' => 'admin.tasks.*', 'perm' => 'projects.view', 'icon' => $ic['tasks'] ?? $ic['projects']],
+            ['label' => 'Maintenance', 'route' => 'admin.maintenance.index', 'active' => 'admin.maintenance.*', 'perm' => 'maintenance.view', 'icon' => $ic['tasks'] ?? $ic['projects'], 'badge' => \App\Models\MaintenanceProject::attentionCount()],
         ]],
 
         ['type' => 'group', 'label' => 'Sales', 'icon' => $ic['orders'], 'items' => [

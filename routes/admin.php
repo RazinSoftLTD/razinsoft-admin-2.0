@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\GalleryController;
+use App\Http\Controllers\Admin\MaintenanceController;
 use App\Http\Controllers\Admin\ArticleCategoryController;
 use App\Http\Controllers\Admin\ArticleController;
 use App\Http\Controllers\Admin\Auth\LoginController;
@@ -177,6 +178,33 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== CRM Analytics (reports · follow-ups · by country) =====
         Route::middleware('permission:analytics.view')->group(function () {
             Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+        });
+
+        // ===== Maintenance =====
+        // Contracts that run after a project is delivered: a recurring plan, and a term to renew.
+        Route::middleware('permission:maintenance.view')->group(function () {
+            Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
+            Route::get('maintenance/{maintenance}', [MaintenanceController::class, 'show'])->whereNumber('maintenance')->name('maintenance.show');
+        });
+        Route::middleware('permission:maintenance.create')->group(function () {
+            Route::get('maintenance/create', [MaintenanceController::class, 'create'])->name('maintenance.create');
+            Route::post('maintenance', [MaintenanceController::class, 'store'])->name('maintenance.store');
+        });
+        Route::middleware('permission:maintenance.edit')->group(function () {
+            Route::get('maintenance/{maintenance}/edit', [MaintenanceController::class, 'edit'])->whereNumber('maintenance')->name('maintenance.edit');
+            Route::put('maintenance/{maintenance}', [MaintenanceController::class, 'update'])->whereNumber('maintenance')->name('maintenance.update');
+            Route::post('maintenance/{maintenance}/tasks', [MaintenanceController::class, 'storeTask'])->whereNumber('maintenance')->name('maintenance.tasks.store');
+            Route::put('maintenance/{maintenance}/tasks/{task}', [MaintenanceController::class, 'updateTask'])->whereNumber(['maintenance', 'task'])->name('maintenance.tasks.update');
+            Route::delete('maintenance/{maintenance}/tasks/{task}', [MaintenanceController::class, 'destroyTask'])->whereNumber(['maintenance', 'task'])->name('maintenance.tasks.destroy');
+        });
+        Route::middleware('permission:maintenance.complete')->group(function () {
+            Route::post('maintenance/{maintenance}/tasks/{task}/complete', [MaintenanceController::class, 'completeTask'])->whereNumber(['maintenance', 'task'])->name('maintenance.tasks.complete');
+        });
+        Route::middleware('permission:maintenance.renew')->group(function () {
+            Route::post('maintenance/{maintenance}/renew', [MaintenanceController::class, 'renew'])->whereNumber('maintenance')->name('maintenance.renew');
+        });
+        Route::middleware('permission:maintenance.delete')->group(function () {
+            Route::delete('maintenance/{maintenance}', [MaintenanceController::class, 'destroy'])->whereNumber('maintenance')->name('maintenance.destroy');
         });
 
         // ===== Gallery =====
