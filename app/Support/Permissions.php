@@ -76,6 +76,10 @@ class Permissions
         'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products', 'cart']],
         // CodeCanyon market analysis (Activity → CodeCanyon) + its API config.
         'codecanyon' => ['label' => 'CodeCanyon', 'group' => 'Activity', 'actions' => ['view', 'manage', 'settings']],
+        // Gallery is read-only, so no create/edit/delete. 'private' is separate because the private
+        // disk holds invoice PDFs and product source files — seeing every image the panel stores is
+        // not the same permission as seeing those.
+        'gallery' => ['label' => 'Gallery', 'group' => 'Activity', 'actions' => ['view', 'private']],
         'projects' => ['label' => 'Projects', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'members', 'milestones', 'files', 'prd', 'settings', 'columns', 'private'], 'owner' => 'project_manager_id', 'creator' => 'created_by'],
         // Tasks live inside projects but each part of a task is its own toggle.
         'tasks' => ['label' => 'Tasks', 'group' => 'Workspace', 'actions' => ['view', 'create', 'edit', 'delete', 'status', 'comments', 'attachments', 'time', 'subtasks'], 'owner' => 'assigned_to', 'creator' => 'created_by'],
@@ -99,10 +103,6 @@ class Permissions
         'questions' => ['label' => 'Questions', 'group' => 'Content', 'actions' => ['view', 'answer', 'delete']],
         'messages' => ['label' => 'Contact Us', 'group' => 'Content', 'actions' => ['view', 'edit', 'delete']],
         'searches' => ['label' => 'Searches', 'group' => 'Content', 'actions' => ['view', 'delete']],
-        // Gallery is read-only, so no create/edit/delete. 'private' is separate because the private
-        // disk holds invoice PDFs and product source files — seeing every image the panel stores is
-        // not the same permission as seeing those.
-        'gallery' => ['label' => 'Gallery', 'group' => 'Content', 'actions' => ['view', 'private']],
         // owner = client_id: the ticket's requester. "Owned" scope = tickets the user raised themselves.
         // owner = the agent the ticket is assigned to. It used to be client_id, which made the
         // "Owned" scope match an employee against the *client* column — so a staff member on
