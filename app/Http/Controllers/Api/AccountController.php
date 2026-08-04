@@ -13,6 +13,7 @@ use App\Services\Email\EmailDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rules\Password;
 
@@ -305,7 +306,11 @@ class AccountController extends Controller
 
         $user = $request->user();
         $file = $request->file('photo');
-        $path = $file->storeAs("avatars/{$user->id}", $file->getClientOriginalName(), 'public');
+        // A fresh name every time. Keeping the uploaded filename meant re-uploading "profile.jpg"
+        // produced the same URL, so the browser kept showing the old picture and the change looked
+        // like it had not saved.
+        $name = Str::random(20).'.'.$file->getClientOriginalExtension();
+        $path = $file->storeAs("avatars/{$user->id}", $name, 'public');
 
         // Drop the previous stored file (skip external URLs) if it was replaced by a new name.
         if ($user->photo && ! str_starts_with($user->photo, 'http') && $user->photo !== $path) {
