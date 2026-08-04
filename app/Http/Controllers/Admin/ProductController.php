@@ -125,15 +125,24 @@ class ProductController extends Controller
                 }
             }
 
-            // SEO (morphOne).
+            // SEO (morphOne). Only the settings that describe how we publish, never the text that
+            // names the product: a copy that keeps the original's title, canonical and SKU will
+            // publish under the wrong name and tell Google it is the same page as the original.
+            // Left blank, the site falls back to "{name} — {tagline}", which is at least correct.
             if ($product->seo) {
-                $copy->seo()->create($product->seo->replicate(['seoable_id', 'seoable_type'])->toArray());
+                $copy->seo()->create($product->seo->replicate([
+                    'seoable_id', 'seoable_type',
+                    'seo_title', 'meta_description', 'focus_keyword', 'meta_keywords', 'canonical_url',
+                    'og_title', 'og_description', 'og_image',
+                    'twitter_title', 'twitter_description', 'twitter_image',
+                    'sku',
+                ])->toArray());
             }
 
             return $copy;
         });
 
-        return redirect()->route('admin.products.edit', $clone)->with('status', "Product cloned as \"{$clone->name}\" (draft). Reviews, questions and source files were not copied.");
+        return redirect()->route('admin.products.edit', $clone)->with('status', "Product cloned as \"{$clone->name}\" (draft). Write its SEO title and description before publishing — they are left blank on purpose. Reviews, questions and source files were not copied.");
     }
 
     /** Ensure the cloned slug is unique (append -2, -3, … if needed). */
