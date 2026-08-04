@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\GalleryController;
 use App\Http\Controllers\Admin\ArticleCategoryController;
 use App\Http\Controllers\Admin\ArticleController;
 use App\Http\Controllers\Admin\Auth\LoginController;
@@ -176,6 +177,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // ===== CRM Analytics (reports · follow-ups · by country) =====
         Route::middleware('permission:analytics.view')->group(function () {
             Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+        });
+
+        // ===== Gallery =====
+        // Every stored file in one list. Reading only — deleting from here would break whatever
+        // row still points at the file, silently, and the gallery cannot know what that is.
+        Route::middleware('permission:gallery.view')->group(function () {
+            Route::get('gallery', [GalleryController::class, 'index'])->name('gallery.index');
+            Route::get('gallery/file', [GalleryController::class, 'file'])->name('gallery.file');
+            Route::post('gallery/refresh', [GalleryController::class, 'refresh'])->name('gallery.refresh');
         });
 
         // ===== Leads =====

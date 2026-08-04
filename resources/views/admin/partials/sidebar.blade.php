@@ -105,6 +105,7 @@
             ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'perm' => 'blog.view', 'icon' => $ic['article']],
             ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'perm' => 'blog.view', 'icon' => $ic['category']],
             ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
+            ['label' => 'Gallery', 'route' => 'admin.gallery.index', 'active' => 'admin.gallery.*', 'perm' => 'gallery.view', 'icon' => $ic['article']],
             ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'perm' => 'searches.view', 'icon' => $ic['searches']],
             ['label' => 'Subscribers', 'route' => 'admin.subscribers.index', 'active' => 'admin.subscribers.*', 'perm' => 'subscribers.view', 'icon' => $ic['subscribers']],
             ['label' => 'Reports', 'soon' => true, 'icon' => $ic['reports']],
