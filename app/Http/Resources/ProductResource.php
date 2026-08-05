@@ -29,6 +29,9 @@ class ProductResource extends JsonResource
             'from_price' => $this->fromPlan()['price'] ?? null,
             'sale_from_price' => $this->saleFromPrice(),
             'percent_off' => $this->percentOff(),
+            // When the current offer runs out, so the site can count down to something real
+            // instead of inventing a deadline.
+            'offer_ends_at' => $this->offerEndsAt(),
         ];
 
         if (! $this->wantsDetail()) {
@@ -128,6 +131,18 @@ class ProductResource extends JsonResource
         $plan = $this->fromPlanModel();
 
         return $plan ? $plan->offerPercentOff((float) $plan->price) : null;
+    }
+
+    /** The end of the offer behind the "from" price, or null when there is no offer or no end date. */
+    private function offerEndsAt(): ?string
+    {
+        $plan = $this->fromPlanModel();
+
+        if (! $plan || ! $plan->offerPercentOff((float) $plan->price)) {
+            return null;
+        }
+
+        return $plan->offer_ends_at?->toIso8601String();
     }
 
     private function wantsDetail(): bool
