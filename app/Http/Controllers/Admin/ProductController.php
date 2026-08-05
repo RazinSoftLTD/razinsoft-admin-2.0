@@ -172,7 +172,7 @@ class ProductController extends Controller
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($product)],
             'tagline' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
-            'badge' => ['nullable', 'in:best_seller,new,free'],
+            'badge' => ['nullable', 'in:best_seller,new,free,upcoming'],
             'version' => ['nullable', 'string', 'max:50'],
             'is_featured' => ['boolean'],
             'for_home' => ['boolean'],

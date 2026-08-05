@@ -9,7 +9,8 @@
             <x-admin.field label="Tagline" name="tagline" :value="$product->tagline" />
             <div class="grid gap-5 sm:grid-cols-2">
                 <x-admin.field label="Category" name="category" :value="$product->category" />
-                <x-admin.field label="Badge" name="badge" type="select" :value="$product->badge" :options="['' => 'None', 'best_seller' => 'Best Seller', 'new' => 'New', 'free' => 'Free']" />
+                <x-admin.field label="Badge" name="badge" type="select" :value="$product->badge" :options="['' => 'None', 'best_seller' => 'Best Seller', 'new' => 'New', 'free' => 'Free', 'upcoming' => 'Upcoming']"
+                               hint="Upcoming lists it in the Products menu as coming soon." />
             </div>
             <div class="grid gap-5 sm:grid-cols-3">
                 <x-admin.field label="Version" name="version" :value="$product->version" placeholder="1.0.0" />
