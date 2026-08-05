@@ -7,6 +7,9 @@
         $canPublish = $me->hasPermission('promotion.publish');
         $specKey = $promotion->type === \App\Models\Promotion::TYPE_POPUP ? 'popup_banner' : 'banner';
         $isPopup = $promotion->type === \App\Models\Promotion::TYPE_POPUP;
+        $isMenuOffer = $promotion->type === \App\Models\Promotion::TYPE_MENU_OFFER;
+        $c = (array) ($promotion->content ?? []);
+        $points = $c['points'] ?? [];
     @endphp
     <div class="mx-auto max-w-3xl">
         <div class="mb-5 flex items-center gap-2">
@@ -29,6 +32,40 @@
                 <x-admin.field label="Type" name="type" type="select" :value="$promotion->type" :options="\App\Models\Promotion::TYPES" required />
             @endif
 
+            @if ($isMenuOffer)
+                {{-- The offer panel in the website's Products menu. Words, not artwork. --}}
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <x-admin.field label="Eyebrow" name="eyebrow" :value="$c['eyebrow'] ?? 'Limited time offer'" hint="The small pill above the headline." />
+                    <x-admin.field label="Headline" name="headline" :value="$c['headline'] ?? 'Save up to'" hint="Sits above the big number." />
+                </div>
+
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <x-admin.field label="The big line" name="value" :value="$c['value'] ?? ''" required placeholder="50% OFF" hint="Shown large and in colour — keep it short." />
+                    <x-admin.field label="Sub-line" name="subtext" :value="$c['subtext'] ?? ''" placeholder="On selected products & subscriptions" />
+                </div>
+
+                <div>
+                    <p class="mb-2 text-sm font-medium text-[var(--color-heading)]">Selling points</p>
+                    <p class="mb-3 text-xs text-[var(--color-muted)]">Up to four. Leave a title blank to drop that row.</p>
+                    <div class="space-y-3">
+                        @for ($i = 0; $i < 4; $i++)
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <input type="text" name="points[{{ $i }}][title]" value="{{ old("points.$i.title", $points[$i]['title'] ?? '') }}"
+                                       placeholder="Title (e.g. Lifetime License)"
+                                       class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                <input type="text" name="points[{{ $i }}][desc]" value="{{ old("points.$i.desc", $points[$i]['desc'] ?? '') }}"
+                                       placeholder="Note (e.g. One-time payment)"
+                                       class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                            </div>
+                        @endfor
+                    </div>
+                </div>
+
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <x-admin.field label="Button label" name="cta_label" :value="$c['cta_label'] ?? 'View all offers'" />
+                    <x-admin.field label="Button link" name="cta_url" :value="$c['cta_url'] ?? '/products'" hint="A path on the website, e.g. /products" />
+                </div>
+            @else
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Image</label>
                 @if ($promotion->image)
@@ -75,6 +112,7 @@
                     @error('banner_bg_color')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
             @endunless
+            @endif
 
             <div class="grid gap-5 sm:grid-cols-2">
                 <x-admin.field label="Starts at" name="starts_at" type="date" :value="optional($promotion->starts_at)->format('Y-m-d')" required />

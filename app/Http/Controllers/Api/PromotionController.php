@@ -13,6 +13,7 @@ class PromotionController extends Controller
     {
         $topBanner = Promotion::type(Promotion::TYPE_TOP_BANNER)->live()->latest()->first();
         $popup = Promotion::type(Promotion::TYPE_POPUP)->live()->latest()->first();
+        $menuOffer = Promotion::type(Promotion::TYPE_MENU_OFFER)->live()->latest()->first();
 
         return response()->json([
             'data' => [
@@ -32,6 +33,13 @@ class PromotionController extends Controller
                 'popup' => $popup ? [
                     'image' => ProductResource::media($popup->image),
                 ] : null,
+                // The Products-menu offer panel. Null means nothing is published, and the site
+                // hides the panel rather than inventing a sale.
+                'menu_offer' => $menuOffer ? array_merge(
+                    ['eyebrow' => null, 'headline' => null, 'value' => null, 'subtext' => null,
+                        'cta_label' => null, 'cta_url' => null, 'points' => []],
+                    (array) $menuOffer->content,
+                ) : null,
             ],
         ]);
     }

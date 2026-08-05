@@ -34,4 +34,17 @@
     </div>
     <p class="mb-3 text-xs text-[var(--color-muted)]">A modal shown once per page load. Once a visitor closes it, it won't show again until the site is reloaded.</p>
     @include('admin.promotions._table', ['items' => $popups, 'emptyTitle' => 'No popups yet', 'emptyHint' => 'Upload a promo graphic, keep it as a draft to review, then publish when it\'s ready.'])
+
+    <div class="mb-3 mt-8 flex items-center justify-between gap-3">
+        <h2 class="text-base font-bold text-[var(--color-heading)]">Products Menu Offer</h2>
+        @if (auth()->user()->hasPermission('promotion.create'))
+            <a href="{{ route('admin.promotions.create', ['type' => \App\Models\Promotion::TYPE_MENU_OFFER]) }}"
+               class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                Add offer
+            </a>
+        @endif
+    </div>
+    <p class="mb-3 text-xs text-[var(--color-muted)]">The offer panel inside the website's Products menu. Text only — no artwork. Nothing published here means the panel is simply not shown.</p>
+    @include('admin.promotions._table', ['items' => $menuOffers, 'emptyTitle' => 'No menu offer yet', 'emptyHint' => 'Write the headline, the selling points and the button, then publish it.'])
 @endsection

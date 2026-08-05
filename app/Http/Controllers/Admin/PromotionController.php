@@ -18,8 +18,9 @@ class PromotionController extends Controller
         $promotions = Promotion::with('creator')->latest()->get();
         $topBanners = $promotions->where('type', Promotion::TYPE_TOP_BANNER)->values();
         $popups = $promotions->where('type', Promotion::TYPE_POPUP)->values();
+        $menuOffers = $promotions->where('type', Promotion::TYPE_MENU_OFFER)->values();
 
-        return view('admin.promotions.index', compact('topBanners', 'popups'));
+        return view('admin.promotions.index', compact('topBanners', 'popups', 'menuOffers'));
     }
 
     public function create(Request $request)
@@ -43,7 +44,9 @@ class PromotionController extends Controller
         if (($data['type'] ?? null) === Promotion::TYPE_TOP_BANNER && empty($data['countdown_label'])) {
             $data['countdown_label'] = Promotion::DEFAULT_COUNTDOWN_LABEL;
         }
-        $this->handleImage($request, $data);
+        if (($data['type'] ?? null) !== Promotion::TYPE_MENU_OFFER) {
+            $this->handleImage($request, $data);
+        }
         $this->applyStatus($request, $data);
 
         Promotion::create($data);
@@ -62,7 +65,9 @@ class PromotionController extends Controller
     {
         abort_unless($request->user()->hasPermission('promotion.edit'), 403);
         $data = $this->validated($request, $promotion);
-        $this->handleImage($request, $data, $promotion);
+        if ($promotion->type !== Promotion::TYPE_MENU_OFFER) {
+            $this->handleImage($request, $data, $promotion);
+        }
         $this->applyStatus($request, $data, $promotion);
 
         $promotion->update($data);
@@ -97,10 +102,59 @@ class PromotionController extends Controller
         return back()->with('status', 'Promotion removed.');
     }
 
+    /**
+     * The Products-menu offer.
+     *
+     * Everything lands in one JSON column: these fields belong to this type alone, and a dozen
+     * nullable columns the banner and popup never touch would be worse than a document.
+     */
+    private function validatedMenuOffer(Request $request): array
+    {
+        $data = $request->validate([
+            'type' => ['required', Rule::in(array_keys(Promotion::TYPES))],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after_or_equal:starts_at'],
+            'eyebrow' => ['nullable', 'string', 'max:40'],
+            'headline' => ['nullable', 'string', 'max:60'],
+            'value' => ['required', 'string', 'max:40'],
+            'subtext' => ['nullable', 'string', 'max:120'],
+            'cta_label' => ['nullable', 'string', 'max:40'],
+            'cta_url' => ['nullable', 'string', 'max:255'],
+            'points' => ['nullable', 'array', 'max:4'],
+            'points.*.title' => ['nullable', 'string', 'max:40'],
+            'points.*.desc' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $points = collect($data['points'] ?? [])
+            ->filter(fn ($p) => filled($p['title'] ?? null))
+            ->map(fn ($p) => ['title' => $p['title'], 'desc' => $p['desc'] ?? null])
+            ->values()->all();
+
+        return [
+            'type' => $data['type'],
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'],
+            'content' => [
+                'eyebrow' => $data['eyebrow'] ?? null,
+                'headline' => $data['headline'] ?? null,
+                'value' => $data['value'],
+                'subtext' => $data['subtext'] ?? null,
+                'cta_label' => $data['cta_label'] ?? null,
+                'cta_url' => $data['cta_url'] ?? null,
+                'points' => $points,
+            ],
+        ];
+    }
+
     private function validated(Request $request, ?Promotion $promotion = null): array
     {
         $type = $request->input('type', $promotion?->type ?? Promotion::TYPE_TOP_BANNER);
         $specKey = $type === Promotion::TYPE_POPUP ? 'popup_banner' : 'banner';
+
+        // The menu offer is words, not artwork — it takes a different set of rules entirely.
+        if ($type === Promotion::TYPE_MENU_OFFER) {
+            return $this->validatedMenuOffer($request);
+        }
 
         $rules = [
             'type' => ['required', Rule::in(array_keys(Promotion::TYPES))],

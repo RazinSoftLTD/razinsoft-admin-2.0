@@ -15,21 +15,27 @@ class Promotion extends Model
 {
     public const TYPE_TOP_BANNER = 'top_banner';
     public const TYPE_POPUP = 'popup';
+
+    /** The offer panel inside the website's Products menu — text, not artwork. */
+    public const TYPE_MENU_OFFER = 'menu_offer';
     public const TYPES = [
         self::TYPE_TOP_BANNER => 'Top Banner',
         self::TYPE_POPUP => 'Popup',
+        self::TYPE_MENU_OFFER => 'Products Menu Offer',
     ];
 
     /** Default title shown above the countdown boxes when no custom label is set. */
     public const DEFAULT_COUNTDOWN_LABEL = 'Offer Ends In';
 
     protected $fillable = [
+        'content',
         'image', 'mobile_image', 'banner_bg_color', 'type', 'status', 'starts_at', 'ends_at',
         'countdown_enabled', 'countdown_label', 'countdown_title_color', 'countdown_value_color',
         'published_at', 'created_by',
     ];
 
     protected $casts = [
+        'content' => 'array',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'countdown_enabled' => 'boolean',
