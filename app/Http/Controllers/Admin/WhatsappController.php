@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Events\WhatsappMessageReceived;
 use App\Http\Controllers\Controller;
+use App\Models\Lead;
+use App\Models\ProductCategory;
 use App\Models\User;
+use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
 use App\Models\WhatsappLabel;
 use App\Models\WhatsappMessage;
@@ -12,14 +15,17 @@ use App\Models\WhatsappQuickReply;
 use App\Models\WhatsappSetting;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use libphonenumber\PhoneNumberUtil;
 
 /** Admin › Messenger › WhatsApp — the inbox. */
 class WhatsappController extends Controller
 {
     public function index(Request $request)
     {
-        $accounts = \App\Models\WhatsappAccount::accessibleBy($request->user())->orderBy('position')->orderBy('id')->get();
+        $accounts = WhatsappAccount::accessibleBy($request->user())->orderBy('position')->orderBy('id')->get();
         // Each employee can reorder the numbers themselves (drag & drop) — apply their saved order.
         if ($order = $request->user()->wa_number_order) {
             $pos = array_flip($order);
@@ -35,7 +41,7 @@ class WhatsappController extends Controller
             'agents' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
             'settings' => WhatsappSetting::current(),
-            'categoryTree' => \App\Models\ProductCategory::subMap(),
+            'categoryTree' => ProductCategory::subMap(),
             'leadQualities' => WhatsappChat::LEAD_QUALITIES,
             'stats' => [
                 'open' => WhatsappChat::whereIn('account_id', $ids)->where('status', 'open')->count(),
@@ -48,13 +54,14 @@ class WhatsappController extends Controller
     /** Ids of the WhatsApp accounts the given user is assigned to. */
     private function accessibleAccountIds(User $user): array
     {
-        return \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id')->all();
+        return WhatsappAccount::accessibleBy($user)->pluck('id')->all();
     }
 
     /** [account_id => number of chats with unread messages] for the given accounts. */
     private function accountUnreads(array $ids): array
     {
         return WhatsappChat::whereIn('account_id', $ids ?: [0])
+            ->whereNull('blocked_at')
             ->where('unread_count', '>', 0)
             ->selectRaw('account_id, count(*) as c')
             ->groupBy('account_id')
@@ -74,12 +81,12 @@ class WhatsappController extends Controller
         $ids = $this->accessibleAccountIds($request->user());
 
         return response()->json([
-            'count' => WhatsappChat::whereIn('account_id', $ids ?: [0])->where('unread_count', '>', 0)->count(),
+            'count' => WhatsappChat::whereIn('account_id', $ids ?: [0])->whereNull('blocked_at')->where('unread_count', '>', 0)->count(),
         ]);
     }
 
     /** Manual "Sync now" — reconnect the number so the phone re-delivers missed messages. */
-    public function resyncAccount(Request $request, \App\Models\WhatsappAccount $account)
+    public function resyncAccount(Request $request, WhatsappAccount $account)
     {
         abort_unless(in_array($account->id, $this->accessibleAccountIds($request->user()), true), 403);
         try {
@@ -110,7 +117,7 @@ class WhatsappController extends Controller
 
         return response()->json([
             'chats' => $this->chatList($request)->map(fn ($c) => $this->chatSummary($c))->values(),
-            'unread' => WhatsappChat::whereIn('account_id', $ids ?: [0])->where('unread_count', '>', 0)->count(),
+            'unread' => WhatsappChat::whereIn('account_id', $ids ?: [0])->whereNull('blocked_at')->where('unread_count', '>', 0)->count(),
             'account_unreads' => $this->accountUnreads($ids),
         ]);
     }
@@ -170,6 +177,9 @@ class WhatsappController extends Controller
     public function send(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
+        if ($chat->blocked_at) {
+            return response()->json(['error' => 'This contact is blocked. Unblock the chat to reply.'], 422);
+        }
         $data = $request->validate([
             'body' => ['required', 'string', 'max:4096'],
             'mentions' => ['array'],
@@ -211,7 +221,7 @@ class WhatsappController extends Controller
 
         $chat->update([
             'last_message_at' => now(),
-            'last_message_preview' => \Illuminate\Support\Str::limit($data['body'], 120),
+            'last_message_preview' => Str::limit($data['body'], 120),
             'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
         ]);
         try {
@@ -230,7 +240,7 @@ class WhatsappController extends Controller
             return [null, []];
         }
 
-        $snippet = \Illuminate\Support\Str::limit($replied->body ?: ucfirst($replied->type), 200);
+        $snippet = Str::limit($replied->body ?: ucfirst($replied->type), 200);
         $sender = $replied->direction === 'out' ? 'You' : ($replied->sender_name ?: $chat->displayName());
 
         $participant = null;
@@ -292,7 +302,7 @@ class WhatsappController extends Controller
 
         $chat->update([
             'last_message_at' => now(),
-            'last_message_preview' => \Illuminate\Support\Str::limit($caption ?: ucfirst($type), 120),
+            'last_message_preview' => Str::limit($caption ?: ucfirst($type), 120),
             'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
         ]);
         try {
@@ -329,7 +339,7 @@ class WhatsappController extends Controller
 
         $message->update(['body' => $data['body'], 'edited_at' => now()]);
         if ($chat->messages()->max('id') === $message->id) {
-            $chat->update(['last_message_preview' => \Illuminate\Support\Str::limit($data['body'], 120)]);
+            $chat->update(['last_message_preview' => Str::limit($data['body'], 120)]);
         }
 
         return response()->json(['message' => $this->messagePayload($message->load('agent:id,name'))]);
@@ -411,6 +421,37 @@ class WhatsappController extends Controller
         return response()->json(['ok' => true, 'unread' => $chat->unread_count]);
     }
 
+    /** Keep a chat at the top of the list, or let it fall back into date order. */
+    public function togglePin(Request $request, WhatsappChat $chat)
+    {
+        $this->authorizeChat($request, $chat);
+        $chat->update(['pinned_at' => $chat->pinned_at ? null : now()]);
+
+        return response()->json(['pinned' => (bool) $chat->pinned_at]);
+    }
+
+    /**
+     * Block a contact, as far as this panel can.
+     *
+     * WhatsApp is not told: the gateway has no block of its own, so their messages keep arriving
+     * and are still recorded. What changes is here — the chat leaves the list, stops lighting the
+     * unread badge, and cannot be replied to. That is the whole of it, and worth knowing before
+     * relying on it to stop someone.
+     */
+    public function toggleBlock(Request $request, WhatsappChat $chat)
+    {
+        $this->authorizeChat($request, $chat);
+        $blocking = ! $chat->blocked_at;
+
+        $chat->update([
+            'blocked_at' => $blocking ? now() : null,
+            // A blocked chat that is also pinned would be hidden and held at the top at once.
+            'pinned_at' => $blocking ? null : $chat->pinned_at,
+        ]);
+
+        return response()->json(['blocked' => $blocking]);
+    }
+
     public function toggleLabel(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
@@ -438,7 +479,7 @@ class WhatsappController extends Controller
             'phone' => ['required', 'string', 'max:32'],
         ]);
         // The new chat opens under one of the user's accessible accounts.
-        $account = \App\Models\WhatsappAccount::accessibleBy($request->user())->find($data['account_id']);
+        $account = WhatsappAccount::accessibleBy($request->user())->find($data['account_id']);
         abort_unless($account, 403);
 
         $digits = preg_replace('/\D/', '', trim($data['dial_code'] ?? '').trim($data['phone']));
@@ -591,7 +632,7 @@ class WhatsappController extends Controller
 
         // Remove the previous file so we don't leave orphans.
         if ($chat->avatar_path) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($chat->avatar_path);
+            Storage::disk('public')->delete($chat->avatar_path);
         }
         $path = $request->file('avatar')->store('whatsapp/avatars', 'public');
         $chat->update(['avatar_path' => $path]);
@@ -639,7 +680,7 @@ class WhatsappController extends Controller
      * Shared by the Convert button and by judging the chat qualified/unqualified, so both arrive
      * at the same lead — pressing Convert after the quality already made one just opens it.
      *
-     * @return array{0: ?\App\Models\Lead, 1: ?string} the lead, or null and the reason why not
+     * @return array{0: ?Lead, 1: ?string} the lead, or null and the reason why not
      */
     private function linkLead(WhatsappChat $chat, int $userId): array
     {
@@ -658,11 +699,11 @@ class WhatsappController extends Controller
         }
 
         // Reuse an existing lead with the same phone (or email) — never create a duplicate.
-        $lead = \App\Models\Lead::where('phone', $national)
+        $lead = Lead::where('phone', $national)
             ->where(fn ($q) => $q->where('dial_code', $dial)->orWhereNull('dial_code'))->first();
 
         if (! $lead && $email) {
-            $lead = \App\Models\Lead::where('email', $email)->first();
+            $lead = Lead::where('email', $email)->first();
         }
 
         // Only a chat that has been judged sets the status. An undecided one must not drag a lead
@@ -670,7 +711,7 @@ class WhatsappController extends Controller
         $status = in_array($chat->lead_quality, ['qualified', 'unqualified'], true) ? $chat->lead_quality : null;
 
         if (! $lead) {
-            $lead = \App\Models\Lead::create([
+            $lead = Lead::create([
                 'full_name' => $chat->displayName(),
                 'email' => $email,
                 'phone' => $national,
@@ -704,7 +745,7 @@ class WhatsappController extends Controller
         if (! $c->lead_id) {
             return null;
         }
-        $lead = \App\Models\Lead::find($c->lead_id);
+        $lead = Lead::find($c->lead_id);
 
         return $lead ? ['id' => $lead->id, 'code' => $lead->lead_code, 'url' => route('admin.leads.show', $lead)] : null;
     }
@@ -716,7 +757,7 @@ class WhatsappController extends Controller
             return [null, null];
         }
         try {
-            $util = \libphonenumber\PhoneNumberUtil::getInstance();
+            $util = PhoneNumberUtil::getInstance();
             $proto = $util->parse('+'.$number, null);
 
             return ['+'.$proto->getCountryCode(), (string) $proto->getNationalNumber()];
@@ -740,7 +781,13 @@ class WhatsappController extends Controller
             $q->where('account_id', $current);
         }
 
-        if (($status = $request->query('status')) && $status !== 'all') {
+        // Blocked chats are out of the way by default, and reachable through their own filter —
+        // otherwise blocking one would be the last thing anybody could do to it.
+        $request->query('status') === 'blocked'
+            ? $q->whereNotNull('blocked_at')
+            : $q->whereNull('blocked_at');
+
+        if (($status = $request->query('status')) && ! in_array($status, ['all', 'blocked'], true)) {
             $status === 'unread' ? $q->where('unread_count', '>', 0) : $q->where('status', $status);
         }
         if ($request->query('mine')) {
@@ -769,7 +816,11 @@ class WhatsappController extends Controller
             });
         }
 
-        return $q->orderByDesc('last_message_at')->orderByDesc('id')->limit(200)->get();
+        // `pinned_at IS NULL` sorts 0 before 1 on both drivers, so pinned chats come first; among
+        // them the most recently pinned leads, which is the order WhatsApp keeps.
+        return $q->orderByRaw('pinned_at is null')
+            ->orderByDesc('pinned_at')
+            ->orderByDesc('last_message_at')->orderByDesc('id')->limit(200)->get();
     }
 
     private function chatSummary(WhatsappChat $c): array
@@ -778,12 +829,13 @@ class WhatsappController extends Controller
             'id' => $c->id, 'name' => $c->displayName(), 'wa_id' => $c->phoneLabel(),
             'preview' => $c->last_message_preview, 'at' => $c->last_message_at?->diffForHumans(),
             'unread' => $c->unread_count, 'status' => $c->status,
+            'pinned' => (bool) $c->pinned_at, 'blocked' => (bool) $c->blocked_at,
             'account_id' => $c->account_id,
             'is_group' => $c->isGroup(),
             'color' => $c->isGroup() ? $this->groupColor($c->id) : null,
             'avatar' => $c->avatarUrl(),
             'assignee' => $c->assignee?->name,
-            'labels' => $c->labels->map(fn ($l) => ['name' => $l->name, 'color' => $l->color]),
+            'labels' => $c->labels->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'color' => $l->color]),
             'initials' => collect(explode(' ', $c->displayName()))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->join(''),
         ];
     }
@@ -877,7 +929,7 @@ class WhatsappController extends Controller
 
         $chat->update([
             'last_message_at' => now(),
-            'last_message_preview' => \Illuminate\Support\Str::limit($body, 120),
+            'last_message_preview' => Str::limit($body, 120),
             'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
         ]);
 

@@ -83,6 +83,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp/chats/{chat}/status', [$wa, 'status'])->whereNumber('chat')->name('whatsapp.status');
             Route::post('whatsapp/chats/{chat}/unread', [$wa, 'markUnread'])->whereNumber('chat')->name('whatsapp.unread');
             Route::post('whatsapp/chats/{chat}/label', [$wa, 'toggleLabel'])->whereNumber('chat')->name('whatsapp.label');
+            Route::post('whatsapp/chats/{chat}/pin', [$wa, 'togglePin'])->whereNumber('chat')->name('whatsapp.pin');
+            Route::post('whatsapp/chats/{chat}/block', [$wa, 'toggleBlock'])->whereNumber('chat')->name('whatsapp.block');
             Route::post('whatsapp/chats/{chat}/note', [$wa, 'addNote'])->whereNumber('chat')->name('whatsapp.note');
             Route::post('whatsapp/chats/{chat}/details', [$wa, 'updateDetails'])->whereNumber('chat')->name('whatsapp.details');
             Route::post('whatsapp/chats/{chat}/convert-lead', [$wa, 'convertToLead'])->whereNumber('chat')->middleware('permission:leads.create')->name('whatsapp.convert-lead');

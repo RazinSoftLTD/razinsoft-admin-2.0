@@ -6,12 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use libphonenumber\PhoneNumberUtil;
 
 class WhatsappChat extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['last_message_at' => 'datetime'];
+    protected $casts = ['last_message_at' => 'datetime', 'pinned_at' => 'datetime', 'blocked_at' => 'datetime'];
 
     public const STATUSES = ['open' => 'Open', 'pending' => 'Pending', 'resolved' => 'Resolved'];
 
@@ -61,7 +64,7 @@ class WhatsappChat extends Model
     /** Public URL of the uploaded avatar, or null. */
     public function avatarUrl(): ?string
     {
-        return $this->avatar_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path) : null;
+        return $this->avatar_path ? Storage::disk('public')->url($this->avatar_path) : null;
     }
 
     public function displayName(): string
@@ -80,6 +83,7 @@ class WhatsappChat extends Model
             return '+'.ltrim($this->phone, '+');
         }
         $id = preg_replace('/@.*/', '', (string) $this->wa_id);
+
         // A real MSISDN gets a leading +; a WhatsApp LID (privacy id) is shown as a plain id.
         return str_contains((string) $this->wa_id, '@lid') ? 'ID '.$id : '+'.$id;
     }
@@ -106,7 +110,7 @@ class WhatsappChat extends Model
         }
 
         try {
-            $util = \libphonenumber\PhoneNumberUtil::getInstance();
+            $util = PhoneNumberUtil::getInstance();
             $proto = $util->parse('+'.$number, null);
             $region = $util->getRegionCodeForNumber($proto); // ISO 3166-1 alpha-2, e.g. "BD"
             if (! $region || $region === 'ZZ') {
@@ -154,10 +158,10 @@ class WhatsappChat extends Model
     }
 
     /** When the customer last wrote to us — the clock Meta's 24-hour rule runs on. */
-    public function lastInboundAt(): ?\Illuminate\Support\Carbon
+    public function lastInboundAt(): ?Carbon
     {
         return $this->messages()->where('direction', 'in')->max('sent_at')
-            ? \Illuminate\Support\Carbon::parse($this->messages()->where('direction', 'in')->max('sent_at'))
+            ? Carbon::parse($this->messages()->where('direction', 'in')->max('sent_at'))
             : null;
     }
 

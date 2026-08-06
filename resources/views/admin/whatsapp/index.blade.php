@@ -93,7 +93,7 @@
                     <p class="py-10 text-center text-sm text-gray-300">No conversations.</p>
                 </template>
                 <template x-for="c in chats" :key="c.id">
-                    <button type="button" @click="openChat(c.id)"
+                    <button type="button" @click="openChat(c.id)" @contextmenu.prevent="openChatMenu($event, c)"
                             class="flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left transition hover:bg-gray-50"
                             :class="active && active.id === c.id ? 'bg-[var(--color-primary-soft)]' : ''">
                         <template x-if="c.avatar"><img :src="c.avatar" loading="lazy" decoding="async" class="h-10 w-10 shrink-0 rounded-full object-cover"></template>
@@ -107,14 +107,17 @@
                                     <span class="truncate text-sm font-bold text-[var(--color-heading)]" x-text="c.name"></span>
                                     <svg x-show="c.is_group" class="h-3 w-3 shrink-0 text-indigo-400" fill="currentColor" viewBox="0 0 24 24" title="Group"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3Zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3Zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5Zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5Z"/></svg>
                                 </span>
-                                <span class="shrink-0 text-[10px] text-gray-400" x-text="c.at"></span>
+                                <span class="flex shrink-0 items-center gap-1">
+                                    <svg x-show="c.pinned" x-cloak class="h-3 w-3 text-gray-400" fill="currentColor" viewBox="0 0 24 24" title="Pinned"><path d="M16 3v2l1 1v4l2 2v2h-6v5l-1 2-1-2v-5H5v-2l2-2V6l1-1V3h8Z"/></svg>
+                                    <span class="text-[10px] text-gray-400" x-text="c.at"></span>
+                                </span>
                             </span>
                             <span class="mt-0.5 flex items-center gap-1.5">
                                 <span class="truncate text-xs text-gray-500" x-text="plainPreview(c.preview) || '—'"></span>
                                 <span x-show="c.unread" class="ml-auto grid h-4 min-w-4 shrink-0 place-items-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white" x-text="c.unread"></span>
                             </span>
                             <span class="mt-1 flex flex-wrap gap-1">
-                                <template x-for="l in c.labels" :key="l.name">
+                                <template x-for="l in c.labels" :key="l.id">
                                     <span class="rounded px-1.5 py-0.5 text-[9px] font-bold" :style="`background:${l.color}1a;color:${l.color}`" x-text="l.name"></span>
                                 </template>
                             </span>
@@ -123,6 +126,49 @@
                 </template>
             </div>
         </aside>
+
+        {{-- Right-click menu on a chat row. Fixed to the pointer and outside the scrolling
+             list, or the panel's own overflow would cut it off near the bottom. --}}
+        <div x-show="chatMenu.open" x-cloak>
+            <div class="fixed inset-0 z-50" @click="chatMenu.open = false" @contextmenu.prevent="chatMenu.open = false"></div>
+            <div x-ref="chatMenu" :style="`position:fixed; top:${chatMenu.y}px; left:${chatMenu.x}px`"
+                 class="w-56 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl" style="z-index:60">
+                <p class="truncate px-4 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-gray-300" x-text="chatMenu.chat?.name"></p>
+
+                {{-- Labels: the list is short and toggling is the whole action, so it sits open
+                     rather than behind another step. --}}
+                <div class="max-h-60 overflow-auto border-t border-gray-100 py-1">
+                    <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-300">Add label</p>
+                    <template x-if="!labels.length">
+                        <p class="px-4 py-1.5 text-xs text-gray-300">None set up yet.</p>
+                    </template>
+                    <template x-for="l in labels" :key="l.id">
+                        <button type="button" @click="menuLabel(l)" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                            <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="`background:${l.color}`"></span>
+                            <span class="min-w-0 flex-1 truncate" x-text="l.name"></span>
+                            <svg x-show="chatHasLabel(chatMenu.chat, l)" class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
+                        </button>
+                    </template>
+                </div>
+
+                <div class="border-t border-gray-100"></div>
+                <button type="button" @click="menuPin()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3v2l1 1v4l2 2v2h-6v5l-1 2-1-2v-5H5v-2l2-2V6l1-1V3h8Z"/></svg>
+                    <span x-text="chatMenu.chat?.pinned ? 'Unpin chat' : 'Pin chat'"></span>
+                </button>
+                <button type="button" @click="menuUnread()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M3 6h18v12H3z"/></svg>
+                    Mark as unread
+                </button>
+
+                <div class="border-t border-gray-100"></div>
+                <button type="button" @click="menuBlock()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm hover:bg-red-50"
+                        :class="chatMenu.chat?.blocked ? 'text-[var(--color-heading)]' : 'text-red-600'">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="m5.6 5.6 12.8 12.8"/></svg>
+                    <span x-text="chatMenu.chat?.blocked ? 'Unblock chat' : 'Block'"></span>
+                </button>
+            </div>
+        </div>
 
         {{-- Full-screen photo viewer (WhatsApp-style lightbox) --}}
         <div x-show="lightbox.open" x-cloak
@@ -934,7 +980,10 @@
                 filters: [
                     { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' },
                     { key: 'single', label: 'Single' }, { key: 'group', label: 'Group' },
+                    // The only way back to a blocked chat once it leaves the list.
+                    { key: 'blocked', label: 'Blocked' },
                 ],
+                chatMenu: { open: false, x: 0, y: 0, chat: null },
                 csrf: document.querySelector('meta[name=csrf-token]').content,
                 showDate(i) { return i === 0 || this.messages[i - 1].date_key !== this.messages[i].date_key; },
                 // True only for the newest outgoing message — where WhatsApp shows the Seen/Delivered caption.
@@ -989,6 +1038,65 @@
                     return p.toString();
                 },
                 setFilter(k) { this.filter = k; this.loadChats(); },
+                /**
+                 * Right-click menu, placed at the pointer and nudged back on screen.
+                 *
+                 * A row near the bottom of a long list would otherwise open its menu below the
+                 * fold, where the actions cannot be reached at all.
+                 */
+                openChatMenu(e, c) {
+                    this.chatMenu = { open: true, x: e.clientX, y: e.clientY, chat: c };
+                    this.$nextTick(() => {
+                        const m = this.$refs.chatMenu;
+                        if (!m) return;
+                        const pad = 8;
+                        if (e.clientY + m.offsetHeight > window.innerHeight - pad) {
+                            this.chatMenu.y = Math.max(pad, window.innerHeight - m.offsetHeight - pad);
+                        }
+                        if (e.clientX + m.offsetWidth > window.innerWidth - pad) {
+                            this.chatMenu.x = Math.max(pad, window.innerWidth - m.offsetWidth - pad);
+                        }
+                    });
+                },
+                chatHasLabel(c, l) { return !!(c && (c.labels || []).some(x => x.id === l.id)); },
+                async menuLabel(l) {
+                    const c = this.chatMenu.chat;
+                    if (!c) return;
+                    this.chatMenu.open = false;
+                    const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/label', { label_id: l.id });
+                    if (r.ok) {
+                        const d = await r.json();
+                        c.labels = d.labels;
+                        // The panel on the right shows the same labels, so it must not disagree.
+                        if (this.active && this.active.id === c.id) this.active.labels = d.labels;
+                    }
+                    this.loadChats();
+                },
+                async menuPin() {
+                    const c = this.chatMenu.chat;
+                    if (!c) return;
+                    this.chatMenu.open = false;
+                    await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/pin', {});
+                    this.loadChats();
+                },
+                async menuUnread() {
+                    const c = this.chatMenu.chat;
+                    if (!c) return;
+                    this.chatMenu.open = false;
+                    await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/unread', {});
+                    // Leaving it open would mark it read again the moment anyone looked at it.
+                    if (this.active && this.active.id === c.id) this.active = null;
+                    this.loadChats();
+                },
+                async menuBlock() {
+                    const c = this.chatMenu.chat;
+                    if (!c) return;
+                    this.chatMenu.open = false;
+                    if (!c.blocked && !confirm('Block ' + c.name + '?\n\nThe chat leaves this list and cannot be replied to. WhatsApp is not told, so their messages still arrive — find the chat again under the Blocked filter.')) return;
+                    const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/block', {});
+                    if (r.ok && this.active && this.active.id === c.id) this.active = null;
+                    this.loadChats();
+                },
                 async loadChats() {
                     const token = ++this._chatReq;
                     const r = await fetch(@js(route('admin.whatsapp.chats')) + '?' + this.params());
