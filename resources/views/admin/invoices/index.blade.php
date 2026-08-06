@@ -70,7 +70,9 @@
                             <td class="whitespace-nowrap px-5 py-3 text-right text-xs">
                                 @php $sym = $cur[$inv->currency] ?? ''; $due = $inv->amountDue(); @endphp
                                 <span class="block font-bold text-[var(--color-heading)]">{{ $sym }}{{ number_format($inv->total, 2) }}</span>
-                                <span class="mt-0.5 block text-[var(--color-muted)]">Paid {{ $sym }}{{ number_format($inv->amount_paid, 2) }}</span>
+                                {{-- Green only once something has actually been paid: a green
+                                     "Paid $0.00" reads as good news on an invoice nobody has paid. --}}
+                                <span class="mt-0.5 block {{ $inv->amount_paid > 0 ? 'font-semibold text-emerald-600' : 'text-[var(--color-muted)]' }}">Paid {{ $sym }}{{ number_format($inv->amount_paid, 2) }}</span>
                                 <span class="mt-0.5 block font-semibold {{ $due > 0 ? 'text-red-600' : 'text-emerald-600' }}">
                                     {{ $due > 0 ? 'Due '.$sym.number_format($due, 2) : 'Settled' }}
                                 </span>
