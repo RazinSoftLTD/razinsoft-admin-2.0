@@ -110,7 +110,7 @@
                                 <span class="shrink-0 text-[10px] text-gray-400" x-text="c.at"></span>
                             </span>
                             <span class="mt-0.5 flex items-center gap-1.5">
-                                <span class="truncate text-xs text-gray-500" x-text="c.preview || '—'"></span>
+                                <span class="truncate text-xs text-gray-500" x-text="plainPreview(c.preview) || '—'"></span>
                                 <span x-show="c.unread" class="ml-auto grid h-4 min-w-4 shrink-0 place-items-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white" x-text="c.unread"></span>
                             </span>
                             <span class="mt-1 flex flex-wrap gap-1">
@@ -1135,17 +1135,24 @@
                  * Links are turned into anchors first and then stepped over, so an asterisk that
                  * belongs to a URL stays part of the URL instead of eating the rest of the line.
                  */
+                // The opening * must not sit against a word, or "2*3*4" turns bold, and the text
+                // between them cannot start or end with a space — that is how WhatsApp tells
+                // formatting from an asterisk someone simply typed.
+                boldRe: /(^|[^\w*])\*(?=\S)([^*\n]*[^\s*])\*(?![\w*])/g,
                 formatBody(text) {
                     return this.linkify(text)
                         .split(/(<a\b[^>]*>.*?<\/a>)/gi)
-                        .map((part, i) => i % 2 ? part : part.replace(
-                            // The opening * must not sit against a word, or "2*3*4" turns bold.
-                            // The content cannot start or end with a space — that is how WhatsApp
-                            // tells formatting from an asterisk someone simply typed.
-                            /(^|[^\w*])\*(?=\S)([^*\n]*[^\s*])\*(?![\w*])/g,
-                            '$1<b>$2</b>',
-                        ))
+                        .map((part, i) => i % 2 ? part : part.replace(this.boldRe, '$1<b>$2</b>'))
                         .join('');
+                },
+                /**
+                 * The one-line preview in the chat list, with the markers taken out rather than
+                 * shown. It is grey, truncated and a single line tall, so bold would say nothing
+                 * there — but the bare asterisks read as typos, which is how the whole Lisa
+                 * opening script looked. WhatsApp drops them in its own list for the same reason.
+                 */
+                plainPreview(text) {
+                    return String(text || '').replace(this.boldRe, '$1$2');
                 },
                 linkify(text) {
                     const escaped = String(text)
