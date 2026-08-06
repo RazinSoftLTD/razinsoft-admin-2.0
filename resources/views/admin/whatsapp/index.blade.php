@@ -1027,15 +1027,27 @@
                  */
                 openChatMenu(e, c) {
                     this.chatMenu = { open: true, x: e.clientX, y: e.clientY, chat: c };
+
+                    // Read now: currentTarget is null again by the time $nextTick runs.
+                    const panel = e.currentTarget.closest('aside');
+
                     this.$nextTick(() => {
                         const m = this.$refs.chatMenu;
                         if (!m) return;
                         const pad = 8;
-                        if (e.clientY + m.offsetHeight > window.innerHeight - pad) {
-                            this.chatMenu.y = Math.max(pad, window.innerHeight - m.offsetHeight - pad);
+                        // The list is only 320px wide, so opening rightward from anywhere past
+                        // its middle laid the menu across the conversation and pushed the labels
+                        // out of sight. Past the edge it opens to the left of the pointer instead,
+                        // which is what a context menu does when it runs out of room.
+                        const w = m.offsetWidth || 208;
+                        const h = m.offsetHeight || 0;
+                        const right = panel ? panel.getBoundingClientRect().right : window.innerWidth;
+
+                        if (this.chatMenu.x + w > right - pad) {
+                            this.chatMenu.x = Math.max(pad, this.chatMenu.x - w);
                         }
-                        if (e.clientX + m.offsetWidth > window.innerWidth - pad) {
-                            this.chatMenu.x = Math.max(pad, window.innerWidth - m.offsetWidth - pad);
+                        if (h && this.chatMenu.y + h > window.innerHeight - pad) {
+                            this.chatMenu.y = Math.max(pad, window.innerHeight - h - pad);
                         }
                     });
                 },
