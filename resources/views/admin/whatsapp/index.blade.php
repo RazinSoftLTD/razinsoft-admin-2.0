@@ -3,7 +3,6 @@
 
 @php
     $canReply = auth()->user()->allows('whatsapp', 'reply');
-    $canAssign = auth()->user()->allows('whatsapp', 'assign');
 @endphp
 
 @section('content')
@@ -270,15 +269,6 @@
                             </span>
                         </button>
                         <div class="flex items-center gap-2">
-                            <button type="button" @click="markUnread()" class="grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Mark as unread">
-                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>
-                            </button>
-                            @if ($canAssign)
-                                <select @change="assign($event.target.value)" class="h-9 rounded-lg border-gray-200 text-xs">
-                                    <option value="">Unassigned</option>
-                                    @foreach ($agents as $a)<option value="{{ $a->id }}" :selected="active.assigned_to == {{ $a->id }}">{{ $a->name }}</option>@endforeach
-                                </select>
-                            @endif
                             <select @change="setStatus($event.target.value)" class="h-9 rounded-lg border-gray-200 text-xs">
                                 @foreach (\App\Models\WhatsappChat::STATUSES as $k => $v)<option value="{{ $k }}" :selected="active.status === '{{ $k }}'">{{ $v }}</option>@endforeach
                             </select>
@@ -1411,15 +1401,7 @@
                 async post(url, data) {
                     return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(data) });
                 },
-                assign(id) { this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/assign', { assigned_to: id || null }); this.active.assigned_to = id; },
                 setStatus(s) { this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/status', { status: s }); this.active.status = s; this.loadChats(); },
-                async markUnread() {
-                    if (!this.active) return;
-                    const id = this.active.id;
-                    await this.post(@js(url('admin/whatsapp/chats')) + '/' + id + '/unread', {});
-                    this.active = null;        // close the thread so its unread state is visible in the list
-                    this.loadChats();
-                },
                 async toggleLabel(id) {
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/label', { label_id: id });
                     if (r.ok) { this.active.label_ids = (await r.json()).labels.map(l => l.id); this.loadChats(); }
