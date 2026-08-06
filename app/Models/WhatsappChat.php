@@ -15,7 +15,12 @@ class WhatsappChat extends Model
 
     public const STATUSES = ['open' => 'Open', 'pending' => 'Pending', 'resolved' => 'Resolved'];
 
-    public const LEAD_QUALITIES = ['qualified' => 'Qualified', 'unqualified' => 'Unqualified'];
+    /** In the order a chat moves through them: talking, worth chasing, or not. */
+    public const LEAD_QUALITIES = [
+        'conversational' => 'Conversational',
+        'qualified' => 'Qualified',
+        'unqualified' => 'Unqualified',
+    ];
 
     public function messages(): HasMany
     {

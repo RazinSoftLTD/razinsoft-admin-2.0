@@ -612,10 +612,9 @@
                             <p class="text-xs text-gray-400" x-text="active.phone || active.wa_id"></p>
                             {{-- lead quality pill --}}
                             <template x-if="active.lead_quality">
-                                <span class="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                                      :class="active.lead_quality === 'qualified' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'">
-                                    <span class="h-1.5 w-1.5 rounded-full" :class="active.lead_quality === 'qualified' ? 'bg-emerald-500' : 'bg-rose-500'"></span>
-                                    <span x-text="active.lead_quality === 'qualified' ? 'Qualified' : 'Unqualified'"></span>
+                                <span class="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold" :class="qualityTone(active.lead_quality).pill">
+                                    <span class="h-1.5 w-1.5 rounded-full" :class="qualityTone(active.lead_quality).dot"></span>
+                                    <span x-text="qualityLabels[active.lead_quality] || active.lead_quality"></span>
                                 </span>
                             </template>
                         </div>
@@ -719,10 +718,17 @@
                                     <input type="text" x-model="form.phone" @keydown.enter.prevent="saveDetails()" placeholder="+880 1XXX-XXXXXX"
                                            class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
                                 </div>
-                                {{-- Lead quality --}}
+                                {{-- Lead quality. Saves on change: it is one choice with no second
+                                     field to fill in, and hiding it behind a button meant a chat
+                                     was left marked wrong whenever someone picked and moved on. --}}
                                 <div>
-                                    <label class="mb-1 block text-xs font-medium text-gray-500">Lead quality</label>
-                                    <select x-model="form.lead_quality" class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
+                                    <label class="mb-1 flex items-center justify-between text-xs font-medium text-gray-500">
+                                        <span>Lead quality</span>
+                                        <span x-show="savingQuality" x-cloak class="text-[10px] font-normal text-emerald-600">Saving…</span>
+                                        <span x-show="!savingQuality && qualitySaved" x-cloak class="text-[10px] font-normal text-emerald-600">Saved</span>
+                                    </label>
+                                    <select x-model="form.lead_quality" @change="saveQuality()"
+                                            class="h-9 w-full rounded-lg border-gray-200 text-sm focus:border-emerald-400 focus:ring-emerald-400">
                                         <option value="">— Not set —</option>
                                         @foreach ($leadQualities as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach
                                     </select>
@@ -754,7 +760,9 @@
                                         </template>
                                     </select>
                                 </div>
-                                <button type="button" @click="saveDetails()" :disabled="savingDetails"
+                                {{-- Only once something is actually different. A button that is always
+                                     there says nothing about whether it needs pressing. --}}
+                                <button type="button" x-show="detailsDirty" x-cloak @click="saveDetails()" :disabled="savingDetails"
                                         class="w-full rounded-lg bg-emerald-500 py-2 text-xs font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50">
                                     <span x-show="!savingDetails">Save details</span>
                                     <span x-show="savingDetails" x-cloak>Saving…</span>
@@ -870,8 +878,26 @@
                 retryingId: null,
                 showInfo: false, search: '', filter: 'all',
                 form: { name: '', phone: '', lead_quality: '', product_category: '', product_sub_category: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
+                // What the form looked like when the chat was opened, so the Save button can appear
+                // only once something is genuinely different rather than sitting there always.
+                formBaseline: { name: '', phone: '', product_category: '', product_sub_category: '' },
+                savingQuality: false, qualitySaved: false,
+                qualityLabels: @js(\App\Models\WhatsappChat::LEAD_QUALITIES),
                 // Shared Product Category tree from Settings > CRM Settings.
                 categoryTree: @js($categoryTree),
+                // Lead quality is excluded — it saves itself the moment it changes.
+                get detailsDirty() {
+                    const b = this.formBaseline;
+                    return this.form.name !== b.name
+                        || this.form.phone !== b.phone
+                        || this.form.product_category !== b.product_category
+                        || this.form.product_sub_category !== b.product_sub_category;
+                },
+                qualityTone(q) {
+                    if (q === 'qualified') return { pill: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' };
+                    if (q === 'conversational') return { pill: 'bg-blue-50 text-blue-700', dot: 'bg-blue-500' };
+                    return { pill: 'bg-rose-100 text-rose-600', dot: 'bg-rose-500' };
+                },
                 get subCategories() {
                     const list = this.categoryTree[this.form.product_category] ? [...this.categoryTree[this.form.product_category]] : [];
                     // a value saved before its sub-category was removed must still be visible
@@ -1011,6 +1037,8 @@
                         product_category: d.chat.product_category || '',
                         product_sub_category: d.chat.product_sub_category || '',
                     };
+                    this.rebaseForm();
+                    this.qualitySaved = false;
                     if (!silent) { this.replyTo = null; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; this.loadTemplates(id); }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
                     if (atBottom) this.scrollBottom();
@@ -1319,6 +1347,38 @@
                     } catch { alert('Could not convert to lead.'); }
                     finally { this.convertingLead = false; }
                 },
+                rebaseForm() {
+                    this.formBaseline = {
+                        name: this.form.name, phone: this.form.phone,
+                        product_category: this.form.product_category,
+                        product_sub_category: this.form.product_sub_category,
+                    };
+                },
+                /**
+                 * Save the lead quality on its own, the moment it is picked.
+                 *
+                 * Sends only that field, so it cannot carry a half-typed name or phone along with
+                 * it — those still wait for the button.
+                 */
+                async saveQuality() {
+                    if (!this.active) return;
+                    this.savingQuality = true; this.qualitySaved = false;
+                    try {
+                        const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + this.active.id + '/details', {
+                            name: this.formBaseline.name, phone: this.formBaseline.phone,
+                            lead_quality: this.form.lead_quality,
+                            product_category: this.formBaseline.product_category,
+                            product_sub_category: this.formBaseline.product_sub_category,
+                        });
+                        if (r.ok) {
+                            const d = await r.json();
+                            this.active.lead_quality = d.lead_quality;
+                            this.qualitySaved = true;
+                            setTimeout(() => { this.qualitySaved = false; }, 2000);
+                            this.loadChats();
+                        } else { alert((await r.json()).message || 'Could not save.'); }
+                    } catch { alert('Could not save.'); } finally { this.savingQuality = false; }
+                },
                 async saveDetails() {
                     if (this.savingDetails || !this.active) return;
                     this.savingDetails = true;
@@ -1333,6 +1393,7 @@
                             this.active.phone = d.phone; this.active.country = d.country;
                             this.active.lead_quality = d.lead_quality;
                             this.active.product_category = d.product_category; this.active.product_sub_category = d.product_sub_category;
+                            this.rebaseForm();
                             this.loadChats();
                         } else { alert((await r.json()).message || 'Could not save.'); }
                     } catch { alert('Could not save.'); } finally { this.savingDetails = false; }
