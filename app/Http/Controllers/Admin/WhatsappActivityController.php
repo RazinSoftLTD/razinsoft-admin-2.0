@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
 use App\Models\WhatsappMessage;
-use Illuminate\Http\Request;
 
 /**
  * Activity › WhatsApp — read-only oversight of every connected number (active/inactive) and its
@@ -37,7 +36,61 @@ class WhatsappActivityController extends Controller
             'response_rate' => $response[$a->id]['rate'] ?? null,
         ]]);
 
-        return view('admin.whatsapp.activity', compact('accounts', 'stats'));
+        return view('admin.whatsapp.activity', array_merge(
+            compact('accounts', 'stats'),
+            $this->todayReport(),
+        ));
+    }
+
+    /**
+     * What came in today, and how it was judged.
+     *
+     * The cards below answer "how is each number doing overall", which never changes much from one
+     * day to the next. What nobody could see was the day itself: how many people wrote in for the
+     * first time, and how many of them anyone has since decided about.
+     *
+     * A chat's row is created the first time that number ever writes, so its created_at is the day
+     * we met them — the definition of new that matters here, rather than a chat that merely spoke
+     * again today.
+     */
+    private function todayReport(): array
+    {
+        $today = today();
+
+        $new = WhatsappChat::with('account:id,name,color')
+            ->whereDate('created_at', $today)
+            ->whereNull('blocked_at')
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->get();
+
+        // Overall alongside today's, because one figure without the other says nothing about
+        // whether a quiet day is unusual.
+        $overall = WhatsappChat::whereNull('blocked_at')
+            ->selectRaw('lead_quality, count(*) c')->groupBy('lead_quality')->pluck('c', 'lead_quality');
+
+        $quality = [];
+        foreach (array_keys(WhatsappChat::LEAD_QUALITIES) as $key) {
+            $quality[$key] = [
+                'today' => $new->where('lead_quality', $key)->count(),
+                'total' => (int) ($overall[$key] ?? 0),
+            ];
+        }
+        // Not judged yet is the number worth acting on, so it is counted like the rest.
+        $quality['unset'] = [
+            'today' => $new->whereNull('lead_quality')->count(),
+            'total' => (int) ($overall[null] ?? $overall[''] ?? 0),
+        ];
+
+        return [
+            'today' => [
+                'new_chats' => $new->count(),
+                'messages_in' => WhatsappMessage::whereDate('sent_at', $today)->where('direction', 'in')->count(),
+                'messages_out' => WhatsappMessage::whereDate('sent_at', $today)->where('direction', 'out')->count(),
+                'active_chats' => WhatsappMessage::whereDate('sent_at', $today)->distinct()->count('chat_id'),
+            ],
+            'todayQuality' => $quality,
+            'todayChats' => $new,
+        ];
     }
 
     /**

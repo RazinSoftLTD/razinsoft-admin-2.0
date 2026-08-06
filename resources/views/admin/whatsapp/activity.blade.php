@@ -7,6 +7,121 @@
         <p class="mt-1 text-sm text-[var(--color-muted)]">Oversight of every connected number — status and full conversation history (read-only).</p>
     </div>
 
+    {{-- Today: what arrived, and how much of it anyone has judged --}}
+    @php
+        $tone = [
+            'conversational' => ['bg-blue-50', 'text-blue-700', 'bg-blue-500'],
+            'qualified' => ['bg-emerald-100', 'text-emerald-700', 'bg-emerald-500'],
+            'unqualified' => ['bg-rose-100', 'text-rose-700', 'bg-red-500'],
+            'unset' => ['bg-gray-100', 'text-gray-500', 'bg-gray-300'],
+        ];
+        $qualityLabels = \App\Models\WhatsappChat::LEAD_QUALITIES + ['unset' => 'Not judged yet'];
+    @endphp
+
+    <div class="mb-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 class="text-sm font-bold text-[var(--color-heading)]">Today</h2>
+            <span class="text-xs text-gray-400">{{ now()->format('l, d F Y') }}</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="rounded-xl border border-gray-100 px-4 py-3">
+                <p class="text-2xl font-bold text-[var(--color-heading)]">{{ number_format($today['new_chats']) }}</p>
+                <p class="text-[11px] uppercase tracking-wide text-gray-400">New conversations</p>
+                <p class="mt-0.5 text-[11px] text-gray-400">first time these numbers wrote</p>
+            </div>
+            <div class="rounded-xl border border-gray-100 px-4 py-3">
+                <p class="text-2xl font-bold text-[var(--color-heading)]">{{ number_format($today['active_chats']) }}</p>
+                <p class="text-[11px] uppercase tracking-wide text-gray-400">Chats active</p>
+                <p class="mt-0.5 text-[11px] text-gray-400">said anything today</p>
+            </div>
+            <div class="rounded-xl border border-gray-100 px-4 py-3">
+                <p class="text-2xl font-bold text-[var(--color-heading)]">{{ number_format($today['messages_in']) }}</p>
+                <p class="text-[11px] uppercase tracking-wide text-gray-400">Messages received</p>
+            </div>
+            <div class="rounded-xl border border-gray-100 px-4 py-3">
+                <p class="text-2xl font-bold text-[var(--color-heading)]">{{ number_format($today['messages_out']) }}</p>
+                <p class="text-[11px] uppercase tracking-wide text-gray-400">Replies sent</p>
+            </div>
+        </div>
+
+        {{-- Quality: today beside the whole inbox, since one without the other says nothing
+             about whether a quiet day is unusual. --}}
+        <div class="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            @foreach ($qualityLabels as $key => $label)
+                @php [$bg, $fg, $dot] = $tone[$key]; @endphp
+                <div class="rounded-xl px-4 py-3 {{ $bg }}">
+                    <p class="flex items-baseline gap-1.5">
+                        <span class="h-2 w-2 rounded-full {{ $dot }}"></span>
+                        <span class="text-2xl font-bold {{ $fg }}">{{ number_format($todayQuality[$key]['today']) }}</span>
+                        <span class="text-[11px] {{ $fg }}">of today's</span>
+                    </p>
+                    <p class="mt-0.5 text-[11px] font-bold uppercase tracking-wide {{ $fg }}">{{ $label }}</p>
+                    <p class="text-[11px] {{ $fg }}">{{ number_format($todayQuality[$key]['total']) }} in the whole inbox</p>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
+    {{-- The conversations themselves, so the numbers above can be checked rather than trusted --}}
+    <div class="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+         x-data="{ q: 'all' }">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
+            <h2 class="text-sm font-bold text-[var(--color-heading)]">Today's new conversations</h2>
+            <div class="flex flex-wrap items-center gap-1.5">
+                <button type="button" @click="q = 'all'" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
+                        :class="q === 'all' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">All ({{ $todayChats->count() }})</button>
+                @foreach ($qualityLabels as $key => $label)
+                    <button type="button" @click="q = '{{ $key }}'" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
+                            :class="q === '{{ $key }}' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">{{ $label }} ({{ $todayQuality[$key]['today'] }})</button>
+                @endforeach
+            </div>
+        </div>
+
+        @if ($todayChats->isEmpty())
+            <p class="px-5 py-10 text-center text-sm text-gray-400">Nobody new has written today yet.</p>
+        @else
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
+                        <tr>
+                            <th class="px-5 py-2 font-semibold">Time</th>
+                            <th class="px-5 py-2 font-semibold">Contact</th>
+                            <th class="px-5 py-2 font-semibold">Number</th>
+                            <th class="px-5 py-2 font-semibold">Quality</th>
+                            <th class="px-5 py-2 font-semibold">Last message</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($todayChats as $c)
+                            @php
+                                $key = $c->lead_quality ?: 'unset';
+                                [$bg, $fg, $dot] = $tone[$key];
+                            @endphp
+                            <tr class="hover:bg-gray-50" x-show="q === 'all' || q === '{{ $key }}'">
+                                <td class="whitespace-nowrap px-5 py-2.5 text-gray-400">{{ $c->created_at?->format('h:i A') }}</td>
+                                <td class="px-5 py-2.5">
+                                    <a href="{{ route('admin.whatsapp-activity.thread', [$c->account_id, $c->id]) }}" class="font-semibold text-[var(--color-heading)] hover:underline">{{ $c->displayName() }}</a>
+                                    <p class="text-[11px] text-gray-400">{{ $c->account?->name }}</p>
+                                </td>
+                                <td class="whitespace-nowrap px-5 py-2.5 text-[var(--color-muted)]">{{ $c->phoneLabel() }}</td>
+                                <td class="px-5 py-2.5">
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold {{ $bg }} {{ $fg }}">
+                                        <span class="h-1.5 w-1.5 rounded-full {{ $dot }}"></span>
+                                        {{ $qualityLabels[$key] }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-2.5">
+                                    <p class="max-w-md truncate text-[var(--color-muted)]">{{ \Illuminate\Support\Str::limit($c->last_message_preview, 70) ?: '—' }}</p>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+
     @if ($accounts->isEmpty())
         <div class="rounded-xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-400">No WhatsApp numbers yet.</div>
     @else
