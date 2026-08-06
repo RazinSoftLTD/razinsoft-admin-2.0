@@ -113,11 +113,12 @@
                         dial: {{ Illuminate\Support\Js::from(old('dial_code', $client->dial_code)) }},
                      })" class="flex flex-col gap-5 sm:flex-row lg:flex-[2]">
                     {{-- Country search --}}
-                    <div class="relative flex-1" @click.outside="openC = false">
+                    <div class="relative flex-1" @click.outside="commitCountry()">
                         <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Country</label>
                         <input type="hidden" name="country" :value="country">
                         <input type="text" x-model="countryQuery" @focus="openC = true; $el.select()" @click="openC = true"
-                               @keydown.escape="openC = false" autocomplete="off" placeholder="Search country…"
+                               @keydown.enter.prevent="commitCountry()" @keydown.escape="showChosen(); openC = false"
+                               autocomplete="off" placeholder="Search country…"
                                class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
                         <ul x-show="openC" x-cloak class="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                             <template x-for="c in filteredCountries" :key="c.code">
@@ -374,8 +375,46 @@
                 dial: cfg.dial || '',
                 countryQuery: '', dialQuery: '', openC: false, openD: false,
                 init() {
+                    this.showChosen();
+
+                    // A country carries its dial code, so a saved client with a country but no
+                    // code gets one rather than showing "Code" next to a number nobody can dial.
+                    if (! this.dial && this.country) {
+                        const c = this.countries.find((x) => x.name === this.country);
+                        if (c) this.dial = c.dial;
+                    }
+
+                    // Last word before the form goes. Clicking away and pressing Enter are covered
+                    // below, but tabbing straight to Create is not, and the country that was typed
+                    // has to be the country that is saved however the box was left.
+                    this.$el.closest('form')?.addEventListener('submit', () => this.commitCountry());
+                },
+                /** Put the box back to whatever the hidden field actually holds. */
+                showChosen() {
                     const c = this.countries.find((x) => x.name === this.country);
                     this.countryQuery = c ? c.name : (this.country || '');
+                },
+                /**
+                 * Accept what was typed when the box is left without picking from the list.
+                 *
+                 * Only a click on the list used to count. Type "Bangladesh" in full, click on to
+                 * the next field, and the box read Bangladesh while the hidden country stayed
+                 * empty — the client saved with no country and no dial code, and nothing said so.
+                 */
+                commitCountry() {
+                    this.openC = false;
+                    const q = this.countryQuery.trim().toLowerCase();
+
+                    if (! q) {                       // emptied on purpose
+                        this.country = '';
+                        return;
+                    }
+
+                    const hit = this.countries.find((c) => c.name.toLowerCase() === q)
+                        || (this.filteredCountries.length === 1 ? this.filteredCountries[0] : null);
+
+                    // Nothing matched: show what is saved rather than leave a name that is not.
+                    hit ? this.selectCountry(hit) : this.showChosen();
                 },
                 get filteredCountries() {
                     const q = this.countryQuery.trim().toLowerCase();
@@ -389,6 +428,9 @@
                 },
                 get currentDial() { return this.countries.find((c) => c.dial === this.dial) || null; },
                 selectCountry(c) { this.country = c.name; this.countryQuery = c.name; this.dial = c.dial; this.openC = false; },
+                // Chosen from the list, or typed in full and committed — the flag beside Mobile is
+                // how you can tell the country actually took.
+
                 // Dial-code pick is one-way: it never overwrites the chosen Country.
                 selectDial(c) { this.dial = c.dial; this.openD = false; this.dialQuery = ''; },
             }));
