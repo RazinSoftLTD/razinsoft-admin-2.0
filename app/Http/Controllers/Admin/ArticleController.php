@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Article;
 use App\Models\ArticleCategory;
 use App\Models\Author;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,15 @@ class ArticleController extends Controller
     {
         $articles = Article::with('category', 'author')->orderByDesc('published_at')->orderByDesc('id')->paginate(15);
 
-        return view('admin.articles.index', compact('articles'));
+        // Views come from the visit log, counted for this page's slugs in one grouped query —
+        // a count per row would be fifteen queries for a number nobody sorts by.
+        $views = DB::table('client_activity_logs')
+            ->whereIn('path', $articles->getCollection()->map(fn ($a) => '/blog/'.$a->slug)->all())
+            ->selectRaw('path, COUNT(*) AS total')
+            ->groupBy('path')
+            ->pluck('total', 'path');
+
+        return view('admin.articles.index', compact('articles', 'views'));
     }
 
     public function create()
@@ -58,11 +67,27 @@ class ArticleController extends Controller
         return back()->with('status', 'Article updated.');
     }
 
-    public function togglePublish(Article $article)
+    /**
+     * Set the article's status.
+     *
+     * Takes the status it should end up in when one is given, and only falls back to flipping when
+     * it is not. The list sends a value from a dropdown, and a toggle there would land on the wrong
+     * state whenever the page was a moment out of date.
+     */
+    public function togglePublish(Request $request, Article $article)
     {
-        $article->update(['status' => $article->status === 'published' ? 'draft' : 'published']);
+        $next = $request->input('status');
+        if (! in_array($next, ['published', 'draft'], true)) {
+            $next = $article->status === 'published' ? 'draft' : 'published';
+        }
 
-        return back()->with('status', $article->status === 'published' ? 'Article published.' : 'Article unpublished.');
+        $article->update([
+            'status' => $next,
+            // A post published for the first time needs a date, or the site has nothing to sort by.
+            'published_at' => $next === 'published' ? ($article->published_at ?? now()) : $article->published_at,
+        ]);
+
+        return back()->with('status', $next === 'published' ? 'Article published.' : 'Article unpublished.');
     }
 
     public function destroy(Article $article)

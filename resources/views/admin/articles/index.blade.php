@@ -17,9 +17,11 @@
                         <th class="px-5 py-3 font-semibold">Title</th>
                         <th class="px-5 py-3 font-semibold">Category</th>
                         <th class="px-5 py-3 font-semibold">Author</th>
+                        <th class="px-5 py-3 font-semibold">Created</th>
                         <th class="px-5 py-3 font-semibold">Published</th>
+                        <th class="px-5 py-3 text-right font-semibold">Views</th>
                         <th class="px-5 py-3 font-semibold">Status</th>
-                        <th class="px-5 py-3 text-right font-semibold">Actions</th>
+                        <th class="px-5 py-3 text-right font-semibold">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -32,16 +34,32 @@
                             </td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $a->category?->name ?? '—' }}</td>
                             <td class="px-5 py-3 text-[var(--color-muted)]">{{ $a->author?->name ?? '—' }}</td>
-                            <td class="px-5 py-3 text-[var(--color-muted)]">{{ $a->published_at?->format('M d, Y') ?? '—' }}</td>
-                            <td class="px-5 py-3"><x-admin.status :status="$a->status" /></td>
+                            <td class="whitespace-nowrap px-5 py-3 text-[var(--color-muted)]">{{ $a->created_at?->format('M d, Y') ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-3 text-[var(--color-muted)]">{{ $a->published_at?->format('M d, Y') ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-3 text-right font-semibold text-[var(--color-heading)]">
+                                {{ number_format($views['/blog/'.$a->slug] ?? 0) }}
+                            </td>
+                            <td class="px-5 py-3">
+                                {{-- A select rather than a button: it reads as the current state and
+                                     changes it in one move, which a "Publish"/"Unpublish" button does
+                                     only if you already know which way round it is. --}}
+                                <form method="POST" action="{{ route('admin.articles.publish', $a) }}">
+                                    @csrf
+                                    <select name="status" onchange="this.form.submit()"
+                                            class="rounded-lg border px-2.5 py-1.5 text-xs font-semibold focus:outline-none {{ $a->status === 'published' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500' }}">
+                                        <option value="published" @selected($a->status === 'published')>Published</option>
+                                        <option value="draft" @selected($a->status !== 'published')>Unpublished</option>
+                                    </select>
+                                </form>
+                            </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center justify-end gap-1">
-                                    <form method="POST" action="{{ route('admin.articles.publish', $a) }}">
-                                        @csrf
-                                        <button class="rounded-lg px-2 py-1.5 text-xs font-semibold {{ $a->status === 'published' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50' }}" title="{{ $a->status === 'published' ? 'Unpublish' : 'Publish' }}">
-                                            {{ $a->status === 'published' ? 'Unpublish' : 'Publish' }}
-                                        </button>
-                                    </form>
+                                    {{-- Opens the live post, so "does it look right?" does not mean
+                                         guessing the URL. --}}
+                                    <a href="{{ rtrim(config('app.frontend_url', 'https://www.razinsoft.com'), '/') }}/blog/{{ $a->slug }}" target="_blank" rel="noopener"
+                                       class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="View on the website">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                                    </a>
                                     <a href="{{ route('admin.articles.edit', $a) }}" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-primary)]" title="Edit">
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
                                     </a>
@@ -55,7 +73,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-5 py-10 text-center text-gray-400">No articles yet.</td></tr>
+                        <tr><td colspan="8" class="px-5 py-10 text-center text-gray-400">No articles yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
