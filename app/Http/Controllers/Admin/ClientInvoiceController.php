@@ -29,10 +29,54 @@ class ClientInvoiceController extends Controller
         $q->visibleTo($request->user());
 
         if ($search = trim((string) $request->query('search'))) {
-            $q->where(fn ($w) => $w
-                ->where('invoice_number', 'like', "%{$search}%")
-                ->orWhere('bill_to_name', 'like', "%{$search}%")
-                ->orWhere('bill_to_company', 'like', "%{$search}%"));
+            // Every word has to match something, but not the same something — "acme march"
+            // finds Acme's March invoices, which one big OR over the whole phrase never would.
+            foreach (preg_split('/\s+/', $search) as $term) {
+                $q->where(function ($w) use ($term) {
+                    $like = '%'.$term.'%';
+
+                    $w->where('invoice_number', 'like', $like)
+                        ->orWhere('bill_to_name', 'like', $like)
+                        ->orWhere('bill_to_company', 'like', $like)
+                        ->orWhere('bill_to_email', 'like', $like)
+                        ->orWhere('bill_to_phone', 'like', $like)
+                        // The client's own details, not just the copy taken at billing time — the
+                        // record can be older than the client's current name or email.
+                        ->orWhereHas('client', fn ($c) => $c
+                            ->where('name', 'like', $like)
+                            ->orWhere('company', 'like', $like)
+                            ->orWhere('email', 'like', $like)
+                            ->orWhere('phone', 'like', $like))
+                        // What was actually billed for, which is how people remember an invoice
+                        // when they cannot remember its number.
+                        ->orWhereHas('items', fn ($i) => $i->where('description', 'like', $like));
+
+                    // A bare number means the total, and "1,500" and "1500" are the same amount.
+                    $numeric = str_replace([',', '$'], '', $term);
+                    if (is_numeric($numeric)) {
+                        $w->orWhere('total', $numeric);
+                    }
+
+                    // A month name or a year searches the dates, since that is how an invoice gets
+                    // described out loud: "the March one".
+                    if ($month = array_search(strtolower($term), array_map('strtolower', [
+                        1 => 'january', 'february', 'march', 'april', 'may', 'june',
+                        'july', 'august', 'september', 'october', 'november', 'december',
+                    ]), true)) {
+                        $w->orWhereMonth('invoice_date', $month);
+                    }
+                    if (preg_match('/^20\d{2}$/', $term)) {
+                        $w->orWhereYear('invoice_date', $term);
+                    }
+
+                    // The status as it reads on screen, so "partially paid" narrows by hand too.
+                    foreach (ClientInvoice::STATUSES as $key => $label) {
+                        if (str_contains(strtolower($label), strtolower($term))) {
+                            $w->orWhere('status', $key);
+                        }
+                    }
+                });
+            }
         }
         if ($status = $request->query('status')) {
             $q->where('status', $status);

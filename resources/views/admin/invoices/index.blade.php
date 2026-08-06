@@ -11,25 +11,42 @@
 @endphp
 
 @section('content')
-    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    {{-- Search and status sit with Create Invoice on one line: narrowing the list and adding to
+         it are the only two things this header does, and a row of its own for the filters pushed
+         the table down for no gain. --}}
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-xl font-bold text-[var(--color-heading)]">All Invoices</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">{{ $invoices->total() }} invoice(s)</p>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">
+                {{ $invoices->total() }} invoice(s)
+                @if (request('search') || request('status'))
+                    &middot; <a href="{{ route('admin.invoices.index') }}" class="font-semibold text-[var(--color-primary)] hover:underline">clear filters</a>
+                @endif
+            </p>
         </div>
-        @if (auth()->user()->allows('invoices', 'create'))
-        <a href="{{ route('admin.invoices.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Create Invoice
-        </a>
-        @endif
-    </div>
 
-    <form method="GET" class="mb-4 flex flex-wrap gap-2">
-        <input name="search" value="{{ request('search') }}" placeholder="Search invoice #, client, company…" class="h-10 w-full max-w-sm rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-        <select name="status" onchange="this.form.submit()" class="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
-            <option value="">All Status</option>
-            @foreach (\App\Models\ClientInvoice::STATUSES as $k => $label)<option value="{{ $k }}" @selected(request('status') === $k)>{{ $label }}</option>@endforeach
-        </select>
-    </form>
+        <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <form method="GET" class="flex flex-1 flex-wrap items-center gap-2">
+                <div class="relative min-w-0 flex-1" style="min-width: 16rem">
+                    <svg class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-3-3"/></svg>
+                    <input name="search" value="{{ request('search') }}"
+                           placeholder="Invoice #, client, item, amount, month…"
+                           title="Try a client name, something that was billed, an amount, a month, a year, or a status — words can be combined."
+                           class="h-11 w-full rounded-lg border border-gray-200 pl-11 pr-4 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]">
+                </div>
+                <select name="status" onchange="this.form.submit()" class="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                    <option value="">All Status</option>
+                    @foreach (\App\Models\ClientInvoice::STATUSES as $k => $label)<option value="{{ $k }}" @selected(request('status') === $k)>{{ $label }}</option>@endforeach
+                </select>
+            </form>
+
+            @if (auth()->user()->allows('invoices', 'create'))
+            <a href="{{ route('admin.invoices.create') }}" class="inline-flex h-11 items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> Create Invoice
+            </a>
+            @endif
+        </div>
+    </div>
 
     <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <div class="overflow-x-auto">
