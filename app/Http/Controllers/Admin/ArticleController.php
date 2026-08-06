@@ -42,7 +42,30 @@ class ArticleController extends Controller
             $q->whereDate('created_at', '<=', $to);
         }
 
-        $articles = $q->orderByDesc('published_at')->orderByDesc('id')->paginate(15)->withQueryString();
+        // Sorting. Views live in the visit log, so that one orders by a correlated count rather
+        // than a column — the alternative is loading every article to sort in PHP.
+        $sort = in_array($request->query('sort'), ['created', 'published', 'views'], true) ? $request->query('sort') : 'published';
+        $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
+
+        if ($sort === 'views') {
+            // Written per driver on purpose: || concatenates in SQLite and means OR in MySQL, so
+            // one spelling would sort correctly here and silently return nonsense in production.
+            $path = DB::connection()->getDriverName() === 'sqlite'
+                ? "'/blog/' || articles.slug"
+                : "CONCAT('/blog/', articles.slug)";
+
+            $q->select('articles.*')->orderBy(
+                DB::table('client_activity_logs')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('client_activity_logs.path', DB::raw($path)),
+                $dir,
+            );
+        } else {
+            $q->orderBy($sort === 'created' ? 'created_at' : 'published_at', $dir);
+        }
+
+        $perPage = in_array((int) $request->query('per_page'), [15, 30, 60, 100], true) ? (int) $request->query('per_page') : 15;
+        $articles = $q->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         // Views come from the visit log, counted for this page's slugs in one grouped query —
         // a count per row would be fifteen queries for a number nobody sorts by.
@@ -59,6 +82,9 @@ class ArticleController extends Controller
             'authors' => Author::orderBy('name')->get(['id', 'name']),
             'activeFilters' => collect($request->only(['search', 'status', 'category', 'author', 'featured', 'from', 'to']))
                 ->filter(fn ($v) => $v !== null && $v !== '')->count(),
+            'sort' => $sort,
+            'dir' => $dir,
+            'perPage' => $perPage,
         ]);
     }
 

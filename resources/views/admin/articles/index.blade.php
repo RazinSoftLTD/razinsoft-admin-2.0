@@ -13,10 +13,39 @@
     <div class="mb-5 flex items-center justify-between gap-3">
         <p class="text-sm text-[var(--color-muted)]">{{ $articles->total() }} article(s)</p>
 
+        {{-- Sort, then filter, then the one thing that creates something — narrowing what you are
+             looking at reads left to right before the action does. --}}
         <div class="flex items-center gap-2">
-            <a href="{{ route('admin.articles.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> New Article
-            </a>
+            @php
+                $sorts = [
+                    'published' => 'Publish date',
+                    'created' => 'Created date',
+                    'views' => 'Views',
+                ];
+                $sortQuery = fn ($key, $d) => route('admin.articles.index', array_merge(request()->except(['page']), ['sort' => $key, 'dir' => $d]));
+            @endphp
+            <div x-data="{ open: false }" class="relative">
+                <button type="button" @click="open = !open" @click.outside="open = false" title="Sort"
+                        style="height: 42px"
+                        class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold text-[var(--color-heading)] hover:bg-gray-50">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h13M3 12h9M3 17h5M17 6v12m0 0 3-3m-3 3-3-3"/></svg>
+                    <span class="hidden sm:inline">{{ $sorts[$sort] }}</span>
+                </button>
+
+                <div x-show="open" x-cloak class="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-xl">
+                    @foreach ($sorts as $key => $label)
+                        @foreach (['desc' => 'newest first', 'asc' => 'oldest first'] as $d => $hint)
+                            @php $h = $key === 'views' ? ($d === 'desc' ? 'most first' : 'fewest first') : $hint; @endphp
+                            <a href="{{ $sortQuery($key, $d) }}"
+                               class="flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-50 {{ $sort === $key && $dir === $d ? 'font-bold text-[var(--color-primary)]' : 'text-[var(--color-heading)]' }}">
+                                <span>{{ $label }}</span>
+                                <span class="text-xs text-gray-400">{{ $h }}</span>
+                            </a>
+                        @endforeach
+                        @unless ($loop->last)<div class="my-1 border-t border-gray-100"></div>@endunless
+                    @endforeach
+                </div>
+            </div>
 
             {{-- The filters live in a drawer rather than above the table: they are set once and then
                  only get in the way of the list, which is what the page is for. --}}
@@ -28,6 +57,10 @@
                     <span style="top: -0.25rem" class="absolute -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
                 @endif
             </button>
+
+            <a href="{{ route('admin.articles.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg> New Article
+            </a>
         </div>
     </div>
 
@@ -127,7 +160,21 @@
         </div>
     </div>
 
-    <div class="mt-4">{{ $articles->links() }}</div>
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <form method="GET" class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
+            @foreach (request()->except(['per_page', 'page']) as $k => $v)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endforeach
+            <label for="per_page">Show</label>
+            <select id="per_page" name="per_page" onchange="this.form.submit()"
+                    class="rounded-lg border border-gray-200 px-2.5 py-1.5 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                @foreach ([15, 30, 60, 100] as $n)
+                    <option value="{{ $n }}" @selected($perPage === $n)>{{ $n }}</option>
+                @endforeach
+            </select>
+            <span>of {{ number_format($articles->total()) }}</span>
+        </form>
+
+        <div>{{ $articles->links() }}</div>
+    </div>
 
     {{-- Filter drawer --}}
     <div x-show="panel" x-cloak class="fixed inset-0 z-[70]" @keydown.escape.window="panel = false">
