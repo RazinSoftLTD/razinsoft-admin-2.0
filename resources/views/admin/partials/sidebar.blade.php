@@ -70,7 +70,6 @@
         ['type' => 'link', 'label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => $ic['dashboard']],
 
         ['type' => 'group', 'label' => 'CRM', 'icon' => $ic['crm'], 'items' => [
-            ['label' => 'WhatsApp Traffic', 'route' => 'admin.whatsapp-inquiries.index', 'active' => 'admin.whatsapp-inquiries.*', 'perm' => 'whatsapp_inquiries.view', 'icon' => $ic['watraffic'], 'badge' => \App\Models\WhatsappInquiry::whereDate('inquiry_date', today())->count() ?: null],
             ['label' => 'Leads', 'route' => 'admin.leads.index', 'active' => ['admin.leads.index', 'admin.leads.show', 'admin.leads.edit', 'admin.leads.create', 'admin.leads.import.form'], 'perm' => 'leads.view', 'icon' => $ic['leads']],
             ['label' => 'Follow-ups', 'route' => 'admin.follow-ups.index', 'active' => 'admin.follow-ups.*', 'perm' => 'follow_ups.view', 'icon' => $ic['followups']],
             ['label' => 'Deals', 'route' => 'admin.deals.index', 'active' => 'admin.deals.*', 'perm' => 'deals.view', 'icon' => $ic['deals']],
