@@ -33,7 +33,7 @@ class DomainSearchTest extends TestCase
         Http::fake([
             '*domains/available.json*' => Http::response($availability),
             '*products/customer-price.json*' => Http::response($prices ?: [
-                'domcno' => ['addnewdomain' => ['1' => '10.99', '2' => '21.98']],
+                'domcno' => ['addnewdomain' => ['1' => '10.99', '2' => '21.98'], 'renewdomain' => ['1' => '13.99'], 'addtransferdomain' => ['1' => '10.99']],
                 'dotnet' => ['addnewdomain' => ['1' => '12.50']],
             ]),
         ]);
@@ -58,6 +58,11 @@ class DomainSearchTest extends TestCase
         $this->assertSame(10.99, $byDomain['razinsoft.com']['price']);
         $this->assertFalse($byDomain['razinsoft.net']['available']);
         $this->assertSame(12.5, $byDomain['razinsoft.net']['price']);
+
+        // Renewal and transfer ride along; a TLD whose list has no renewal price says null.
+        $this->assertSame(13.99, $byDomain['razinsoft.com']['renew']);
+        $this->assertSame(10.99, $byDomain['razinsoft.com']['transfer']);
+        $this->assertNull($byDomain['razinsoft.net']['renew']);
     }
 
     public function test_available_names_are_listed_first(): void

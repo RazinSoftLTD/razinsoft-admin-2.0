@@ -94,27 +94,37 @@ class ResellerClub
     }
 
     /**
-     * Customer price to register each product key, for one year, keyed by classkey.
+     * Customer prices per product key: first-year registration, yearly renewal, and transfer.
      *
-     * Their response nests price by action and then by tenure in years, as strings. Only the
-     * first-year registration price is taken — that is the number a search result shows.
+     * Their response nests price by action and then by tenure in years, as strings. The renewal
+     * price matters as much as the first year's — a $3.99 name that renews at $34 is the classic
+     * surprise, and showing both up front is what stops it being one.
      *
-     * @return array<string, float>
+     * @return array<string, array{register?: float, renew?: float, transfer?: float}>
      */
-    public function registrationPrices(): array
+    public function prices(): array
     {
         if (! $this->configured()) {
             return [];
         }
 
-        return Cache::remember('resellerclub.prices', self::PRICE_TTL, function () {
+        return Cache::remember('resellerclub.prices.v2', self::PRICE_TTL, function () {
             $raw = $this->get('products/customer-price.json');
 
             $prices = [];
             foreach ($raw as $classkey => $actions) {
-                $year = $actions['addnewdomain']['1'] ?? null;
-                if (is_numeric($year)) {
-                    $prices[$classkey] = round((float) $year, 2);
+                if (! is_array($actions)) {
+                    continue;
+                }
+                $row = [];
+                foreach (['register' => 'addnewdomain', 'renew' => 'renewdomain', 'transfer' => 'addtransferdomain'] as $ours => $theirs) {
+                    $year = $actions[$theirs]['1'] ?? null;
+                    if (is_numeric($year)) {
+                        $row[$ours] = round((float) $year, 2);
+                    }
+                }
+                if ($row) {
+                    $prices[$classkey] = $row;
                 }
             }
 
@@ -131,15 +141,21 @@ class ResellerClub
     {
         $tlds ??= $this->tlds();
         $rows = $this->availability($label, $tlds);
-        $prices = $this->registrationPrices();
+        $prices = $this->prices();
 
-        return array_map(fn ($r) => [
-            'domain' => $r['domain'],
-            'tld' => $r['tld'],
-            'available' => $r['available'],
-            // Null, not zero: a missing price means we do not know it, and 0.00 reads as free.
-            'price' => $r['classkey'] !== null ? ($prices[$r['classkey']] ?? null) : null,
-        ], $rows);
+        return array_map(function ($r) use ($prices) {
+            $p = $r['classkey'] !== null ? ($prices[$r['classkey']] ?? []) : [];
+
+            return [
+                'domain' => $r['domain'],
+                'tld' => $r['tld'],
+                'available' => $r['available'],
+                // Null, not zero: a missing price means we do not know it, and 0.00 reads as free.
+                'price' => $p['register'] ?? null,
+                'renew' => $p['renew'] ?? null,
+                'transfer' => $p['transfer'] ?? null,
+            ];
+        }, $rows);
     }
 
     /**
