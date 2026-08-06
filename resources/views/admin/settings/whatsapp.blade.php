@@ -361,14 +361,62 @@
                     <input type="color" name="color" value="#6366f1" class="h-9 w-11 cursor-pointer rounded-lg border-gray-200 p-1">
                     <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white">Add</button>
                 </form>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($labels as $lbl)
-                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold" style="background: {{ $lbl->color }}1a; color: {{ $lbl->color }};">
-                            {{ $lbl->name }}
-                            <form method="POST" action="{{ route('admin.whatsapp-settings.labels.destroy', $lbl) }}" onsubmit="return confirm('Remove label?')">@csrf @method('DELETE')<button class="opacity-60 hover:opacity-80">×</button></form>
-                        </span>
-                    @endforeach
+                {{-- One per row rather than wrapped chips: the order is the point now, and a
+                     wrapped row reads left-to-right then down, which is not an order anyone can
+                     follow while dragging. --}}
+                <div x-data="labelOrder(@js($labels->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'color' => $l->color])->values()))"
+                     class="divide-y divide-gray-100 rounded-lg border border-gray-100">
+                    <template x-for="(l, i) in items" :key="l.id">
+                        <div draggable="true"
+                             @dragstart="dragId = l.id" @dragend="dragId = null"
+                             @dragover.prevent @drop.prevent="dropOn(l.id)"
+                             class="flex items-center gap-2 px-3 py-2 transition"
+                             :class="dragId === l.id ? 'bg-gray-50 opacity-50' : 'hover:bg-gray-50'">
+                            <svg class="h-4 w-4 shrink-0 cursor-move text-gray-300" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" title="Drag to reorder"><path stroke-linecap="round" d="M8 7h.01M8 12h.01M8 17h.01M16 7h.01M16 12h.01M16 17h.01"/></svg>
+                            <span class="w-5 shrink-0 text-xs text-gray-300" x-text="i + 1"></span>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                                  :style="`background:${l.color}1a;color:${l.color}`" x-text="l.name"></span>
+                            <span class="ml-auto shrink-0">
+                                <form method="POST" :action="@js(url('admin/whatsapp-settings/labels')) + '/' + l.id" onsubmit="return confirm('Remove label?')">
+                                    @csrf @method('DELETE')
+                                    <button class="grid h-6 w-6 place-items-center rounded text-gray-300 hover:bg-red-50 hover:text-red-600" title="Remove">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                                    </button>
+                                </form>
+                            </span>
+                        </div>
+                    </template>
+                    <template x-if="!items.length">
+                        <p class="px-3 py-4 text-center text-xs text-gray-300">No labels yet.</p>
+                    </template>
                 </div>
+                <p class="mt-2 text-[11px] text-gray-400">Drag to reorder — this is the order labels appear in the inbox filter.</p>
+
+                <script>
+                    function labelOrder(initial) {
+                        return {
+                            items: initial,
+                            dragId: null,
+                            dropOn(targetId) {
+                                if (this.dragId === null || this.dragId === targetId) { this.dragId = null; return; }
+                                const from = this.items.findIndex(l => l.id === this.dragId);
+                                const to = this.items.findIndex(l => l.id === targetId);
+                                this.dragId = null;
+                                if (from < 0 || to < 0) return;
+                                const [moved] = this.items.splice(from, 1);
+                                this.items.splice(to, 0, moved);
+                                fetch(@js(route('admin.whatsapp-settings.labels.order')), {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                    },
+                                    body: JSON.stringify({ order: this.items.map(l => l.id) }),
+                                }).catch(() => {});
+                            },
+                        };
+                    }
+                </script>
             </div>
             @endif
 

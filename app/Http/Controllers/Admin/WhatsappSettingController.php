@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\WhatsappAccount;
+use App\Models\WhatsappChat;
 use App\Models\WhatsappLabel;
 use App\Models\WhatsappQuickReply;
 use App\Models\WhatsappSetting;
@@ -27,7 +28,7 @@ class WhatsappSettingController extends Controller
             'settings' => WhatsappSetting::current(),
             'accounts' => WhatsappAccount::with('users:id,name')->orderBy('position')->orderBy('id')->get(),
             'quickAccounts' => $quickAccounts,
-            'chatCounts' => \App\Models\WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
+            'chatCounts' => WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
             'panelUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'labels' => WhatsappLabel::orderBy('position')->get(),
             'quickReplies' => WhatsappQuickReply::with('account:id,name')->whereIn('account_id', $quickIds)
@@ -231,6 +232,19 @@ class WhatsappSettingController extends Controller
         WhatsappLabel::create(['name' => $data['name'], 'color' => $data['color'] ?: '#6366f1', 'position' => (int) WhatsappLabel::max('position') + 1]);
 
         return back()->with('status', 'Label added.');
+    }
+
+    /** Persist the drag order (ids top to bottom). */
+    public function labelOrder(Request $request)
+    {
+        $data = $request->validate(['order' => ['required', 'array'], 'order.*' => ['integer']]);
+
+        $pos = 1;
+        foreach ($data['order'] as $id) {
+            WhatsappLabel::whereKey($id)->update(['position' => $pos++]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function labelDestroy(WhatsappLabel $label)
