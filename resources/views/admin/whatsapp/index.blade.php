@@ -732,6 +732,9 @@
                                         <option value="">— Not set —</option>
                                         @foreach ($leadQualities as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach
                                     </select>
+                                    {{-- Qualified/Unqualified makes the lead by itself. Say so when it
+                                         could not — a silent no-op looks exactly like success. --}}
+                                    <p x-show="leadWarning" x-cloak class="mt-1 text-[10px] text-amber-600" x-text="leadWarning"></p>
                                 </div>
                                 {{-- Interested in — the same Product Category / Sub-category the Lead,
                                      Deal and Client forms use, so a converted chat carries them across.
@@ -881,7 +884,7 @@
                 // What the form looked like when the chat was opened, so the Save button can appear
                 // only once something is genuinely different rather than sitting there always.
                 formBaseline: { name: '', phone: '', product_category: '', product_sub_category: '' },
-                savingQuality: false, qualitySaved: false,
+                savingQuality: false, qualitySaved: false, leadWarning: '',
                 qualityLabels: @js(\App\Models\WhatsappChat::LEAD_QUALITIES),
                 // Shared Product Category tree from Settings > CRM Settings.
                 categoryTree: @js($categoryTree),
@@ -896,7 +899,7 @@
                 qualityTone(q) {
                     if (q === 'qualified') return { pill: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' };
                     if (q === 'conversational') return { pill: 'bg-blue-50 text-blue-700', dot: 'bg-blue-500' };
-                    return { pill: 'bg-rose-100 text-rose-600', dot: 'bg-rose-500' };
+                    return { pill: 'bg-rose-100 text-rose-700', dot: 'bg-red-500' };
                 },
                 get subCategories() {
                     const list = this.categoryTree[this.form.product_category] ? [...this.categoryTree[this.form.product_category]] : [];
@@ -1038,7 +1041,7 @@
                         product_sub_category: d.chat.product_sub_category || '',
                     };
                     this.rebaseForm();
-                    this.qualitySaved = false;
+                    this.qualitySaved = false; this.leadWarning = '';
                     if (!silent) { this.replyTo = null; const c = this.chats.find(x => x.id === id); if (c) c.unread = 0; this.loadTemplates(id); }
                     // Always land at the newest message when opening; on live refresh only if already at bottom.
                     if (atBottom) this.scrollBottom();
@@ -1347,6 +1350,17 @@
                     } catch { alert('Could not convert to lead.'); }
                     finally { this.convertingLead = false; }
                 },
+                /**
+                 * Take on the lead the save made, if it made one.
+                 *
+                 * Qualified and Unqualified create the lead on their own, so the panel has to swap
+                 * "Convert to Lead" for "View Lead" without a reload — otherwise the button offers
+                 * to do something that has already happened.
+                 */
+                applyLead(d) {
+                    if (d.lead) this.active.lead = d.lead;
+                    this.leadWarning = d.lead_warning || '';
+                },
                 rebaseForm() {
                     this.formBaseline = {
                         name: this.form.name, phone: this.form.phone,
@@ -1373,6 +1387,7 @@
                         if (r.ok) {
                             const d = await r.json();
                             this.active.lead_quality = d.lead_quality;
+                            this.applyLead(d);
                             this.qualitySaved = true;
                             setTimeout(() => { this.qualitySaved = false; }, 2000);
                             this.loadChats();
@@ -1393,6 +1408,7 @@
                             this.active.phone = d.phone; this.active.country = d.country;
                             this.active.lead_quality = d.lead_quality;
                             this.active.product_category = d.product_category; this.active.product_sub_category = d.product_sub_category;
+                            this.applyLead(d);
                             this.rebaseForm();
                             this.loadChats();
                         } else { alert((await r.json()).message || 'Could not save.'); }

@@ -554,6 +554,21 @@ class WhatsappController extends Controller
             'product_sub_category' => $data['product_sub_category'] ?? null,
         ]);
 
+        // Calling a chat qualified or unqualified is the judgement the CRM is waiting for, so the
+        // lead is made here rather than behind a second button someone has to remember to press —
+        // and an already-linked lead follows the new judgement, which is also what tells Meta
+        // whether its ads brought someone worth talking to.
+        //
+        // Nothing is ever un-made: clearing the quality, or moving it back to conversational,
+        // leaves the lead alone. It has its own life in the CRM by then, and the report that went
+        // to Meta cannot be withdrawn either.
+        $leadWarning = null;
+        if (in_array($chat->lead_quality, ['qualified', 'unqualified'], true)
+            && ! $chat->isGroup()
+            && $request->user()->hasPermission('leads.create')) {
+            [, $leadWarning] = $this->linkLead($chat, $request->user()->id);
+        }
+
         return response()->json([
             'name' => $chat->displayName(),
             'raw_name' => $chat->name,
@@ -563,6 +578,8 @@ class WhatsappController extends Controller
             'lead_quality' => $chat->lead_quality,
             'product_category' => $chat->product_category,
             'product_sub_category' => $chat->product_sub_category,
+            'lead' => $this->leadLink($chat),
+            'lead_warning' => $leadWarning,
         ]);
     }
 
@@ -603,8 +620,31 @@ class WhatsappController extends Controller
     public function convertToLead(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
+
+        [$lead, $error] = $this->linkLead($chat, $request->user()->id);
+
+        if ($error) {
+            return response()->json(['error' => $error], 422);
+        }
+
+        return response()->json([
+            'lead' => ['id' => $lead->id, 'code' => $lead->lead_code, 'url' => route('admin.leads.show', $lead)],
+            'created' => $lead->wasRecentlyCreated,
+        ]);
+    }
+
+    /**
+     * Find or create this chat's CRM lead and link the two.
+     *
+     * Shared by the Convert button and by judging the chat qualified/unqualified, so both arrive
+     * at the same lead — pressing Convert after the quality already made one just opens it.
+     *
+     * @return array{0: ?\App\Models\Lead, 1: ?string} the lead, or null and the reason why not
+     */
+    private function linkLead(WhatsappChat $chat, int $userId): array
+    {
         if ($chat->isGroup()) {
-            return response()->json(['error' => 'Group chats cannot be converted to a lead.'], 422);
+            return [null, 'Group chats cannot be converted to a lead.'];
         }
 
         // Split the WhatsApp number into dial code + national number for the lead form.
@@ -614,22 +654,20 @@ class WhatsappController extends Controller
         // leads.phone is NOT NULL, and a chat on a @lid id hides the real number — inserting
         // would fail at the database. Ask for the number instead of returning a 500.
         if (! $national) {
-            return response()->json([
-                'error' => 'This chat has no phone number yet. Add it in the contact panel above, then convert.',
-            ], 422);
+            return [null, 'This chat has no phone number yet. Add it in the contact panel above, then convert.'];
         }
 
         // Reuse an existing lead with the same phone (or email) — never create a duplicate.
-        $lead = null;
-        if ($national) {
-            $lead = \App\Models\Lead::where('phone', $national)
-                ->where(fn ($q) => $q->where('dial_code', $dial)->orWhereNull('dial_code'))->first();
-        }
+        $lead = \App\Models\Lead::where('phone', $national)
+            ->where(fn ($q) => $q->where('dial_code', $dial)->orWhereNull('dial_code'))->first();
+
         if (! $lead && $email) {
             $lead = \App\Models\Lead::where('email', $email)->first();
         }
 
-        $status = in_array($chat->lead_quality, ['qualified', 'unqualified'], true) ? $chat->lead_quality : 'new';
+        // Only a chat that has been judged sets the status. An undecided one must not drag a lead
+        // that someone already qualified back to new.
+        $status = in_array($chat->lead_quality, ['qualified', 'unqualified'], true) ? $chat->lead_quality : null;
 
         if (! $lead) {
             $lead = \App\Models\Lead::create([
@@ -639,22 +677,25 @@ class WhatsappController extends Controller
                 'dial_code' => $dial,
                 'is_whatsapp' => true,
                 'lead_source' => 'WhatsApp',
-                'lead_status' => $status,
+                'lead_status' => $status ?? 'new',
                 'product_category' => $chat->product_category,
                 'product_sub_category' => $chat->product_sub_category,
                 // Pre-category chats kept the interest as free text; keep that visible on the lead.
                 'notes' => $chat->interested_product ? 'Interested in: '.$chat->interested_product : null,
                 'assigned_to' => $chat->assigned_to,
-                'added_by' => $request->user()->id,
+                'added_by' => $userId,
             ]);
+        } elseif ($status && $lead->lead_status !== $status) {
+            // The chat is where the judgement is made, so the lead follows it. The observer sees
+            // the change and reports it to Meta.
+            $lead->update(['lead_status' => $status]);
         }
 
-        $chat->update(['lead_id' => $lead->id]);
+        if ($chat->lead_id !== $lead->id) {
+            $chat->update(['lead_id' => $lead->id]);
+        }
 
-        return response()->json([
-            'lead' => ['id' => $lead->id, 'code' => $lead->lead_code, 'url' => route('admin.leads.show', $lead)],
-            'created' => $lead->wasRecentlyCreated,
-        ]);
+        return [$lead, null];
     }
 
     /** The linked CRM lead (id/code/url) if this chat was converted, else null. */
