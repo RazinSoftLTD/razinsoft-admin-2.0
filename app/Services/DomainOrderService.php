@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\DomainOrder;
 use App\Models\User;
-use Stripe\StripeClient;
 
 /**
  * A domain purchase, from Register click to a name registered at ResellerClub.
@@ -24,22 +23,23 @@ class DomainOrderService
      * The price is looked up again here and never taken from the browser: between search and
      * checkout the page's number is an old screenshot, and a tampered one is a $0.10 domain.
      */
-    public function create(User $user, string $domain, array $registrant): DomainOrder
+    public function create(User $user, string $domain, array $registrant, ?int $orderId = null): DomainOrder
     {
         [$label, $tld] = [strtok($domain, '.'), (string) strtok('')];
 
         $offer = collect($this->rc->search($label, [$tld]))->firstWhere('domain', $domain);
 
         if (! $offer || ! $offer['available']) {
-            throw new \RuntimeException('That name is not available to register.');
+            throw new \RuntimeException("{$domain} is not available to register.");
         }
         if ($offer['price'] === null) {
-            throw new \RuntimeException('That extension has no price yet — ask us and we will quote it.');
+            throw new \RuntimeException("{$domain} has no price yet — ask us and we will quote it.");
         }
 
         return DomainOrder::create([
             'order_number' => $this->newOrderNumber(),
             'user_id' => $user->id,
+            'order_id' => $orderId,
             'domain' => $domain,
             'years' => 1,
             'price' => $offer['price'],
@@ -58,73 +58,6 @@ class DomainOrderService
     }
 
     /**
-     * Begin payment. Stripe's hosted page when keys exist, the local dev simulator otherwise —
-     * the same split the product checkout makes.
-     */
-    public function initiatePayment(DomainOrder $order): array
-    {
-        if (config('services.stripe.secret')) {
-            $stripe = new StripeClient(config('services.stripe.secret'));
-
-            $session = $stripe->checkout->sessions->create([
-                'mode' => 'payment',
-                'payment_method_types' => ['card'],
-                'client_reference_id' => $order->order_number,
-                'metadata' => ['domain_order' => $order->order_number],
-                'customer_email' => $order->registrant_email,
-                'line_items' => [[
-                    'quantity' => 1,
-                    'price_data' => [
-                        'currency' => strtolower($order->currency),
-                        'unit_amount' => (int) round($order->price * 100),
-                        'product_data' => ['name' => "Domain registration — {$order->domain} (1 year)"],
-                    ],
-                ]],
-                'success_url' => $this->frontend("/cloud/domains?order={$order->order_number}&session_id={CHECKOUT_SESSION_ID}"),
-                'cancel_url' => $this->frontend('/cloud/domains?cancelled=1'),
-            ]);
-
-            $order->update(['payment_gateway' => 'stripe', 'gateway_session_id' => $session->id]);
-
-            return ['provider' => 'stripe', 'checkout_url' => $session->url];
-        }
-
-        $order->update(['payment_gateway' => 'dev']);
-
-        return [
-            'provider' => 'dev',
-            'checkout_url' => url("/api/dev/pay-domain/{$order->order_number}"),
-        ];
-    }
-
-    /**
-     * Confirm payment on return from the gateway, then register.
-     *
-     * Idempotent on purpose: the success page can be reloaded, and the webhook and the return
-     * can both arrive. Money is only ever counted once, and a paid order is never re-registered.
-     */
-    public function confirm(DomainOrder $order, ?string $sessionId): DomainOrder
-    {
-        if (! $order->isPaid()) {
-            if ($order->payment_gateway === 'stripe') {
-                if (! $sessionId || $sessionId !== $order->gateway_session_id) {
-                    return $order;
-                }
-                $session = (new StripeClient(config('services.stripe.secret')))
-                    ->checkout->sessions->retrieve($sessionId);
-                if (($session->payment_status ?? null) !== 'paid') {
-                    return $order;
-                }
-            }
-            // dev gateway confirms by being called at all — local only, guarded at the route.
-
-            $order->update(['status' => 'paid', 'paid_at' => now()]);
-        }
-
-        return $this->register($order->fresh());
-    }
-
-    /**
      * The ResellerClub side: customer, contact, then the registration itself.
      *
      * A failure here is the one outcome that must never be silent — the money has moved. The
@@ -133,8 +66,16 @@ class DomainOrderService
      */
     public function register(DomainOrder $order): DomainOrder
     {
-        if ($order->status === 'registered' || ! $order->isPaid()) {
+        // Paid either directly (the early standalone flow) or through the cart order that
+        // carries it. Unpaid is never registered; registered is never repeated.
+        $paid = $order->isPaid() || $order->order?->isPaid();
+
+        if ($order->status === 'registered' || ! $paid) {
             return $order;
+        }
+
+        if (! $order->paid_at && $order->order?->paid_at) {
+            $order->update(['status' => 'paid', 'paid_at' => $order->order->paid_at]);
         }
 
         $address = [

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\DomainOrder;
-use App\Services\DomainOrderService;
 use App\Services\ResellerClub;
 use Illuminate\Http\Request;
 
@@ -63,43 +62,6 @@ class DomainController extends Controller
         ]);
     }
 
-    /** Register clicked: take the registrant's details, make the order, hand back the pay URL. */
-    public function order(Request $request, DomainOrderService $orders)
-    {
-        $data = $request->validate([
-            'domain' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9-]+\.[a-z.]{2,20}$/i'],
-            'registrant.name' => ['required', 'string', 'max:150'],
-            'registrant.company' => ['nullable', 'string', 'max:150'],
-            'registrant.email' => ['required', 'email', 'max:150'],
-            'registrant.phone' => ['required', 'string', 'max:32'],
-            'registrant.address' => ['required', 'string', 'max:250'],
-            'registrant.city' => ['required', 'string', 'max:100'],
-            'registrant.country' => ['required', 'string', 'size:2'],
-            'registrant.zip' => ['required', 'string', 'max:20'],
-        ]);
-
-        try {
-            $order = $orders->create($request->user(), strtolower($data['domain']), $data['registrant']);
-        } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json(array_merge(
-            $order->publicPayload(),
-            $orders->initiatePayment($order),
-        ), 201);
-    }
-
-    /** Success-page return: verify the payment actually happened, then register the name. */
-    public function confirmOrder(Request $request, DomainOrderService $orders, string $orderNumber)
-    {
-        $order = DomainOrder::where('order_number', $orderNumber)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
-
-        return response()->json($orders->confirm($order, $request->input('session_id'))->publicPayload());
-    }
-
     public function showOrder(Request $request, string $orderNumber)
     {
         $order = DomainOrder::where('order_number', $orderNumber)
@@ -119,17 +81,5 @@ class DomainController extends Controller
                 ->get()
                 ->map(fn ($o) => $o->publicPayload()),
         ]);
-    }
-
-    /** Local stand-in for the gateway: marks the order paid and runs the registration. */
-    public function devPay(DomainOrderService $orders, string $orderNumber)
-    {
-        abort_unless(app()->environment('local'), 404);
-
-        $order = DomainOrder::where('order_number', $orderNumber)->firstOrFail();
-        $order->update(['status' => 'paid', 'paid_at' => $order->paid_at ?? now()]);
-        $orders->register($order->fresh());
-
-        return redirect(rtrim((string) config('services.frontend_url'), '/')."/cloud/domains?order={$order->order_number}&dev=1");
     }
 }

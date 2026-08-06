@@ -13,7 +13,17 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1'],
-            'items.*.slug' => ['required_without:items.*.product_id', 'string'],
+            'items.*.slug' => ['required_without_all:items.*.product_id,items.*.domain', 'string'],
+            'items.*.domain' => ['nullable', 'string', 'max:100', 'regex:/^[a-z0-9-]+\.[a-z.]{2,20}$/i'],
+            'items.*.registrant' => ['required_with:items.*.domain', 'array'],
+            'items.*.registrant.name' => ['required_with:items.*.domain', 'string', 'max:150'],
+            'items.*.registrant.company' => ['nullable', 'string', 'max:150'],
+            'items.*.registrant.email' => ['required_with:items.*.domain', 'email', 'max:150'],
+            'items.*.registrant.phone' => ['required_with:items.*.domain', 'string', 'max:32'],
+            'items.*.registrant.address' => ['required_with:items.*.domain', 'string', 'max:250'],
+            'items.*.registrant.city' => ['required_with:items.*.domain', 'string', 'max:100'],
+            'items.*.registrant.country' => ['required_with:items.*.domain', 'string', 'size:2'],
+            'items.*.registrant.zip' => ['required_with:items.*.domain', 'string', 'max:20'],
             'items.*.product_id' => ['sometimes', 'integer'],
             'items.*.plan_id' => ['nullable', 'integer'],
             'items.*.installation_plan_id' => ['nullable', 'integer'],

@@ -2,15 +2,16 @@
 
 namespace App\Services;
 
-use App\Services\Email\EmailDispatcher;
 use App\Models\ClientInvoice;
+use App\Models\DomainOrder;
 use App\Models\Invoice;
 use App\Models\License;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\Email\EmailDispatcher;
+use App\Services\Meta\ConversionsApi;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -31,6 +32,16 @@ class FulfillmentService
         foreach ($order->items as $item) {
             // Installation plans are a service — no product license / download to issue.
             if ($item->installation_plan_id) {
+                continue;
+            }
+            // A domain line registers a name instead of issuing a licence. register() owns its
+            // own failure state (action_needed) — a registrar problem must not stop the licences
+            // and downloads the rest of the order still owes.
+            if ($item->domain_order_id) {
+                if ($domainOrder = DomainOrder::find($item->domain_order_id)) {
+                    app(DomainOrderService::class)->register($domainOrder);
+                }
+
                 continue;
             }
             $this->generateLicense($order, $item);
@@ -56,7 +67,7 @@ class FulfillmentService
         try {
             [$first, $last] = array_pad(explode(' ', trim((string) $order->user?->name), 2), 2, null);
 
-            \App\Services\Meta\ConversionsApi::make()->send('Purchase', 'order-'.$order->order_number, [
+            ConversionsApi::make()->send('Purchase', 'order-'.$order->order_number, [
                 'value' => $order->total,
                 'currency' => $order->currency ?: 'USD',
                 'order_id' => $order->order_number,

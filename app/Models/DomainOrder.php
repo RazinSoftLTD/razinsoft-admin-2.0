@@ -16,6 +16,12 @@ class DomainOrder extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** The cart order that paid for this domain (null for the early standalone rows). */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
     public function isPaid(): bool
     {
         return $this->paid_at !== null;

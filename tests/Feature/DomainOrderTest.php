@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\DomainOrder;
+use App\Models\Order;
 use App\Models\User;
 use App\Services\DomainOrderService;
+use App\Services\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -65,16 +67,17 @@ class DomainOrderTest extends TestCase
     {
         $this->fakeAvailable();
 
-        $res = $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com',
-            'price' => 0.10,                     // a tampered value, simply ignored
-            'registrant' => $this->registrant(),
+        $res = $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'price' => 0.10, 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertCreated()->json();
 
-        $this->assertSame(10.99, $res['price']);
+        $this->assertSame(10.99, $res['total']);
         $this->assertSame(10.99, (float) DomainOrder::first()->price);
-        $this->assertSame('dev', $res['provider']);
-        $this->assertNotEmpty($res['checkout_url']);
+        $order = Order::first();
+        $this->assertSame('Domain — myshop.com', $order->items->first()->product_name);
+        $this->assertSame(DomainOrder::first()->id, $order->items->first()->domain_order_id);
+        $this->assertSame($order->id, DomainOrder::first()->order_id);
     }
 
     public function test_a_taken_name_cannot_be_ordered(): void
@@ -86,27 +89,27 @@ class DomainOrderTest extends TestCase
             '*products/customer-price.json*' => Http::response([]),
         ]);
 
-        $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com',
-            'registrant' => $this->registrant(),
+        $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertStatus(422);
 
         $this->assertSame(0, DomainOrder::count());
+        $this->assertSame(0, Order::count());
     }
 
     public function test_paying_registers_the_domain_through_the_full_sequence(): void
     {
         $this->fakeAvailable();
 
-        $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com', 'registrant' => $this->registrant(),
+        $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertCreated();
 
+        // The gateway confirms → the shared pipeline pays and fulfils the whole order.
+        app(OrderService::class)->markPaid(Order::first());
         $order = DomainOrder::first();
-        $order->update(['status' => 'paid', 'paid_at' => now()]);
-
-        app(DomainOrderService::class)->register($order->fresh());
-        $order->refresh();
 
         $this->assertSame('registered', $order->status);
         $this->assertSame('CUST-77', $order->rc_customer_id);
@@ -143,14 +146,13 @@ class DomainOrderTest extends TestCase
             '*domains/register.json*' => Http::response(['status' => 'ERROR', 'message' => 'Insufficient funds in reseller account']),
         ]);
 
-        $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com', 'registrant' => $this->registrant(),
+        $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertCreated();
 
+        app(OrderService::class)->markPaid(Order::first());
         $order = DomainOrder::first();
-        $order->update(['status' => 'paid', 'paid_at' => now()]);
-        app(DomainOrderService::class)->register($order->fresh());
-        $order->refresh();
 
         $this->assertSame('action_needed', $order->status);
         $this->assertStringContainsString('Insufficient funds', $order->registration_error);
@@ -163,15 +165,14 @@ class DomainOrderTest extends TestCase
     {
         $this->fakeAvailable();
 
-        $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com', 'registrant' => $this->registrant(),
+        $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertCreated();
 
-        $order = DomainOrder::first();
-        $order->update(['status' => 'paid', 'paid_at' => now()]);
-        $svc = app(DomainOrderService::class);
-        $svc->register($order->fresh());
-        $svc->register($order->fresh());   // the success page reloaded
+        app(OrderService::class)->markPaid(Order::first());
+        // The webhook and the success page can both arrive.
+        app(DomainOrderService::class)->register(DomainOrder::first()->fresh());
 
         $registerCalls = collect(Http::recorded())
             ->filter(fn ($pair) => str_contains($pair[0]->url(), 'domains/register.json'))
@@ -184,10 +185,12 @@ class DomainOrderTest extends TestCase
     {
         $this->fakeAvailable();
 
-        $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com', 'registrant' => $this->registrant(),
+        $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertCreated();
 
+        // Nobody paid — registering must refuse, even called directly.
         app(DomainOrderService::class)->register(DomainOrder::first());
 
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'domains/register.json'));
@@ -198,8 +201,9 @@ class DomainOrderTest extends TestCase
     {
         $this->fakeAvailable();
 
-        $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com', 'registrant' => $this->registrant(),
+        $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertCreated();
 
         $number = DomainOrder::first()->order_number;
@@ -211,8 +215,9 @@ class DomainOrderTest extends TestCase
 
     public function test_ordering_requires_login(): void
     {
-        $this->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com', 'registrant' => $this->registrant(),
+        $this->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertUnauthorized();
     }
 
@@ -230,15 +235,14 @@ class DomainOrderTest extends TestCase
             '*domains/register.json*' => Http::response(['actionstatus' => 'Success', 'entityid' => 'RC-2']),
         ]);
 
-        $this->actingAs($this->user)->postJson('/api/domains/orders', [
-            'domain' => 'myshop.com', 'registrant' => $this->registrant(),
+        $this->actingAs($this->user)->postJson('/api/checkout', [
+            'items' => [['domain' => 'myshop.com', 'registrant' => $this->registrant()]],
+            'gateway' => 'stripe',
         ])->assertCreated();
 
-        $order = DomainOrder::first();
-        $order->update(['status' => 'paid', 'paid_at' => now()]);
-        app(DomainOrderService::class)->register($order->fresh());
+        app(OrderService::class)->markPaid(Order::first());
 
-        $this->assertSame('CUST-EXISTING', $order->fresh()->rc_customer_id);
+        $this->assertSame('CUST-EXISTING', DomainOrder::first()->rc_customer_id);
         Http::assertNotSent(fn ($r) => str_contains($r->url(), 'customers/v2/signup.json'));
     }
 }

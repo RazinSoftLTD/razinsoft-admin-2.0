@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Models\Coupon;
+use App\Models\InstallationPlan;
 use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\InvoiceSerial;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,10 +19,40 @@ class OrderService
         $lines = [];
         $subtotal = 0;
 
+        $domainOrders = [];
+
         foreach ($data['items'] as $row) {
+            // ---- Domain line: priced by the registrar, never by the cart ----
+            if (! empty($row['domain'])) {
+                try {
+                    $domainOrder = app(DomainOrderService::class)->create(
+                        $user, strtolower($row['domain']), $row['registrant'] ?? [],
+                    );
+                } catch (\RuntimeException $e) {
+                    throw ValidationException::withMessages(['items' => [$e->getMessage()]]);
+                }
+
+                $domainOrders[] = $domainOrder;
+                $subtotal += (float) $domainOrder->price;
+                $lines[] = [
+                    'product_id' => null,
+                    'plan_id' => null,
+                    'domain_order_id' => $domainOrder->id,
+                    'product_name' => 'Domain — '.$domainOrder->domain,
+                    'plan_name' => '1 year registration',
+                    'license_type' => null,
+                    'unit_price' => (float) $domainOrder->price,
+                    // Always one: a name cannot be registered twice.
+                    'quantity' => 1,
+                    'line_total' => (float) $domainOrder->price,
+                ];
+
+                continue;
+            }
+
             // ---- Installation-plan line (a service, priced from the installation plan) ----
             if (! empty($row['installation_plan_id'])) {
-                $ip = \App\Models\InstallationPlan::with('product')->find($row['installation_plan_id']);
+                $ip = InstallationPlan::with('product')->find($row['installation_plan_id']);
                 if (! $ip || ! $ip->product) {
                     throw ValidationException::withMessages(['items' => ['An installation plan in your cart is no longer available.']]);
                 }
@@ -91,7 +123,7 @@ class OrderService
 
         $total = round($subtotal - $discount, 2);
 
-        return DB::transaction(function () use ($user, $data, $lines, $subtotal, $discount, $total, $coupon) {
+        return DB::transaction(function () use ($user, $data, $lines, $subtotal, $discount, $total, $coupon, $domainOrders) {
             $order = Order::create([
                 'order_number' => $this->newOrderNumber(),
                 'user_id' => $user->id,
@@ -108,6 +140,11 @@ class OrderService
 
             foreach ($lines as $line) {
                 $order->items()->create($line);
+            }
+
+            // Tie each domain to the order that pays for it — fulfilment follows this link.
+            foreach ($domainOrders as $domainOrder) {
+                $domainOrder->update(['order_id' => $order->id]);
             }
 
             $order->payments()->create([
@@ -152,6 +189,6 @@ class OrderService
      */
     private function newOrderNumber(): string
     {
-        return \App\Support\InvoiceSerial::next();
+        return InvoiceSerial::next();
     }
 }
