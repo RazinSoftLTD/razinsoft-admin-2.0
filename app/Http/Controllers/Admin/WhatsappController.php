@@ -44,9 +44,7 @@ class WhatsappController extends Controller
             'categoryTree' => ProductCategory::subMap(),
             'leadQualities' => WhatsappChat::LEAD_QUALITIES,
             'stats' => [
-                'open' => WhatsappChat::whereIn('account_id', $ids)->where('status', 'open')->count(),
-                'unread' => WhatsappChat::whereIn('account_id', $ids)->where('unread_count', '>', 0)->count(),
-                'mine' => WhatsappChat::whereIn('account_id', $ids)->where('assigned_to', $request->user()->id)->where('status', '!=', 'resolved')->count(),
+                'unread' => WhatsappChat::whereIn('account_id', $ids)->whereNull('blocked_at')->where('unread_count', '>', 0)->count(),
             ],
         ]);
     }
@@ -796,8 +794,11 @@ class WhatsappController extends Controller
         if (($type = $request->query('type')) && in_array($type, ['single', 'group'], true)) {
             $type === 'group' ? $q->where('chat_type', 'group') : $q->where('chat_type', '!=', 'group');
         }
-        if ($label = $request->query('label')) {
-            $q->whereHas('labels', fn ($l) => $l->where('whatsapp_labels.id', $label));
+        // Any of the chosen labels, not all: a chat usually carries one, so requiring every
+        // selection would answer an empty list to the most natural thing to try.
+        $labelIds = array_filter(array_map('intval', (array) $request->query('labels', [])));
+        if ($labelIds) {
+            $q->whereHas('labels', fn ($l) => $l->whereIn('whatsapp_labels.id', $labelIds));
         }
         if ($search = trim((string) $request->query('search'))) {
             $digits = preg_replace('/\D/', '', $search); // for phone-number matching
