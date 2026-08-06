@@ -369,7 +369,7 @@
                                             <span x-text="m.direction === 'out' ? 'You deleted this message' : 'This message was deleted'"></span>
                                         </span>
                                         {{-- body / inline editor --}}
-                                        <span x-show="m.body && editingId !== m.id" x-html="linkify(m.body)" class="whitespace-pre-line break-words align-bottom"></span>
+                                        <span x-show="m.body && editingId !== m.id" x-html="formatBody(m.body)" class="whitespace-pre-line break-words align-bottom"></span>
                                         <template x-if="editingId === m.id">
                                             <div style="width:17rem; max-width:58vw;">
                                                 <textarea x-model="editDraft" rows="2" x-init="$nextTick(() => { $el.focus(); $el.setSelectionRange($el.value.length, $el.value.length); })" @keydown.enter.prevent="saveEdit(m)" @keydown.escape="editingId = null"
@@ -1125,6 +1125,28 @@
                  * shapes replaced — building HTML from it any other way is an XSS hole. Only
                  * http/https and bare www. are linked; anything else stays text.
                  */
+                /**
+                 * A message as WhatsApp itself would show it: *asterisks* mean bold.
+                 *
+                 * The panel printed the asterisks raw, so anything a customer or an agent
+                 * formatted on their phone arrived here looking like it had stray punctuation —
+                 * and the emphasis they meant was lost.
+                 *
+                 * Links are turned into anchors first and then stepped over, so an asterisk that
+                 * belongs to a URL stays part of the URL instead of eating the rest of the line.
+                 */
+                formatBody(text) {
+                    return this.linkify(text)
+                        .split(/(<a\b[^>]*>.*?<\/a>)/gi)
+                        .map((part, i) => i % 2 ? part : part.replace(
+                            // The opening * must not sit against a word, or "2*3*4" turns bold.
+                            // The content cannot start or end with a space — that is how WhatsApp
+                            // tells formatting from an asterisk someone simply typed.
+                            /(^|[^\w*])\*(?=\S)([^*\n]*[^\s*])\*(?![\w*])/g,
+                            '$1<b>$2</b>',
+                        ))
+                        .join('');
+                },
                 linkify(text) {
                     const escaped = String(text)
                         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1133,8 +1155,10 @@
                     return escaped.replace(
                         /\b((?:https?:\/\/|www\.)[^\s<]+)/gi,
                         (match) => {
-                            // Trailing punctuation almost always belongs to the sentence, not the URL.
-                            const trail = match.match(/[.,;:!?)\]]+$/);
+                            // Trailing punctuation almost always belongs to the sentence, not the
+                            // URL — an asterisk included, since *https://…* is someone emphasising
+                            // the link, and it was ending up inside the address.
+                            const trail = match.match(/[.,;:!?)\]*]+$/);
                             const url = trail ? match.slice(0, -trail[0].length) : match;
                             const href = url.startsWith('http') ? url : 'https://' + url;
 
