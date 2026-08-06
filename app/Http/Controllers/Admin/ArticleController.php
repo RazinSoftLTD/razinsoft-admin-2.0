@@ -92,7 +92,7 @@ class ArticleController extends Controller
     {
         return view('admin.articles.form', [
             'article' => new Article(['status' => 'draft']),
-            'categories' => ArticleCategory::orderBy('name')->get(),
+            'categories' => ArticleCategory::where('is_active', true)->orderBy('name')->get(),
             'authors' => Author::orderBy('name')->get(),
             'allProducts' => \App\Models\Product::orderBy('name')->get(['id', 'name']),
         ]);
@@ -112,7 +112,9 @@ class ArticleController extends Controller
     {
         return view('admin.articles.form', [
             'article' => $article->load('products:id'),
-            'categories' => ArticleCategory::orderBy('name')->get(),
+            // The article's own category stays in the list even if it has been retired, so opening
+            // an old post to fix a typo does not silently move it somewhere else.
+            'categories' => ArticleCategory::where('is_active', true)->orWhere('id', $article->category_id)->orderBy('name')->get(),
             'authors' => Author::orderBy('name')->get(),
             'allProducts' => \App\Models\Product::orderBy('name')->get(['id', 'name']),
         ]);

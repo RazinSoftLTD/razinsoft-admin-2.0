@@ -736,6 +736,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::middleware('permission:blog.edit')->group(function () {
             Route::put('article-categories/{article_category}', [ArticleCategoryController::class, 'update'])->whereNumber('article_category')->name('article-categories.update');
+            Route::patch('article-categories/{article_category}/status', [ArticleCategoryController::class, 'toggleActive'])->whereNumber('article_category')->name('article-categories.status');
             Route::put('authors/{author}', [AuthorController::class, 'update'])->whereNumber('author')->name('authors.update');
             Route::get('articles/{article}/edit', [ArticleController::class, 'edit'])->name('articles.edit'); // Article binds by slug (no whereNumber)
             Route::put('articles/{article}', [ArticleController::class, 'update'])->name('articles.update');

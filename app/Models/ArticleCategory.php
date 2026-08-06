@@ -9,6 +9,8 @@ class ArticleCategory extends Model
 {
     protected $guarded = [];
 
+    protected $casts = ['is_active' => 'boolean'];
+
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class, 'category_id');
