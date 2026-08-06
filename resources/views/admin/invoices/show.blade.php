@@ -168,9 +168,8 @@
                     <table class="inv-items">
                         <thead>
                             <tr>
-                                <th style="width:43%;text-align:left">Description</th>
+                                <th style="width:58%;text-align:left">Description</th>
                                 <th style="width:7%">Qty</th>
-                                <th style="width:15%">Unit</th>
                                 <th style="width:12%">Unit Price<br>({{ $invoice->currency }})</th>
                                 <th style="width:10%">Tax<br>({{ $invoice->currency }})</th>
                                 <th style="width:13%">Amount<br>({{ $invoice->currency }})</th>
@@ -195,7 +194,6 @@
                                         @endif
                                     </td>
                                     <td>{{ $num($item->qty) }}</td>
-                                    <td>{{ $item->unit ?: '—' }}</td>
                                     <td>{{ number_format($item->unit_price, 2) }}</td>
                                     <td>{{ $item->tax_percent > 0 ? $num($item->tax_percent).'%' : '—' }}</td>
                                     <td class="amt">{{ number_format($item->amount, 2) }}</td>

@@ -462,7 +462,25 @@ window.RF = {
     _ready: false,
     _prep() { if (this._ready) return; try { document.execCommand('styleWithCSS', false, false); } catch (e) {} this._ready = true; },
     exec(editor, cmd) { this._prep(); editor.focus(); document.execCommand(cmd, false, null); editor.dispatchEvent(new Event('input')); },
-    enter(e, editor) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._prep(); document.execCommand('insertLineBreak'); editor.dispatchEvent(new Event('input')); } },
+    // Enter makes a <br> rather than a <div>, which is what keeps the stored markup clean —
+    // except inside a list, where Enter means "next bullet". Forcing the break there put every
+    // line into the first <li>, so the whole list printed as one bullet followed by loose lines.
+    // The browser already starts a new item, and knows how to leave the list on a second Enter.
+    enter(e, editor) {
+        if (e.key !== 'Enter' || e.shiftKey) return;
+        if (this._inList(editor)) return;
+        e.preventDefault();
+        this._prep();
+        document.execCommand('insertLineBreak');
+        editor.dispatchEvent(new Event('input'));
+    },
+    _inList(editor) {
+        const sel = window.getSelection();
+        if (!sel || !sel.anchorNode) return false;
+        const node = sel.anchorNode;
+        const el = node.nodeType === 1 ? node : node.parentElement;
+        return !!(el && editor.contains(el) && el.closest('li'));
+    },
     paste(e, editor) {
         e.preventDefault();
         const t = ((e.clipboardData || window.clipboardData).getData('text/plain') || '');

@@ -186,9 +186,8 @@
 <table class="items">
   <thead>
     <tr>
-      <th style="width:43%;text-align:left">Description</th>
+      <th style="width:58%;text-align:left">Description</th>
       <th style="width:7%">Qty</th>
-      <th style="width:15%">Unit</th>
       <th style="width:12%">Unit Price<br>({{ $invoice->currency }})</th>
       <th style="width:10%">Tax<br>({{ $invoice->currency }})</th>
       <th style="width:13%">Amount<br>({{ $invoice->currency }})</th>
@@ -229,7 +228,6 @@
           @endif
         </td>
         <td class="center">{{ $num($item->qty) }}</td>
-        <td class="center">{{ $item->unit ?: '—' }}</td>
         <td class="center">{{ number_format($item->unit_price, 2) }}</td>
         <td class="center">{{ $item->tax_percent > 0 ? $num($item->tax_percent).'%' : '—' }}</td>
         <td class="center" style="font-weight:bold;color:#16305c">{{ number_format($item->amount, 2) }}</td>
