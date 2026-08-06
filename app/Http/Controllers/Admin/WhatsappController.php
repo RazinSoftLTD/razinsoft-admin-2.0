@@ -128,7 +128,7 @@ class WhatsappController extends Controller
     {
         $this->authorizeChat($request, $chat);
         $chat->update(['unread_count' => 0]);
-        $chat->load(['labels:id,name,color', 'assignee:id,name', 'client:id,name,email,phone,company', 'notes.user:id,name']);
+        $chat->load(['labels:whatsapp_labels.id,name,color', 'assignee:id,name', 'client:id,name,email,phone,company', 'notes.user:id,name']);
 
         // Tell WhatsApp we've seen the incoming messages (blue ticks on the sender's side).
         try {
@@ -459,7 +459,7 @@ class WhatsappController extends Controller
         $data = $request->validate(['label_id' => ['required', 'exists:whatsapp_labels,id']]);
         $chat->labels()->toggle($data['label_id']);
 
-        return response()->json(['labels' => $chat->labels()->get(['id', 'name', 'color'])]);
+        return response()->json(['labels' => $chat->labels()->get(['whatsapp_labels.id', 'whatsapp_labels.name', 'whatsapp_labels.color'])]);
     }
 
     public function addNote(Request $request, WhatsappChat $chat)
@@ -804,7 +804,7 @@ class WhatsappController extends Controller
     {
         // Scope strictly to accounts the user may access, then to the selected account.
         $accessible = $this->accessibleAccountIds($request->user());
-        $q = WhatsappChat::query()->with('labels:id,name,color', 'assignee:id,name')
+        $q = WhatsappChat::query()->with('labels:whatsapp_labels.id,name,color', 'assignee:id,name')
             ->whereIn('account_id', $accessible ?: [0]);
 
         $current = (int) $request->query('account');
