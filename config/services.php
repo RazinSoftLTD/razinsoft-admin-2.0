@@ -28,6 +28,8 @@ return [
         // Testing hook — leave unset to use their live or sandbox host.
         'base_url' => env('RESELLERCLUB_BASE_URL'),
         'currency' => env('RESELLERCLUB_CURRENCY', 'USD'),
+        // Comma-separated; blank falls back to their OrderBox DNS, free with every registration.
+        'nameservers' => env('RESELLERCLUB_NS'),
         'tlds' => env('RESELLERCLUB_TLDS', 'com,net,org,co,io,shop,xyz,info,biz,online,store,dev'),
     ],
 

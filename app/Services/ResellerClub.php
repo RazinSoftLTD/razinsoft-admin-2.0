@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use libphonenumber\PhoneNumberUtil;
 
 /**
  * ResellerClub's HTTP API — availability, suggestions and what a name costs.
@@ -173,6 +174,167 @@ class ResellerClub
         $value = Str::before($value, '.');                   // the label only
 
         return preg_replace('/[^a-z0-9-]/', '', (string) $value);
+    }
+
+    /**
+     * The ResellerClub customer for this email, created if they are new.
+     *
+     * Every registration hangs off a customer record on their side. One per email: registering a
+     * second domain for the same person must land on the same customer, or their renewals and
+     * transfers end up scattered across accounts nobody can find.
+     */
+    public function ensureCustomer(string $email, string $name, array $address): string
+    {
+        $existing = $this->get('customers/details.json', ['username' => $email]);
+        if (isset($existing['customerid'])) {
+            return (string) $existing['customerid'];
+        }
+
+        [$phoneCc, $phone] = $this->splitPhone($address['phone']);
+
+        $created = $this->post('customers/v2/signup.json', [
+            'username' => $email,
+            // They require a password; the customer never logs in to ResellerClub, so it is
+            // random and thrown away. Access goes through us.
+            'passwd' => Str::password(15, symbols: false).'9a',
+            'name' => $name,
+            'company' => $address['company'] ?: 'None',
+            'address-line-1' => $address['address'],
+            'city' => $address['city'],
+            'state' => $address['state'] ?? 'Other',
+            'other-state' => $address['state'] ?? 'Other',
+            'country' => strtoupper($address['country']),
+            'zipcode' => $address['zip'],
+            'phone-cc' => $phoneCc,
+            'phone' => $phone,
+            'lang-pref' => 'en',
+        ]);
+
+        $id = $created['customerid'] ?? (is_scalar($created['raw'] ?? null) ? $created['raw'] : null);
+
+        if (! $id) {
+            throw new \RuntimeException('ResellerClub did not return a customer id: '.json_encode($created));
+        }
+
+        return (string) $id;
+    }
+
+    /** A registrant contact under the customer — the name a domain is legally registered to. */
+    public function createContact(string $customerId, string $email, string $name, array $address): string
+    {
+        [$phoneCc, $phone] = $this->splitPhone($address['phone']);
+
+        $created = $this->post('contacts/add.json', [
+            'customer-id' => $customerId,
+            'type' => 'Contact',
+            'email' => $email,
+            'name' => $name,
+            'company' => $address['company'] ?: 'None',
+            'address-line-1' => $address['address'],
+            'city' => $address['city'],
+            'country' => strtoupper($address['country']),
+            'zipcode' => $address['zip'],
+            'phone-cc' => $phoneCc,
+            'phone' => $phone,
+        ]);
+
+        $id = is_scalar($created['raw'] ?? null) ? $created['raw'] : ($created['contactid'] ?? null);
+
+        if (! $id) {
+            throw new \RuntimeException('ResellerClub did not return a contact id: '.json_encode($created));
+        }
+
+        return (string) $id;
+    }
+
+    /**
+     * Register the domain. Returns their order id.
+     *
+     * invoice-option NoInvoice: the money was already taken on our site, so their side must not
+     * raise a second bill for the same registration.
+     */
+    public function registerDomain(string $domain, int $years, string $customerId, string $contactId): string
+    {
+        $result = $this->post('domains/register.json', [
+            'domain-name' => $domain,
+            'years' => $years,
+            'ns' => $this->nameservers(),
+            'customer-id' => $customerId,
+            'reg-contact-id' => $contactId,
+            'admin-contact-id' => $contactId,
+            'tech-contact-id' => $contactId,
+            'billing-contact-id' => $contactId,
+            'invoice-option' => 'NoInvoice',
+            'protect-privacy' => false,
+        ]);
+
+        $status = strtolower((string) ($result['actionstatus'] ?? $result['status'] ?? ''));
+
+        if (! in_array($status, ['success', 'pendingexecution'], true)) {
+            throw new \RuntimeException('ResellerClub refused the registration: '.json_encode($result));
+        }
+
+        return (string) ($result['entityid'] ?? $result['eaqid'] ?? 'unknown');
+    }
+
+    /** @return string[] */
+    public function nameservers(): array
+    {
+        $ns = array_values(array_filter(array_map('trim', explode(',', (string) config('services.resellerclub.nameservers')))));
+
+        // Their own OrderBox DNS — free with every registration, so a domain never sits without
+        // working nameservers just because none were configured on our side.
+        return $ns ?: ['mercury.orderbox-dns.com', 'venus.orderbox-dns.com'];
+    }
+
+    /** ["880", "1711…"] via libphonenumber; a number that will not parse keeps a plain split. */
+    private function splitPhone(string $raw): array
+    {
+        $digits = preg_replace('/\D/', '', $raw);
+
+        try {
+            $util = PhoneNumberUtil::getInstance();
+            $proto = $util->parse('+'.ltrim($digits, '0'), null);
+            if ($util->isValidNumber($proto)) {
+                return [(string) $proto->getCountryCode(), (string) $proto->getNationalNumber()];
+            }
+        } catch (\Throwable) {
+        }
+
+        return ['1', $digits ?: '0000000'];
+    }
+
+    /**
+     * POST for the calls that change things. Their errors still arrive as HTTP 200 with a status
+     * of ERROR — but unlike reads, a mutation must throw: returning [] would read as success.
+     *
+     * @return array<string, mixed>
+     */
+    private function post(string $path, array $params): array
+    {
+        $response = Http::asForm()
+            ->timeout(30)
+            ->post($this->base().'/'.$path.'?'.http_build_query([
+                'auth-userid' => $this->userId,
+                'api-key' => $this->apiKey,
+            ]), $params);
+
+        $data = $response->json();
+
+        if (! $response->successful() || ! is_array($data) && ! is_scalar($data)) {
+            throw new \RuntimeException("ResellerClub {$path} failed: HTTP {$response->status()}");
+        }
+
+        // A bare scalar (a customer id, a contact id) is a valid answer for some calls.
+        if (is_scalar($data)) {
+            return ['raw' => $data];
+        }
+
+        if (strtoupper((string) ($data['status'] ?? '')) === 'ERROR') {
+            throw new \RuntimeException('ResellerClub error: '.($data['message'] ?? json_encode($data)));
+        }
+
+        return $data;
     }
 
     /** @return array<string, mixed> */

@@ -30,6 +30,7 @@ Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 Route::get('/jobs', [\App\Http\Controllers\Api\JobController::class, 'index']);
 // What the website's floating WhatsApp button points at (set in Activity → WhatsApp Button).
 Route::get('/domains/search', [\App\Http\Controllers\Api\DomainController::class, 'search'])->middleware('throttle:60,1');
+Route::get('/dev/pay-domain/{orderNumber}', [\App\Http\Controllers\Api\DomainController::class, 'devPay']); // local-only
 
 Route::get('/whatsapp-button', \App\Http\Controllers\Api\WhatsappButtonController::class);
 Route::get('/promotion/active', [\App\Http\Controllers\Api\PromotionController::class, 'active']);
@@ -88,6 +89,11 @@ Route::middleware(['auth:sanctum', 'client.active'])->group(function () {
     Route::post('/products/{slug}/questions/{question}/answers', [ProductController::class, 'storeAnswer']);
 
     Route::post('/products/{slug}/reviews', [ProductController::class, 'storeReview']);
+
+    Route::post('/domains/orders', [\App\Http\Controllers\Api\DomainController::class, 'order'])->middleware('throttle:10,1');
+    Route::post('/domains/orders/{orderNumber}/confirm', [\App\Http\Controllers\Api\DomainController::class, 'confirmOrder']);
+    Route::get('/domains/orders/{orderNumber}', [\App\Http\Controllers\Api\DomainController::class, 'showOrder']);
+    Route::get('/account/domains', [\App\Http\Controllers\Api\DomainController::class, 'myDomains']);
 
     Route::post('/checkout', [CheckoutController::class, 'store']);
     Route::post('/orders/{orderNumber}/repay', [CheckoutController::class, 'repay']);
