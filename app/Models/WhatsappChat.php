@@ -25,6 +25,52 @@ class WhatsappChat extends Model
         'unqualified' => 'Unqualified',
     ];
 
+    /**
+     * The chat for this address on this account, creating one only for someone genuinely new.
+     *
+     * WhatsApp hands us the same person under two addresses: their phone number, and a per-account
+     * privacy id ending @lid. Keyed on the address alone, one conversation became two — the number
+     * you started the chat from, and the @lid their reply arrived under. The resolved phone is the
+     * same in both, so that is what decides.
+     *
+     * Matched on the full number, not a tail of it: two countries share digits often enough that a
+     * partial match would merge strangers, which is far worse than the split it fixes.
+     */
+    public static function resolveFor(?int $accountId, string $waId, ?string $phone, bool $isGroup, array $attributes = []): self
+    {
+        $exact = static::where('account_id', $accountId)->where('wa_id', $waId)->first();
+        if ($exact) {
+            return $exact;
+        }
+
+        $digits = preg_replace('/\D/', '', (string) ($phone ?: (str_contains($waId, '@lid') ? '' : $waId)));
+
+        if (! $isGroup && strlen($digits) >= 8) {
+            $existing = static::where('account_id', $accountId)
+                ->where('chat_type', '!=', 'group')
+                ->where('phone', $digits)
+                ->orderBy('id')            // the first one we ever made is the one that keeps its history
+                ->first();
+
+            if ($existing) {
+                // A wa_id with no domain is the bare number we invented when starting the chat by
+                // hand; a real jid can actually be delivered to, so it wins.
+                if (! str_contains((string) $existing->wa_id, '@') && str_contains($waId, '@')) {
+                    $existing->wa_id = $waId;
+                }
+                $existing->save();
+
+                return $existing;
+            }
+        }
+
+        return static::create(array_merge($attributes, [
+            'account_id' => $accountId,
+            'wa_id' => $waId,
+            'phone' => $isGroup ? null : ($digits ?: null),
+        ]));
+    }
+
     public function messages(): HasMany
     {
         // Chronological — history-synced messages arrive out of insertion order, so sort by real time.

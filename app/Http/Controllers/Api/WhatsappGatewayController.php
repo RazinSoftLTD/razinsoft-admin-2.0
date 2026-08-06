@@ -105,9 +105,9 @@ class WhatsappGatewayController extends Controller
         // Groups have many senders, so don't auto-match them to a single client.
         $matchKey = $isGroup ? null : ($phone ?: (str_contains($waId, '@lid') ? null : $waId));
 
-        // A chat is unique per account + wa_id (the same person can message two of our numbers).
-        $chat = WhatsappChat::firstOrCreate(['account_id' => $account?->id, 'wa_id' => $waId], [
-            'phone' => $isGroup ? null : $phone,
+        // A chat is unique per account and person — by address, or by the number behind it when
+        // WhatsApp delivers the same contact under a privacy id instead.
+        $chat = WhatsappChat::resolveFor($account?->id, $waId, $isGroup ? null : $phone, $isGroup, [
             'chat_type' => $isGroup ? 'group' : 'single',
             'profile_name' => $request->input('name'),
             'client_id' => $matchKey ? User::clients()->where('phone', 'like', '%'.substr($matchKey, -9))->value('id') : null,

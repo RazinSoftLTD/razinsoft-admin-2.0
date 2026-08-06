@@ -500,8 +500,10 @@ class WhatsappController extends Controller
             // Check unavailable — proceed with the plain number.
         }
 
-        $chat = WhatsappChat::firstOrCreate(['account_id' => $account->id, 'wa_id' => $jid], [
-            'phone' => $digits,
+        // Resolved by number, not just address: this number may already be in the inbox under the
+        // @lid WhatsApp gave it, and starting a "new" chat with someone you are already talking to
+        // is exactly how the conversation ended up split in two.
+        $chat = WhatsappChat::resolveFor($account->id, $jid, $digits, false, [
             'chat_type' => 'single',
             'client_id' => User::clients()->where('phone', 'like', '%'.substr($digits, -9))->value('id'),
             'status' => 'open',
