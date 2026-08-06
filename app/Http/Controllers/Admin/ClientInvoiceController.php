@@ -365,10 +365,13 @@ class ClientInvoiceController extends Controller
             'bill_to_company' => $client?->company,
             'bill_to_email' => $client?->email,
             'bill_to_phone' => $client?->phone,
-            // Not collected on the admin form. Use the client's saved address if they have one;
-            // otherwise keep whatever the invoice already carries — an address the client entered on
-            // the payment page is filed against the client, so this preserves it on later edits.
-            'bill_to_address' => $client?->billingAddressLine() ?: $invoice->bill_to_address,
+            // Editable on the form now, so what is typed wins — including a blank, which is how you
+            // clear an address the customer entered on the pay page. Only when the field is absent
+            // altogether (an older form, or another caller) does it fall back to the client's book
+            // and then to whatever the invoice already carries.
+            'bill_to_address' => $request->has('bill_to_address')
+                ? (trim((string) $request->input('bill_to_address')) ?: null)
+                : ($client?->billingAddressLine() ?: $invoice->bill_to_address),
             'invoice_date' => $data['invoice_date'],
             'due_date' => $data['due_date'] ?? null,
             'currency' => $data['currency'],
@@ -479,6 +482,7 @@ class ClientInvoiceController extends Controller
     {
         return $request->validate([
             'client_id' => ['required', 'exists:users,id'],
+            'bill_to_address' => ['nullable', 'string', 'max:500'],
             'invoice_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:invoice_date'],
             'currency' => ['required', 'string', 'max:8'],

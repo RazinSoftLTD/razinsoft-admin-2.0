@@ -38,10 +38,8 @@
                     <tr>
                         <th class="px-5 py-3 font-semibold">Invoice #</th>
                         <th class="px-5 py-3 font-semibold">Client</th>
-                        <th class="px-5 py-3 font-semibold">Date</th>
-                        <th class="px-5 py-3 font-semibold">Due Date</th>
-                        <th class="px-5 py-3 text-right font-semibold">Total</th>
-                        <th class="px-5 py-3 text-right font-semibold">Due</th>
+                        <th class="px-5 py-3 font-semibold">Dates</th>
+                        <th class="px-5 py-3 text-right font-semibold">Amounts</th>
                         <th class="px-5 py-3 font-semibold">Status</th>
                         <th class="px-5 py-3 text-right font-semibold">Actions</th>
                     </tr>
@@ -58,10 +56,25 @@
                                 @endif
                                 @if ($inv->bill_to_company)<p class="text-xs text-[var(--color-muted)]">{{ $inv->bill_to_company }}</p>@endif
                             </td>
-                            <td class="px-5 py-3 text-[var(--color-muted)]">{{ $inv->invoice_date->format('d M Y') }}</td>
-                            <td class="px-5 py-3 text-[var(--color-muted)]">{{ $inv->due_date?->format('d M Y') ?? '—' }}</td>
-                            <td class="px-5 py-3 text-right font-medium text-[var(--color-heading)]">{{ $cur[$inv->currency] ?? '' }}{{ number_format($inv->total, 2) }}</td>
-                            <td class="px-5 py-3 text-right font-semibold {{ $inv->amountDue() > 0 ? 'text-red-600' : 'text-emerald-600' }}">{{ $cur[$inv->currency] ?? '' }}{{ number_format($inv->amountDue(), 2) }}</td>
+                            {{-- Raised and due in one cell: they are read as a pair, and two columns
+                                 of near-identical dates were harder to compare than one. --}}
+                            <td class="whitespace-nowrap px-5 py-3 text-xs text-[var(--color-muted)]">
+                                <span class="block"><span class="font-bold text-gray-400" title="Created">C</span> {{ $inv->invoice_date->format('d M Y') }}</span>
+                                <span class="mt-0.5 block">
+                                    <span class="font-bold text-gray-400" title="Due">D</span>
+                                    <span class="{{ $inv->due_date && $inv->due_date->isPast() && $inv->amountDue() > 0 ? 'font-semibold text-red-600' : '' }}">{{ $inv->due_date?->format('d M Y') ?? '—' }}</span>
+                                </span>
+                            </td>
+                            {{-- Total, paid and still owed together: the question is never one of
+                                 them on its own, it is how far through this invoice is. --}}
+                            <td class="whitespace-nowrap px-5 py-3 text-right text-xs">
+                                @php $sym = $cur[$inv->currency] ?? ''; $due = $inv->amountDue(); @endphp
+                                <span class="block font-bold text-[var(--color-heading)]">{{ $sym }}{{ number_format($inv->total, 2) }}</span>
+                                <span class="mt-0.5 block text-[var(--color-muted)]">Paid {{ $sym }}{{ number_format($inv->amount_paid, 2) }}</span>
+                                <span class="mt-0.5 block font-semibold {{ $due > 0 ? 'text-red-600' : 'text-emerald-600' }}">
+                                    {{ $due > 0 ? 'Due '.$sym.number_format($due, 2) : 'Settled' }}
+                                </span>
+                            </td>
                             <td class="px-5 py-3">
                                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusBadge[$inv->status] ?? 'bg-gray-100 text-gray-600' }}">{{ \App\Models\ClientInvoice::STATUSES[$inv->status] ?? $inv->status }}</span>
                             </td>
@@ -175,7 +188,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="px-5 py-12 text-center text-gray-400">No invoices yet — <a href="{{ route('admin.invoices.create') }}" class="font-semibold text-[var(--color-primary)] hover:underline">create your first invoice</a>.</td></tr>
+                        <tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">No invoices yet — <a href="{{ route('admin.invoices.create') }}" class="font-semibold text-[var(--color-primary)] hover:underline">create your first invoice</a>.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -24,6 +24,7 @@
         taxes: {{ Illuminate\Support\Js::from($taxesJson) }},
         defaultUnit: {{ Illuminate\Support\Js::from($defaultUnit) }},
         clientId: '{{ old('client_id', $invoice->client_id) }}',
+        billAddress: {{ Illuminate\Support\Js::from(old('bill_to_address', $invoice->bill_to_address)) }},
         currency: '{{ old('currency', $invoice->currency ?? 'USD') }}',
         invoiceNumber: '{{ $invoice->invoice_number }}',
         invoiceDate: '{{ old('invoice_date', optional($invoice->invoice_date)->toDateString() ?? now()->toDateString()) }}',
@@ -127,6 +128,23 @@
                                 @endforeach
                             </select>
                         </div>
+                    </div>
+
+                    {{-- The address this invoice bills to. It is the invoice's own copy, not a view
+                         of the client's book: an invoice already sent must keep saying what it said,
+                         so tidying the client's addresses later cannot rewrite it. Editable here,
+                         which is the only way to correct or clear one. --}}
+                    <div class="mt-5">
+                        <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                            <label class="block text-sm font-medium text-[var(--color-heading)]">Billing address</label>
+                            <button type="button" @click="bill.address = clientAddress()" x-show="clientAddress()"
+                                    class="text-xs font-semibold text-[var(--color-primary)] hover:underline">
+                                Use the client's saved address
+                            </button>
+                        </div>
+                        <textarea name="bill_to_address" rows="2" x-model="bill.address"
+                                  placeholder="Leave blank and the payment page will ask the customer for one"
+                                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
                     </div>
                 </section>
 
@@ -467,14 +485,23 @@ function invoiceForm(cfg) {
         invoiceNumber: cfg.invoiceNumber, invoiceDate: cfg.invoiceDate, dueDate: cfg.dueDate, amountPaid: cfg.amountPaid, status: cfg.status,
         discountType: cfg.discountType || '', discountValue: cfg.discountValue || 0,
         notes: cfg.notes || '', terms: cfg.terms || '',
-        // Read-only "Bill To" preview only. Billing address is collected on the payment page, not here.
+        // name/company/email follow the chosen client; address is the invoice's own and is edited
+        // on this form, so picking a client offers theirs but never overwrites what is typed.
         bill: { name: '', company: '', email: '', phone: '', address: '' },
         dragFrom: null,
         qa: { open: false, name: '', email: '', company: '', saving: false, error: '' },
-        init() { this.pickClient(); },
+        init() {
+            this.pickClient();
+            // What this invoice already bills to wins over the client's book — see the field's note.
+            if (cfg.billAddress) this.bill.address = cfg.billAddress;
+        },
+        clientAddress() { return this.clients[this.clientId]?.address || ''; },
         pickClient() {
             const c = this.clients[this.clientId];
-            this.bill = c ? { name: c.name, company: c.company, email: c.email, phone: c.phone, address: c.address } : { name: '', company: '', email: '', phone: '', address: '' };
+            const typed = this.bill.address;
+            this.bill = c
+                ? { name: c.name, company: c.company, email: c.email, phone: c.phone, address: typed || c.address || '' }
+                : { name: '', company: '', email: '', phone: '', address: typed };
         },
         // ---- client picker (searchable) ----
         clientOpen: false,
