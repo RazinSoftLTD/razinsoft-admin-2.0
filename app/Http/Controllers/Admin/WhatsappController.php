@@ -15,6 +15,7 @@ use App\Models\WhatsappQuickReply;
 use App\Models\WhatsappSetting;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -38,6 +39,7 @@ class WhatsappController extends Controller
             'accounts' => $accounts,
             'accountUnreads' => $this->accountUnreads($ids),
             'labels' => WhatsappLabel::orderBy('position')->get(),
+            'labelCounts' => $this->labelCounts($request),
             'agents' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
             'settings' => WhatsappSetting::current(),
@@ -115,6 +117,7 @@ class WhatsappController extends Controller
 
         return response()->json([
             'chats' => $this->chatList($request)->map(fn ($c) => $this->chatSummary($c))->values(),
+            'label_counts' => $this->labelCounts($request),
             'unread' => WhatsappChat::whereIn('account_id', $ids ?: [0])->whereNull('blocked_at')->where('unread_count', '>', 0)->count(),
             'account_unreads' => $this->accountUnreads($ids),
         ]);
@@ -769,6 +772,34 @@ class WhatsappController extends Controller
 
     private function chatList(Request $request)
     {
+        // `pinned_at IS NULL` sorts 0 before 1 on both drivers, so pinned chats come first; among
+        // them the most recently pinned leads, which is the order WhatsApp keeps.
+        return $this->chatQuery($request)
+            ->orderByRaw('pinned_at is null')
+            ->orderByDesc('pinned_at')
+            ->orderByDesc('last_message_at')->orderByDesc('id')->limit(200)->get();
+    }
+
+    /**
+     * How many of the chats now in view carry each label.
+     *
+     * Built from the same query minus the label filter, so the numbers match the list beside
+     * them — a count taken across every account would promise chats that ticking cannot show.
+     *
+     * @return array<int, int> label id => count
+     */
+    private function labelCounts(Request $request): array
+    {
+        return DB::table('whatsapp_chat_label')
+            ->whereIn('chat_id', $this->chatQuery($request, false)->select('whatsapp_chats.id'))
+            ->groupBy('label_id')
+            ->selectRaw('label_id, count(*) as c')
+            ->pluck('c', 'label_id')
+            ->all();
+    }
+
+    private function chatQuery(Request $request, bool $withLabels = true)
+    {
         // Scope strictly to accounts the user may access, then to the selected account.
         $accessible = $this->accessibleAccountIds($request->user());
         $q = WhatsappChat::query()->with('labels:id,name,color', 'assignee:id,name')
@@ -797,7 +828,7 @@ class WhatsappController extends Controller
         // Any of the chosen labels, not all: a chat usually carries one, so requiring every
         // selection would answer an empty list to the most natural thing to try.
         $labelIds = array_filter(array_map('intval', (array) $request->query('labels', [])));
-        if ($labelIds) {
+        if ($withLabels && $labelIds) {
             $q->whereHas('labels', fn ($l) => $l->whereIn('whatsapp_labels.id', $labelIds));
         }
         if ($search = trim((string) $request->query('search'))) {
@@ -817,11 +848,7 @@ class WhatsappController extends Controller
             });
         }
 
-        // `pinned_at IS NULL` sorts 0 before 1 on both drivers, so pinned chats come first; among
-        // them the most recently pinned leads, which is the order WhatsApp keeps.
-        return $q->orderByRaw('pinned_at is null')
-            ->orderByDesc('pinned_at')
-            ->orderByDesc('last_message_at')->orderByDesc('id')->limit(200)->get();
+        return $q;
     }
 
     private function chatSummary(WhatsappChat $c): array

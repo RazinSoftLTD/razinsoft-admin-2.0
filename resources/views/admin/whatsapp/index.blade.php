@@ -70,8 +70,13 @@
                             <button type="button" @click="labelMenu = !labelMenu"
                                     class="flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold transition"
                                     :class="pickedLabels.length ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
-                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v5.6a2 2 0 0 0 .6 1.4l7 7a2 2 0 0 0 2.8 0l5.6-5.6a2 2 0 0 0 0-2.8l-7-7A2 2 0 0 0 10.6 5H5a2 2 0 0 0-2 2Z"/><circle cx="7.5" cy="9.5" r="1.2" fill="currentColor" stroke="none"/></svg>
-                                <span x-text="pickedLabels.length ? pickedLabels.length + ' label' + (pickedLabels.length > 1 ? 's' : '') : 'Labels'"></span>
+                                <svg x-show="!pickedLabels.length" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v5.6a2 2 0 0 0 .6 1.4l7 7a2 2 0 0 0 2.8 0l5.6-5.6a2 2 0 0 0 0-2.8l-7-7A2 2 0 0 0 10.6 5H5a2 2 0 0 0-2 2Z"/><circle cx="7.5" cy="9.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+                                <span x-show="pickedLabels.length" x-cloak class="flex items-center gap-1">
+                                    <template x-for="l in pickedLabelObjects.slice(0, 3)" :key="l.id">
+                                        <span class="h-2 w-2 rounded-full" :style="`background:${l.color}`"></span>
+                                    </template>
+                                </span>
+                                <span class="truncate" style="max-width:7rem" x-text="labelPillText()"></span>
                             </button>
                             <div x-show="labelMenu" x-cloak class="absolute right-0 z-30 mt-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-xl">
                                 <template x-if="!labels.length">
@@ -81,7 +86,8 @@
                                     <label class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
                                         <input type="checkbox" :checked="pickedLabels.includes(l.id)" @change="toggleLabelFilter(l.id)" class="accent-[var(--color-primary)]">
                                         <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="`background:${l.color}`"></span>
-                                        <span class="min-w-0 flex-1 truncate text-[var(--color-heading)]" x-text="l.name"></span>
+                                        <span class="min-w-0 flex-1 truncate" :class="(labelCounts[l.id] || 0) ? 'text-[var(--color-heading)]' : 'text-gray-400'" x-text="l.name"></span>
+                                        <span class="shrink-0 text-xs text-gray-400" style="font-variant-numeric:tabular-nums" x-text="labelCounts[l.id] || 0"></span>
                                     </label>
                                 </template>
                                 <button type="button" x-show="pickedLabels.length" @click="pickedLabels = []; loadChats()"
@@ -981,6 +987,8 @@
                 ],
                 chatMenu: { open: false, x: 0, y: 0, chat: null },
                 labelMenu: false, pickedLabels: [],
+                labels: @js($labels->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'color' => $l->color])->values()),
+                labelCounts: @js($labelCounts),
                 csrf: document.querySelector('meta[name=csrf-token]').content,
                 showDate(i) { return i === 0 || this.messages[i - 1].date_key !== this.messages[i].date_key; },
                 // True only for the newest outgoing message — where WhatsApp shows the Seen/Delivered caption.
@@ -1036,6 +1044,13 @@
                     return p.toString();
                 },
                 setFilter(k) { this.filter = k; this.loadChats(); },
+                get pickedLabelObjects() { return this.labels.filter(l => this.pickedLabels.includes(l.id)); },
+                labelPillText() {
+                    const picked = this.pickedLabelObjects;
+                    if (!picked.length) return 'Labels';
+                    // One is worth naming; past that the name would crowd out the list itself.
+                    return picked.length === 1 ? picked[0].name : picked.length + ' labels';
+                },
                 toggleLabelFilter(id) {
                     this.pickedLabels = this.pickedLabels.includes(id)
                         ? this.pickedLabels.filter(x => x !== id)
@@ -1105,6 +1120,7 @@
                     const data = await r.json();
                     if (token !== this._chatReq) return; // a newer search superseded this response
                     this.chats = data.chats;
+                    if (data.label_counts) this.labelCounts = data.label_counts;
                     if (typeof data.unread === 'number') this.unreadCount = data.unread;
                     if (data.account_unreads) {
                         this.accountsList.forEach(a => { a.unread = data.account_unreads[a.id] || 0; });
