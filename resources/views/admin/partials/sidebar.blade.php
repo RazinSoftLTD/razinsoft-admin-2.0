@@ -113,12 +113,17 @@
 
         ['type' => 'group', 'label' => 'Marketing', 'icon' => $ic['marketing'], 'items' => [
             ['label' => 'Promotion', 'route' => 'admin.promotions.index', 'active' => 'admin.promotions.*', 'perm' => 'promotion.view', 'icon' => $ic['promotion']],
-            ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'perm' => 'blog.view', 'icon' => $ic['article']],
-            ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'perm' => 'blog.view', 'icon' => $ic['category']],
-            ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
             ['label' => 'Searches', 'route' => 'admin.searches.index', 'active' => 'admin.searches.*', 'perm' => 'searches.view', 'icon' => $ic['searches']],
             ['label' => 'Subscribers', 'route' => 'admin.subscribers.index', 'active' => 'admin.subscribers.*', 'perm' => 'subscribers.view', 'icon' => $ic['subscribers']],
             ['label' => 'Reports', 'soon' => true, 'icon' => $ic['reports']],
+        ]],
+
+        // Blog stands on its own: writing and publishing articles has nothing to do with
+        // promotions or subscriber lists, and three of Marketing's seven entries were really this.
+        ['type' => 'group', 'label' => 'Blog', 'icon' => $ic['blog'], 'items' => [
+            ['label' => 'Articles', 'route' => 'admin.articles.index', 'active' => 'admin.articles.*', 'perm' => 'blog.view', 'icon' => $ic['article']],
+            ['label' => 'Categories', 'route' => 'admin.article-categories.index', 'active' => 'admin.article-categories.*', 'perm' => 'blog.view', 'icon' => $ic['category']],
+            ['label' => 'Authors', 'route' => 'admin.authors.index', 'active' => 'admin.authors.*', 'perm' => 'blog.view', 'icon' => $ic['author']],
         ]],
 
         ['type' => 'group', 'label' => 'HR', 'icon' => $ic['hr'], 'items' => [

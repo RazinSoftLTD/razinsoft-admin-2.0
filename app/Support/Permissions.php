@@ -94,7 +94,7 @@ class Permissions
         'installation_plans' => ['label' => 'Installation Plans', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete', 'copy']],
         'orders' => ['label' => 'Orders', 'group' => 'Sales', 'actions' => ['view', 'create']],
         'coupons' => ['label' => 'Coupons', 'group' => 'Sales', 'actions' => ['view', 'create', 'edit', 'delete']],
-        'blog' => ['label' => 'Blog', 'group' => 'Content', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'blog' => ['label' => 'Blog', 'group' => 'Blog', 'actions' => ['view', 'create', 'edit', 'delete']],
         // The site-wide promo banner shown above the nav — draft → publish workflow, same shape as careers.
         // Group 'Content' matches blog/searches/subscribers, which is where this sits in the sidebar's "Marketing" section.
         'promotion' => ['label' => 'Promotion', 'group' => 'Content', 'actions' => ['view', 'create', 'edit', 'delete', 'publish']],
