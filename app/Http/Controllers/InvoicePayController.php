@@ -56,8 +56,12 @@ class InvoicePayController extends Controller
             'amount_paid' => (float) $invoice->amount_paid,
             'amount_due' => $invoice->amountDue(),
             'payable_amount' => $invoice->payableAmount(),
-            'notes' => $invoice->notes,
-            'terms' => $invoice->terms,
+            // Run through the same formatter the PDF uses, so the pay page and the document a
+            // client downloads say the same thing. It also strips everything except b/i/u/br, so
+            // what reaches the browser is safe to render as HTML — which it has to be, or the
+            // line breaks show up as literal <br> text.
+            'notes' => \App\Support\InvoiceRichText::format((string) $invoice->notes),
+            'terms' => \App\Support\InvoiceRichText::format((string) $invoice->terms),
             'payments' => $invoice->payments->map(fn ($p) => [
                 'amount' => (float) $p->amount,
                 'paid_at' => $p->paid_at?->toDateString(),
