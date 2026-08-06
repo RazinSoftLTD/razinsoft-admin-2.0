@@ -104,6 +104,157 @@
                 @endforeach
             </dl>
         </div>
+
+        {{-- ══ BILLING ADDRESSES ══ --}}
+        <div x-show="tab === 'profile'" x-cloak class="mt-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
+             x-data="{ form: false, editing: null }">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-bold uppercase tracking-wide text-gray-400">Billing Addresses</h3>
+                    <p class="mt-1 text-sm text-[var(--color-muted)]">Used on this client's invoices. The default one is filled in automatically.</p>
+                </div>
+                @if ($tabPerm['profile'] && auth()->user()->canAct('clients', 'edit', $client))
+                    <button type="button" @click="editing = null; form = true"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                        Add address
+                    </button>
+                @endif
+            </div>
+
+            @forelse ($billingAddresses as $addr)
+                @php
+                    $addrJson = \Illuminate\Support\Js::from([
+                        'id' => $addr->id, 'label' => $addr->label, 'full_name' => $addr->full_name,
+                        'company' => $addr->company, 'phone' => $addr->phone, 'address' => $addr->address,
+                        'city' => $addr->city, 'state' => $addr->state, 'zip' => $addr->zip,
+                        'country' => $addr->country, 'is_default' => $addr->is_default,
+                    ]);
+                @endphp
+                <div class="mb-3 rounded-lg border {{ $addr->is_default ? 'border-[var(--color-primary)]' : 'border-gray-100' }} p-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--color-heading)]">
+                                {{ $addr->full_name ?: $client->name }}
+                                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[var(--color-muted)]">{{ $addr->label }}</span>
+                                @if ($addr->is_default)
+                                    <span class="rounded bg-[var(--color-primary-soft)] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[var(--color-primary)]">Default</span>
+                                @endif
+                            </p>
+                            @if ($addr->company)<p class="mt-0.5 text-sm text-[var(--color-muted)]">{{ $addr->company }}</p>@endif
+                            <p class="mt-0.5 text-sm text-[var(--color-muted)]">
+                                {{ collect([$addr->address, $addr->city, $addr->state, $addr->zip, $addr->country])->filter()->implode(', ') }}
+                            </p>
+                            @if ($addr->phone)<p class="mt-0.5 text-sm text-[var(--color-muted)]">{{ $addr->phone }}</p>@endif
+                        </div>
+
+                        @if (auth()->user()->canAct('clients', 'edit', $client))
+                            <div class="flex shrink-0 items-center gap-1">
+                                @unless ($addr->is_default)
+                                    <form method="POST" action="{{ route('admin.clients.billing-addresses.default', [$client, $addr]) }}">
+                                        @csrf @method('PATCH')
+                                        <button class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]">Make default</button>
+                                    </form>
+                                @endunless
+                                <button type="button" @click="editing = {{ $addrJson }}; form = true"
+                                        class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]" title="Edit">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
+                                </button>
+                                <form method="POST" action="{{ route('admin.clients.billing-addresses.destroy', [$client, $addr]) }}" onsubmit="return confirm('Remove this billing address?')">
+                                    @csrf @method('DELETE')
+                                    <button class="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Remove">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @empty
+                <p class="rounded-lg border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400">
+                    No billing address yet — invoices for this client will ask the customer for one.
+                </p>
+            @endforelse
+
+            {{-- Add / edit drawer --}}
+            <div x-show="form" x-cloak class="fixed inset-0 z-[70]" @keydown.escape.window="form = false">
+                <div class="absolute inset-0 bg-black/40" @click="form = false"></div>
+                <div style="width: 26rem" class="absolute inset-y-0 right-0 max-w-full overflow-y-auto bg-white shadow-xl"
+                     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                     x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full">
+                    <form method="POST" x-bind:action="editing ? '{{ route('admin.clients.billing-addresses.store', $client) }}/' + editing.id : '{{ route('admin.clients.billing-addresses.store', $client) }}'" class="p-5">
+                        @csrf
+                        <template x-if="editing"><input type="hidden" name="_method" value="PUT"></template>
+
+                        <div class="mb-4 flex items-center justify-between">
+                            <h2 class="text-sm font-bold text-[var(--color-heading)]" x-text="editing ? 'Edit billing address' : 'Add billing address'"></h2>
+                            <button type="button" @click="form = false" class="text-gray-400 hover:text-[var(--color-heading)]">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="m6 6 12 12M18 6 6 18"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium">Label</label>
+                                <select name="label" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"
+                                        x-bind:value="editing ? editing.label : 'office'">
+                                    <option value="office">Office</option>
+                                    <option value="home">Home</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium">Full name</label>
+                                    <input name="full_name" x-bind:value="editing ? (editing.full_name || '') : '{{ $client->name }}'" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium">Company</label>
+                                    <input name="company" x-bind:value="editing ? (editing.company || '') : '{{ $client->company }}'" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium">Phone</label>
+                                <input name="phone" x-bind:value="editing ? (editing.phone || '') : ''" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium">Address <span class="text-red-500">*</span></label>
+                                <textarea name="address" rows="2" required x-text="editing ? (editing.address || '') : ''" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"></textarea>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium">City</label>
+                                    <input name="city" x-bind:value="editing ? (editing.city || '') : ''" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium">State</label>
+                                    <input name="state" x-bind:value="editing ? (editing.state || '') : ''" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                </div>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium">Postal code <span class="text-red-500">*</span></label>
+                                    <input name="zip" required x-bind:value="editing ? (editing.zip || '') : ''" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-sm font-medium">Country <span class="text-red-500">*</span></label>
+                                    <input name="country" required x-bind:value="editing ? (editing.country || '') : '{{ $client->country }}'" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                                </div>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" name="is_default" value="1" class="rounded border-gray-300" x-bind:checked="editing ? editing.is_default : true">
+                                Use this on new invoices
+                            </label>
+                        </div>
+
+                        <div class="mt-5 flex gap-2">
+                            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save</button>
+                            <button type="button" @click="form = false" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
         @endif
 
         @if ($tabPerm['projects'])

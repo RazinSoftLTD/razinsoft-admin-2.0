@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientDocument;
+use App\Models\BillingAddress;
 use App\Models\ClientInvoice;
 use App\Models\InvoicePayment;
 use App\Models\User;
@@ -106,6 +107,90 @@ class ClientController extends Controller
     }
 
     /** Client profile: details + invoices, payments and documents for the tabbed profile page. */
+    /** Validation shared by adding and editing a billing address. */
+    private function billingAddressRules(): array
+    {
+        return [
+            'label' => ['nullable', 'in:home,office,other'],
+            'full_name' => ['nullable', 'string', 'max:150'],
+            'company' => ['nullable', 'string', 'max:150'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'address' => ['required', 'string', 'max:500'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'state' => ['nullable', 'string', 'max:100'],
+            'zip' => ['required', 'string', 'max:30'],
+            'country' => ['required', 'string', 'max:100'],
+        ];
+    }
+
+    public function storeBillingAddress(Request $request, User $client)
+    {
+        abort_unless($client->role === User::ROLE_CUSTOMER, 404);
+        $this->authorizeClient($request->user(), $client, 'edit');
+
+        $data = $request->validate($this->billingAddressRules());
+        $data['label'] ??= 'other';
+        // The first one is the default by definition — an address book with nothing marked would
+        // leave the invoice with nothing to pick.
+        $data['is_default'] = $request->boolean('is_default') || ! $client->billingAddresses()->exists();
+
+        if ($data['is_default']) {
+            $client->billingAddresses()->update(['is_default' => false]);
+        }
+
+        $client->billingAddresses()->create($data);
+
+        return back()->with('status', 'Billing address added.');
+    }
+
+    public function updateBillingAddress(Request $request, User $client, BillingAddress $address)
+    {
+        abort_unless($client->role === User::ROLE_CUSTOMER && $address->user_id === $client->id, 404);
+        $this->authorizeClient($request->user(), $client, 'edit');
+
+        $data = $request->validate($this->billingAddressRules());
+        $data['label'] ??= 'other';
+        $data['is_default'] = $request->boolean('is_default') || $address->is_default;
+
+        if ($data['is_default']) {
+            $client->billingAddresses()->where('id', '!=', $address->id)->update(['is_default' => false]);
+        }
+
+        $address->forceFill($data)->save();
+
+        return back()->with('status', 'Billing address updated.');
+    }
+
+    public function defaultBillingAddress(Request $request, User $client, BillingAddress $address)
+    {
+        abort_unless($client->role === User::ROLE_CUSTOMER && $address->user_id === $client->id, 404);
+        $this->authorizeClient($request->user(), $client, 'edit');
+
+        // Clear the flag everywhere except this one, rather than clearing all and then setting it:
+        // save() only writes attributes it considers dirty, and the model still held is_default
+        // true from before the mass update — so the write was skipped and nothing was default.
+        $client->billingAddresses()->where('id', '!=', $address->id)->update(['is_default' => false]);
+        $client->billingAddresses()->whereKey($address->id)->update(['is_default' => true]);
+
+        return back()->with('status', 'Default billing address changed.');
+    }
+
+    public function destroyBillingAddress(Request $request, User $client, BillingAddress $address)
+    {
+        abort_unless($client->role === User::ROLE_CUSTOMER && $address->user_id === $client->id, 404);
+        $this->authorizeClient($request->user(), $client, 'edit');
+
+        $wasDefault = $address->is_default;
+        $address->delete();
+
+        // Something has to be the default, or the next invoice finds nothing.
+        if ($wasDefault && $next = $client->billingAddresses()->orderBy('id')->first()) {
+            $next->update(['is_default' => true]);
+        }
+
+        return back()->with('status', 'Billing address removed.');
+    }
+
     public function show(User $client)
     {
         abort_unless($client->role === User::ROLE_CUSTOMER, 404);
@@ -121,11 +206,17 @@ class ClientController extends Controller
 
         $documents = $client->documents()->with('uploader:id,name')->get();
 
+        // Billing addresses. Until now these could only appear one way — a customer typing one
+        // into the pay page — so a client the team set up by hand had none and every invoice
+        // asked again.
+        $billingAddresses = $client->billingAddresses()->orderByDesc('is_default')->orderBy('id')->get();
+
         return view('admin.clients.show', [
             'client' => $client,
             'invoices' => $invoices,
             'payments' => $payments,
             'documents' => $documents,
+            'billingAddresses' => $billingAddresses,
             'stats' => [
                 'projects' => 0,
                 'invoiced' => round((float) $invoices->sum('total'), 2),

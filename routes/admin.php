@@ -434,6 +434,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('clients/{client}', [ClientController::class, 'update'])->whereNumber('client')->name('clients.update');
             Route::patch('clients/{client}/status', [ClientController::class, 'updateStatus'])->whereNumber('client')->name('clients.status');
             Route::post('clients/{client}/documents', [ClientController::class, 'storeDocument'])->whereNumber('client')->name('clients.documents.store');
+            // Billing addresses — the same book the pay page writes into, now editable here.
+            Route::post('clients/{client}/billing-addresses', [ClientController::class, 'storeBillingAddress'])->whereNumber('client')->name('clients.billing-addresses.store');
+            Route::put('clients/{client}/billing-addresses/{address}', [ClientController::class, 'updateBillingAddress'])->whereNumber(['client', 'address'])->name('clients.billing-addresses.update');
+            Route::patch('clients/{client}/billing-addresses/{address}/default', [ClientController::class, 'defaultBillingAddress'])->whereNumber(['client', 'address'])->name('clients.billing-addresses.default');
+            Route::delete('clients/{client}/billing-addresses/{address}', [ClientController::class, 'destroyBillingAddress'])->whereNumber(['client', 'address'])->name('clients.billing-addresses.destroy');
             Route::delete('clients/{client}/documents/{document}', [ClientController::class, 'destroyDocument'])->whereNumber('client')->whereNumber('document')->name('clients.documents.destroy');
         });
         Route::middleware('permission:clients.delete')->group(function () {
