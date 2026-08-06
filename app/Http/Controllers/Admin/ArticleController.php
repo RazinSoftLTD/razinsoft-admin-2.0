@@ -13,9 +13,36 @@ use Illuminate\Validation\Rule;
 
 class ArticleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $articles = Article::with('category', 'author')->orderByDesc('published_at')->orderByDesc('id')->paginate(15);
+        $q = Article::with('category', 'author');
+
+        if ($search = trim((string) $request->query('search'))) {
+            $q->where(fn ($w) => $w->where('title', 'like', "%{$search}%")->orWhere('slug', 'like', "%{$search}%"));
+        }
+        if (($status = $request->query('status')) !== null && $status !== '') {
+            // "draft" covers anything not published, so a legacy status still lands somewhere.
+            $status === 'published' ? $q->where('status', 'published') : $q->where('status', '!=', 'published');
+        }
+        if ($category = $request->query('category')) {
+            $q->where('category_id', $category);
+        }
+        if ($author = $request->query('author')) {
+            $q->where('author_id', $author);
+        }
+        if ($featured = $request->query('featured')) {
+            $q->where('is_featured', $featured === 'yes');
+        }
+        // whereDate on both ends: SQLite keeps a date column as "2026-08-04 00:00:00", which sorts
+        // after the bare date a between compares against.
+        if ($from = $request->date('from')) {
+            $q->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->date('to')) {
+            $q->whereDate('created_at', '<=', $to);
+        }
+
+        $articles = $q->orderByDesc('published_at')->orderByDesc('id')->paginate(15)->withQueryString();
 
         // Views come from the visit log, counted for this page's slugs in one grouped query —
         // a count per row would be fifteen queries for a number nobody sorts by.
@@ -25,7 +52,14 @@ class ArticleController extends Controller
             ->groupBy('path')
             ->pluck('total', 'path');
 
-        return view('admin.articles.index', compact('articles', 'views'));
+        return view('admin.articles.index', [
+            'articles' => $articles,
+            'views' => $views,
+            'categories' => ArticleCategory::orderBy('name')->get(['id', 'name']),
+            'authors' => Author::orderBy('name')->get(['id', 'name']),
+            'activeFilters' => collect($request->only(['search', 'status', 'category', 'author', 'featured', 'from', 'to']))
+                ->filter(fn ($v) => $v !== null && $v !== '')->count(),
+        ]);
     }
 
     public function create()

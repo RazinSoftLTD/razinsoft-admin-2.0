@@ -41,7 +41,7 @@
                     class="relative grid w-11 place-items-center rounded-lg border border-gray-200 bg-white text-[var(--color-heading)] hover:bg-gray-50">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M6 12h12M9 18h6"/></svg>
                 @if ($activeFilters)
-                    <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
+                    <span style="top: -0.25rem" class="absolute -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">{{ $activeFilters }}</span>
                 @endif
             </button>
         </div>
