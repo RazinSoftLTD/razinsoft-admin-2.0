@@ -132,26 +132,7 @@
         <div x-show="chatMenu.open" x-cloak>
             <div class="fixed inset-0 z-50" @click="chatMenu.open = false" @contextmenu.prevent="chatMenu.open = false"></div>
             <div x-ref="chatMenu" :style="`position:fixed; top:${chatMenu.y}px; left:${chatMenu.x}px`"
-                 class="w-56 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl" style="z-index:60">
-                <p class="truncate px-4 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-gray-300" x-text="chatMenu.chat?.name"></p>
-
-                {{-- Labels: the list is short and toggling is the whole action, so it sits open
-                     rather than behind another step. --}}
-                <div class="max-h-60 overflow-auto border-t border-gray-100 py-1">
-                    <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-300">Add label</p>
-                    <template x-if="!labels.length">
-                        <p class="px-4 py-1.5 text-xs text-gray-300">None set up yet.</p>
-                    </template>
-                    <template x-for="l in labels" :key="l.id">
-                        <button type="button" @click="menuLabel(l)" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
-                            <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="`background:${l.color}`"></span>
-                            <span class="min-w-0 flex-1 truncate" x-text="l.name"></span>
-                            <svg x-show="chatHasLabel(chatMenu.chat, l)" class="h-4 w-4 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
-                        </button>
-                    </template>
-                </div>
-
-                <div class="border-t border-gray-100"></div>
+                 class="w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl" style="z-index:60">
                 <button type="button" @click="menuPin()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
                     <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3v2l1 1v4l2 2v2h-6v5l-1 2-1-2v-5H5v-2l2-2V6l1-1V3h8Z"/></svg>
                     <span x-text="chatMenu.chat?.pinned ? 'Unpin chat' : 'Pin chat'"></span>
@@ -1057,20 +1038,6 @@
                             this.chatMenu.x = Math.max(pad, window.innerWidth - m.offsetWidth - pad);
                         }
                     });
-                },
-                chatHasLabel(c, l) { return !!(c && (c.labels || []).some(x => x.id === l.id)); },
-                async menuLabel(l) {
-                    const c = this.chatMenu.chat;
-                    if (!c) return;
-                    this.chatMenu.open = false;
-                    const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/label', { label_id: l.id });
-                    if (r.ok) {
-                        const d = await r.json();
-                        c.labels = d.labels;
-                        // The panel on the right shows the same labels, so it must not disagree.
-                        if (this.active && this.active.id === c.id) this.active.labels = d.labels;
-                    }
-                    this.loadChats();
                 },
                 async menuPin() {
                     const c = this.chatMenu.chat;
