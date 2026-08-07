@@ -104,6 +104,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('razin-ai', [$rai, 'index'])->name('razin-ai');
             Route::post('razin-ai', [$rai, 'update'])->name('razin-ai.update');
             Route::post('razin-ai/faqs', [$rai, 'storeFaq'])->name('razin-ai.faqs.store');
+            Route::put('razin-ai/faqs/{faq}', [$rai, 'updateFaq'])->whereNumber('faq')->name('razin-ai.faqs.update');
             Route::patch('razin-ai/faqs/{faq}', [$rai, 'toggleFaq'])->whereNumber('faq')->name('razin-ai.faqs.toggle');
             Route::delete('razin-ai/faqs/{faq}', [$rai, 'destroyFaq'])->whereNumber('faq')->name('razin-ai.faqs.destroy');
         });

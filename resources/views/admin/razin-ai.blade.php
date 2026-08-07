@@ -145,33 +145,59 @@
 
                 <form method="POST" action="{{ route('admin.razin-ai.faqs.store') }}" class="mb-5 space-y-3 rounded-lg border border-dashed border-gray-300 p-4">
                     @csrf
+                    <input type="text" name="category" list="faq-categories" placeholder="Category — e.g. Ready eCommerce, Pricing, Support" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <datalist id="faq-categories">
+                        @foreach ($faqs->pluck('category')->filter()->unique() as $cat)<option value="{{ $cat }}">@endforeach
+                    </datalist>
                     <input type="text" name="keywords" required placeholder="price, দাম, pricing" class="h-10 w-full rounded-lg border-gray-200 text-sm">
                     <textarea name="reply" rows="2" required placeholder="Our products start at $39 — see razinsoft.com/products for every plan." class="w-full rounded-lg border-gray-200 text-sm"></textarea>
                     <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Add FAQ</button>
                 </form>
 
-                <div class="space-y-3">
-                    @forelse ($faqs as $faq)
-                        <div class="rounded-lg border p-4 {{ $faq->is_active ? 'border-gray-200' : 'border-gray-100 opacity-60' }}">
-                            <div class="flex flex-wrap items-start justify-between gap-2">
-                                <div class="flex flex-wrap gap-1">
-                                    @foreach (explode(',', $faq->keywords) as $kw)
-                                        <span class="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-primary)]">{{ trim($kw) }}</span>
-                                    @endforeach
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="mr-1 text-[11px] text-gray-400" title="How many times this FAQ answered">{{ number_format($faq->hit_count) }} hits</span>
-                                    <form method="POST" action="{{ route('admin.razin-ai.faqs.toggle', $faq) }}">@csrf @method('PATCH')
-                                        <button class="rounded-lg px-2 py-1 text-[11px] font-bold {{ $faq->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500' }}">{{ $faq->is_active ? 'Active' : 'Paused' }}</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('admin.razin-ai.faqs.destroy', $faq) }}" onsubmit="return confirm('Remove this FAQ?')">@csrf @method('DELETE')
-                                        <button class="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Delete">
-                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
-                                        </button>
-                                    </form>
-                                </div>
+                <div class="space-y-5">
+                    @forelse ($faqs->groupBy(fn ($f) => $f->category ?: 'General') as $category => $group)
+                        <div>
+                            <p class="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-gray-400">{{ $category }} <span class="font-normal normal-case tracking-normal">· {{ $group->count() }}</span></p>
+                            <div class="space-y-3">
+                                @foreach ($group as $faq)
+                                    <div x-data="{ editing: false }" class="rounded-lg border p-4 {{ $faq->is_active ? 'border-gray-200' : 'border-gray-100 opacity-60' }}">
+                                        <div x-show="!editing">
+                                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                                <div class="flex flex-wrap gap-1">
+                                                    @foreach (explode(',', $faq->keywords) as $kw)
+                                                        <span class="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-primary)]">{{ trim($kw) }}</span>
+                                                    @endforeach
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <span class="mr-1 text-[11px] text-gray-400" title="How many times this FAQ answered">{{ number_format($faq->hit_count) }} hits</span>
+                                                    <button type="button" @click="editing = true" class="rounded-lg px-2 py-1 text-[11px] font-bold text-gray-500 hover:bg-gray-100" title="Edit">Edit</button>
+                                                    <form method="POST" action="{{ route('admin.razin-ai.faqs.toggle', $faq) }}">@csrf @method('PATCH')
+                                                        <button class="rounded-lg px-2 py-1 text-[11px] font-bold {{ $faq->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500' }}">{{ $faq->is_active ? 'Active' : 'Paused' }}</button>
+                                                    </form>
+                                                    <form method="POST" action="{{ route('admin.razin-ai.faqs.destroy', $faq) }}" onsubmit="return confirm('Remove this FAQ?')">@csrf @method('DELETE')
+                                                        <button class="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Delete">
+                                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            <p class="mt-2 whitespace-pre-line text-sm text-[var(--color-muted)]">{{ Str::limit($faq->reply, 350) }}</p>
+                                        </div>
+
+                                        {{-- In-place edit: same three fields the add form has. --}}
+                                        <form x-show="editing" x-cloak method="POST" action="{{ route('admin.razin-ai.faqs.update', $faq) }}" class="space-y-3">
+                                            @csrf @method('PUT')
+                                            <input type="text" name="category" list="faq-categories" value="{{ $faq->category }}" placeholder="Category" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                            <input type="text" name="keywords" required value="{{ $faq->keywords }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                            <textarea name="reply" rows="6" required class="w-full rounded-lg border-gray-200 text-sm">{{ $faq->reply }}</textarea>
+                                            <div class="flex gap-2">
+                                                <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save</button>
+                                                <button type="button" @click="editing = false" class="rounded-lg border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                @endforeach
                             </div>
-                            <p class="mt-2 text-sm text-[var(--color-muted)]">{{ $faq->reply }}</p>
                         </div>
                     @empty
                         <p class="py-6 text-center text-sm text-gray-400">No FAQs yet — every reply goes to OpenAI until you add some.</p>

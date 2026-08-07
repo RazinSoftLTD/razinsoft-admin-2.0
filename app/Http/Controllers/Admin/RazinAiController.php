@@ -77,6 +77,7 @@ class RazinAiController extends Controller
     public function storeFaq(Request $request)
     {
         $data = $request->validate([
+            'category' => ['nullable', 'string', 'max:100'],
             'keywords' => ['required', 'string', 'max:500'],
             'reply' => ['required', 'string', 'max:2000'],
         ]);
@@ -84,6 +85,19 @@ class RazinAiController extends Controller
         AiFaq::create($data + ['position' => (int) AiFaq::max('position') + 1]);
 
         return back()->with('status', 'FAQ added — it now answers before OpenAI is asked.');
+    }
+
+    public function updateFaq(Request $request, AiFaq $faq)
+    {
+        $data = $request->validate([
+            'category' => ['nullable', 'string', 'max:100'],
+            'keywords' => ['required', 'string', 'max:500'],
+            'reply' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $faq->update($data);
+
+        return back()->with('status', 'FAQ updated.');
     }
 
     public function toggleFaq(AiFaq $faq)
