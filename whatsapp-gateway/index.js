@@ -177,8 +177,14 @@ async function start(key) {
       for (const u of updates) {
         // A revoke (delete) of a received message often arrives here, not via messages.upsert.
         const upd = u.update || {}
-        if (upd.messageStubType === REVOKE_STUB || upd.message?.protocolMessage?.key?.id) {
-          push(key, { event: 'revoke', id: upd.message?.protocolMessage?.key?.id || u.key?.id })
+        const updProto = upd.message?.protocolMessage
+        if (updProto?.editedMessage && updProto?.key?.id) {
+          const edited = parseMessage(updProto.editedMessage)
+          push(key, { event: 'edit', id: updProto.key.id, text: edited.text || '', from_me: !!u.key?.fromMe })
+          continue
+        }
+        if (upd.messageStubType === REVOKE_STUB || updProto?.key?.id) {
+          push(key, { event: 'revoke', id: updProto?.key?.id || u.key?.id })
           continue
         }
         const st = upd.status
@@ -198,9 +204,18 @@ async function handleMessage(key, m, historic = false) {
   if (!m || !m.message) return
   const jid = m.key.remoteJid || ''
   if (jid === 'status@broadcast') return
+  // Edits and revokes both travel as protocolMessage — and edits also arrive wrapped in an
+  // editedMessage envelope. Read the edit first: treating it as a revoke deletes the bubble,
+  // and not reading it at all shows "[Unsupported message]" where the customer fixed a typo.
+  const proto = m.message.protocolMessage || m.message.editedMessage?.message?.protocolMessage
+  if (proto?.editedMessage && proto?.key?.id) {
+    const edited = parseMessage(proto.editedMessage)
+    push(key, { event: 'edit', id: proto.key.id, text: edited.text || '', from_me: !!m.key.fromMe })
+    return
+  }
   // A message was deleted/revoked → mark it deleted, don't create a phantom "[Unsupported message]".
-  if (m.message.protocolMessage?.key?.id) {
-    push(key, { event: 'revoke', id: m.message.protocolMessage.key.id })
+  if (proto?.key?.id) {
+    push(key, { event: 'revoke', id: proto.key.id })
     return
   }
   if (m.message.reactionMessage) {

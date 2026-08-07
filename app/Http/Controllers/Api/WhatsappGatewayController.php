@@ -38,6 +38,7 @@ class WhatsappGatewayController extends Controller
             'status' => $this->onStatus($request, $account),
             'reaction' => $this->onReaction($request, $account),
             'revoke' => $this->onRevoke($request, $account),
+            'edit' => $this->onEdit($request, $account),
             default => response()->json(['ok' => true]),
         };
     }
@@ -215,6 +216,31 @@ class WhatsappGatewayController extends Controller
                 $message->update(['deleted_at' => now(), 'body' => null, 'media_path' => null]);
                 try {
                     event(new WhatsappMessageReceived($message->chat_id, $message->id, 'revoke'));
+                } catch (\Throwable) {
+                }
+            }
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** The other side edited a message — update the bubble the panel already shows. */
+    private function onEdit(Request $request, ?WhatsappAccount $account)
+    {
+        $id = $request->input('id');
+        $body = (string) $request->input('text', '');
+
+        if ($id && $body !== '') {
+            $message = $this->scopedMessage($id, $account);
+            if ($message && ! $message->deleted_at) {
+                $message->update(['body' => $body, 'edited_at' => now()]);
+
+                $chat = $message->chat;
+                if ($chat && $chat->messages()->max('id') === $message->id) {
+                    $chat->update(['last_message_preview' => Str::limit($body, 120)]);
+                }
+                try {
+                    event(new WhatsappMessageReceived($message->chat_id, $message->id, 'edit'));
                 } catch (\Throwable) {
                 }
             }
