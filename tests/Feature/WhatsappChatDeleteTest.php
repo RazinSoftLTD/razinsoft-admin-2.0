@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
 use App\Models\WhatsappLabel;
+use App\Models\WhatsappSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -60,6 +61,52 @@ class WhatsappChatDeleteTest extends TestCase
         $this->assertDatabaseCount('whatsapp_notes', 0);
         $this->assertDatabaseCount('whatsapp_chat_label', 0);
         Storage::disk('public')->assertMissing('whatsapp/photo.jpg');
+    }
+
+    /** The point of the headstone: the phone replays its history and must not undo the wipe. */
+    public function test_a_history_resync_cannot_bring_the_deleted_chat_back(): void
+    {
+        $settings = WhatsappSetting::current();
+        $settings->gateway_secret = 'secret';
+        $settings->save();
+
+        $this->chat->messages()->create(['direction' => 'in', 'type' => 'text', 'body' => 'old talk', 'sent_at' => now()->subDay()]);
+
+        $this->actingAs($this->superAdmin())
+            ->deleteJson(route('admin.whatsapp.chat.destroy', $this->chat))->assertOk();
+
+        // The gateway replays a message from before the wipe.
+        $this->postJson('/api/whatsapp/gateway', [
+            'event' => 'message', 'session' => 'main', 'historic' => true,
+            'from' => '8801711111111@s.whatsapp.net', 'phone' => '8801711111111',
+            'text' => 'old talk', 'timestamp' => now()->subDay()->timestamp,
+        ], ['X-Gateway-Secret' => 'secret'])->assertOk();
+
+        $this->assertDatabaseCount('whatsapp_chats', 0);
+        $this->assertDatabaseCount('whatsapp_messages', 0);
+    }
+
+    /** But the contact writing again is a new conversation, not a resurrection. */
+    public function test_a_new_message_after_the_wipe_starts_a_fresh_chat(): void
+    {
+        $settings = WhatsappSetting::current();
+        $settings->gateway_secret = 'secret';
+        $settings->save();
+
+        $this->chat->messages()->create(['direction' => 'in', 'type' => 'text', 'body' => 'old talk', 'sent_at' => now()->subDay()]);
+        $this->actingAs($this->superAdmin())
+            ->deleteJson(route('admin.whatsapp.chat.destroy', $this->chat))->assertOk();
+
+        $this->postJson('/api/whatsapp/gateway', [
+            'event' => 'message', 'session' => 'main',
+            'from' => '8801711111111@s.whatsapp.net', 'phone' => '8801711111111',
+            'text' => 'Hello again', 'timestamp' => now()->addMinute()->timestamp,
+        ], ['X-Gateway-Secret' => 'secret'])->assertOk();
+
+        $this->assertDatabaseCount('whatsapp_chats', 1);
+        $this->assertDatabaseHas('whatsapp_messages', ['body' => 'Hello again']);
+        // …and only the new message, never the old history.
+        $this->assertDatabaseMissing('whatsapp_messages', ['body' => 'old talk']);
     }
 
     public function test_a_regular_staff_member_may_not(): void

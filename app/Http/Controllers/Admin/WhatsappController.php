@@ -9,6 +9,7 @@ use App\Models\ProductCategory;
 use App\Models\User;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
+use App\Models\WhatsappDeletedChat;
 use App\Models\WhatsappLabel;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappQuickReply;
@@ -465,12 +466,15 @@ class WhatsappController extends Controller
      *
      * This is local housekeeping, not a WhatsApp action: nothing is deleted on the phone or at
      * Meta, and if the contact writes again the gateway will simply create a fresh chat. Gone
-     * for good here, though — messages, media files, notes and labels all go with it.
+     * for good here, though — messages, media files, notes and labels all go with it, and a
+     * headstone keeps the phone's next history sync from quietly putting it all back.
      */
     public function destroyChat(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
         abort_unless($request->user()->isSuperAdmin(), 403, 'Only a super admin can delete a chat history.');
+
+        WhatsappDeletedChat::remember($chat, $request->user()->id);
 
         $media = $chat->messages()->reorder()->whereNotNull('media_path')->pluck('media_path');
         foreach ($media->chunk(100) as $paths) {

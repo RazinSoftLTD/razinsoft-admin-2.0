@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
+use App\Models\WhatsappDeletedChat;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappSetting;
 use App\Services\WhatsappAutoReplyService;
@@ -104,6 +105,14 @@ class WhatsappGatewayController extends Controller
 
         $isGroup = $request->input('chat_type') === 'group' || str_contains($waId, '@g.us');
         $phone = $request->input('phone');
+
+        // Someone wiped this conversation on purpose. The phone replays it on every history sync,
+        // so drop anything from before the wipe — a message sent afterwards is a new conversation
+        // and still gets through.
+        $sentAt = $request->input('timestamp') ? now()->setTimestamp((int) $request->input('timestamp')) : now();
+        if (WhatsappDeletedChat::blocks($account?->id, $waId, $isGroup ? null : $phone, $sentAt)) {
+            return response()->json(['ok' => true, 'skipped' => 'deleted chat']);
+        }
         // Groups have many senders, so don't auto-match them to a single client.
         $matchKey = $isGroup ? null : ($phone ?: (str_contains($waId, '@lid') ? null : $waId));
 
@@ -163,7 +172,7 @@ class WhatsappGatewayController extends Controller
             'media_mime' => $mediaMime,
             'media_name' => $mediaName ?: $request->input('filename'),
             'status' => $fromMe ? 'sent' : 'received',
-            'sent_at' => $request->input('timestamp') ? now()->setTimestamp((int) $request->input('timestamp')) : now(),
+            'sent_at' => $sentAt,
         ]);
 
         // Keep last_message_* pointing at the newest message (historic imports may arrive out of order).
