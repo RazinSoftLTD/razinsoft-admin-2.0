@@ -28,7 +28,9 @@ class WhatsappAutoReplyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.openai.key' => 'sk-test']);
+        // Pin the host too: a developer's .env may point at a local stand-in, and the fakes
+        // below only stub api.openai.com — an unpinned host would let requests through for real.
+        config(['services.openai.key' => 'sk-test', 'services.openai.base_url' => 'https://api.openai.com']);
 
         $settings = WhatsappSetting::current();
         $settings->ai_settings = ['mode' => 'always'];
