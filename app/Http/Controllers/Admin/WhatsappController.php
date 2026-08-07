@@ -905,7 +905,7 @@ class WhatsappController extends Controller
             'id' => $m->id, 'direction' => $m->direction, 'type' => $m->type,
             'sender_name' => $m->sender_name,
             'body' => $m->body, 'media' => $m->mediaUrl(), 'media_mime' => $m->media_mime, 'media_name' => $m->media_name,
-            'status' => $m->status, 'agent' => $m->agent?->name,
+            'status' => $m->status, 'agent' => $m->agent?->name, 'ai' => (bool) $m->ai_generated,
             // Shown on a failed row so the reason is visible without opening a log.
             'error' => $m->status === 'failed' ? $m->error : null,
             'edited' => (bool) $m->edited_at,
