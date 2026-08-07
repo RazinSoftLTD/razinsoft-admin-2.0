@@ -905,6 +905,21 @@
                                 </template>
                             </ul>
                         </div>
+
+                        @if (auth()->user()->isSuperAdmin())
+                            {{-- The tap-reachable twin of the right-click menu's Delete — the context
+                                 menu needs a right click, which a phone does not have. --}}
+                            <div class="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
+                                <p class="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-red-400">Danger zone</p>
+                                <button type="button" @click="deleteChat(active)" :disabled="deletingChat"
+                                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-8 0 1 13h8l1-13M10 11v6m4-6v6"/></svg>
+                                    <span x-show="!deletingChat">Delete chat history</span>
+                                    <span x-show="deletingChat" x-cloak>Deleting…</span>
+                                </button>
+                                <p class="mt-1.5 text-[10px] leading-relaxed text-gray-400">Removes every message, photo and note from this panel only — WhatsApp itself keeps its copy. Super admin only.</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </template>
@@ -1014,6 +1029,7 @@
                     { key: 'blocked', label: 'Blocked' },
                 ],
                 chatMenu: { open: false, x: 0, y: 0, chat: null },
+                deletingChat: false,
                 labelMenu: false, pickedLabels: [],
                 labels: @js($labels->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'color' => $l->color])->values()),
                 labelCounts: @js($labelCounts),
@@ -1150,17 +1166,31 @@
                     if (r.ok && this.active && this.active.id === c.id) this.active = null;
                     this.loadChats();
                 },
-                async menuDelete() {
+                menuDelete() {
                     const c = this.chatMenu.chat;
-                    if (!c) return;
                     this.chatMenu.open = false;
+                    this.deleteChat(c);
+                },
+                async deleteChat(c) {
+                    if (!c || this.deletingChat) return;
                     if (!confirm('Delete the chat with ' + c.name + '?\n\nThe ENTIRE history — every message, photo and note — is permanently removed from this panel. WhatsApp itself is not touched; if they write again, a fresh empty chat appears.\n\nThis cannot be undone.')) return;
-                    const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + c.id, {
-                        method: 'DELETE', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
-                    });
-                    if (!r.ok) { alert('Could not delete the chat (' + r.status + ').'); return; }
-                    if (this.active && this.active.id === c.id) this.active = null;
-                    this.loadChats();
+                    this.deletingChat = true;
+                    try {
+                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + c.id, {
+                            method: 'DELETE', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
+                        });
+                        if (!r.ok) {
+                            const msg = (await r.json().catch(() => null))?.message;
+                            alert('Could not delete the chat: ' + (msg || 'HTTP ' + r.status));
+                            return;
+                        }
+                        if (this.active && this.active.id === c.id) { this.active = null; this.showInfo = false; }
+                        this.loadChats();
+                    } catch (e) {
+                        alert('Could not delete the chat: ' + e.message);
+                    } finally {
+                        this.deletingChat = false;
+                    }
                 },
                 async loadChats() {
                     const token = ++this._chatReq;
