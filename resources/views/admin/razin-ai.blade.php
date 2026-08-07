@@ -12,7 +12,7 @@
         <div class="flex items-center gap-2">
             <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold {{ $keyConfigured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
                 <span class="h-1.5 w-1.5 rounded-full {{ $keyConfigured ? 'bg-emerald-500' : 'bg-amber-400' }}"></span>
-                {{ $keyConfigured ? 'OpenAI key connected' : 'No OpenAI key — assistant stays silent' }}
+                {{ $keyConfigured ? 'OpenAI key connected' : 'No OpenAI key — FAQ replies only' }}
             </span>
             <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500">{{ $repliesToday }} AI replies today</span>
         </div>
@@ -100,7 +100,7 @@
                             </span>
                             <span class="min-w-0 flex-1">
                                 <span class="block text-sm font-bold text-[var(--color-heading)]">{{ $acc->name }}</span>
-                                <span class="block text-xs text-gray-400">{{ $acc->display_number ? '+'.$acc->display_number : 'not connected' }}</span>
+                                <span class="block text-xs text-gray-400">{{ $acc->display_number ? '+'.ltrim($acc->display_number, '+') : 'not connected' }}</span>
                             </span>
                         </label>
                     @empty

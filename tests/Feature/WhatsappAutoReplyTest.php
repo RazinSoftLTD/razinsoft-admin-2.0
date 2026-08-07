@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AiFaq;
 use App\Models\User;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
@@ -200,10 +201,23 @@ class WhatsappAutoReplyTest extends TestCase
         $this->assertSame('no api key', $this->service()->maybeReply($this->chat, $this->inbound()));
     }
 
+    /** The shelf is plain database text — it must work before anyone has an OpenAI account. */
+    public function test_the_faq_shelf_answers_even_without_an_api_key(): void
+    {
+        $this->fakeHappy();
+        config(['services.openai.key' => null]);
+        AiFaq::create(['keywords' => 'demo', 'reply' => 'Here is the demo: demo.razinsoft.com']);
+
+        $this->assertNull($this->service()->maybeReply($this->chat, $this->inbound('demo link ta den')));
+        $reply = $this->chat->messages()->reorder()->where('direction', 'out')->first();
+        $this->assertStringContainsString('demo.razinsoft.com', $reply->body);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'openai'));
+    }
+
     public function test_a_keyword_hit_answers_from_the_database_without_openai(): void
     {
         $this->fakeHappy();
-        \App\Models\AiFaq::create(['keywords' => 'price, দাম', 'reply' => 'Prices start at $39 — see razinsoft.com/products.']);
+        AiFaq::create(['keywords' => 'price, দাম', 'reply' => 'Prices start at $39 — see razinsoft.com/products.']);
 
         $why = $this->service()->maybeReply($this->chat, $this->inbound('What is the price of Ready eCommerce?'));
 
@@ -211,7 +225,7 @@ class WhatsappAutoReplyTest extends TestCase
         $reply = $this->chat->messages()->reorder()->where('direction', 'out')->first();
         $this->assertStringContainsString('Prices start at $39', $reply->body);
         $this->assertTrue((bool) $reply->ai_generated);
-        $this->assertSame(1, (int) \App\Models\AiFaq::first()->hit_count);
+        $this->assertSame(1, (int) AiFaq::first()->hit_count);
         // The whole point of the shelf: OpenAI was never called.
         Http::assertNotSent(fn ($r) => str_contains($r->url(), 'openai'));
     }
@@ -263,6 +277,48 @@ class WhatsappAutoReplyTest extends TestCase
         $this->chat->messages()->create(['direction' => 'out', 'type' => 'text', 'body' => 'Hi, Lisa here', 'sent_at' => now()->subMonth()]);
 
         $this->assertNull($this->service()->maybeReply($this->chat, $this->inbound()));
+    }
+
+    /**
+     * A Cloud API number must answer too.
+     *
+     * The hook lived only on the paired-phone gateway, so the two numbers the team actually
+     * enabled — both Cloud API — sat silent with nothing in the logs to explain it.
+     */
+    public function test_a_cloud_api_number_answers_from_its_webhook(): void
+    {
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]])]);
+
+        $cloud = WhatsappAccount::create([
+            'name' => 'WA 89', 'session_key' => 'wa89', 'driver' => 'cloud_api',
+            'phone_number_id' => '11122233', 'access_token' => 'EAAtoken', 'api_version' => 'v21.0',
+            'is_connected' => true, 'ai_reply_enabled' => true,
+        ]);
+        AiFaq::create(['keywords' => 'demo', 'reply' => 'Demo: demo.razinsoft.com']);
+
+        $this->postJson('/api/whatsapp/webhook', [
+            'entry' => [[
+                'changes' => [[
+                    'value' => [
+                        'metadata' => ['phone_number_id' => '11122233'],
+                        'contacts' => [['wa_id' => '8801999999999', 'profile' => ['name' => 'Rafi']]],
+                        'messages' => [[
+                            'id' => 'wamid.IN1', 'from' => '8801999999999', 'type' => 'text',
+                            'text' => ['body' => 'demo link ta den'], 'timestamp' => (string) now()->timestamp,
+                        ]],
+                    ],
+                ]],
+            ]],
+        ])->assertOk();
+
+        // terminating() callbacks run once the response is sent.
+        app()->terminate();
+
+        $chat = WhatsappChat::where('account_id', $cloud->id)->firstOrFail();
+        $reply = $chat->messages()->reorder()->where('direction', 'out')->first();
+        $this->assertNotNull($reply, 'The Cloud API webhook never triggered the auto-reply.');
+        $this->assertStringContainsString('demo.razinsoft.com', $reply->body);
+        $this->assertSame('faq', $reply->ai_source);
     }
 
     public function test_a_failed_draft_sends_nothing(): void

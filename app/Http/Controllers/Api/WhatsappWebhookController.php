@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Events\WhatsappMessageReceived;
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\WhatsappChat;
 use App\Models\WhatsappAccount;
+use App\Models\WhatsappChat;
 use App\Models\WhatsappMessage;
+use App\Services\WhatsappAutoReplyService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /** Meta calls this: GET to verify the endpoint, POST to deliver messages & status updates. */
 class WhatsappWebhookController extends Controller
@@ -130,7 +132,7 @@ class WhatsappWebhookController extends Controller
 
         $chat->update([
             'last_message_at' => $message->sent_at,
-            'last_message_preview' => \Illuminate\Support\Str::limit($body ?: ucfirst($type), 120),
+            'last_message_preview' => Str::limit($body ?: ucfirst($type), 120),
             'unread_count' => $chat->unread_count + 1,
             'status' => $chat->status === 'resolved' ? 'open' : $chat->status,
         ]);
@@ -140,6 +142,23 @@ class WhatsappWebhookController extends Controller
             event(new WhatsappMessageReceived($chat->id, $message->id, 'in'));
         } catch (\Throwable) {
         }
+
+        // Razin AI gets the same chance here as on a paired number. Run after the response so
+        // Meta's webhook never waits on OpenAI, and never let a failure break message intake —
+        // Meta retries a webhook it thinks failed, which would duplicate the whole message.
+        $chatId = $chat->id;
+        $messageId = $message->id;
+        app()->terminating(function () use ($chatId, $messageId) {
+            try {
+                $chat = WhatsappChat::find($chatId);
+                $message = WhatsappMessage::find($messageId);
+                if ($chat && $message) {
+                    app(WhatsappAutoReplyService::class)->maybeReply($chat, $message);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
     }
 
     /** Normalise a message payload → [type, body, mediaId, filename]. */

@@ -24,9 +24,6 @@ class WhatsappAutoReplyService
     {
         $settings = AiReplyService::settings();
 
-        if (! $this->ai->configured()) {
-            return 'no api key';
-        }
         if (($settings['mode'] ?? 'off') === 'off') {
             return 'mode off';
         }
@@ -97,7 +94,12 @@ class WhatsappAutoReplyService
             return $this->speak($chat, $faq->reply, 'faq') ? null : 'send failed';
         }
 
-        // ---- 2. OpenAI, told it may raise its hand.
+        // ---- 2. OpenAI, told it may raise its hand. The shelf above needs no account at all, so
+        // the key is only required from here on: keyword replies work before anyone signs up.
+        if (! $this->ai->configured()) {
+            return 'no api key';
+        }
+
         $text = $this->ai->draft($this->transcript($chat), array_filter([
             $chat->displayName() !== $chat->phoneLabel() ? 'The customer\'s name is '.$chat->displayName().'.' : null,
             'You are replying inside WhatsApp — keep it short.',
