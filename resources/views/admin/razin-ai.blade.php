@@ -1,0 +1,184 @@
+@extends('admin.layouts.app')
+@section('title', 'Razin AI')
+
+@section('content')
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h1 class="text-xl font-bold text-[var(--color-heading)]">Razin AI</h1>
+            <p class="mt-1 text-sm text-[var(--color-muted)]">
+                Automatic WhatsApp replies — FAQ first, OpenAI when the FAQ has no answer, a human when the AI raises its hand.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold {{ $keyConfigured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
+                <span class="h-1.5 w-1.5 rounded-full {{ $keyConfigured ? 'bg-emerald-500' : 'bg-amber-400' }}"></span>
+                {{ $keyConfigured ? 'OpenAI key connected' : 'No OpenAI key — assistant stays silent' }}
+            </span>
+            <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500">{{ $repliesToday }} AI replies today</span>
+        </div>
+    </div>
+
+    @if (session('status'))
+        <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <ul class="list-inside list-disc space-y-1">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+        </div>
+    @endif
+
+    <div class="grid gap-6 xl:grid-cols-2">
+        {{-- ══ Behaviour ══ --}}
+        <form method="POST" action="{{ route('admin.razin-ai.update') }}" class="space-y-6">
+            @csrf
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">When may it speak</h2>
+
+                <div class="space-y-2">
+                    @foreach (['off' => ['Off', 'The assistant never replies.'], 'always' => ['Always', 'Replies whenever no agent has answered first.'], 'outside_hours' => ['Outside office hours only', 'The team answers during the day; the assistant covers the night and holidays.']] as $value => [$label, $desc])
+                        <label class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition {{ ($settings['mode'] ?? 'off') === $value ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-gray-200 hover:bg-gray-50' }}">
+                            <input type="radio" name="mode" value="{{ $value }}" @checked(($settings['mode'] ?? 'off') === $value) class="mt-0.5 accent-[var(--color-primary)]">
+                            <span>
+                                <span class="block text-sm font-bold text-[var(--color-heading)]">{{ $label }}</span>
+                                <span class="block text-xs text-[var(--color-muted)]">{{ $desc }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+
+                <div class="mt-5 grid gap-4 sm:grid-cols-3">
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-gray-500">Office opens</label>
+                        <input type="time" name="office_start" value="{{ $settings['office_start'] }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-gray-500">Office closes</label>
+                        <input type="time" name="office_end" value="{{ $settings['office_end'] }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-gray-500">Timezone</label>
+                        <input type="text" name="timezone" value="{{ $settings['timezone'] }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Office days</label>
+                    <div class="flex flex-wrap gap-1.5">
+                        @foreach ([1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'] as $day => $label)
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="office_days[]" value="{{ $day }}" @checked(in_array($day, $settings['office_days'] ?? [], true)) class="peer hidden">
+                                <span class="inline-block rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 transition peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary)] peer-checked:text-white">{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Which numbers answer</h2>
+                <div class="space-y-2">
+                    @forelse ($accounts as $acc)
+                        <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50">
+                            <input type="checkbox" name="account_ids[]" value="{{ $acc->id }}" @checked($acc->ai_reply_enabled) class="accent-[var(--color-primary)]">
+                            <span class="grid h-8 w-8 place-items-center rounded-full text-white" style="background: {{ $acc->color }}">
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Z"/></svg>
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-bold text-[var(--color-heading)]">{{ $acc->name }}</span>
+                                <span class="block text-xs text-gray-400">{{ $acc->display_number ? '+'.$acc->display_number : 'not connected' }}</span>
+                            </span>
+                        </label>
+                    @empty
+                        <p class="py-4 text-center text-sm text-gray-400">No WhatsApp numbers connected yet.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Voice &amp; limits</h2>
+
+                <label class="mb-1.5 block text-xs font-semibold text-gray-500">System prompt — who the assistant is and how it behaves</label>
+                <textarea name="system_prompt" rows="5" class="w-full rounded-lg border-gray-200 text-sm">{{ $settings['system_prompt'] }}</textarea>
+
+                <label class="mb-1.5 mt-4 block text-xs font-semibold text-gray-500">Handover message — sent once when the assistant passes to the team</label>
+                <textarea name="handover_message" rows="2" class="w-full rounded-lg border-gray-200 text-sm">{{ $settings['handover_message'] ?? 'Thanks for reaching out! A member of our team will take it from here and reply to you shortly.' }}</textarea>
+
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-gray-500">OpenAI model</label>
+                        <input type="text" name="model" value="{{ $settings['model'] }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                        <p class="mt-1 text-[11px] text-gray-400">A string, so switching models is an edit here — no deploy.</p>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-gray-500">Max AI replies per chat per day</label>
+                        <input type="number" name="max_replies_per_chat_per_day" min="1" max="200" value="{{ $settings['max_replies_per_chat_per_day'] }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                        <p class="mt-1 text-[11px] text-gray-400">Past this, the chat belongs to a person.</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save settings</button>
+        </form>
+
+        {{-- ══ FAQ shelf ══ --}}
+        <div class="space-y-6">
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 class="mb-1 text-sm font-bold text-[var(--color-heading)]">FAQ shelf — answered before OpenAI</h2>
+                <p class="mb-4 text-xs text-[var(--color-muted)]">
+                    If any keyword appears in the customer's message, its reply is sent instantly from here — no API call, no cost. Keywords are comma-separated; Bengali works.
+                </p>
+
+                <form method="POST" action="{{ route('admin.razin-ai.faqs.store') }}" class="mb-5 space-y-3 rounded-lg border border-dashed border-gray-300 p-4">
+                    @csrf
+                    <input type="text" name="keywords" required placeholder="price, দাম, pricing" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <textarea name="reply" rows="2" required placeholder="Our products start at $39 — see razinsoft.com/products for every plan." class="w-full rounded-lg border-gray-200 text-sm"></textarea>
+                    <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Add FAQ</button>
+                </form>
+
+                <div class="space-y-3">
+                    @forelse ($faqs as $faq)
+                        <div class="rounded-lg border p-4 {{ $faq->is_active ? 'border-gray-200' : 'border-gray-100 opacity-60' }}">
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach (explode(',', $faq->keywords) as $kw)
+                                        <span class="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-primary)]">{{ trim($kw) }}</span>
+                                    @endforeach
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="mr-1 text-[11px] text-gray-400" title="How many times this FAQ answered">{{ number_format($faq->hit_count) }} hits</span>
+                                    <form method="POST" action="{{ route('admin.razin-ai.faqs.toggle', $faq) }}">@csrf @method('PATCH')
+                                        <button class="rounded-lg px-2 py-1 text-[11px] font-bold {{ $faq->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500' }}">{{ $faq->is_active ? 'Active' : 'Paused' }}</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('admin.razin-ai.faqs.destroy', $faq) }}" onsubmit="return confirm('Remove this FAQ?')">@csrf @method('DELETE')
+                                        <button class="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Delete">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            <p class="mt-2 text-sm text-[var(--color-muted)]">{{ $faq->reply }}</p>
+                        </div>
+                    @empty
+                        <p class="py-6 text-center text-sm text-gray-400">No FAQs yet — every reply goes to OpenAI until you add some.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">How a message flows</h2>
+                <pre class="overflow-x-auto rounded-lg bg-gray-50 p-4 text-xs leading-relaxed text-gray-600">Customer message
+   │
+   ├─ blocked / group / agent already replied / handed over → stay silent
+   │
+   ├─ FAQ keyword match? ── yes → reply from the shelf (free, instant)
+   │
+   └─ no → OpenAI ({{ $settings['model'] }})
+              │
+              └─ "[HANDOVER]" → one polite note, then the team owns the chat</pre>
+                <p class="mt-3 text-xs text-[var(--color-muted)]">
+                    Every AI reply is marked <span class="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-600">AI</span> in the inbox — customers are never shown a machine pretending to be a person to your own team.
+                </p>
+            </div>
+        </div>
+    </div>
+@endsection

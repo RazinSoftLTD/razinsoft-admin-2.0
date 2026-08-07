@@ -477,6 +477,14 @@
                                     </template>
 
                                     {{-- Under outgoing messages: who replied + (on the last one) Seen/Delivered status --}}
+                                    {{-- The assistant's replies say so — a machine passing as a colleague is how
+                                         the team stops trusting the whole thread. --}}
+                                    <template x-if="m.ai">
+                                        <span class="mb-0.5 mr-1 inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-600">
+                                            <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m12 4 1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6L12 4Z"/></svg>
+                                            Razin AI
+                                        </span>
+                                    </template>
                                     <template x-if="m.direction === 'out' && (m.agent || isLastOut(i))">
                                         <span class="mr-1 mt-0.5 text-[10px] font-medium text-gray-400">
                                             <span x-show="m.agent" x-text="m.agent"></span>

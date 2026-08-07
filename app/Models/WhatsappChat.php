@@ -14,7 +14,7 @@ class WhatsappChat extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['last_message_at' => 'datetime', 'pinned_at' => 'datetime', 'blocked_at' => 'datetime'];
+    protected $casts = ['last_message_at' => 'datetime', 'pinned_at' => 'datetime', 'blocked_at' => 'datetime', 'ai_handover_at' => 'datetime'];
 
     public const STATUSES = ['open' => 'Open', 'pending' => 'Pending', 'resolved' => 'Resolved'];
 

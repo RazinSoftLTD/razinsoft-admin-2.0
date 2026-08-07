@@ -9,6 +9,7 @@ use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappSetting;
+use App\Services\WhatsappAutoReplyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -180,6 +181,24 @@ class WhatsappGatewayController extends Controller
             try {
                 event(new WhatsappMessageReceived($chat->id, $message->id, $fromMe ? 'out' : 'in'));
             } catch (\Throwable) {
+            }
+
+            // After the response, so the gateway callback never waits on OpenAI. The service
+            // holds every reason to stay silent; a failure must never break message intake.
+            if (! $fromMe) {
+                $chatId = $chat->id;
+                $messageId = $message->id;
+                app()->terminating(function () use ($chatId, $messageId) {
+                    try {
+                        $chat = WhatsappChat::find($chatId);
+                        $message = WhatsappMessage::find($messageId);
+                        if ($chat && $message) {
+                            app(WhatsappAutoReplyService::class)->maybeReply($chat, $message);
+                        }
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+                });
             }
         }
 

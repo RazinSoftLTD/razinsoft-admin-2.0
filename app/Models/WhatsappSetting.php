@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class WhatsappSetting extends Model
 {
@@ -12,6 +13,7 @@ class WhatsappSetting extends Model
         'access_token' => 'encrypted',
         'app_secret' => 'encrypted',
         'gateway_secret' => 'encrypted',
+        'ai_settings' => 'array',
         'is_connected' => 'boolean',
         'connected_at' => 'datetime',
         'interest_options' => 'array',
@@ -19,7 +21,7 @@ class WhatsappSetting extends Model
 
     public static function current(): self
     {
-        return static::firstOrCreate([], ['api_version' => 'v21.0', 'verify_token' => \Illuminate\Support\Str::random(24)]);
+        return static::firstOrCreate([], ['api_version' => 'v21.0', 'verify_token' => Str::random(24)]);
     }
 
     /**

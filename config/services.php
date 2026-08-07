@@ -33,6 +33,12 @@ return [
         'tlds' => env('RESELLERCLUB_TLDS', 'com,net,org,co,io,shop,xyz,info,biz,online,store,dev'),
     ],
 
+    /** OpenAI — drafts the WhatsApp auto-replies. Model is a string so switching is one line. */
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-5-mini'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
