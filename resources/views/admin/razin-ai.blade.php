@@ -46,6 +46,21 @@
                     @endforeach
                 </div>
 
+                <div class="mt-5">
+                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Who it replies to</label>
+                    <div class="space-y-2">
+                        @foreach (['new_only' => ['New customers only', 'Chats where the team has never spoken and no client account is linked. Existing relationships stay with the people who built them.'], 'everyone' => ['Everyone', 'Every chat on the enabled numbers, old and new.']] as $value => [$label, $desc])
+                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition {{ ($settings['audience'] ?? 'new_only') === $value ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-gray-200 hover:bg-gray-50' }}">
+                                <input type="radio" name="audience" value="{{ $value }}" @checked(($settings['audience'] ?? 'new_only') === $value) class="mt-0.5 accent-[var(--color-primary)]">
+                                <span>
+                                    <span class="block text-sm font-bold text-[var(--color-heading)]">{{ $label }}</span>
+                                    <span class="block text-xs text-[var(--color-muted)]">{{ $desc }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
                 <div class="mt-5 grid gap-4 sm:grid-cols-3">
                     <div>
                         <label class="mb-1.5 block text-xs font-semibold text-gray-500">Office opens</label>

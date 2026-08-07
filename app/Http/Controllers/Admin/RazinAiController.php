@@ -35,6 +35,7 @@ class RazinAiController extends Controller
     {
         $data = $request->validate([
             'mode' => ['required', 'in:off,always,outside_hours'],
+            'audience' => ['required', 'in:new_only,everyone'],
             'office_days' => ['array'],
             'office_days.*' => ['integer', 'between:1,7'],
             'office_start' => ['required', 'date_format:H:i'],
@@ -51,6 +52,7 @@ class RazinAiController extends Controller
         $settings = WhatsappSetting::current();
         $settings->ai_settings = [
             'mode' => $data['mode'],
+            'audience' => $data['audience'],
             'office_days' => array_map('intval', $data['office_days'] ?? []),
             'office_start' => $data['office_start'],
             'office_end' => $data['office_end'],

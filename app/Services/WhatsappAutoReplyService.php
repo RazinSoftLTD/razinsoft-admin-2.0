@@ -43,6 +43,19 @@ class WhatsappAutoReplyService
             return 'inside office hours';
         }
 
+        // New customers only: someone the team has never spoken to and who is not a known
+        // client. An existing relationship belongs to the people who built it.
+        if (($settings['audience'] ?? 'new_only') === 'new_only') {
+            $known = $chat->client_id !== null
+                || $chat->messages()->reorder()
+                    ->where('direction', 'out')
+                    ->where('ai_generated', false)
+                    ->exists();
+            if ($known) {
+                return 'not a new customer';
+            }
+        }
+
         // Human takeover: an agent reply after this customer message means a person has the
         // conversation — the assistant does not talk over them.
         $answered = $chat->messages()->reorder()

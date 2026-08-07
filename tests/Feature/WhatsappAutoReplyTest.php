@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
 use App\Models\WhatsappMessage;
@@ -120,6 +121,11 @@ class WhatsappAutoReplyTest extends TestCase
     public function test_silent_once_an_agent_has_answered(): void
     {
         $this->fakeHappy();
+        // Audience everyone, so the takeover guard is the one that speaks — under new_only the
+        // earlier new-customer guard would already have silenced this chat.
+        $s = WhatsappSetting::current();
+        $s->ai_settings = ['mode' => 'always', 'audience' => 'everyone'];
+        $s->save();
         $incoming = $this->inbound();
         $this->chat->messages()->create(['direction' => 'out', 'type' => 'text', 'body' => 'Agent here', 'sent_at' => now()]);
 
@@ -227,6 +233,36 @@ class WhatsappAutoReplyTest extends TestCase
 
         // The next message stays with the team — no second AI reply.
         $this->assertSame('handed over to the team', $this->service()->maybeReply($this->chat->fresh(), $this->inbound('hello?')));
+    }
+
+    public function test_new_only_skips_chats_the_team_has_spoken_in(): void
+    {
+        $this->fakeHappy();
+        // A human replied last month; this relationship is theirs.
+        $this->chat->messages()->create(['direction' => 'out', 'type' => 'text', 'body' => 'Hi, Lisa here', 'sent_at' => now()->subMonth()]);
+
+        $this->assertSame('not a new customer', $this->service()->maybeReply($this->chat, $this->inbound()));
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'openai'));
+    }
+
+    public function test_new_only_skips_chats_linked_to_a_client(): void
+    {
+        $this->fakeHappy();
+        $client = User::factory()->create();
+        $this->chat->update(['client_id' => $client->id]);
+
+        $this->assertSame('not a new customer', $this->service()->maybeReply($this->chat->fresh(), $this->inbound()));
+    }
+
+    public function test_everyone_mode_replies_despite_old_history(): void
+    {
+        $this->fakeHappy();
+        $s = WhatsappSetting::current();
+        $s->ai_settings = ['mode' => 'always', 'audience' => 'everyone'];
+        $s->save();
+        $this->chat->messages()->create(['direction' => 'out', 'type' => 'text', 'body' => 'Hi, Lisa here', 'sent_at' => now()->subMonth()]);
+
+        $this->assertNull($this->service()->maybeReply($this->chat, $this->inbound()));
     }
 
     public function test_a_failed_draft_sends_nothing(): void

@@ -19,6 +19,7 @@ class AiReplyService
     {
         return [
             'mode' => 'off',                      // off | always | outside_hours
+            'audience' => 'new_only',             // new_only | everyone
             'office_days' => [1, 2, 3, 4, 5, 6],  // ISO weekdays, Mon=1 … Sun=7 (Sat on, Fri off by default here)
             'office_start' => '10:00',
             'office_end' => '19:00',
