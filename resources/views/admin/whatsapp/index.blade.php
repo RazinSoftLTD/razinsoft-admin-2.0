@@ -336,11 +336,12 @@
                                 <div class="flex flex-col" :class="m.direction === 'out' ? 'items-end' : 'items-start'">
                                     <div class="group relative rounded-lg px-3.5 pb-2 pt-2 text-sm shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]" style="max-width:72%;"
                                          :class="m.direction === 'out' ? 'wa-out text-gray-800' : 'wa-in text-gray-800'"
-                                         x-data="{ react: false, more: false }">
+                                         x-data="{ react: false, more: false }"
+                                         @click="if (!$event.target.closest('button, a, img, video, audio, textarea, input')) actionsFor = actionsFor === m.id ? null : m.id">
                                         @if ($canReply)
                                         {{-- Hover actions (react / edit / delete) — absolutely placed so they never shift the bubble --}}
                                         <div class="absolute flex items-center gap-1 opacity-0 transition group-hover:opacity-80"
-                                             :style="(m.direction === 'out' ? 'right:100%;padding-right:.4rem;' : 'left:100%;padding-left:.4rem;') + 'top:50%;transform:translateY(-50%);z-index:20'"
+                                             :style="(m.direction === 'out' ? 'right:100%;padding-right:.4rem;' : 'left:100%;padding-left:.4rem;') + 'top:50%;transform:translateY(-50%);z-index:20;' + (actionsFor === m.id ? 'opacity:.9;' : '')"
                                              x-show="!m.deleted && editingId !== m.id">
                                             @if ($canReply)
                                             <button type="button" @click="replyTo = m; $nextTick(() => $refs.composer && $refs.composer.focus())" title="Reply" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-emerald-600">
@@ -987,6 +988,7 @@
                 slashNav(dir) { const n = this.slashMatches().length; if (n) this.slashIndex = (this.slashIndex + dir + n) % n; },
                 pickSlash(qr) { if (!qr) return; this.draft = qr.body; this.slashIndex = 0; this.$nextTick(() => { this.autoGrow(); if (this.$refs.composer) this.$refs.composer.focus(); }); },
                 editingId: null, editDraft: '',
+                actionsFor: null,   // bubble whose action row was opened by tap (no hover on touch)
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],
                 unreadCount: {{ $stats['unread'] }},
