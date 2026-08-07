@@ -355,6 +355,13 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'You can only delete your own messages.'], 422);
         }
 
+        // WhatsApp's own delete-for-everyone window (~60 hours). Refusing here with a plain
+        // sentence beats forwarding the gateway's error for a call that cannot succeed.
+        $sentAt = $message->sent_at ?? $message->created_at;
+        if ($sentAt && $sentAt->lt(now()->subHours(60))) {
+            return response()->json(['error' => 'WhatsApp only allows deleting for everyone within about 2½ days of sending.'], 422);
+        }
+
         if ($message->wa_message_id) {
             try {
                 WhatsappService::for($chat->account)->deleteMessage($chat->wa_id, $message->wa_message_id);

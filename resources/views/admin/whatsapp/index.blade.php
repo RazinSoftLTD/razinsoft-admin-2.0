@@ -368,13 +368,21 @@
                                                     </template>
                                                 </div>
                                             </div>
-                                            <template x-if="m.direction === 'out' && m.type === 'text' && canModify(m)">
-                                                <button type="button" @click="startEdit(m)" title="Edit" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-gray-700">
+                                            <template x-if="m.direction === 'out' && m.type === 'text'">
+                                                <button type="button" @click="canModify(m) ? startEdit(m) : null"
+                                                        :disabled="!canModify(m)"
+                                                        :title="canModify(m) ? 'Edit' : 'WhatsApp allows editing only within 15 minutes of sending'"
+                                                        :class="canModify(m) ? 'text-gray-500 hover:text-gray-700' : 'cursor-not-allowed text-gray-300'"
+                                                        class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white shadow-sm">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
                                                 </button>
                                             </template>
                                             <template x-if="m.direction === 'out' && !m.deleted">
-                                                <button type="button" @click="deleteMsg(m)" title="Delete" class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:text-red-500">
+                                                <button type="button" @click="canDelete(m) ? deleteMsg(m) : null"
+                                                        :disabled="!canDelete(m)"
+                                                        :title="canDelete(m) ? 'Delete for everyone' : 'WhatsApp allows deleting for everyone within about 2½ days'"
+                                                        :class="canDelete(m) ? 'text-gray-500 hover:text-red-500' : 'cursor-not-allowed text-gray-300'"
+                                                        class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white shadow-sm">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
                                                 </button>
                                             </template>
@@ -1340,6 +1348,12 @@
 
                 async send() {
                     if (!this.draft.trim() || this.sending) return;
+                    // The same text already sent into this chat is almost always a slip — the
+                    // quick-reply scripts make it an easy one. Warn, but let a deliberate
+                    // resend through.
+                    const dup = this.messages.find(m =>
+                        m.direction === 'out' && !m.deleted && (m.body || '').trim() === this.draft.trim());
+                    if (dup && !confirm('You already sent this message in this chat. Send it again?')) return;
                     this.sending = true;
                     const body = this.draft; this.draft = '';
                     // Only keep mentions whose token still appears in the text.
@@ -1391,8 +1405,11 @@
                         } else { alert((await r.json()).error || 'Could not delete the message.'); }
                     } catch { alert('Could not delete the message.'); }
                 },
-                // Own message younger than 15 min can still be edited / deleted (WhatsApp's window).
+                // WhatsApp's own windows: editing closes 15 minutes after sending, delete for
+                // everyone about 60 hours after. The panel mirrors them rather than pretending
+                // an action is possible and failing at the gateway.
                 canModify(m) { return m.ts && (Date.now() / 1000 - m.ts) < 900; },
+                canDelete(m) { return m.ts && (Date.now() / 1000 - m.ts) < 60 * 3600; },
                 // Live local time in the contact's timezone (re-runs each tick).
                 localTime(tz) {
                     this.nowTick; // reactive dependency so the clock refreshes
