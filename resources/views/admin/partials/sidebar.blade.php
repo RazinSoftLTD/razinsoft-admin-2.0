@@ -81,7 +81,6 @@
         ['type' => 'group', 'label' => 'Communication', 'icon' => $ic['chat'], 'items' => [
             ['label' => 'Messenger', 'route' => 'admin.chat.index', 'active' => 'admin.chat.*', 'icon' => $ic['chat'], 'badge' => \App\Http\Controllers\Admin\ChatController::unreadTotal($user) ?: null],
             ['label' => 'WhatsApp', 'route' => 'admin.whatsapp.index', 'active' => 'admin.whatsapp.*', 'perm' => 'whatsapp.view', 'icon' => $ic['whatsapp'] ?? $ic['chat'], 'badge' => \App\Models\WhatsappChat::whereIn('account_id', \App\Models\WhatsappAccount::accessibleBy($user)->pluck('id'))->where('unread_count', '>', 0)->count() ?: null],
-            ['label' => 'Razin AI', 'route' => 'admin.razin-ai', 'active' => 'admin.razin-ai*', 'perm' => 'whatsapp.settings', 'icon' => $ic['ai'] ?? $ic['chat']],
             ['label' => 'Contact Us', 'route' => 'admin.messages.index', 'active' => 'admin.messages.*', 'perm' => 'messages.view', 'icon' => $ic['messaging'], 'badge' => \App\Models\ContactMessage::where('is_read', false)->count()],
             ['label' => 'Meetings', 'route' => 'admin.meetings.index', 'active' => ['admin.meetings.index', 'admin.meetings.show'], 'perm' => 'meetings.view', 'icon' => $ic['meeting'], 'badge' => \App\Http\Controllers\Admin\MeetingController::unreadCount($user) ?: null],
         ]],
@@ -173,6 +172,7 @@
             ['label' => 'HR Settings', 'route' => 'admin.attendance.settings', 'active' => ['admin.attendance.settings', 'admin.attendance.devices'], 'perm' => 'attendance.settings', 'icon' => $ic['hr']],
             ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
+            ['label' => 'Razin AI', 'route' => 'admin.razin-ai', 'active' => 'admin.razin-ai*', 'perm' => 'whatsapp.settings', 'icon' => $ic['ai'] ?? $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
