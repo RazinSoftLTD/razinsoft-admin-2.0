@@ -20,6 +20,7 @@
     // section is scoped per-client: canAct() honours owned/added/all against THIS client.
     $tabPerm = [
         'profile' => true,
+        'activity' => true,   // reads the same rows the permitted tabs already show
         'projects' => $user->canAct('clients', 'projects', $client),
         'invoices' => $user->canAct('clients', 'invoices', $client),
         'payments' => $user->canAct('clients', 'payments', $client),
@@ -28,7 +29,7 @@
         'tickets' => $user->canAct('clients', 'tickets', $client),
     ];
     $tabs = collect([
-        'profile' => 'Profile', 'projects' => 'Projects', 'invoices' => 'Invoices',
+        'profile' => 'Profile', 'activity' => 'Activity', 'projects' => 'Projects', 'invoices' => 'Invoices',
         'payments' => 'Payments', 'documents' => 'Documents', 'notes' => 'Notes', 'tickets' => 'Tickets',
     ])->filter(fn ($label, $key) => $tabPerm[$key] ?? false)->all();
     // If the requested tab is not permitted, fall back to the first visible one.
@@ -78,6 +79,10 @@
                         'Postal code' => $client->zip,
                         'Status' => \App\Models\User::STATUSES[$client->status] ?? $client->status,
                         'Client since' => $client->created_at?->format('d M, Y'),
+                        // Where the account came from — their own signup, a staff member, or an import.
+                        'Created via' => $client->import_batch
+                            ? 'Import'.($creator ? ' — by '.$creator->name : '')
+                            : ($creator ? 'Admin panel — by '.$creator->name : 'Website signup'),
                     ];
                 @endphp
                 <div class="flex justify-between gap-4 border-b border-gray-50 pb-3">
@@ -258,6 +263,42 @@
         @endif
 
         @if ($tabPerm['projects'])
+        {{-- ══ ACTIVITY ══ --}}
+        <div x-show="tab === 'activity'" x-cloak class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div class="mb-5 flex items-center justify-between gap-3">
+                <h2 class="text-base font-bold text-[var(--color-heading)]">Activity</h2>
+                <span class="text-xs text-[var(--color-muted)]">
+                    {{ count($activity) }} {{ Str::plural('event', count($activity)) }}
+                    @if ($client->last_seen_at) · last seen {{ $client->last_seen_at->diffForHumans() }} @endif
+                </span>
+            </div>
+
+            @if (! count($activity))
+                <p class="py-10 text-center text-sm text-gray-400">Nothing yet — events appear here as they happen.</p>
+            @else
+                @php
+                    $dot = [
+                        'blue' => 'bg-blue-500', 'emerald' => 'bg-emerald-500', 'violet' => 'bg-violet-500',
+                        'rose' => 'bg-rose-500', 'amber' => 'bg-amber-500', 'sky' => 'bg-sky-500', 'gray' => 'bg-gray-300',
+                    ];
+                @endphp
+                <ol class="relative space-y-0 border-l border-gray-100 pl-6">
+                    @foreach ($activity as $e)
+                        <li class="relative pb-5">
+                            <span class="absolute -left-[1.85rem] top-1 h-3 w-3 rounded-full border-2 border-white {{ $dot[$e['tone']] ?? 'bg-gray-300' }}" aria-hidden="true"></span>
+                            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                                <p class="text-sm font-semibold text-[var(--color-heading)]">{{ $e['title'] }}</p>
+                                <p class="text-xs text-gray-400" title="{{ $e['at']->format('d M Y, h:i A') }}">{{ $e['at']->format('d M Y') }} · {{ $e['at']->diffForHumans() }}</p>
+                            </div>
+                            @if ($e['detail'])
+                                <p class="mt-0.5 text-sm text-[var(--color-muted)]">{{ $e['detail'] }}</p>
+                            @endif
+                        </li>
+                    @endforeach
+                </ol>
+            @endif
+        </div>
+
         {{-- ══ PROJECTS (placeholder) ══ --}}
         <div x-show="tab === 'projects'" x-cloak class="rounded-xl border border-gray-100 bg-white p-12 text-center shadow-sm">
             <p class="text-sm font-semibold text-[var(--color-heading)]">Projects</p>

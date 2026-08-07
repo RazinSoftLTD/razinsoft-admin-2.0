@@ -3,15 +3,30 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ClientDocument;
 use App\Models\BillingAddress;
+use App\Models\ClientDocument;
+use App\Models\ClientImportBatch;
 use App\Models\ClientInvoice;
+use App\Models\ClientLabel;
+use App\Models\Currency;
+use App\Models\DomainOrder;
 use App\Models\InvoicePayment;
+use App\Models\Meeting;
+use App\Models\Order;
 use App\Models\User;
+use App\Models\WhatsappChat;
+use App\Support\ProductInterests;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /** Clients = customer-role users (from site registration, admin create, or lead conversion). */
 class ClientController extends Controller
@@ -97,11 +112,11 @@ class ClientController extends Controller
             'perPage' => $perPage,
             'view' => $view,
             // Most recent import that can still be undone (shown only with import/export access).
-            'lastImport' => $request->user()->allows('clients', 'import_export') ? \App\Models\ClientImportBatch::undoable() : null,
+            'lastImport' => $request->user()->allows('clients', 'import_export') ? ClientImportBatch::undoable() : null,
             // Filter option lists.
             'statuses' => User::STATUSES,
             'filterCountries' => User::clients()->whereNotNull('country')->where('country', '!=', '')->distinct()->orderBy('country')->pluck('country')->all(),
-            'clientLabels' => \App\Models\ClientLabel::ordered(),
+            'clientLabels' => ClientLabel::ordered(),
             'filters' => $request->only(['status', 'category', 'sub_category', 'country', 'label', 'date_range', 'from', 'to']),
         ]);
     }
@@ -217,6 +232,9 @@ class ClientController extends Controller
             'payments' => $payments,
             'documents' => $documents,
             'billingAddresses' => $billingAddresses,
+            // Where this client came from: staff member, import, or their own signup.
+            'creator' => $client->created_by ? User::find($client->created_by) : null,
+            'activity' => $this->activityFor($client, $invoices, $payments, $documents),
             'stats' => [
                 'projects' => 0,
                 'invoiced' => round((float) $invoices->sum('total'), 2),
@@ -225,6 +243,79 @@ class ClientController extends Controller
                 'due_amount' => round($invoices->sum(fn ($i) => $i->amountDue()), 2),
             ],
         ]);
+    }
+
+    /**
+     * Everything that ever happened around this client, newest first.
+     *
+     * Assembled from the tables that already record the events rather than from a log kept on
+     * the side — a side log starts empty and misses everything written before it existed;
+     * this reads the same rows the rest of the panel already trusts.
+     *
+     * @return array<int, array{at: Carbon, tone: string, title: string, detail: ?string}>
+     */
+    private function activityFor(User $client, $invoices, $payments, $documents): array
+    {
+        $events = collect();
+        $ev = function ($at, string $tone, string $title, ?string $detail = null) use ($events) {
+            if ($at) {
+                $events->push(['at' => Carbon::parse($at), 'tone' => $tone, 'title' => $title, 'detail' => $detail]);
+            }
+        };
+
+        $sym = Currency::symbolMap();
+
+        $source = $client->import_batch
+            ? 'imported'
+            : ($client->created_by ? 'added in the admin panel' : 'signed up on the website');
+        $ev($client->created_at, 'gray', 'Account created', ucfirst($source));
+
+        foreach (Order::where('user_id', $client->id)->get() as $o) {
+            $ev($o->created_at, 'blue', "Order {$o->order_number} placed",
+                ($sym[$o->currency] ?? '').number_format($o->total, 2).' — '.$o->status);
+            $ev($o->paid_at, 'emerald', "Order {$o->order_number} paid",
+                ($sym[$o->currency] ?? '').number_format($o->total, 2));
+        }
+
+        foreach (DomainOrder::where('user_id', $client->id)->get() as $d) {
+            $ev($d->registered_at ?? $d->created_at, 'violet', "Domain {$d->domain}",
+                $d->status === 'registered' ? 'Registered' : ucfirst(str_replace('_', ' ', $d->status)));
+        }
+
+        foreach ($invoices as $i) {
+            $ev($i->created_at, 'blue', "Invoice {$i->invoice_number} issued",
+                ($sym[$i->currency] ?? '').number_format($i->total, 2));
+        }
+        foreach ($payments as $p) {
+            $ev($p->paid_at ?? $p->created_at, 'emerald', 'Payment received',
+                ($sym[$p->invoice->currency ?? ''] ?? '').number_format($p->amount, 2).' on '.($p->invoice->invoice_number ?? '—'));
+        }
+
+        foreach (DB::table('tickets')->where('client_id', $client->id)->get() as $t) {
+            $ev($t->created_at, 'rose', "Ticket {$t->ticket_number} opened", $t->subject.' — '.$t->status);
+        }
+
+        foreach (Meeting::where('client_id', $client->id)->get() as $m) {
+            $date = $m->date ? Carbon::parse($m->date)->format('d M Y') : '';
+            $ev($m->created_at, 'amber', 'Meeting booked',
+                trim($date.' '.($m->start_time ?: '')).' — '.$m->status);
+        }
+
+        foreach ($documents as $d) {
+            $ev($d->created_at, 'sky', 'Document uploaded', $d->title ?? ($d->name ?? null));
+        }
+        foreach ($client->billingAddresses as $b) {
+            $ev($b->created_at, 'gray', 'Billing address added', trim(($b->city ?: '').', '.($b->country ?: ''), ', '));
+        }
+        foreach (DB::table('client_password_histories')->where('user_id', $client->id)->get() as $h) {
+            $setter = $h->set_by ? User::find($h->set_by)?->name : null;
+            $ev($h->created_at, 'gray', 'Password set', $setter ? "by {$setter}" : null);
+        }
+        foreach (WhatsappChat::where('client_id', $client->id)->get() as $w) {
+            $ev($w->created_at, 'emerald', 'WhatsApp conversation linked', $w->displayName());
+        }
+
+        return $events->sortByDesc('at')->values()->take(80)->all();
     }
 
     /** Quick-add a customer (used from the invoice form's "Add" button). Returns JSON. */
@@ -317,7 +408,7 @@ class ClientController extends Controller
                 ->distinct()->orderBy('client_category')->pluck('client_category')->all(),
             'subCategories' => User::clients()->whereNotNull('client_sub_category')->where('client_sub_category', '!=', '')
                 ->distinct()->orderBy('client_sub_category')->pluck('client_sub_category')->all(),
-            'clientLabels' => \App\Models\ClientLabel::ordered(),
+            'clientLabels' => ClientLabel::ordered(),
         ];
     }
 
@@ -338,7 +429,7 @@ class ClientController extends Controller
         }
 
         $client = User::create($data);
-        \App\Support\ProductInterests::syncFrom($request, $client);
+        ProductInterests::syncFrom($request, $client);
         if ($request->user()->allows('clients', 'private')) {
             $this->syncPrivacyGrants($client, $request);
         }
@@ -385,7 +476,7 @@ class ClientController extends Controller
         }
 
         $client->update($data);
-        \App\Support\ProductInterests::syncFrom($request, $client);
+        ProductInterests::syncFrom($request, $client);
         if ($request->user()->allows('clients', 'private')) {
             $this->syncPrivacyGrants($client, $request);
         }
@@ -521,7 +612,7 @@ class ClientController extends Controller
         // Read rows from either a CSV or an Excel (.xlsx/.xls) upload.
         $file = $request->file('file');
         if (in_array(strtolower($file->getClientOriginalExtension()), ['xlsx', 'xls'], true)) {
-            $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath())
+            $rows = IOFactory::load($file->getRealPath())
                 ->getActiveSheet()->toArray(null, true, true, false);
         } else {
             $rows = array_map('str_getcsv', file($file->getRealPath()));
@@ -535,7 +626,7 @@ class ClientController extends Controller
         // Imported clients get a throwaway random password (they set their own via the
         // "reset password" email). Hash it at a low bcrypt cost so a big import stays fast —
         // default-cost bcrypt per row is what blows past the execution-time limit.
-        $cheapHash = fn () => \Illuminate\Support\Facades\Hash::make(Str::random(16), ['rounds' => 4]);
+        $cheapHash = fn () => Hash::make(Str::random(16), ['rounds' => 4]);
 
         // Tag every client created in this run with one batch key so the whole import
         // can be undone in a single click.
@@ -597,7 +688,7 @@ class ClientController extends Controller
 
         // Record the batch so it can be undone from the clients list.
         if ($created > 0) {
-            \App\Models\ClientImportBatch::create([
+            ClientImportBatch::create([
                 'batch_key' => $batchKey,
                 'imported_by' => $request->user()->id,
                 'count' => $created,
@@ -649,7 +740,7 @@ class ClientController extends Controller
     {
         abort_unless($request->user()->allows('clients', 'import_export'), 403);
 
-        $batch = \App\Models\ClientImportBatch::undoable();
+        $batch = ClientImportBatch::undoable();
 
         $batch?->forceFill(['dismissed_at' => now()])->save();
 
@@ -659,7 +750,7 @@ class ClientController extends Controller
     /** Undo the most recent client import — deletes the clients it created. */
     public function undoImport(Request $request)
     {
-        $batch = \App\Models\ClientImportBatch::undoable();
+        $batch = ClientImportBatch::undoable();
         if (! $batch) {
             return back()->with('error', 'No recent import to undo.');
         }
@@ -735,7 +826,7 @@ class ClientController extends Controller
     {
         [$headers, $rows] = $this->exportData($clients);
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Clients');
         $sheet->fromArray($headers, null, 'A1');
@@ -745,7 +836,7 @@ class ClientController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer = new Xlsx($spreadsheet);
 
         return response()->streamDownload(function () use ($writer) {
             $writer->save('php://output');
@@ -758,7 +849,7 @@ class ClientController extends Controller
     {
         [$headers, $rows] = $this->exportData($clients);
 
-        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.clients.export-pdf', [
+        return Pdf::loadView('admin.clients.export-pdf', [
             'headers' => $headers,
             'rows' => $rows,
             'generatedAt' => now()->format('d M Y, g:i A'),
