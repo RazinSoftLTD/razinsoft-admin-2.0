@@ -217,6 +217,11 @@
             </div>
         </div>
 
+        <form id="wa-delete-form" method="POST" :action="@js(url('admin/whatsapp/chats')) + '/' + (confirmDelete.chat?.id ?? 0)" class="hidden">
+            @csrf
+            @method('DELETE')
+        </form>
+
         {{-- Delete-chat confirmation. Its own modal, not window.confirm(): a browser that has been
              asked to stop showing dialogs answers "no" to confirm() without telling anyone, and the
              delete then dies in silence. This always renders, and shows what went wrong. --}}
@@ -243,7 +248,7 @@
                 <div class="mt-4 flex justify-end gap-2">
                     <button type="button" @click="confirmDelete.open = false" :disabled="confirmDelete.busy"
                             class="rounded-lg bg-gray-100 px-3.5 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-200 disabled:opacity-60">Cancel</button>
-                    <button type="button" @click="doDeleteChat()" :disabled="confirmDelete.busy"
+                    <button type="submit" form="wa-delete-form" @click="confirmDelete.busy = true" :disabled="confirmDelete.busy"
                             class="flex items-center gap-2 rounded-lg bg-red-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60">
                         <svg x-show="confirmDelete.busy" x-cloak class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"/></svg>
                         <span x-text="confirmDelete.busy ? 'Deleting…' : 'Delete everything'"></span>

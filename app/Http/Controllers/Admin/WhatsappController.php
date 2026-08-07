@@ -484,6 +484,8 @@ class WhatsappController extends Controller
             Storage::disk('public')->delete($chat->avatar_path);
         }
 
+        $name = $chat->displayName();
+
         DB::transaction(function () use ($chat) {
             $chat->messages()->reorder()->delete();
             $chat->notes()->delete();
@@ -491,7 +493,16 @@ class WhatsappController extends Controller
             $chat->delete();
         });
 
-        return response()->json(['deleted' => true]);
+        \Log::info('WhatsApp chat deleted.', ['chat' => $chat->id, 'by' => $request->user()->id]);
+
+        // The panel posts a plain form (a fetch that fails leaves no trace anywhere), so answer
+        // JSON only when JSON was asked for.
+        if ($request->expectsJson() && ! $request->has('_method')) {
+            return response()->json(['deleted' => true]);
+        }
+
+        return redirect()->route('admin.whatsapp.index', ['account' => $chat->account_id])
+            ->with('status', 'Chat with '.$name.' deleted — its whole history is gone from this panel.');
     }
 
     public function toggleLabel(Request $request, WhatsappChat $chat)
