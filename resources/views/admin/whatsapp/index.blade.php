@@ -221,8 +221,11 @@
              asked to stop showing dialogs answers "no" to confirm() without telling anyone, and the
              delete then dies in silence. This always renders, and shows what went wrong. --}}
         <div x-show="confirmDelete.open" x-cloak @keydown.escape.window="confirmDelete.open = false"
-             class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.45)">
-            <div @click.outside="if (!confirmDelete.busy) confirmDelete.open = false" class="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+             class="fixed inset-0 flex items-center justify-center p-4" style="z-index:70;background:rgba(0,0,0,.45)">
+            {{-- An explicit backdrop rather than @click.outside: the very click that opens this
+                 modal is still bubbling, and .outside can catch it and shut the modal again. --}}
+            <div class="absolute inset-0" @click="if (!confirmDelete.busy) confirmDelete.open = false"></div>
+            <div class="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
                 <div class="flex items-start gap-3">
                     <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-100 text-red-600">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-8 0 1 13h8l1-13M10 11v6m4-6v6"/></svg>
