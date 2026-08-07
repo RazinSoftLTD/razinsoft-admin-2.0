@@ -41,7 +41,7 @@
                                      class="group flex items-center gap-1.5 rounded-lg px-2 py-2 transition hover:bg-gray-50"
                                      :class="[accountId === a.id ? 'bg-emerald-50' : '', dragId === a.id ? 'opacity-40' : '']">
                                     <svg class="h-4 w-4 shrink-0 cursor-grab text-gray-300 group-hover:text-gray-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>
-                                    <button type="button" @click="accountId = a.id; accMenu = false; active = null; loadChats()" class="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                                    <button type="button" @click="switchAccount(a.id)" class="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                                         <span class="h-2 w-2 shrink-0 rounded-full" :class="a.connected ? 'bg-emerald-500' : 'bg-gray-300'"></span>
                                         <span class="min-w-0 flex-1">
                                             <span class="block truncate text-sm font-semibold text-[var(--color-heading)]" x-text="a.name"></span>
@@ -960,7 +960,10 @@
                 lightbox: { open: false, index: 0, items: [] }, lbTouch: 0, replyTo: null,
                 dragOver: false, pending: null,
                 accMenu: false, syncingId: null, dragId: null, hasMore: false, loadingOlder: false,
-                accountId: @js($accounts->first()->id ?? null),
+                // The chosen number survives a reload by living in the URL. First number only
+                // when the URL names none — landing back on number one from number nine every
+                // reload made the picker feel broken.
+                accountId: @js(($accounts->firstWhere('id', (int) request('account')) ?? $accounts->first())->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
                 quickReplies: @js($quickReplies->map(fn ($q) => ['shortcut' => $q->shortcut, 'body' => $q->body, 'account_id' => $q->account_id])->values()),
@@ -1044,6 +1047,15 @@
                     return p.toString();
                 },
                 setFilter(k) { this.filter = k; this.loadChats(); },
+                switchAccount(id) {
+                    this.accountId = id;
+                    this.accMenu = false;
+                    this.active = null;
+                    const url = new URL(window.location);
+                    url.searchParams.set('account', id);
+                    window.history.replaceState({}, '', url);
+                    this.loadChats();
+                },
                 get pickedLabelObjects() { return this.labels.filter(l => this.pickedLabels.includes(l.id)); },
                 labelPillText() {
                     const picked = this.pickedLabelObjects;
