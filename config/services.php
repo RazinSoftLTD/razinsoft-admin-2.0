@@ -36,6 +36,8 @@ return [
     /** OpenAI — drafts the WhatsApp auto-replies. Model is a string so switching is one line. */
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
+        // Testing hook — leave unset for the real API. Server config only.
+        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com'),
         'model' => env('OPENAI_MODEL', 'gpt-5-mini'),
     ],
 

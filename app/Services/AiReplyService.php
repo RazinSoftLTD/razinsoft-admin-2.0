@@ -88,7 +88,7 @@ class AiReplyService
         $response = Http::withToken(config('services.openai.key'))
             ->timeout(30)
             ->retry(2, 500, throw: false)
-            ->post('https://api.openai.com/v1/chat/completions', [
+            ->post(rtrim(config('services.openai.base_url', 'https://api.openai.com'), '/').'/v1/chat/completions', [
                 'model' => $s['model'],
                 'messages' => $messages,
                 'max_completion_tokens' => 400,
