@@ -1,36 +1,70 @@
 <?php
 
-use App\Http\Controllers\Admin\GalleryController;
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\ArticleCategoryController;
 use App\Http\Controllers\Admin\ArticleController;
+use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\Auth\LoginController;
-use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\Auth\PasswordResetController;
 use App\Http\Controllers\Admin\AuthorController;
+use App\Http\Controllers\Admin\BinController;
+use App\Http\Controllers\Admin\CartActivityController;
+use App\Http\Controllers\Admin\ChatController;
+use App\Http\Controllers\Admin\ClientActivityLogController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ClientInvoiceController;
+use App\Http\Controllers\Admin\CodeCanyonController;
 use App\Http\Controllers\Admin\ContactMessageController;
 use App\Http\Controllers\Admin\CouponController;
+use App\Http\Controllers\Admin\CrmSettingController;
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DealController;
+use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\DesignationController;
+use App\Http\Controllers\Admin\EmailAnalyticsController;
+use App\Http\Controllers\Admin\EmailCampaignController;
+use App\Http\Controllers\Admin\EmailConfigController;
+use App\Http\Controllers\Admin\EmailLogController;
+use App\Http\Controllers\Admin\EmailTemplateController;
+use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\FollowUpController;
-use App\Http\Controllers\Admin\LeadFollowUpController;
+use App\Http\Controllers\Admin\GalleryController;
+use App\Http\Controllers\Admin\InstallationPlanController;
+use App\Http\Controllers\Admin\InvoiceConfigController;
 use App\Http\Controllers\Admin\InvoicePaymentController;
 use App\Http\Controllers\Admin\InvoiceTemplateController;
+use App\Http\Controllers\Admin\JobController;
 use App\Http\Controllers\Admin\LeadController;
+use App\Http\Controllers\Admin\LeadFollowUpController;
+use App\Http\Controllers\Admin\LeaveController;
+use App\Http\Controllers\Admin\MeetingController;
+use App\Http\Controllers\Admin\MetaCapiController;
+use App\Http\Controllers\Admin\MyProfileController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductRelationController;
+use App\Http\Controllers\Admin\ProjectConfigController;
 use App\Http\Controllers\Admin\ProjectController;
-use App\Http\Controllers\Admin\TaskController;
+use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\QuestionController;
+use App\Http\Controllers\Admin\RazinAiController;
 use App\Http\Controllers\Admin\RecurringInvoiceController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SearchController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SubscriberController;
+use App\Http\Controllers\Admin\TaskController;
+use App\Http\Controllers\Admin\ThemeController;
+use App\Http\Controllers\Admin\TicketController;
+use App\Http\Controllers\Admin\TicketSettingController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\WhatsappActivityController;
+use App\Http\Controllers\Admin\WhatsappController;
+use App\Http\Controllers\Admin\WhatsappLinkController;
+use App\Http\Controllers\Admin\WhatsappSettingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -41,7 +75,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // ---- Forgot password. Throttled: this form takes an email address and sends mail, so it is
     //      both a way to guess at accounts and a way to use us to spam someone's inbox. ----
-    $pr = \App\Http\Controllers\Admin\Auth\PasswordResetController::class;
+    $pr = PasswordResetController::class;
     Route::get('forgot-password', [$pr, 'showRequest'])->name('password.request');
     Route::post('forgot-password', [$pr, 'sendLink'])->middleware('throttle:6,1')->name('password.email');
     Route::get('reset-password/{token}', [$pr, 'showReset'])->name('password.reset');
@@ -53,15 +87,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
         // My Profile — self-service for any panel user (no permission gate).
-        Route::get('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'edit'])->name('my-profile.edit');
-        Route::post('my-profile', [\App\Http\Controllers\Admin\MyProfileController::class, 'update'])->name('my-profile.update');
+        Route::get('my-profile', [MyProfileController::class, 'edit'])->name('my-profile.edit');
+        Route::post('my-profile', [MyProfileController::class, 'update'])->name('my-profile.update');
 
         // Light / dark preference — a display choice, so no permission gate: everyone has eyes.
-        Route::post('theme', [\App\Http\Controllers\Admin\ThemeController::class, 'update'])->name('theme');
+        Route::post('theme', [ThemeController::class, 'update'])->name('theme');
 
         // ===== Messenger › WhatsApp inbox =====
         Route::middleware('permission:whatsapp.view')->group(function () {
-            $wa = \App\Http\Controllers\Admin\WhatsappController::class;
+            $wa = WhatsappController::class;
             Route::get('whatsapp', [$wa, 'index'])->name('whatsapp.index');
             Route::get('whatsapp/chats', [$wa, 'chats'])->name('whatsapp.chats');
             Route::get('whatsapp/unread-count', [$wa, 'unreadCount'])->name('whatsapp.unread-count');
@@ -85,22 +119,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp/chats/{chat}/label', [$wa, 'toggleLabel'])->whereNumber('chat')->name('whatsapp.label');
             Route::post('whatsapp/chats/{chat}/pin', [$wa, 'togglePin'])->whereNumber('chat')->name('whatsapp.pin');
             Route::post('whatsapp/chats/{chat}/block', [$wa, 'toggleBlock'])->whereNumber('chat')->name('whatsapp.block');
+            Route::delete('whatsapp/chats/{chat}', [$wa, 'destroyChat'])->whereNumber('chat')->name('whatsapp.chat.destroy');
             Route::post('whatsapp/chats/{chat}/note', [$wa, 'addNote'])->whereNumber('chat')->name('whatsapp.note');
             Route::post('whatsapp/chats/{chat}/details', [$wa, 'updateDetails'])->whereNumber('chat')->name('whatsapp.details');
             Route::post('whatsapp/chats/{chat}/convert-lead', [$wa, 'convertToLead'])->whereNumber('chat')->middleware('permission:leads.create')->name('whatsapp.convert-lead');
             Route::post('whatsapp/chats/{chat}/avatar', [$wa, 'updateAvatar'])->whereNumber('chat')->name('whatsapp.avatar');
         });
         Route::middleware('permission:whatsapp.activity')->group(function () {
-            $wact = \App\Http\Controllers\Admin\WhatsappActivityController::class;
+            $wact = WhatsappActivityController::class;
             Route::get('whatsapp-activity', [$wact, 'index'])->name('whatsapp-activity');
             Route::get('whatsapp-activity/{account}', [$wact, 'show'])->whereNumber('account')->name('whatsapp-activity.show');
             Route::get('whatsapp-activity/{account}/chats/{chat}', [$wact, 'thread'])->whereNumber('account')->whereNumber('chat')->name('whatsapp-activity.thread');
         });
         // Each WhatsApp Config section is gated by its own permission.
         Route::middleware('permission:whatsapp.settings')->group(function () {
-            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
+            $ws = WhatsappSettingController::class;
             Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');   // open the Config page
-            $rai = \App\Http\Controllers\Admin\RazinAiController::class;
+            $rai = RazinAiController::class;
             Route::get('razin-ai', [$rai, 'index'])->name('razin-ai');
             Route::post('razin-ai', [$rai, 'update'])->name('razin-ai.update');
             Route::post('razin-ai/faqs', [$rai, 'storeFaq'])->name('razin-ai.faqs.store');
@@ -112,13 +147,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('whatsapp-accounts', fn () => redirect()->route('admin.whatsapp-settings'))->name('whatsapp-accounts.index');
         // Connection Method (gateway / API credentials)
         Route::middleware('permission:whatsapp.connection')->group(function () {
-            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
+            $ws = WhatsappSettingController::class;
             Route::post('whatsapp-settings', [$ws, 'update'])->name('whatsapp-settings.update');
             Route::post('whatsapp-settings/test', [$ws, 'test'])->name('whatsapp-settings.test');
         });
         // WhatsApp Numbers (accounts + per-number QR connection)
         Route::middleware('permission:whatsapp.numbers')->group(function () {
-            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
+            $ws = WhatsappSettingController::class;
             Route::post('whatsapp-accounts', [$ws, 'accountStore'])->name('whatsapp-accounts.store');
             Route::post('whatsapp-accounts/{account}', [$ws, 'accountUpdate'])->whereNumber('account')->name('whatsapp-accounts.update');
             Route::delete('whatsapp-accounts/{account}', [$ws, 'accountDestroy'])->whereNumber('account')->name('whatsapp-accounts.destroy');
@@ -131,57 +166,57 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         // Labels
         Route::middleware('permission:whatsapp.labels')->group(function () {
-            $ws = \App\Http\Controllers\Admin\WhatsappSettingController::class;
+            $ws = WhatsappSettingController::class;
             Route::post('whatsapp-settings/labels', [$ws, 'labelStore'])->name('whatsapp-settings.labels.store');
             Route::post('whatsapp-settings/labels/order', [$ws, 'labelOrder'])->name('whatsapp-settings.labels.order');
             Route::delete('whatsapp-settings/labels/{label}', [$ws, 'labelDestroy'])->whereNumber('label')->name('whatsapp-settings.labels.destroy');
         });
         // Quick replies — add/update/delete gated by their own role permission.
         Route::middleware('permission:whatsapp.quick_replies')->group(function () {
-            $wsq = \App\Http\Controllers\Admin\WhatsappSettingController::class;
+            $wsq = WhatsappSettingController::class;
             Route::post('whatsapp-settings/quick-replies', [$wsq, 'quickStore'])->name('whatsapp-settings.quick.store');
             Route::put('whatsapp-settings/quick-replies/{quickReply}', [$wsq, 'quickUpdate'])->whereNumber('quickReply')->name('whatsapp-settings.quick.update');
             Route::delete('whatsapp-settings/quick-replies/{quickReply}', [$wsq, 'quickDestroy'])->whereNumber('quickReply')->name('whatsapp-settings.quick.destroy');
         });
 
         // ===== Team Chat — open to every panel user; group creation is gated =====
-        Route::get('chat', [\App\Http\Controllers\Admin\ChatController::class, 'index'])->name('chat.index');
-        Route::get('chat/new-group', [\App\Http\Controllers\Admin\ChatController::class, 'createGroup'])
+        Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
+        Route::get('chat/new-group', [ChatController::class, 'createGroup'])
             ->middleware('permission:chat.create_group')->name('chat.groups.create');
-        Route::post('chat/groups', [\App\Http\Controllers\Admin\ChatController::class, 'storeGroup'])
+        Route::post('chat/groups', [ChatController::class, 'storeGroup'])
             ->middleware('permission:chat.create_group')->name('chat.groups.store');
-        Route::post('chat/heartbeat', [\App\Http\Controllers\Admin\ChatController::class, 'heartbeat'])->name('chat.heartbeat');
-        Route::post('chat/offline', [\App\Http\Controllers\Admin\ChatController::class, 'offline'])->name('chat.offline');
-        Route::patch('chat/messages/{message}', [\App\Http\Controllers\Admin\ChatController::class, 'editMessage'])->whereNumber('message')->name('chat.messages.update');
-        Route::post('chat/messages/{message}/forward', [\App\Http\Controllers\Admin\ChatController::class, 'forwardMessage'])->whereNumber('message')->name('chat.messages.forward');
-        Route::post('chat/messages/{message}/react', [\App\Http\Controllers\Admin\ChatController::class, 'reactMessage'])->whereNumber('message')->name('chat.messages.react');
-        Route::post('chat/messages/{message}/checklist', [\App\Http\Controllers\Admin\ChatController::class, 'toggleChecklist'])->whereNumber('message')->name('chat.messages.checklist');
-        Route::delete('chat/messages/{message}', [\App\Http\Controllers\Admin\ChatController::class, 'destroyMessage'])->whereNumber('message')->name('chat.messages.destroy');
-        Route::get('chat/{conversation}/settings', [\App\Http\Controllers\Admin\ChatController::class, 'editGroup'])->whereNumber('conversation')->name('chat.groups.edit');
-        Route::post('chat/{conversation}/settings', [\App\Http\Controllers\Admin\ChatController::class, 'updateGroup'])->whereNumber('conversation')->name('chat.groups.update');
-        Route::get('chat/with/{user}', [\App\Http\Controllers\Admin\ChatController::class, 'direct'])->whereNumber('user')->name('chat.direct');
-        Route::get('chat/{conversation}', [\App\Http\Controllers\Admin\ChatController::class, 'show'])->whereNumber('conversation')->name('chat.show');
-        Route::post('chat/{conversation}/messages', [\App\Http\Controllers\Admin\ChatController::class, 'sendMessage'])->whereNumber('conversation')->name('chat.messages.store');
-        Route::get('chat/{conversation}/older', [\App\Http\Controllers\Admin\ChatController::class, 'olderMessages'])->whereNumber('conversation')->name('chat.older');
-        Route::post('chat/{conversation}/typing', [\App\Http\Controllers\Admin\ChatController::class, 'typing'])->whereNumber('conversation')->name('chat.typing');
-        Route::post('chat/{conversation}/read', [\App\Http\Controllers\Admin\ChatController::class, 'read'])->whereNumber('conversation')->name('chat.read');
+        Route::post('chat/heartbeat', [ChatController::class, 'heartbeat'])->name('chat.heartbeat');
+        Route::post('chat/offline', [ChatController::class, 'offline'])->name('chat.offline');
+        Route::patch('chat/messages/{message}', [ChatController::class, 'editMessage'])->whereNumber('message')->name('chat.messages.update');
+        Route::post('chat/messages/{message}/forward', [ChatController::class, 'forwardMessage'])->whereNumber('message')->name('chat.messages.forward');
+        Route::post('chat/messages/{message}/react', [ChatController::class, 'reactMessage'])->whereNumber('message')->name('chat.messages.react');
+        Route::post('chat/messages/{message}/checklist', [ChatController::class, 'toggleChecklist'])->whereNumber('message')->name('chat.messages.checklist');
+        Route::delete('chat/messages/{message}', [ChatController::class, 'destroyMessage'])->whereNumber('message')->name('chat.messages.destroy');
+        Route::get('chat/{conversation}/settings', [ChatController::class, 'editGroup'])->whereNumber('conversation')->name('chat.groups.edit');
+        Route::post('chat/{conversation}/settings', [ChatController::class, 'updateGroup'])->whereNumber('conversation')->name('chat.groups.update');
+        Route::get('chat/with/{user}', [ChatController::class, 'direct'])->whereNumber('user')->name('chat.direct');
+        Route::get('chat/{conversation}', [ChatController::class, 'show'])->whereNumber('conversation')->name('chat.show');
+        Route::post('chat/{conversation}/messages', [ChatController::class, 'sendMessage'])->whereNumber('conversation')->name('chat.messages.store');
+        Route::get('chat/{conversation}/older', [ChatController::class, 'olderMessages'])->whereNumber('conversation')->name('chat.older');
+        Route::post('chat/{conversation}/typing', [ChatController::class, 'typing'])->whereNumber('conversation')->name('chat.typing');
+        Route::post('chat/{conversation}/read', [ChatController::class, 'read'])->whereNumber('conversation')->name('chat.read');
 
         // ===== Book a Meeting =====
         Route::middleware('permission:meetings.settings')->group(function () {
-            Route::get('meetings/settings', [\App\Http\Controllers\Admin\MeetingController::class, 'settings'])->name('meetings.settings');
-            Route::post('meetings/settings', [\App\Http\Controllers\Admin\MeetingController::class, 'updateSettings'])->name('meetings.settings.update');
+            Route::get('meetings/settings', [MeetingController::class, 'settings'])->name('meetings.settings');
+            Route::post('meetings/settings', [MeetingController::class, 'updateSettings'])->name('meetings.settings.update');
         });
         Route::middleware('permission:meetings.view')->group(function () {
-            Route::get('meetings', [\App\Http\Controllers\Admin\MeetingController::class, 'index'])->name('meetings.index');
-            Route::get('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'show'])->whereNumber('meeting')->name('meetings.show');
+            Route::get('meetings', [MeetingController::class, 'index'])->name('meetings.index');
+            Route::get('meetings/{meeting}', [MeetingController::class, 'show'])->whereNumber('meeting')->name('meetings.show');
         });
         Route::middleware('permission:meetings.edit')->group(function () {
-            Route::patch('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'update'])->whereNumber('meeting')->name('meetings.update');
-            Route::patch('meetings/{meeting}/quick', [\App\Http\Controllers\Admin\MeetingController::class, 'quickUpdate'])->whereNumber('meeting')->name('meetings.quick');
-            Route::get('meetings/{meeting}/edit', [\App\Http\Controllers\Admin\MeetingController::class, 'edit'])->whereNumber('meeting')->name('meetings.edit');
-            Route::patch('meetings/{meeting}/reschedule', [\App\Http\Controllers\Admin\MeetingController::class, 'reschedule'])->whereNumber('meeting')->name('meetings.reschedule');
+            Route::patch('meetings/{meeting}', [MeetingController::class, 'update'])->whereNumber('meeting')->name('meetings.update');
+            Route::patch('meetings/{meeting}/quick', [MeetingController::class, 'quickUpdate'])->whereNumber('meeting')->name('meetings.quick');
+            Route::get('meetings/{meeting}/edit', [MeetingController::class, 'edit'])->whereNumber('meeting')->name('meetings.edit');
+            Route::patch('meetings/{meeting}/reschedule', [MeetingController::class, 'reschedule'])->whereNumber('meeting')->name('meetings.reschedule');
         });
-        Route::delete('meetings/{meeting}', [\App\Http\Controllers\Admin\MeetingController::class, 'destroy'])->whereNumber('meeting')->middleware('permission:meetings.delete')->name('meetings.destroy');
+        Route::delete('meetings/{meeting}', [MeetingController::class, 'destroy'])->whereNumber('meeting')->middleware('permission:meetings.delete')->name('meetings.destroy');
 
         // ===== CRM Analytics (reports · follow-ups · by country) =====
         Route::middleware('permission:analytics.view')->group(function () {
@@ -376,14 +411,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // ===== Settings : Project Config (categories + default board columns) =====
         Route::middleware('permission:projects.settings')->group(function () {
-            Route::get('project-config', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'index'])->name('project-config');
-            Route::post('project-config/categories', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryStore'])->name('project-config.categories.store');
-            Route::put('project-config/categories/{category}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryUpdate'])->whereNumber('category')->name('project-config.categories.update');
-            Route::patch('project-config/categories/{category}/menu', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryMenu'])->whereNumber('category')->name('project-config.categories.menu');
-            Route::delete('project-config/categories/{category}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'categoryDestroy'])->whereNumber('category')->name('project-config.categories.destroy');
-            Route::post('project-config/columns', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnStore'])->name('project-config.columns.store');
-            Route::put('project-config/columns/{column}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnUpdate'])->whereNumber('column')->name('project-config.columns.update');
-            Route::delete('project-config/columns/{column}', [\App\Http\Controllers\Admin\ProjectConfigController::class, 'columnDestroy'])->whereNumber('column')->name('project-config.columns.destroy');
+            Route::get('project-config', [ProjectConfigController::class, 'index'])->name('project-config');
+            Route::post('project-config/categories', [ProjectConfigController::class, 'categoryStore'])->name('project-config.categories.store');
+            Route::put('project-config/categories/{category}', [ProjectConfigController::class, 'categoryUpdate'])->whereNumber('category')->name('project-config.categories.update');
+            Route::patch('project-config/categories/{category}/menu', [ProjectConfigController::class, 'categoryMenu'])->whereNumber('category')->name('project-config.categories.menu');
+            Route::delete('project-config/categories/{category}', [ProjectConfigController::class, 'categoryDestroy'])->whereNumber('category')->name('project-config.categories.destroy');
+            Route::post('project-config/columns', [ProjectConfigController::class, 'columnStore'])->name('project-config.columns.store');
+            Route::put('project-config/columns/{column}', [ProjectConfigController::class, 'columnUpdate'])->whereNumber('column')->name('project-config.columns.update');
+            Route::delete('project-config/columns/{column}', [ProjectConfigController::class, 'columnDestroy'])->whereNumber('column')->name('project-config.columns.destroy');
         });
 
         // ===== Clients =====
@@ -392,27 +427,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         // Activity logs — each page has its own permission (see Roles → Activity Logs).
         Route::middleware('permission:activity.client')->group(function () {
-            Route::get('client-activity', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'index'])->name('client-activity');
-            Route::get('client-activity/details', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'details'])->name('client-activity.details');
+            Route::get('client-activity', [ClientActivityLogController::class, 'index'])->name('client-activity');
+            Route::get('client-activity/details', [ClientActivityLogController::class, 'details'])->name('client-activity.details');
             // WhatsApp button: build a chat link and see how often it was followed.
-            $wl = \App\Http\Controllers\Admin\WhatsappLinkController::class;
+            $wl = WhatsappLinkController::class;
             Route::get('whatsapp-links', [$wl, 'index'])->name('whatsapp-links');
             Route::post('whatsapp-links', [$wl, 'store'])->name('whatsapp-links.store');
             Route::put('whatsapp-links/{whatsappLink}', [$wl, 'update'])->whereNumber('whatsappLink')->name('whatsapp-links.update');
             Route::post('whatsapp-links/{whatsappLink}/toggle', [$wl, 'toggle'])->whereNumber('whatsappLink')->name('whatsapp-links.toggle');
             Route::delete('whatsapp-links/{whatsappLink}', [$wl, 'destroy'])->whereNumber('whatsappLink')->name('whatsapp-links.destroy');
-            Route::get('client-activity/errors', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'errors'])->name('client-activity.errors');
-            Route::get('client-activity/clients', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'clients'])->name('client-activity.clients');
+            Route::get('client-activity/errors', [ClientActivityLogController::class, 'errors'])->name('client-activity.errors');
+            Route::get('client-activity/clients', [ClientActivityLogController::class, 'clients'])->name('client-activity.clients');
             // Super-admin-only; the controller enforces that (permission alone is not enough here).
-            Route::post('client-activity/clients/{client}/logout', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'logoutClient'])->whereNumber('client')->name('client-activity.clients.logout');
+            Route::post('client-activity/clients/{client}/logout', [ClientActivityLogController::class, 'logoutClient'])->whereNumber('client')->name('client-activity.clients.logout');
         });
         // Activity → Cart: who added products to their cart on the website.
         Route::middleware('permission:activity.cart')->group(function () {
-            Route::get('cart-activity', [\App\Http\Controllers\Admin\CartActivityController::class, 'index'])->name('cart-activity');
+            Route::get('cart-activity', [CartActivityController::class, 'index'])->name('cart-activity');
         });
         // Blogs / Products share one route; the exact permission (activity.blogs / activity.products)
         // is checked in the controller since it depends on {type}.
-        Route::get('client-activity/{type}', [\App\Http\Controllers\Admin\ClientActivityLogController::class, 'content'])->whereIn('type', ['blogs', 'products'])->name('client-activity.content');
+        Route::get('client-activity/{type}', [ClientActivityLogController::class, 'content'])->whereIn('type', ['blogs', 'products'])->name('client-activity.content');
         Route::middleware('permission:clients.view')->group(function () {
             Route::get('clients/{client}', [ClientController::class, 'show'])->whereNumber('client')->name('clients.show');
         });
@@ -448,52 +483,52 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // ===== Support tickets =====
         Route::middleware('permission:tickets.view')->group(function () {
-            Route::get('tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('tickets.index');
-            Route::get('tickets/export', [\App\Http\Controllers\Admin\TicketController::class, 'export'])->name('tickets.export');
-            Route::get('tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->whereNumber('ticket')->name('tickets.show');
+            Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');
+            Route::get('tickets/export', [TicketController::class, 'export'])->name('tickets.export');
+            Route::get('tickets/{ticket}', [TicketController::class, 'show'])->whereNumber('ticket')->name('tickets.show');
         });
         Route::middleware('permission:tickets.create')->group(function () {
-            Route::get('tickets/create', [\App\Http\Controllers\Admin\TicketController::class, 'create'])->name('tickets.create');
-            Route::post('tickets', [\App\Http\Controllers\Admin\TicketController::class, 'store'])->name('tickets.store');
-            Route::post('ticket-groups', [\App\Http\Controllers\Admin\TicketController::class, 'storeGroup'])->name('tickets.groups.store');
-            Route::post('ticket-types', [\App\Http\Controllers\Admin\TicketController::class, 'storeType'])->name('tickets.types.store');
+            Route::get('tickets/create', [TicketController::class, 'create'])->name('tickets.create');
+            Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
+            Route::post('ticket-groups', [TicketController::class, 'storeGroup'])->name('tickets.groups.store');
+            Route::post('ticket-types', [TicketController::class, 'storeType'])->name('tickets.types.store');
         });
-        Route::post('tickets/{ticket}/replies', [\App\Http\Controllers\Admin\TicketController::class, 'reply'])->whereNumber('ticket')->middleware('permission:tickets.reply')->name('tickets.reply');
+        Route::post('tickets/{ticket}/replies', [TicketController::class, 'reply'])->whereNumber('ticket')->middleware('permission:tickets.reply')->name('tickets.reply');
         Route::middleware('permission:tickets.edit')->group(function () {
-            Route::patch('tickets/{ticket}/status', [\App\Http\Controllers\Admin\TicketController::class, 'updateStatus'])->whereNumber('ticket')->name('tickets.status');
-            Route::patch('tickets/{ticket}/assign', [\App\Http\Controllers\Admin\TicketController::class, 'assign'])->whereNumber('ticket')->name('tickets.assign');
+            Route::patch('tickets/{ticket}/status', [TicketController::class, 'updateStatus'])->whereNumber('ticket')->name('tickets.status');
+            Route::patch('tickets/{ticket}/assign', [TicketController::class, 'assign'])->whereNumber('ticket')->name('tickets.assign');
         });
         // CRM settings — configurable lead sources & departments.
         Route::middleware('permission:leads.settings')->group(function () {
-            Route::get('crm-settings', [\App\Http\Controllers\Admin\CrmSettingController::class, 'index'])->name('crm-settings');
-            Route::post('crm-settings/options', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeOption'])->name('crm-settings.options.store');
-            Route::patch('crm-settings/options/{option}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateOption'])->whereNumber('option')->name('crm-settings.options.update');
-            Route::delete('crm-settings/options/{option}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyOption'])->whereNumber('option')->name('crm-settings.options.destroy');
-            Route::post('crm-settings/client-labels', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeClientLabel'])->name('crm-settings.client-labels.store');
-            Route::patch('crm-settings/client-labels/{clientLabel}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.update');
-            Route::delete('crm-settings/client-labels/{clientLabel}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.destroy');
-            Route::post('crm-settings/product-categories', [\App\Http\Controllers\Admin\CrmSettingController::class, 'storeProductCategory'])->name('crm-settings.product-categories.store');
-            Route::patch('crm-settings/product-categories/{productCategory}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'updateProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.update');
-            Route::delete('crm-settings/product-categories/{productCategory}', [\App\Http\Controllers\Admin\CrmSettingController::class, 'destroyProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.destroy');
+            Route::get('crm-settings', [CrmSettingController::class, 'index'])->name('crm-settings');
+            Route::post('crm-settings/options', [CrmSettingController::class, 'storeOption'])->name('crm-settings.options.store');
+            Route::patch('crm-settings/options/{option}', [CrmSettingController::class, 'updateOption'])->whereNumber('option')->name('crm-settings.options.update');
+            Route::delete('crm-settings/options/{option}', [CrmSettingController::class, 'destroyOption'])->whereNumber('option')->name('crm-settings.options.destroy');
+            Route::post('crm-settings/client-labels', [CrmSettingController::class, 'storeClientLabel'])->name('crm-settings.client-labels.store');
+            Route::patch('crm-settings/client-labels/{clientLabel}', [CrmSettingController::class, 'updateClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.update');
+            Route::delete('crm-settings/client-labels/{clientLabel}', [CrmSettingController::class, 'destroyClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.destroy');
+            Route::post('crm-settings/product-categories', [CrmSettingController::class, 'storeProductCategory'])->name('crm-settings.product-categories.store');
+            Route::patch('crm-settings/product-categories/{productCategory}', [CrmSettingController::class, 'updateProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.update');
+            Route::delete('crm-settings/product-categories/{productCategory}', [CrmSettingController::class, 'destroyProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.destroy');
         });
 
         // Ticket settings (agents, types, reply templates) — separate, admin/manager-level gate.
         Route::middleware('permission:tickets.settings')->group(function () {
-            Route::get('ticket-settings', [\App\Http\Controllers\Admin\TicketSettingController::class, 'index'])->name('tickets.settings');
-            Route::post('ticket-settings/agents', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeAgent'])->name('tickets.settings.agents.store');
-            Route::patch('ticket-settings/agents/{agent}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateAgent'])->name('tickets.settings.agents.update');
-            Route::delete('ticket-settings/agents/{agent}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyAgent'])->name('tickets.settings.agents.destroy');
-            Route::post('ticket-settings/types', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeType'])->name('tickets.settings.types.store');
-            Route::patch('ticket-settings/types/{type}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateType'])->name('tickets.settings.types.update');
-            Route::delete('ticket-settings/types/{type}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyType'])->name('tickets.settings.types.destroy');
-            Route::post('ticket-settings/templates', [\App\Http\Controllers\Admin\TicketSettingController::class, 'storeTemplate'])->name('tickets.settings.templates.store');
-            Route::patch('ticket-settings/templates/{template}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'updateTemplate'])->name('tickets.settings.templates.update');
-            Route::delete('ticket-settings/templates/{template}', [\App\Http\Controllers\Admin\TicketSettingController::class, 'destroyTemplate'])->name('tickets.settings.templates.destroy');
+            Route::get('ticket-settings', [TicketSettingController::class, 'index'])->name('tickets.settings');
+            Route::post('ticket-settings/agents', [TicketSettingController::class, 'storeAgent'])->name('tickets.settings.agents.store');
+            Route::patch('ticket-settings/agents/{agent}', [TicketSettingController::class, 'updateAgent'])->name('tickets.settings.agents.update');
+            Route::delete('ticket-settings/agents/{agent}', [TicketSettingController::class, 'destroyAgent'])->name('tickets.settings.agents.destroy');
+            Route::post('ticket-settings/types', [TicketSettingController::class, 'storeType'])->name('tickets.settings.types.store');
+            Route::patch('ticket-settings/types/{type}', [TicketSettingController::class, 'updateType'])->name('tickets.settings.types.update');
+            Route::delete('ticket-settings/types/{type}', [TicketSettingController::class, 'destroyType'])->name('tickets.settings.types.destroy');
+            Route::post('ticket-settings/templates', [TicketSettingController::class, 'storeTemplate'])->name('tickets.settings.templates.store');
+            Route::patch('ticket-settings/templates/{template}', [TicketSettingController::class, 'updateTemplate'])->name('tickets.settings.templates.update');
+            Route::delete('ticket-settings/templates/{template}', [TicketSettingController::class, 'destroyTemplate'])->name('tickets.settings.templates.destroy');
         });
-        Route::delete('tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'destroy'])->whereNumber('ticket')->name('tickets.destroy');
+        Route::delete('tickets/{ticket}', [TicketController::class, 'destroy'])->whereNumber('ticket')->name('tickets.destroy');
 
         // ===== Finance (internal money: wallets, banks, income, expenses, tax) =====
-        $fin = \App\Http\Controllers\Admin\FinanceController::class;
+        $fin = FinanceController::class;
         Route::prefix('finance')->name('finance.')->group(function () use ($fin) {
             Route::get('/', [$fin, 'dashboard'])->name('dashboard');
             Route::get('wallets', [$fin, 'accounts'])->defaults('type', 'wallet')->name('wallets');
@@ -534,7 +569,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('products/{product}', [ProductController::class, 'show'])->whereNumber('product')->name('products.show');
         });
         // ===== Installation Plans (own permission set) =====
-        $ip = \App\Http\Controllers\Admin\InstallationPlanController::class;
+        $ip = InstallationPlanController::class;
         Route::middleware('permission:installation_plans.view')->group(function () use ($ip) {
             Route::get('installation-plans', [$ip, 'index'])->name('installation-plans');
         });
@@ -679,7 +714,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         // Invoice Configuration — units, taxes/charges, branding logo.
         Route::middleware('permission:invoices.configure')->group(function () {
-            $ic = \App\Http\Controllers\Admin\InvoiceConfigController::class;
+            $ic = InvoiceConfigController::class;
             Route::get('invoice-config', [$ic, 'index'])->name('invoice-config');
             Route::post('invoice-config/branding', [$ic, 'updateBranding'])->name('invoice-config.branding');
             Route::post('invoice-config/units', [$ic, 'storeUnit'])->name('invoice-config.units.store');
@@ -757,40 +792,40 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // ---- Careers openings (draft → publish workflow behind the public careers page) ----
     Route::middleware('permission:careers.view')->group(function () {
-        Route::get('jobs', [\App\Http\Controllers\Admin\JobController::class, 'index'])->name('jobs.index');
+        Route::get('jobs', [JobController::class, 'index'])->name('jobs.index');
     });
     Route::middleware('permission:careers.create')->group(function () {
-        Route::get('jobs/create', [\App\Http\Controllers\Admin\JobController::class, 'create'])->name('jobs.create');
-        Route::post('jobs', [\App\Http\Controllers\Admin\JobController::class, 'store'])->name('jobs.store');
+        Route::get('jobs/create', [JobController::class, 'create'])->name('jobs.create');
+        Route::post('jobs', [JobController::class, 'store'])->name('jobs.store');
     });
     Route::middleware('permission:careers.edit')->group(function () {
-        Route::get('jobs/{job}/edit', [\App\Http\Controllers\Admin\JobController::class, 'edit'])->whereNumber('job')->name('jobs.edit');
-        Route::put('jobs/{job}', [\App\Http\Controllers\Admin\JobController::class, 'update'])->whereNumber('job')->name('jobs.update');
+        Route::get('jobs/{job}/edit', [JobController::class, 'edit'])->whereNumber('job')->name('jobs.edit');
+        Route::put('jobs/{job}', [JobController::class, 'update'])->whereNumber('job')->name('jobs.update');
     });
     Route::middleware('permission:careers.publish')->group(function () {
-        Route::post('jobs/{job}/publish', [\App\Http\Controllers\Admin\JobController::class, 'togglePublish'])->whereNumber('job')->name('jobs.publish');
+        Route::post('jobs/{job}/publish', [JobController::class, 'togglePublish'])->whereNumber('job')->name('jobs.publish');
     });
     Route::middleware('permission:careers.delete')->group(function () {
-        Route::delete('jobs/{job}', [\App\Http\Controllers\Admin\JobController::class, 'destroy'])->whereNumber('job')->name('jobs.destroy');
+        Route::delete('jobs/{job}', [JobController::class, 'destroy'])->whereNumber('job')->name('jobs.destroy');
     });
 
     // ---- Promotion (site-wide promo banner, draft → publish workflow) ----
     Route::middleware('permission:promotion.view')->group(function () {
-        Route::get('promotions', [\App\Http\Controllers\Admin\PromotionController::class, 'index'])->name('promotions.index');
+        Route::get('promotions', [PromotionController::class, 'index'])->name('promotions.index');
     });
     Route::middleware('permission:promotion.create')->group(function () {
-        Route::get('promotions/create', [\App\Http\Controllers\Admin\PromotionController::class, 'create'])->name('promotions.create');
-        Route::post('promotions', [\App\Http\Controllers\Admin\PromotionController::class, 'store'])->name('promotions.store');
+        Route::get('promotions/create', [PromotionController::class, 'create'])->name('promotions.create');
+        Route::post('promotions', [PromotionController::class, 'store'])->name('promotions.store');
     });
     Route::middleware('permission:promotion.edit')->group(function () {
-        Route::get('promotions/{promotion}/edit', [\App\Http\Controllers\Admin\PromotionController::class, 'edit'])->whereNumber('promotion')->name('promotions.edit');
-        Route::put('promotions/{promotion}', [\App\Http\Controllers\Admin\PromotionController::class, 'update'])->whereNumber('promotion')->name('promotions.update');
+        Route::get('promotions/{promotion}/edit', [PromotionController::class, 'edit'])->whereNumber('promotion')->name('promotions.edit');
+        Route::put('promotions/{promotion}', [PromotionController::class, 'update'])->whereNumber('promotion')->name('promotions.update');
     });
     Route::middleware('permission:promotion.publish')->group(function () {
-        Route::post('promotions/{promotion}/publish', [\App\Http\Controllers\Admin\PromotionController::class, 'togglePublish'])->whereNumber('promotion')->name('promotions.publish');
+        Route::post('promotions/{promotion}/publish', [PromotionController::class, 'togglePublish'])->whereNumber('promotion')->name('promotions.publish');
     });
     Route::middleware('permission:promotion.delete')->group(function () {
-        Route::delete('promotions/{promotion}', [\App\Http\Controllers\Admin\PromotionController::class, 'destroy'])->whereNumber('promotion')->name('promotions.destroy');
+        Route::delete('promotions/{promotion}', [PromotionController::class, 'destroy'])->whereNumber('promotion')->name('promotions.destroy');
     });
 
     // ---- Super admin only (role=admin): per-user permission overrides, roles, admin users ----
@@ -805,19 +840,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Email / SMTP settings + templates
         // Activity → Employee (every employee's actions).
         Route::middleware('permission:activity.employee')->group(function () {
-            Route::get('activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-logs');
-            Route::get('activity-logs/{employee}', [\App\Http\Controllers\Admin\ActivityLogController::class, 'show'])->whereNumber('employee')->name('activity-logs.show');
+            Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
+            Route::get('activity-logs/{employee}', [ActivityLogController::class, 'show'])->whereNumber('employee')->name('activity-logs.show');
         });
 
         // ---- Activity → CodeCanyon (official Envato API only; no scraping) ----
         Route::middleware('permission:codecanyon.view')->group(function () {
-            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
+            $cc = CodeCanyonController::class;
             Route::get('codecanyon', [$cc, 'index'])->name('codecanyon.index');
             Route::get('codecanyon/authors/{author}', [$cc, 'author'])->whereNumber('author')->name('codecanyon.author');
             Route::get('codecanyon/products/{product}', [$cc, 'product'])->whereNumber('product')->name('codecanyon.product');
         });
         Route::middleware('permission:codecanyon.manage')->group(function () {
-            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
+            $cc = CodeCanyonController::class;
             Route::post('codecanyon/authors', [$cc, 'storeAuthor'])->name('codecanyon.authors.store');
             Route::delete('codecanyon/authors/{author}', [$cc, 'destroyAuthor'])->whereNumber('author')->name('codecanyon.authors.destroy');
             Route::post('codecanyon/products', [$cc, 'storeProduct'])->name('codecanyon.products.store');
@@ -828,85 +863,85 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('codecanyon/sync', [$cc, 'sync'])->name('codecanyon.sync');
         });
         Route::middleware('permission:codecanyon.settings')->group(function () {
-            $cc = \App\Http\Controllers\Admin\CodeCanyonController::class;
+            $cc = CodeCanyonController::class;
             Route::get('codecanyon-settings', [$cc, 'settings'])->name('codecanyon-settings');
             Route::put('codecanyon-settings', [$cc, 'saveSettings'])->name('codecanyon-settings.save');
 
             // Meta Conversions API — server-side pixel events.
-            Route::get('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'index'])->name('meta-capi');
-            Route::post('meta-capi', [\App\Http\Controllers\Admin\MetaCapiController::class, 'update'])->name('meta-capi.update');
-            Route::post('meta-capi/test', [\App\Http\Controllers\Admin\MetaCapiController::class, 'test'])->name('meta-capi.test');
+            Route::get('meta-capi', [MetaCapiController::class, 'index'])->name('meta-capi');
+            Route::post('meta-capi', [MetaCapiController::class, 'update'])->name('meta-capi.update');
+            Route::post('meta-capi/test', [MetaCapiController::class, 'test'])->name('meta-capi.test');
 
         });
 
         // Settings → Bin (recoverable clients + invoices; super admin only, enforced in the controller).
-        Route::get('bin', [\App\Http\Controllers\Admin\BinController::class, 'index'])->name('bin');
-        Route::post('bin/clients/{id}/restore', [\App\Http\Controllers\Admin\BinController::class, 'restoreClient'])->whereNumber('id')->name('bin.clients.restore');
-        Route::post('bin/projects/{id}/restore', [\App\Http\Controllers\Admin\BinController::class, 'restoreProject'])->whereNumber('id')->name('bin.projects.restore');
-        Route::delete('bin/projects/{id}', [\App\Http\Controllers\Admin\BinController::class, 'forceDeleteProject'])->whereNumber('id')->name('bin.projects.force-delete');
-        Route::delete('bin/projects/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyProjects'])->name('bin.projects.empty');
-        Route::delete('bin/clients/{id}', [\App\Http\Controllers\Admin\BinController::class, 'forceDeleteClient'])->whereNumber('id')->name('bin.clients.force-delete');
-        Route::post('bin/clients/restore', [\App\Http\Controllers\Admin\BinController::class, 'bulkRestoreClients'])->name('bin.clients.bulk-restore');
-        Route::delete('bin/clients', [\App\Http\Controllers\Admin\BinController::class, 'bulkForceDeleteClients'])->name('bin.clients.bulk-delete');
-        Route::post('bin/invoices/restore', [\App\Http\Controllers\Admin\BinController::class, 'bulkRestoreInvoices'])->name('bin.invoices.bulk-restore');
-        Route::delete('bin/invoices', [\App\Http\Controllers\Admin\BinController::class, 'bulkForceDeleteInvoices'])->name('bin.invoices.bulk-delete');
+        Route::get('bin', [BinController::class, 'index'])->name('bin');
+        Route::post('bin/clients/{id}/restore', [BinController::class, 'restoreClient'])->whereNumber('id')->name('bin.clients.restore');
+        Route::post('bin/projects/{id}/restore', [BinController::class, 'restoreProject'])->whereNumber('id')->name('bin.projects.restore');
+        Route::delete('bin/projects/{id}', [BinController::class, 'forceDeleteProject'])->whereNumber('id')->name('bin.projects.force-delete');
+        Route::delete('bin/projects/empty', [BinController::class, 'emptyProjects'])->name('bin.projects.empty');
+        Route::delete('bin/clients/{id}', [BinController::class, 'forceDeleteClient'])->whereNumber('id')->name('bin.clients.force-delete');
+        Route::post('bin/clients/restore', [BinController::class, 'bulkRestoreClients'])->name('bin.clients.bulk-restore');
+        Route::delete('bin/clients', [BinController::class, 'bulkForceDeleteClients'])->name('bin.clients.bulk-delete');
+        Route::post('bin/invoices/restore', [BinController::class, 'bulkRestoreInvoices'])->name('bin.invoices.bulk-restore');
+        Route::delete('bin/invoices', [BinController::class, 'bulkForceDeleteInvoices'])->name('bin.invoices.bulk-delete');
         // Empty the Trash — permanently delete everything in a tab.
-        Route::delete('bin/clients/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyClients'])->name('bin.clients.empty');
-        Route::delete('bin/invoices/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyInvoices'])->name('bin.invoices.empty');
-        Route::delete('bin/whatsapp/empty', [\App\Http\Controllers\Admin\BinController::class, 'emptyWhatsapp'])->name('bin.whatsapp.empty');
+        Route::delete('bin/clients/empty', [BinController::class, 'emptyClients'])->name('bin.clients.empty');
+        Route::delete('bin/invoices/empty', [BinController::class, 'emptyInvoices'])->name('bin.invoices.empty');
+        Route::delete('bin/whatsapp/empty', [BinController::class, 'emptyWhatsapp'])->name('bin.whatsapp.empty');
 
-    /* ---- Email Management ---------------------------------------------------- */
-    Route::prefix('email')->name('email.')->group(function () {
-        $ec = \App\Http\Controllers\Admin\EmailConfigController::class;
-        Route::get('configs', [$ec, 'index'])->name('configs');
-        Route::post('configs', [$ec, 'store'])->name('configs.store');
-        Route::put('configs/{config}', [$ec, 'update'])->whereNumber('config')->name('configs.update');
-        Route::delete('configs/{config}', [$ec, 'destroy'])->whereNumber('config')->name('configs.destroy');
-        Route::post('configs/{config}/default', [$ec, 'makeDefault'])->whereNumber('config')->name('configs.default');
-        Route::post('configs/{config}/test', [$ec, 'test'])->whereNumber('config')->name('configs.test');
-        Route::post('configs/{config}/send-test', [$ec, 'sendTest'])->whereNumber('config')->name('configs.send-test');
+        /* ---- Email Management ---------------------------------------------------- */
+        Route::prefix('email')->name('email.')->group(function () {
+            $ec = EmailConfigController::class;
+            Route::get('configs', [$ec, 'index'])->name('configs');
+            Route::post('configs', [$ec, 'store'])->name('configs.store');
+            Route::put('configs/{config}', [$ec, 'update'])->whereNumber('config')->name('configs.update');
+            Route::delete('configs/{config}', [$ec, 'destroy'])->whereNumber('config')->name('configs.destroy');
+            Route::post('configs/{config}/default', [$ec, 'makeDefault'])->whereNumber('config')->name('configs.default');
+            Route::post('configs/{config}/test', [$ec, 'test'])->whereNumber('config')->name('configs.test');
+            Route::post('configs/{config}/send-test', [$ec, 'sendTest'])->whereNumber('config')->name('configs.send-test');
 
-        $et = \App\Http\Controllers\Admin\EmailTemplateController::class;
-        Route::get('templates', [$et, 'index'])->name('templates');
-        Route::post('templates', [$et, 'store'])->name('templates.store');
-        Route::get('templates/{template}/edit', [$et, 'edit'])->whereNumber('template')->name('templates.edit');
-        Route::put('templates/{template}', [$et, 'update'])->whereNumber('template')->name('templates.update');
-        Route::delete('templates/{template}', [$et, 'destroy'])->whereNumber('template')->name('templates.destroy');
-        Route::get('templates/{template}/preview', [$et, 'preview'])->whereNumber('template')->name('templates.preview');
-        Route::post('templates/{template}/send-test', [$et, 'sendTest'])->whereNumber('template')->name('templates.send-test');
-        Route::post('templates/{template}/toggle', [$et, 'toggle'])->whereNumber('template')->name('templates.toggle');
+            $et = EmailTemplateController::class;
+            Route::get('templates', [$et, 'index'])->name('templates');
+            Route::post('templates', [$et, 'store'])->name('templates.store');
+            Route::get('templates/{template}/edit', [$et, 'edit'])->whereNumber('template')->name('templates.edit');
+            Route::put('templates/{template}', [$et, 'update'])->whereNumber('template')->name('templates.update');
+            Route::delete('templates/{template}', [$et, 'destroy'])->whereNumber('template')->name('templates.destroy');
+            Route::get('templates/{template}/preview', [$et, 'preview'])->whereNumber('template')->name('templates.preview');
+            Route::post('templates/{template}/send-test', [$et, 'sendTest'])->whereNumber('template')->name('templates.send-test');
+            Route::post('templates/{template}/toggle', [$et, 'toggle'])->whereNumber('template')->name('templates.toggle');
 
-        $el = \App\Http\Controllers\Admin\EmailLogController::class;
-        Route::get('queue', [$el, 'queue'])->name('queue');
-        Route::post('queue/retry-all', [$el, 'retryAll'])->name('queue.retry-all');
-        Route::get('logs', [$el, 'index'])->name('logs');
-        Route::get('logs/{log}', [$el, 'show'])->whereNumber('log')->name('logs.show');
-        Route::get('logs/{log}/body', [$el, 'body'])->whereNumber('log')->name('logs.body');
-        Route::post('logs/{log}/retry', [$el, 'retry'])->whereNumber('log')->name('logs.retry');
-        Route::post('logs/{log}/cancel', [$el, 'cancel'])->whereNumber('log')->name('logs.cancel');
-        Route::post('logs/{log}/resend', [$el, 'resend'])->whereNumber('log')->name('logs.resend');
-        Route::delete('logs/{log}', [$el, 'destroy'])->whereNumber('log')->name('logs.destroy');
-        Route::get('suppressions', [$el, 'suppressions'])->name('suppressions');
-        Route::post('suppressions', [$el, 'addSuppression'])->name('suppressions.store');
-        Route::delete('suppressions/{suppression}', [$el, 'removeSuppression'])->whereNumber('suppression')->name('suppressions.destroy');
+            $el = EmailLogController::class;
+            Route::get('queue', [$el, 'queue'])->name('queue');
+            Route::post('queue/retry-all', [$el, 'retryAll'])->name('queue.retry-all');
+            Route::get('logs', [$el, 'index'])->name('logs');
+            Route::get('logs/{log}', [$el, 'show'])->whereNumber('log')->name('logs.show');
+            Route::get('logs/{log}/body', [$el, 'body'])->whereNumber('log')->name('logs.body');
+            Route::post('logs/{log}/retry', [$el, 'retry'])->whereNumber('log')->name('logs.retry');
+            Route::post('logs/{log}/cancel', [$el, 'cancel'])->whereNumber('log')->name('logs.cancel');
+            Route::post('logs/{log}/resend', [$el, 'resend'])->whereNumber('log')->name('logs.resend');
+            Route::delete('logs/{log}', [$el, 'destroy'])->whereNumber('log')->name('logs.destroy');
+            Route::get('suppressions', [$el, 'suppressions'])->name('suppressions');
+            Route::post('suppressions', [$el, 'addSuppression'])->name('suppressions.store');
+            Route::delete('suppressions/{suppression}', [$el, 'removeSuppression'])->whereNumber('suppression')->name('suppressions.destroy');
 
-        $ea = \App\Http\Controllers\Admin\EmailAnalyticsController::class;
-        Route::get('analytics', [$ea, 'index'])->name('analytics');
-        Route::get('rules', [$ea, 'rules'])->name('rules');
-        Route::post('rules', [$ea, 'updateRules'])->name('rules.update');
+            $ea = EmailAnalyticsController::class;
+            Route::get('analytics', [$ea, 'index'])->name('analytics');
+            Route::get('rules', [$ea, 'rules'])->name('rules');
+            Route::post('rules', [$ea, 'updateRules'])->name('rules.update');
 
-        $ecm = \App\Http\Controllers\Admin\EmailCampaignController::class;
-        Route::get('campaigns', [$ecm, 'index'])->name('campaigns');
-        Route::get('campaigns/create', [$ecm, 'create'])->name('campaigns.create');
-        Route::post('campaigns', [$ecm, 'store'])->name('campaigns.store');
-        Route::get('campaigns/audience-count', [$ecm, 'audienceCount'])->name('campaigns.audience-count');
-        Route::get('campaigns/{campaign}', [$ecm, 'show'])->whereNumber('campaign')->name('campaigns.show');
-        Route::get('campaigns/{campaign}/edit', [$ecm, 'edit'])->whereNumber('campaign')->name('campaigns.edit');
-        Route::put('campaigns/{campaign}', [$ecm, 'update'])->whereNumber('campaign')->name('campaigns.update');
-        Route::post('campaigns/{campaign}/cancel', [$ecm, 'cancel'])->whereNumber('campaign')->name('campaigns.cancel');
-        Route::post('campaigns/{campaign}/send-test', [$ecm, 'sendTest'])->whereNumber('campaign')->name('campaigns.send-test');
-        Route::delete('campaigns/{campaign}', [$ecm, 'destroy'])->whereNumber('campaign')->name('campaigns.destroy');
-    });
+            $ecm = EmailCampaignController::class;
+            Route::get('campaigns', [$ecm, 'index'])->name('campaigns');
+            Route::get('campaigns/create', [$ecm, 'create'])->name('campaigns.create');
+            Route::post('campaigns', [$ecm, 'store'])->name('campaigns.store');
+            Route::get('campaigns/audience-count', [$ecm, 'audienceCount'])->name('campaigns.audience-count');
+            Route::get('campaigns/{campaign}', [$ecm, 'show'])->whereNumber('campaign')->name('campaigns.show');
+            Route::get('campaigns/{campaign}/edit', [$ecm, 'edit'])->whereNumber('campaign')->name('campaigns.edit');
+            Route::put('campaigns/{campaign}', [$ecm, 'update'])->whereNumber('campaign')->name('campaigns.update');
+            Route::post('campaigns/{campaign}/cancel', [$ecm, 'cancel'])->whereNumber('campaign')->name('campaigns.cancel');
+            Route::post('campaigns/{campaign}/send-test', [$ecm, 'sendTest'])->whereNumber('campaign')->name('campaigns.send-test');
+            Route::delete('campaigns/{campaign}', [$ecm, 'destroy'])->whereNumber('campaign')->name('campaigns.destroy');
+        });
 
     });
 
@@ -927,14 +962,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('staff/{staff}/shifts/{shift}', [StaffController::class, 'shiftDestroy'])->whereNumber(['staff', 'shift'])->name('staff.shifts.destroy');
         });
         Route::middleware('permission:designations.view')->group(function () {
-            Route::resource('designations', \App\Http\Controllers\Admin\DesignationController::class)->only(['index', 'store', 'update', 'destroy']);
+            Route::resource('designations', DesignationController::class)->only(['index', 'store', 'update', 'destroy']);
         });
         Route::middleware('permission:departments.view')->group(function () {
-            Route::resource('departments', \App\Http\Controllers\Admin\DepartmentController::class)->only(['index', 'store', 'update', 'destroy']);
+            Route::resource('departments', DepartmentController::class)->only(['index', 'store', 'update', 'destroy']);
         });
 
         // ===== Attendance (biometric / web / login / manual) =====
-        $att = \App\Http\Controllers\Admin\AttendanceController::class;
+        $att = AttendanceController::class;
         Route::middleware('permission:attendance.view')->group(function () use ($att) {
             Route::get('attendance', [$att, 'index'])->name('attendance.index');
             Route::get('attendance/history', [$att, 'history'])->name('attendance.history');
@@ -961,13 +996,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Leave — employees request their own; approvers review.
         Route::middleware('permission:leave.view')->group(function () {
-            Route::get('leaves', [\App\Http\Controllers\Admin\LeaveController::class, 'index'])->name('leaves.index');
-            Route::delete('leaves/{leave}', [\App\Http\Controllers\Admin\LeaveController::class, 'destroy'])->whereNumber('leave')->name('leaves.destroy');
-            Route::patch('leaves/{leave}/status', [\App\Http\Controllers\Admin\LeaveController::class, 'updateStatus'])->whereNumber('leave')->name('leaves.status');
+            Route::get('leaves', [LeaveController::class, 'index'])->name('leaves.index');
+            Route::delete('leaves/{leave}', [LeaveController::class, 'destroy'])->whereNumber('leave')->name('leaves.destroy');
+            Route::patch('leaves/{leave}/status', [LeaveController::class, 'updateStatus'])->whereNumber('leave')->name('leaves.status');
         });
         Route::middleware('permission:leave.create')->group(function () {
-            Route::get('leaves/create', [\App\Http\Controllers\Admin\LeaveController::class, 'create'])->name('leaves.create');
-            Route::post('leaves', [\App\Http\Controllers\Admin\LeaveController::class, 'store'])->name('leaves.store');
+            Route::get('leaves/create', [LeaveController::class, 'create'])->name('leaves.create');
+            Route::post('leaves', [LeaveController::class, 'store'])->name('leaves.store');
         });
     });
 });

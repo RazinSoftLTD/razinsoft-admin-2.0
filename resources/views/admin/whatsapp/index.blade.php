@@ -178,6 +178,12 @@
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="m5.6 5.6 12.8 12.8"/></svg>
                     <span x-text="chatMenu.chat?.blocked ? 'Unblock chat' : 'Block'"></span>
                 </button>
+                @if (auth()->user()->isSuperAdmin())
+                    <button type="button" @click="menuDelete()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-8 0 1 13h8l1-13M10 11v6m4-6v6"/></svg>
+                        Delete chat
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -1142,6 +1148,18 @@
                     if (!c.blocked && !confirm('Block ' + c.name + '?\n\nThe chat leaves this list and cannot be replied to. WhatsApp is not told, so their messages still arrive — find the chat again under the Blocked filter.')) return;
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/block', {});
                     if (r.ok && this.active && this.active.id === c.id) this.active = null;
+                    this.loadChats();
+                },
+                async menuDelete() {
+                    const c = this.chatMenu.chat;
+                    if (!c) return;
+                    this.chatMenu.open = false;
+                    if (!confirm('Delete the chat with ' + c.name + '?\n\nThe ENTIRE history — every message, photo and note — is permanently removed from this panel. WhatsApp itself is not touched; if they write again, a fresh empty chat appears.\n\nThis cannot be undone.')) return;
+                    const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + c.id, {
+                        method: 'DELETE', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
+                    });
+                    if (!r.ok) { alert('Could not delete the chat (' + r.status + ').'); return; }
+                    if (this.active && this.active.id === c.id) this.active = null;
                     this.loadChats();
                 },
                 async loadChats() {

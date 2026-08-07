@@ -460,6 +460,36 @@ class WhatsappController extends Controller
         return response()->json(['blocked' => $blocking]);
     }
 
+    /**
+     * Erase a chat and its whole history from this panel — super admin only.
+     *
+     * This is local housekeeping, not a WhatsApp action: nothing is deleted on the phone or at
+     * Meta, and if the contact writes again the gateway will simply create a fresh chat. Gone
+     * for good here, though — messages, media files, notes and labels all go with it.
+     */
+    public function destroyChat(Request $request, WhatsappChat $chat)
+    {
+        $this->authorizeChat($request, $chat);
+        abort_unless($request->user()->isSuperAdmin(), 403, 'Only a super admin can delete a chat history.');
+
+        $media = $chat->messages()->reorder()->whereNotNull('media_path')->pluck('media_path');
+        foreach ($media->chunk(100) as $paths) {
+            Storage::disk('public')->delete($paths->all());
+        }
+        if ($chat->avatar_path) {
+            Storage::disk('public')->delete($chat->avatar_path);
+        }
+
+        DB::transaction(function () use ($chat) {
+            $chat->messages()->reorder()->delete();
+            $chat->notes()->delete();
+            $chat->labels()->detach();
+            $chat->delete();
+        });
+
+        return response()->json(['deleted' => true]);
+    }
+
     public function toggleLabel(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
