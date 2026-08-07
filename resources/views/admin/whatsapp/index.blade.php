@@ -371,7 +371,7 @@
                                             <template x-if="m.direction === 'out' && m.type === 'text'">
                                                 <button type="button" @click="canModify(m) ? startEdit(m) : null"
                                                         :disabled="!canModify(m)"
-                                                        :title="canModify(m) ? 'Edit' : 'WhatsApp allows editing only within 15 minutes of sending'"
+                                                        :title="canModify(m) ? 'Edit' : modifyHint('editing')"
                                                         :class="canModify(m) ? 'text-gray-500 hover:text-gray-700' : 'cursor-not-allowed text-gray-300'"
                                                         class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white shadow-sm">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
@@ -380,7 +380,7 @@
                                             <template x-if="m.direction === 'out' && !m.deleted">
                                                 <button type="button" @click="canDelete(m) ? deleteMsg(m) : null"
                                                         :disabled="!canDelete(m)"
-                                                        :title="canDelete(m) ? 'Delete for everyone' : 'WhatsApp allows deleting for everyone within about 2½ days'"
+                                                        :title="canDelete(m) ? 'Delete for everyone' : modifyHint('deleting')"
                                                         :class="canDelete(m) ? 'text-gray-500 hover:text-red-500' : 'cursor-not-allowed text-gray-300'"
                                                         class="grid h-7 w-7 place-items-center rounded-full border border-gray-200 bg-white shadow-sm">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
@@ -972,7 +972,7 @@
                 // when the URL names none — landing back on number one from number nine every
                 // reload made the picker feel broken.
                 accountId: @js(($accounts->firstWhere('id', (int) request('account')) ?? $accounts->first())->id ?? null),
-                accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
+                accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'cloud' => $a->isCloudApi(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
                 quickReplies: @js($quickReplies->map(fn ($q) => ['shortcut' => $q->shortcut, 'body' => $q->body, 'account_id' => $q->account_id])->values()),
                 // Quick replies are per-number — show only the selected number's own set.
@@ -1405,11 +1405,18 @@
                         } else { alert((await r.json()).error || 'Could not delete the message.'); }
                     } catch { alert('Could not delete the message.'); }
                 },
-                // WhatsApp's own windows: editing closes 15 minutes after sending, delete for
-                // everyone about 60 hours after. The panel mirrors them rather than pretending
-                // an action is possible and failing at the gateway.
-                canModify(m) { return m.ts && (Date.now() / 1000 - m.ts) < 900; },
-                canDelete(m) { return m.ts && (Date.now() / 1000 - m.ts) < 60 * 3600; },
+                // WhatsApp's own rules, which differ by how the number is connected. A paired
+                // number can edit for 15 minutes and delete for ~60 hours; a Cloud API number can
+                // do neither — Meta's API has no edit or delete at all. The panel mirrors this
+                // rather than offering a button that fails after the confirm.
+                canModify(m) { return !this.currentAccount().cloud && m.ts && (Date.now() / 1000 - m.ts) < 900; },
+                canDelete(m) { return !this.currentAccount().cloud && m.ts && (Date.now() / 1000 - m.ts) < 60 * 3600; },
+                modifyHint(kind) {
+                    if (this.currentAccount().cloud) return 'This number runs on the WhatsApp Cloud API, which does not allow ' + kind + ' sent messages';
+                    return kind === 'editing'
+                        ? 'WhatsApp allows editing only within 15 minutes of sending'
+                        : 'WhatsApp allows deleting for everyone within about 2\u00bd days';
+                },
                 // Live local time in the contact's timezone (re-runs each tick).
                 localTime(tz) {
                     this.nowTick; // reactive dependency so the clock refreshes
