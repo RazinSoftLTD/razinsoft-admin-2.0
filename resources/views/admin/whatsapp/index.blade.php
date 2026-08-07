@@ -314,7 +314,8 @@
                     {{-- Messages — WhatsApp Web look (beige doodle bg, green/white bubbles) --}}
                     {{-- flex-col + mt-auto anchors messages to the bottom (empty space stays on top, like WhatsApp). --}}
                     <div class="wa-thread flex flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-16" x-ref="thread"
-                         @scroll.debounce.150ms="if ($refs.thread.scrollTop < 80 && hasMore && !loadingOlder) loadOlder()">
+                         @scroll.debounce.150ms="if ($refs.thread.scrollTop < 80 && hasMore && !loadingOlder) loadOlder()"
+                         @click="if (!$event.target.closest('.group')) actionsFor = null">
                         <div class="space-y-3" style="margin-top:auto">
                         {{-- Load earlier messages (WhatsApp/Facebook style) --}}
                         <template x-if="hasMore">
