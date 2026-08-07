@@ -94,7 +94,7 @@ class WhatsappAutoReplyService
         if ($faq = AiFaq::match((string) $incoming->body)) {
             $faq->increment('hit_count');
 
-            return $this->speak($chat, $faq->reply) ? null : 'send failed';
+            return $this->speak($chat, $faq->reply, 'faq') ? null : 'send failed';
         }
 
         // ---- 2. OpenAI, told it may raise its hand.
@@ -113,16 +113,16 @@ class WhatsappAutoReplyService
             $chat->update(['ai_handover_at' => now()]);
             $note = $settings['handover_message']
                 ?? 'Thanks for reaching out! A member of our team will take it from here and reply to you shortly.';
-            $this->speak($chat, $note);
+            $this->speak($chat, $note, 'handover');
 
             return 'handed over to the team';
         }
 
-        return $this->speak($chat, $text) ? null : 'send failed';
+        return $this->speak($chat, $text, 'openai') ? null : 'send failed';
     }
 
     /** Send one assistant message and record it the way the inbox expects. */
-    private function speak(WhatsappChat $chat, string $text): bool
+    private function speak(WhatsappChat $chat, string $text, string $source): bool
     {
         try {
             $waId = WhatsappService::for($chat->account)->sendText($chat->wa_id, $text);
@@ -139,6 +139,7 @@ class WhatsappAutoReplyService
             'wa_message_id' => $waId,
             'status' => 'sent',
             'ai_generated' => true,
+            'ai_source' => $source,
             'sent_at' => now(),
         ]);
 

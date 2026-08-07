@@ -27,7 +27,7 @@
         </div>
     @endif
 
-    <div class="grid gap-6 xl:grid-cols-2">
+    <div class="grid gap-6 xl:grid-cols-3">
         {{-- ══ Behaviour ══ --}}
         <form method="POST" action="{{ route('admin.razin-ai.update') }}" class="space-y-6">
             @csrf
@@ -82,7 +82,7 @@
                         @foreach ([1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'] as $day => $label)
                             <label class="cursor-pointer">
                                 <input type="checkbox" name="office_days[]" value="{{ $day }}" @checked(in_array($day, $settings['office_days'] ?? [], true)) class="peer hidden">
-                                <span class="inline-block rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 transition peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary)] peer-checked:text-white">{{ $label }}</span>
+                                <span class="inline-block rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 transition peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary-soft)] peer-checked:text-[var(--color-primary)]">{{ $label }}</span>
                             </label>
                         @endforeach
                     </div>
@@ -136,28 +136,52 @@
         </form>
 
         {{-- ══ FAQ shelf ══ --}}
-        <div class="space-y-6">
+        <div class="space-y-6 xl:col-span-2">
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="mb-1 text-sm font-bold text-[var(--color-heading)]">FAQ shelf — answered before OpenAI</h2>
-                <p class="mb-4 text-xs text-[var(--color-muted)]">
-                    If any keyword appears in the customer's message, its reply is sent instantly from here — no API call, no cost. Keywords are comma-separated; Bengali works.
-                </p>
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">FAQ shelf — answered before OpenAI</h2>
+                    <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-gray-500">{{ $faqs->count() }} {{ Str::plural('entry', $faqs->count()) }}</span>
+                </div>
 
-                <form method="POST" action="{{ route('admin.razin-ai.faqs.store') }}" class="mb-5 space-y-3 rounded-lg border border-dashed border-gray-300 p-4">
+                <form method="POST" action="{{ route('admin.razin-ai.faqs.store') }}" class="mb-6 rounded-xl bg-gray-50 p-5">
                     @csrf
-                    <input type="text" name="category" list="faq-categories" placeholder="Category — e.g. Ready eCommerce, Pricing, Support" class="h-10 w-full rounded-lg border-gray-200 text-sm">
-                    <datalist id="faq-categories">
-                        @foreach ($faqs->pluck('category')->filter()->unique() as $cat)<option value="{{ $cat }}">@endforeach
-                    </datalist>
-                    <input type="text" name="keywords" required placeholder="price, দাম, pricing" class="h-10 w-full rounded-lg border-gray-200 text-sm">
-                    <textarea name="reply" rows="2" required placeholder="Our products start at $39 — see razinsoft.com/products for every plan." class="w-full rounded-lg border-gray-200 text-sm"></textarea>
-                    <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Add FAQ</button>
+                    <p class="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                        <svg class="h-4 w-4 text-[var(--color-primary)]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                        Add a new FAQ
+                    </p>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-1.5 block text-xs font-semibold text-gray-500">Category</label>
+                            <input type="text" name="category" list="faq-categories" placeholder="Ready eCommerce" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                            <datalist id="faq-categories">
+                                @foreach ($faqs->pluck('category')->filter()->unique() as $cat)<option value="{{ $cat }}">@endforeach
+                            </datalist>
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-xs font-semibold text-gray-500">Keywords <span class="font-normal text-gray-400">— comma-separated, any one fires</span></label>
+                            <input type="text" name="keywords" required placeholder="price, দাম, pricing" class="h-10 w-full rounded-lg border-gray-200 bg-white text-sm">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="mb-1.5 block text-xs font-semibold text-gray-500">Reply <span class="font-normal text-gray-400">— sent exactly as written</span></label>
+                        <textarea name="reply" rows="3" required placeholder="Our products start at $39 — see razinsoft.com/products for every plan." class="w-full rounded-lg border-gray-200 bg-white text-sm"></textarea>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-between gap-3">
+                        <p class="text-[11px] text-gray-400">A keyword hit answers instantly from here — no OpenAI call, no cost.</p>
+                        <button class="shrink-0 rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-xs font-bold text-white hover:bg-[var(--color-primary-hover)]">Add FAQ</button>
+                    </div>
                 </form>
 
                 <div class="space-y-5">
                     @forelse ($faqs->groupBy(fn ($f) => $f->category ?: 'General') as $category => $group)
                         <div>
-                            <p class="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-gray-400">{{ $category }} <span class="font-normal normal-case tracking-normal">· {{ $group->count() }}</span></p>
+                            <p class="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                                {{ $category }}
+                                <span class="rounded-full bg-gray-100 px-1.5 text-[10px] font-bold text-gray-400" style="text-transform:none;letter-spacing:normal">{{ $group->count() }}</span>
+                            </p>
                             <div class="space-y-3">
                                 @foreach ($group as $faq)
                                     <div x-data="{ editing: false }" class="rounded-lg border p-4 {{ $faq->is_active ? 'border-gray-200' : 'border-gray-100 opacity-60' }}">
@@ -203,6 +227,44 @@
                         <p class="py-6 text-center text-sm text-gray-400">No FAQs yet — every reply goes to OpenAI until you add some.</p>
                     @endforelse
                 </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Recent auto-replies</h2>
+                    <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-gray-500">last {{ $recentReplies->count() }}</span>
+                </div>
+
+                @if ($recentReplies->isEmpty())
+                    <p class="py-6 text-center text-sm text-gray-400">Nothing yet — replies appear here the moment the assistant sends one.</p>
+                @else
+                    @php
+                        $srcChip = [
+                            'faq' => ['FAQ', 'bg-emerald-50 text-emerald-700'],
+                            'openai' => ['AI', 'bg-violet-50 text-violet-600'],
+                            'handover' => ['Handover', 'bg-amber-50 text-amber-700'],
+                        ];
+                    @endphp
+                    <div class="divide-y divide-gray-50">
+                        @foreach ($recentReplies as $r)
+                            @php [$srcLabel, $srcTone] = $srcChip[$r->ai_source] ?? ['AI', 'bg-violet-50 text-violet-600']; @endphp
+                            <div class="flex items-start gap-3 py-2.5">
+                                <span class="mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold {{ $srcTone }}">{{ $srcLabel }}</span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+                                        @if ($r->chat)
+                                            <a href="{{ route('admin.whatsapp-activity.thread', [$r->chat->account_id, $r->chat->id]) }}" class="truncate text-sm font-semibold text-[var(--color-heading)] hover:underline">{{ $r->chat->displayName() }}</a>
+                                        @else
+                                            <span class="text-sm font-semibold text-gray-400">—</span>
+                                        @endif
+                                        <span class="shrink-0 text-[11px] text-gray-400" title="{{ $r->created_at->format('d M Y, h:i A') }}">{{ $r->created_at->diffForHumans() }}</span>
+                                    </div>
+                                    <p class="truncate text-xs text-[var(--color-muted)]">{{ Str::limit($r->body, 110) }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">

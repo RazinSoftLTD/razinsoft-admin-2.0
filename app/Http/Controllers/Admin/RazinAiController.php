@@ -28,6 +28,9 @@ class RazinAiController extends Controller
             'keyConfigured' => app(AiReplyService::class)->configured(),
             'repliesToday' => WhatsappMessage::where('ai_generated', true)
                 ->where('created_at', '>=', now()->startOfDay())->count(),
+            'recentReplies' => WhatsappMessage::where('ai_generated', true)
+                ->with('chat:id,name,profile_name,phone,wa_id,account_id,chat_type')
+                ->latest('id')->limit(30)->get(),
         ]);
     }
 
