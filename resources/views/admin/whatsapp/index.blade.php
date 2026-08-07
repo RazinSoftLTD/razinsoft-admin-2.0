@@ -1091,19 +1091,16 @@
 
                     this.$nextTick(() => {
                         const m = this.$refs.chatMenu;
-                        if (!m) return;
+                        if (!m || !panel) return;
                         const pad = 8;
-                        // The list is only 320px wide, so opening rightward from anywhere past
-                        // its middle laid the menu across the conversation and pushed the labels
-                        // out of sight. Past the edge it opens to the left of the pointer instead,
-                        // which is what a context menu does when it runs out of room.
                         const w = m.offsetWidth || 208;
                         const h = m.offsetHeight || 0;
-                        const right = panel ? panel.getBoundingClientRect().right : window.innerWidth;
+                        const rect = panel.getBoundingClientRect();
 
-                        if (this.chatMenu.x + w > right - pad) {
-                            this.chatMenu.x = Math.max(pad, this.chatMenu.x - w);
-                        }
+                        // Slide the menu until it fits INSIDE the chat list, never flip past its
+                        // left edge: the admin navigation sits there, and a menu straddling the
+                        // two panels is the broken look this replaces.
+                        this.chatMenu.x = Math.max(rect.left + pad, Math.min(this.chatMenu.x, rect.right - w - pad));
                         if (h && this.chatMenu.y + h > window.innerHeight - pad) {
                             this.chatMenu.y = Math.max(pad, window.innerHeight - h - pad);
                         }
@@ -1113,14 +1110,16 @@
                     const c = this.chatMenu.chat;
                     if (!c) return;
                     this.chatMenu.open = false;
-                    await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/pin', {});
+                    const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/pin', {});
+                    if (!r.ok) { alert('Could not pin the chat — please reload and try again.'); return; }
                     this.loadChats();
                 },
                 async menuUnread() {
                     const c = this.chatMenu.chat;
                     if (!c) return;
                     this.chatMenu.open = false;
-                    await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/unread', {});
+                    const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/unread', {});
+                    if (!r.ok) { alert('Could not mark the chat unread — please reload and try again.'); return; }
                     // Leaving it open would mark it read again the moment anyone looked at it.
                     if (this.active && this.active.id === c.id) this.active = null;
                     this.loadChats();
