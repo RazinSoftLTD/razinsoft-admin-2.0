@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'WhatsApp Config')
+@section('title', 'WP Manager')
 
 @section('content')
     @php

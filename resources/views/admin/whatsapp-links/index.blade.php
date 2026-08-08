@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'WhatsApp Button')
+@section('title', 'WP Manager')
 
 @section('content')
     @include('admin.whatsapp._activity-tabs', ['active' => 'button'])
