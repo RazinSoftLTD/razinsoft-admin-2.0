@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    @if (session('error'))<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>@endif
+    @if (session('error'))<div data-toast class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>@endif
 
     <div class="grid gap-6 {{ $bothCols ? 'lg:grid-cols-3' : '' }}">
         {{-- Credentials --}}

@@ -20,7 +20,7 @@
 
             {{-- The same message whether or not the address exists — see the controller. --}}
             @if (session('status'))
-                <p class="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">{{ session('status') }}</p>
+                <p data-toast class="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">{{ session('status') }}</p>
             @endif
 
             @if ($errors->any())

@@ -20,10 +20,10 @@
 @section('content')
     <div x-data="{ showFilters: {{ collect($filters ?? [])->filter()->isNotEmpty() ? 'true' : 'false' }}, selCount: 0, recount() { this.selCount = document.querySelectorAll('.row-check:checked').length } }">
         @if (session('status'))
-            <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ session('status') }}</div>
+            <div data-toast class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ session('status') }}</div>
         @endif
         @if (session('error'))
-            <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>
+            <div data-toast class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>
         @endif
 
         {{-- Undo last import --}}

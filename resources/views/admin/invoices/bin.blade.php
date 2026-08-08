@@ -9,7 +9,7 @@
         <p class="mt-1 text-sm text-[var(--color-muted)]">Deleted invoices are kept here for {{ $retentionDays }} days, then permanently removed. You can restore or delete them now.</p>
     </div>
 
-    @if (session('status'))<div class="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>@endif
+    @if (session('status'))<div data-toast class="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>@endif
 
     <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <div class="overflow-x-auto">

@@ -7,7 +7,7 @@
         <p class="mt-1 text-sm text-[var(--color-muted)]">Settings &rsaquo; Project Config — manage everything project & task management uses.</p>
     </div>
 
-    @if (session('error'))<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>@endif
+    @if (session('error'))<div data-toast class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>@endif
 
     <div class="grid gap-6 lg:grid-cols-2">
         {{-- Categories --}}

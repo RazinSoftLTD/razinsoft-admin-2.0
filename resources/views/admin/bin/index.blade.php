@@ -19,7 +19,7 @@
             <p class="mt-1 text-sm text-[var(--color-muted)]">Deleted clients, invoices and WhatsApp numbers are kept here for {{ $retentionDays }} days, then permanently removed. Super admin only.</p>
         </div>
 
-        @if (session('status'))<div class="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>@endif
+        @if (session('status'))<div data-toast class="mb-5 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>@endif
 
         {{-- hidden bulk forms --}}
         <form id="bulk-clients-restore" method="POST" action="{{ route('admin.bin.clients.bulk-restore') }}" class="hidden">@csrf<div class="bulk-ids"></div></form>

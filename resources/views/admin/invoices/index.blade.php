@@ -251,7 +251,7 @@
     </script>
 
     @if (session('status') || session('error'))
-        <div class="fixed bottom-5 right-5 z-[80] rounded-lg px-4 py-3 text-sm font-medium shadow-lg {{ session('error') ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white' }}"
+        <div data-toast class="fixed bottom-5 right-5 z-[80] rounded-lg px-4 py-3 text-sm font-medium shadow-lg {{ session('error') ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white' }}"
              x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" x-cloak>
             {{ session('error') ?? session('status') }}
         </div>

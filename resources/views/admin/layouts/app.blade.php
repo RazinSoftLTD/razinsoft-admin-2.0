@@ -55,6 +55,46 @@
             window.Razin = window.Razin || {};
             if (!document.getElementById('thread-root')) window.Razin.openConversation = null;
         });
+
+        // Flash banners bow out after five seconds — long enough to read "Saved", short enough
+        // that it isn't still sitting there while you work. Clicking one dismisses it at once.
+        // Re-armed on every Turbo visit, since the banner arrives with the new page.
+        (function () {
+            const LIFETIME = 5000;
+            const dismiss = (el) => {
+                if (el.dataset.toastGone) return;
+                el.dataset.toastGone = '1';
+                // Collapse the space too, so the page doesn't keep a gap where it was.
+                el.style.overflow = 'hidden';
+                el.style.maxHeight = el.offsetHeight + 'px';
+                el.style.transition = 'opacity .35s ease, transform .35s ease, max-height .35s ease .1s, margin .35s ease .1s, padding .35s ease .1s';
+                requestAnimationFrame(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(-6px)';
+                    el.style.maxHeight = '0px';
+                    el.style.marginTop = '0px';
+                    el.style.marginBottom = '0px';
+                    el.style.paddingTop = '0px';
+                    el.style.paddingBottom = '0px';
+                });
+                setTimeout(() => el.remove(), 700);
+            };
+            const arm = () => {
+                document.querySelectorAll('[data-toast]:not([data-toast-armed])').forEach((el) => {
+                    el.dataset.toastArmed = '1';
+                    el.style.cursor = 'pointer';
+                    el.title = 'Click to dismiss';
+                    el.addEventListener('click', () => dismiss(el));
+                    setTimeout(() => dismiss(el), LIFETIME);
+                });
+            };
+            document.addEventListener('DOMContentLoaded', arm);
+            document.addEventListener('turbo:load', arm);
+            arm();
+            // A page that raises its own banner after load (an Alpine save, a fetch) gets the
+            // same treatment — otherwise those would be the ones that sit there forever.
+            new MutationObserver(arm).observe(document.documentElement, { childList: true, subtree: true });
+        })();
     </script>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -81,13 +121,13 @@
 
         <main class="p-4 sm:p-6">
             @if (session('status'))
-                <div class="mb-5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                <div data-toast class="mb-5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>
                     {{ session('status') }}
                 </div>
             @endif
             @if (session('error'))
-                <div class="mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <div data-toast class="mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
                     {{ session('error') }}
                 </div>
