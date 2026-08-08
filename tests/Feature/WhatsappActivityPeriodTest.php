@@ -121,4 +121,21 @@ class WhatsappActivityPeriodTest extends TestCase
         $this->assertSame(25, $rows('?per_page=100'));     // everything there is
         $this->assertSame(20, $rows('?per_page=9999'));    // not on the menu → default
     }
+
+    /** Two tabs: the window's conversations, and how each number is doing. */
+    public function test_the_page_splits_into_a_report_tab_and_a_numbers_tab(): void
+    {
+        $this->chatMetOn(now()->toDateTimeString(), 'Reportable Contact');
+        $this->actingAs($this->admin());
+
+        $report = $this->get('/admin/whatsapp-activity')->assertOk();
+        $report->assertSee('Reportable Contact')->assertSee('Conversation report');
+        $report->assertDontSee('Avg. response');
+
+        $numbers = $this->get('/admin/whatsapp-activity?tab=numbers')->assertOk();
+        $numbers->assertSee('Avg. response')->assertDontSee('Reportable Contact');
+
+        // An unknown tab is the report, not a blank page.
+        $this->get('/admin/whatsapp-activity?tab=nonsense')->assertOk()->assertSee('Reportable Contact');
+    }
 }

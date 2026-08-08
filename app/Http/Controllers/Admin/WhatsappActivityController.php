@@ -134,9 +134,11 @@ class WhatsappActivityController extends Controller
             ];
         }
         // Not judged yet is the number worth acting on, so it is counted like the rest.
+        // NULL lead_quality comes back under an empty-string key; reading it as null offset is
+        // deprecated in PHP 8.4 and filled the log with notices.
         $quality['unset'] = [
-            'today' => (int) ($inPeriod[null] ?? $inPeriod[''] ?? 0),
-            'total' => (int) ($overall[null] ?? $overall[''] ?? 0),
+            'today' => (int) ($inPeriod->get('') ?? 0),
+            'total' => (int) ($overall->get('') ?? 0),
         ];
 
         // The list is paged, so its quality filter has to be a real query rather than a
