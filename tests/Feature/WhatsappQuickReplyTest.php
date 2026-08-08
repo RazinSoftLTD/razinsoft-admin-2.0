@@ -29,8 +29,9 @@ class WhatsappQuickReplyTest extends TestCase
 
     private function agent(): User
     {
-        $u = User::create([
-            'name' => 'Agent', 'email' => 'qr-agent@test.local', 'password' => bcrypt('secret123'),
+        // Called more than once in a test — the same agent, not a second one.
+        $u = User::firstOrCreate(['email' => 'qr-agent@test.local'], [
+            'name' => 'Agent', 'password' => bcrypt('secret123'),
             'role' => 'staff', 'status' => 'active',
             'permissions' => ['whatsapp.settings' => 'all', 'whatsapp.quick_replies' => 'all'],
         ]);
