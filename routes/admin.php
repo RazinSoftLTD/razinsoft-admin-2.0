@@ -54,6 +54,7 @@ use App\Http\Controllers\Admin\RecurringInvoiceController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SearchController;
+use App\Http\Controllers\Admin\SiteChatController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SubscriberController;
 use App\Http\Controllers\Admin\TaskController;
@@ -194,6 +195,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp-settings/quick-replies', [$wsq, 'quickStore'])->name('whatsapp-settings.quick.store');
             Route::put('whatsapp-settings/quick-replies/{quickReply}', [$wsq, 'quickUpdate'])->whereNumber('quickReply')->name('whatsapp-settings.quick.update');
             Route::delete('whatsapp-settings/quick-replies/{quickReply}', [$wsq, 'quickDestroy'])->whereNumber('quickReply')->name('whatsapp-settings.quick.destroy');
+        });
+
+        // ===== Website Chat — the widget on the public site =====
+        Route::middleware('permission:site_chat.view')->group(function () {
+            $sc = SiteChatController::class;
+            Route::get('site-chat', [$sc, 'index'])->name('site-chat');
+            Route::get('site-chat/chats', [$sc, 'chats'])->name('site-chat.chats');
+            Route::get('site-chat/{chat}', [$sc, 'show'])->whereNumber('chat')->name('site-chat.show');
+            Route::post('site-chat/{chat}/reply', [$sc, 'reply'])->whereNumber('chat')->middleware('permission:site_chat.reply')->name('site-chat.reply');
+            Route::post('site-chat/{chat}/status', [$sc, 'status'])->whereNumber('chat')->name('site-chat.status');
+            Route::post('site-chat/{chat}/assign', [$sc, 'assign'])->whereNumber('chat')->name('site-chat.assign');
+
+            Route::middleware('permission:site_chat.settings')->group(function () use ($sc) {
+                Route::post('site-chat-options', [$sc, 'optionStore'])->name('site-chat.options.store');
+                Route::put('site-chat-options/{option}', [$sc, 'optionUpdate'])->whereNumber('option')->name('site-chat.options.update');
+                Route::delete('site-chat-options/{option}', [$sc, 'optionDestroy'])->whereNumber('option')->name('site-chat.options.destroy');
+            });
         });
 
         // ===== Team Chat — open to every panel user; group creation is gated =====

@@ -115,6 +115,8 @@ class Permissions
         // Razin AI — its own module, not a corner of WhatsApp Config: who may change what the
         // assistant says to customers is a different question from who may edit a number.
         'razin_ai' => ['label' => 'Razin AI', 'group' => 'Support', 'actions' => ['view', 'edit', 'faqs']],
+        // The chat on the public website: reading it, answering it, and setting up what it offers.
+        'site_chat' => ['label' => 'Website Chat', 'group' => 'Support', 'actions' => ['view', 'reply', 'assign', 'settings'], 'owner' => 'assigned_to'],
         // The shared product catalogue behind Leads, Deals and Clients. Its own module because
         // renaming a category rewrites what every one of those records says it is about.
         'product_categories' => ['label' => 'Product Categories', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete']],

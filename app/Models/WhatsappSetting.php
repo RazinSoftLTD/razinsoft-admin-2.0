@@ -14,6 +14,7 @@ class WhatsappSetting extends Model
         'app_secret' => 'encrypted',
         'gateway_secret' => 'encrypted',
         'ai_settings' => 'array',
+        'site_chat_settings' => 'array',
         'is_connected' => 'boolean',
         'connected_at' => 'datetime',
         'interest_options' => 'array',
