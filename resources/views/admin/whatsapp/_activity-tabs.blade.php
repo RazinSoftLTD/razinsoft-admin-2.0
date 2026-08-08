@@ -19,7 +19,7 @@
         'report' => $mayActivity ? ['label' => 'Conversation', 'url' => route('admin.whatsapp-activity', array_filter([
             'period' => request('period'), 'from' => request('from'), 'to' => request('to'),
         ]))] : null,
-        'numbers' => $mayActivity ? ['label' => 'Connected', 'url' => route('admin.whatsapp-activity', ['tab' => 'numbers']), 'badge' => $tabCount ?? null] : null,
+        'numbers' => $mayActivity ? ['label' => 'Connected', 'url' => route('admin.whatsapp-activity', ['tab' => 'numbers']), 'badge' => $tabCount ?? \App\Models\WhatsappAccount::count()] : null,
         'button' => $mayActivity ? ['label' => 'Wp ShortLink', 'url' => route('admin.whatsapp-links')] : null,
         'config' => $maySettings ? ['label' => 'Configuration', 'url' => route('admin.whatsapp-settings')] : null,
     ]);
@@ -27,10 +27,7 @@
 
 <div class="mb-6 flex flex-wrap gap-1 border-b border-gray-100">
     @foreach ($tabs as $key => $tab)
-        {{-- data-turbo="false": these four are separate pages sharing one bar, and Turbo's
-             cached preview could show the tab you came from for a beat before the real one
-             landed — which read as the click going somewhere else entirely. --}}
-        <a href="{{ $tab['url'] }}" data-turbo="false"
+        <a href="{{ $tab['url'] }}"
            class="border-b-2 px-4 py-2.5 text-sm font-semibold transition {{ $active === $key ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
             {{ $tab['label'] }}@isset($tab['badge'])<span class="ml-1 opacity-70">({{ $tab['badge'] }})</span>@endisset
         </a>
