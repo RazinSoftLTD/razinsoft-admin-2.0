@@ -111,13 +111,14 @@ class WhatsappActivityController extends Controller
     {
         [$from, $to, $periodKey, $periodLabel] = $this->period($request);
 
-        $new = WhatsappChat::with('account:id,name,color')
-            ->whereBetween('created_at', [$from, $to])
-            ->whereNull('blocked_at')
-            ->orderByDesc('created_at')->orderByDesc('id')
-            ->get();
+        $base = WhatsappChat::whereBetween('created_at', [$from, $to])->whereNull('blocked_at');
 
-        // Overall alongside today's, because one figure without the other says nothing about
+        // Counted over the whole window, not the page in front of you — a chip that only counted
+        // the current page would disagree with itself as you paged.
+        $inPeriod = (clone $base)->selectRaw('lead_quality, count(*) c')->groupBy('lead_quality')->pluck('c', 'lead_quality');
+        $newCount = (int) $inPeriod->sum();
+
+        // Overall alongside the period's, because one figure without the other says nothing about
         // whether a quiet day is unusual.
         $overall = WhatsappChat::whereNull('blocked_at')
             ->selectRaw('lead_quality, count(*) c')->groupBy('lead_quality')->pluck('c', 'lead_quality');
@@ -125,19 +126,35 @@ class WhatsappActivityController extends Controller
         $quality = [];
         foreach (array_keys(WhatsappChat::LEAD_QUALITIES) as $key) {
             $quality[$key] = [
-                'today' => $new->where('lead_quality', $key)->count(),
+                'today' => (int) ($inPeriod[$key] ?? 0),
                 'total' => (int) ($overall[$key] ?? 0),
             ];
         }
         // Not judged yet is the number worth acting on, so it is counted like the rest.
         $quality['unset'] = [
-            'today' => $new->whereNull('lead_quality')->count(),
+            'today' => (int) ($inPeriod[null] ?? $inPeriod[''] ?? 0),
             'total' => (int) ($overall[null] ?? $overall[''] ?? 0),
         ];
 
+        // The list is paged, so its quality filter has to be a real query rather than a
+        // client-side hide — otherwise it would only ever filter the rows already on screen.
+        $wantedQuality = (string) $request->query('quality', 'all');
+        $list = (clone $base)->with('account:id,name,color')
+            ->orderByDesc('created_at')->orderByDesc('id');
+
+        if ($wantedQuality === 'unset') {
+            $list->whereNull('lead_quality');
+        } elseif (array_key_exists($wantedQuality, WhatsappChat::LEAD_QUALITIES)) {
+            $list->where('lead_quality', $wantedQuality);
+        } else {
+            $wantedQuality = 'all';
+        }
+
+        $new = $list->paginate(20)->withQueryString();
+
         return [
             'today' => [
-                'new_chats' => $new->count(),
+                'new_chats' => $newCount,
                 'messages_in' => WhatsappMessage::whereBetween('sent_at', [$from, $to])->where('direction', 'in')->count(),
                 'messages_out' => WhatsappMessage::whereBetween('sent_at', [$from, $to])->where('direction', 'out')->count(),
                 'active_chats' => WhatsappMessage::whereBetween('sent_at', [$from, $to])->distinct()->count('chat_id'),
@@ -148,6 +165,8 @@ class WhatsappActivityController extends Controller
             'periodLabel' => $periodLabel,
             'periodFrom' => $from,
             'periodTo' => $to,
+            'qualityFilter' => $wantedQuality,
+            'newTotal' => $newCount,
         ];
     }
 

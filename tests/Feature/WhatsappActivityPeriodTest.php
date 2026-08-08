@@ -71,4 +71,38 @@ class WhatsappActivityPeriodTest extends TestCase
         $this->get('/admin/whatsapp-activity?period=nonsense')->assertOk()->assertSee('Today Contact');
         $this->get('/admin/whatsapp-activity?period=custom&from=not-a-date')->assertOk();
     }
+
+    /** The list pages, and its quality chips filter the query — not just the rows on screen. */
+    public function test_the_list_pages_and_filters_by_quality(): void
+    {
+        foreach (range(1, 25) as $i) {
+            $chat = $this->chatMetOn(now()->toDateTimeString(), "Contact {$i}");
+            if ($i <= 3) {
+                $chat->update(['lead_quality' => 'qualified']);
+            }
+        }
+        $this->actingAs($this->admin());
+
+        // 20 to a page, so the 25th is only reachable on page two. (The paginator wraps its
+        // numbers in spans, so count the rows rather than matching its sentence.)
+        $page1 = $this->get('/admin/whatsapp-activity')->assertOk()->assertSee('Showing')->getContent();
+        $this->assertSame(20, substr_count($page1, 'onclick="window.location='));
+        $page2 = $this->get('/admin/whatsapp-activity?page=2')->assertOk()->getContent();
+        $this->assertSame(5, substr_count($page2, 'onclick="window.location='), 'Page two should hold the remainder.');
+
+        // Filtering by quality is a real query: three qualified, whichever page you are on.
+        $qualified = $this->get('/admin/whatsapp-activity?quality=qualified')->assertOk();
+        $qualified->assertSee('Contact 1')->assertDontSee('Contact 25');
+
+        $this->assertNotSame($page1, $page2);
+    }
+
+    /** A row leads to the conversation in the inbox, not to a dead end. */
+    public function test_a_row_links_into_the_whatsapp_inbox(): void
+    {
+        $chat = $this->chatMetOn(now()->toDateTimeString(), 'Reachable Contact');
+
+        $this->actingAs($this->admin())->get('/admin/whatsapp-activity')->assertOk()
+            ->assertSee("admin/whatsapp?account={$chat->account_id}&amp;chat={$chat->id}", false);
+    }
 }

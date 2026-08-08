@@ -94,16 +94,24 @@
     </div>
 
     {{-- The conversations themselves, so the numbers above can be checked rather than trusted --}}
-    <div class="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
-         x-data="{ q: 'all' }">
+    @php
+        // Keep the chosen window when switching quality, and vice versa.
+        $periodQuery = array_filter([
+            'period' => $periodKey,
+            'from' => $periodKey === 'custom' ? $periodFrom->format('Y-m-d') : null,
+            'to' => $periodKey === 'custom' ? $periodTo->format('Y-m-d') : null,
+        ]);
+    @endphp
+
+    <div class="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
             <h2 class="text-sm font-bold text-[var(--color-heading)]">New conversations — {{ strtolower($periodLabel) }}</h2>
             <div class="flex flex-wrap items-center gap-1.5">
-                <button type="button" @click="q = 'all'" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
-                        :class="q === 'all' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">All ({{ $todayChats->count() }})</button>
+                <a href="{{ route('admin.whatsapp-activity', $periodQuery) }}"
+                   class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition {{ $qualityFilter === 'all' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">All ({{ number_format($newTotal) }})</a>
                 @foreach ($qualityLabels as $key => $label)
-                    <button type="button" @click="q = '{{ $key }}'" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
-                            :class="q === '{{ $key }}' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">{{ $label }} ({{ $todayQuality[$key]['today'] }})</button>
+                    <a href="{{ route('admin.whatsapp-activity', $periodQuery + ['quality' => $key]) }}"
+                       class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition {{ $qualityFilter === $key ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">{{ $label }} ({{ number_format($todayQuality[$key]['today']) }})</a>
                 @endforeach
             </div>
         </div>
@@ -128,10 +136,11 @@
                                 $key = $c->lead_quality ?: 'unset';
                                 [$bg, $fg, $dot] = $tone[$key];
                             @endphp
-                            <tr class="hover:bg-gray-50" x-show="q === 'all' || q === '{{ $key }}'">
-                                <td class="whitespace-nowrap px-5 py-2.5 text-gray-400">{{ $c->created_at?->format('h:i A') }}</td>
+                            @php $inbox = route('admin.whatsapp.index', ['account' => $c->account_id, 'chat' => $c->id]); @endphp
+                            <tr class="cursor-pointer hover:bg-gray-50" onclick="window.location='{{ $inbox }}'" title="Open this conversation in WhatsApp">
+                                <td class="whitespace-nowrap px-5 py-2.5 text-gray-400">{{ $c->created_at?->format('d M, h:i A') }}</td>
                                 <td class="px-5 py-2.5">
-                                    <a href="{{ route('admin.whatsapp-activity.thread', [$c->account_id, $c->id]) }}" class="font-semibold text-[var(--color-heading)] hover:underline">{{ $c->displayName() }}</a>
+                                    <a href="{{ $inbox }}" onclick="event.stopPropagation()" class="font-semibold text-[var(--color-heading)] hover:underline">{{ $c->displayName() }}</a>
                                     <p class="text-[11px] text-gray-400">{{ $c->account?->name }}</p>
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-2.5 text-[var(--color-muted)]">{{ $c->phoneLabel() }}</td>
@@ -149,6 +158,14 @@
                     </tbody>
                 </table>
             </div>
+
+            @if ($todayChats->hasPages())
+                <div class="border-t border-gray-100 px-5 py-3">
+                    {{ $todayChats->onEachSide(1)->links() }}
+                </div>
+            @else
+                <p class="border-t border-gray-100 px-5 py-2.5 text-[11px] text-gray-400">{{ $todayChats->count() }} shown</p>
+            @endif
         @endif
     </div>
 
