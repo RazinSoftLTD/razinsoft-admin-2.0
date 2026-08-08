@@ -172,18 +172,17 @@
                     Mark as unread
                 </button>
 
-                <div class="border-t border-gray-100"></div>
-                <button type="button" @click="menuBlock()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm hover:bg-red-50"
-                        :class="chatMenu.chat?.blocked ? 'text-[var(--color-heading)]' : 'text-red-600'">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="m5.6 5.6 12.8 12.8"/></svg>
-                    <span x-text="chatMenu.chat?.blocked ? 'Unblock chat' : 'Block'"></span>
-                </button>
-                @if (auth()->user()->isSuperAdmin())
-                    <button type="button" @click="menuDelete()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-8 0 1 13h8l1-13M10 11v6m4-6v6"/></svg>
-                        Delete chat
-                    </button>
-                @endif
+                {{-- Block and Delete are off for now, by request. Unblock stays reachable for a
+                     chat that is already blocked — otherwise those chats would have no way back. --}}
+                <template x-if="chatMenu.chat?.blocked">
+                    <div>
+                        <div class="border-t border-gray-100"></div>
+                        <button type="button" @click="menuBlock()" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-[var(--color-heading)] hover:bg-gray-50">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="m5.6 5.6 12.8 12.8"/></svg>
+                            Unblock chat
+                        </button>
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -214,46 +213,6 @@
             <div class="flex h-full w-full items-center justify-center p-6" @click.self="closeLightbox()"
                  @touchstart="lbTouch = $event.changedTouches[0].clientX" @touchend="lbSwipe($event.changedTouches[0].clientX)">
                 <img :src="lightbox.items[lightbox.index]?.media" @click.stop class="rounded-lg object-contain shadow-2xl" style="max-height:86vh;max-width:92vw">
-            </div>
-        </div>
-
-        <form id="wa-delete-form" method="POST" :action="@js(url('admin/whatsapp/chats')) + '/' + (confirmDelete.chat?.id ?? 0)" class="hidden">
-            @csrf
-            @method('DELETE')
-        </form>
-
-        {{-- Delete-chat confirmation. Its own modal, not window.confirm(): a browser that has been
-             asked to stop showing dialogs answers "no" to confirm() without telling anyone, and the
-             delete then dies in silence. This always renders, and shows what went wrong. --}}
-        <div x-show="confirmDelete.open" x-cloak @keydown.escape.window="confirmDelete.open = false"
-             class="fixed inset-0 flex items-center justify-center p-4" style="z-index:70;background:rgba(0,0,0,.45)">
-            {{-- An explicit backdrop rather than @click.outside: the very click that opens this
-                 modal is still bubbling, and .outside can catch it and shut the modal again. --}}
-            <div class="absolute inset-0" @click="if (!confirmDelete.busy) confirmDelete.open = false"></div>
-            <div class="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-                <div class="flex items-start gap-3">
-                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-100 text-red-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-8 0 1 13h8l1-13M10 11v6m4-6v6"/></svg>
-                    </span>
-                    <div class="min-w-0">
-                        <h3 class="text-sm font-bold text-[var(--color-heading)]">Delete this chat history?</h3>
-                        <p class="mt-0.5 truncate text-xs font-semibold text-gray-500" x-text="confirmDelete.chat?.name"></p>
-                    </div>
-                </div>
-                <p class="mt-3 text-xs leading-relaxed text-gray-500">
-                    Every message, photo and note in this conversation is removed from this panel and cannot be brought back —
-                    not even by a resync. WhatsApp itself keeps its own copy, and a fresh chat appears if this contact writes again.
-                </p>
-                <p x-show="confirmDelete.error" x-cloak class="mt-3 rounded-lg bg-red-50 p-2.5 text-xs font-medium text-red-600" x-text="confirmDelete.error"></p>
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" @click="confirmDelete.open = false" :disabled="confirmDelete.busy"
-                            class="rounded-lg bg-gray-100 px-3.5 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-200 disabled:opacity-60">Cancel</button>
-                    <button type="submit" form="wa-delete-form" @click="confirmDelete.busy = true" :disabled="confirmDelete.busy"
-                            class="flex items-center gap-2 rounded-lg bg-red-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60">
-                        <svg x-show="confirmDelete.busy" x-cloak class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"/></svg>
-                        <span x-text="confirmDelete.busy ? 'Deleting…' : 'Delete everything'"></span>
-                    </button>
-                </div>
             </div>
         </div>
 
@@ -946,19 +905,7 @@
                             </ul>
                         </div>
 
-                        @if (auth()->user()->isSuperAdmin())
-                            {{-- The tap-reachable twin of the right-click menu's Delete — the context
-                                 menu needs a right click, which a phone does not have. --}}
-                            <div class="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
-                                <p class="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-red-400">Danger zone</p>
-                                <button type="button" @click="askDeleteChat(active)"
-                                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50">
-                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-8 0 1 13h8l1-13M10 11v6m4-6v6"/></svg>
-                                    Delete chat history
-                                </button>
-                                <p class="mt-1.5 text-[10px] leading-relaxed text-gray-400">Removes every message, photo and note from this panel only — WhatsApp itself keeps its copy. Super admin only.</p>
-                            </div>
-                        @endif
+
                     </div>
                 </div>
             </template>
@@ -1068,7 +1015,6 @@
                     { key: 'blocked', label: 'Blocked' },
                 ],
                 chatMenu: { open: false, x: 0, y: 0, chat: null },
-                confirmDelete: { open: false, chat: null, busy: false, error: null },
                 labelMenu: false, pickedLabels: [],
                 labels: @js($labels->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'color' => $l->color])->values()),
                 labelCounts: @js($labelCounts),
@@ -1204,38 +1150,6 @@
                     const r = await this.post(@js(url('admin/whatsapp/chats')) + '/' + c.id + '/block', {});
                     if (r.ok && this.active && this.active.id === c.id) this.active = null;
                     this.loadChats();
-                },
-                menuDelete() {
-                    const c = this.chatMenu.chat;
-                    this.chatMenu.open = false;
-                    this.askDeleteChat(c);
-                },
-                askDeleteChat(c) {
-                    if (!c) return;
-                    this.confirmDelete = { open: true, chat: c, busy: false, error: null };
-                },
-                async doDeleteChat() {
-                    const c = this.confirmDelete.chat;
-                    if (!c || this.confirmDelete.busy) return;
-                    this.confirmDelete.busy = true;
-                    this.confirmDelete.error = null;
-                    try {
-                        const r = await fetch(@js(url('admin/whatsapp/chats')) + '/' + c.id, {
-                            method: 'DELETE', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
-                        });
-                        if (!r.ok) {
-                            const msg = (await r.json().catch(() => null))?.message;
-                            this.confirmDelete.error = msg || ('The server refused it (HTTP ' + r.status + ').');
-                            return;
-                        }
-                        if (this.active && this.active.id === c.id) { this.active = null; this.showInfo = false; }
-                        this.confirmDelete.open = false;
-                        this.loadChats();
-                    } catch (e) {
-                        this.confirmDelete.error = 'Could not reach the server: ' + e.message;
-                    } finally {
-                        this.confirmDelete.busy = false;
-                    }
                 },
                 async loadChats() {
                     const token = ++this._chatReq;

@@ -9,6 +9,7 @@ use App\Models\ProductCategory;
 use App\Models\User;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
+use App\Models\WhatsappChatFlag;
 use App\Models\WhatsappDeletedChat;
 use App\Models\WhatsappLabel;
 use App\Models\WhatsappMessage;
@@ -129,6 +130,7 @@ class WhatsappController extends Controller
     {
         $this->authorizeChat($request, $chat);
         $chat->update(['unread_count' => 0]);
+        WhatsappChatFlag::clearUnread($chat->id, (int) $request->user()->id);
         $chat->load(['labels:whatsapp_labels.id,name,color', 'assignee:id,name', 'client:id,name,email,phone,company', 'notes.user:id,name']);
 
         // Tell WhatsApp we've seen the incoming messages (blue ticks on the sender's side).
@@ -422,21 +424,26 @@ class WhatsappController extends Controller
     }
 
     /** Flag a chat as unread again (so it stays highlighted until reopened). */
+    /**
+     * Leave a chat marked unread — for this employee only.
+     *
+     * A note to yourself in a shared inbox: a colleague reading the chat no longer clears it,
+     * and it survives the list refreshing, which the old shared counter did not.
+     */
     public function markUnread(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
-        $chat->update(['unread_count' => max(1, $chat->unread_count)]);
+        WhatsappChatFlag::markUnread($chat->id, (int) $request->user()->id);
 
-        return response()->json(['ok' => true, 'unread' => $chat->unread_count]);
+        return response()->json(['ok' => true, 'unread' => max(1, (int) $chat->unread_count)]);
     }
 
-    /** Keep a chat at the top of the list, or let it fall back into date order. */
+    /** Keep a chat at the top of THIS employee's list, or let it fall back into date order. */
     public function togglePin(Request $request, WhatsappChat $chat)
     {
         $this->authorizeChat($request, $chat);
-        $chat->update(['pinned_at' => $chat->pinned_at ? null : now()]);
 
-        return response()->json(['pinned' => (bool) $chat->pinned_at]);
+        return response()->json(['pinned' => WhatsappChatFlag::togglePin($chat->id, (int) $request->user()->id)]);
     }
 
     /**
@@ -826,12 +833,13 @@ class WhatsappController extends Controller
 
     private function chatList(Request $request)
     {
-        // `pinned_at IS NULL` sorts 0 before 1 on both drivers, so pinned chats come first; among
-        // them the most recently pinned leads, which is the order WhatsApp keeps.
+        // Pins are per employee, so the ordering joins THIS person's flags. `pinned_at IS NULL`
+        // sorts 0 before 1 on both drivers, so their pinned chats come first; among them the most
+        // recently pinned leads, which is the order WhatsApp keeps.
         return $this->chatQuery($request)
-            ->orderByRaw('pinned_at is null')
-            ->orderByDesc('pinned_at')
-            ->orderByDesc('last_message_at')->orderByDesc('id')->limit(200)->get();
+            ->orderByRaw('f.pinned_at is null')
+            ->orderByDesc('f.pinned_at')
+            ->orderByDesc('whatsapp_chats.last_message_at')->orderByDesc('whatsapp_chats.id')->limit(200)->get();
     }
 
     /**
@@ -856,7 +864,14 @@ class WhatsappController extends Controller
     {
         // Scope strictly to accounts the user may access, then to the selected account.
         $accessible = $this->accessibleAccountIds($request->user());
+        $userId = (int) $request->user()->id;
+
+        // This employee's own pins and unread marks ride along on every row.
         $q = WhatsappChat::query()->with('labels:whatsapp_labels.id,name,color', 'assignee:id,name')
+            ->leftJoin('whatsapp_chat_flags as f', function ($join) use ($userId) {
+                $join->on('f.chat_id', '=', 'whatsapp_chats.id')->where('f.user_id', '=', $userId);
+            })
+            ->select('whatsapp_chats.*', 'f.pinned_at as my_pinned_at', 'f.unread_at as my_unread_at')
             ->whereIn('account_id', $accessible ?: [0]);
 
         $current = (int) $request->query('account');
@@ -871,7 +886,9 @@ class WhatsappController extends Controller
             : $q->whereNull('blocked_at');
 
         if (($status = $request->query('status')) && ! in_array($status, ['all', 'blocked'], true)) {
-            $status === 'unread' ? $q->where('unread_count', '>', 0) : $q->where('status', $status);
+            $status === 'unread'
+                ? $q->where(fn ($x) => $x->where('unread_count', '>', 0)->orWhereNotNull('f.unread_at'))
+                : $q->where('whatsapp_chats.status', $status);
         }
         if ($request->query('mine')) {
             $q->where('assigned_to', $request->user()->id);
@@ -910,8 +927,10 @@ class WhatsappController extends Controller
         return [
             'id' => $c->id, 'name' => $c->displayName(), 'wa_id' => $c->phoneLabel(),
             'preview' => $c->last_message_preview, 'at' => $c->last_message_at?->diffForHumans(),
-            'unread' => $c->unread_count, 'status' => $c->status,
-            'pinned' => (bool) $c->pinned_at, 'blocked' => (bool) $c->blocked_at,
+            // Their own mark counts as unread even when the shared counter is zero.
+            'unread' => $c->my_unread_at ? max(1, (int) $c->unread_count) : (int) $c->unread_count,
+            'status' => $c->status,
+            'pinned' => (bool) $c->my_pinned_at, 'blocked' => (bool) $c->blocked_at,
             'account_id' => $c->account_id,
             'is_group' => $c->isGroup(),
             'color' => $c->isGroup() ? $this->groupColor($c->id) : null,
