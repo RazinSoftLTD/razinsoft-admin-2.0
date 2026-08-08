@@ -137,5 +137,54 @@ class WhatsappActivityPeriodTest extends TestCase
 
         // An unknown tab is the report, not a blank page.
         $this->get('/admin/whatsapp-activity?tab=nonsense')->assertOk()->assertSee('Reportable Contact');
+
+        // The WhatsApp Button page is the third tab, and every tab links to the others.
+        $button = $this->get('/admin/whatsapp-links')->assertOk();
+        $button->assertSee('WhatsApp Button')->assertSee('Create a link');
+        $button->assertSee(route('admin.whatsapp-activity', []), false);
+        $report->assertSee(route('admin.whatsapp-links'), false);
+
+        // The old page title is gone — the top bar already names the page.
+        $report->assertDontSee('Oversight of every connected number');
+    }
+
+    /**
+     * The Button page follows the WhatsApp Activity permission it is now a tab of.
+     *
+     * It used to be gated by activity.client while the menu offered it to whatsapp.activity —
+     * so the people shown the link were refused when they followed it.
+     */
+    public function test_the_button_tab_is_gated_with_whatsapp_activity(): void
+    {
+        $staff = User::create([
+            'name' => 'Agent', 'email' => 'wa-activity@test.local', 'password' => bcrypt('secret123'),
+            'role' => 'staff', 'status' => 'active', 'permissions' => ['whatsapp.activity' => 'all'],
+        ]);
+
+        $this->actingAs($staff)->get('/admin/whatsapp-links')->assertOk();
+
+        $other = User::create([
+            'name' => 'Other', 'email' => 'wa-none@test.local', 'password' => bcrypt('secret123'),
+            'role' => 'staff', 'status' => 'active', 'permissions' => ['activity.client' => 'all'],
+        ]);
+        $this->actingAs($other)->get('/admin/whatsapp-links')->assertForbidden();
+    }
+
+    /** The Config tab only shows to someone who may open it. */
+    public function test_the_config_tab_follows_its_own_permission(): void
+    {
+        $reader = User::create([
+            'name' => 'Reader', 'email' => 'wa-reader@test.local', 'password' => bcrypt('secret123'),
+            'role' => 'staff', 'status' => 'active', 'permissions' => ['whatsapp.activity' => 'all'],
+        ]);
+        $this->actingAs($reader)->get('/admin/whatsapp-activity')->assertOk()
+            ->assertSee('Conversation report')->assertDontSee(route('admin.whatsapp-settings'), false);
+
+        $configurer = User::create([
+            'name' => 'Configurer', 'email' => 'wa-config@test.local', 'password' => bcrypt('secret123'),
+            'role' => 'staff', 'status' => 'active', 'permissions' => ['whatsapp.settings' => 'all'],
+        ]);
+        $this->actingAs($configurer)->get('/admin/whatsapp-settings')->assertOk()
+            ->assertSee('Config')->assertDontSee(route('admin.whatsapp-links'), false);
     }
 }

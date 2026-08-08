@@ -8,7 +8,15 @@
             return (bool) $user?->isAdmin();
         }
         if (! empty($i['perm'])) {
-            return (bool) $user?->hasPermission($i['perm']);
+            // An array means any one of them is enough — for entries that open a page with
+            // several tabs, each gated on its own.
+            foreach ((array) $i['perm'] as $perm) {
+                if ($user?->hasPermission($perm)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
         return true;
     };
@@ -158,8 +166,6 @@
             ['label' => 'Blogs', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'blogs'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.blogs', 'icon' => $ic['blog']],
             ['label' => 'Products', 'route' => 'admin.client-activity.content', 'params' => ['type' => 'products'], 'active' => 'admin.client-activity.content', 'perm' => 'activity.products', 'icon' => $ic['products']],
             ['label' => 'Cart', 'route' => 'admin.cart-activity', 'active' => 'admin.cart-activity*', 'perm' => 'activity.cart', 'icon' => $ic['orders']],
-            ['label' => 'WhatsApp', 'route' => 'admin.whatsapp-activity', 'active' => 'admin.whatsapp-activity*', 'perm' => 'whatsapp.activity', 'icon' => $ic['whatsapp']],
-            ['label' => 'WhatsApp Button', 'route' => 'admin.whatsapp-links', 'active' => 'admin.whatsapp-links*', 'perm' => 'whatsapp.activity', 'icon' => $ic['searches']],
             ['label' => 'CodeCanyon', 'route' => 'admin.codecanyon.index', 'active' => 'admin.codecanyon.*', 'perm' => 'codecanyon.view', 'icon' => $ic['products']],
             ['label' => 'Gallery', 'route' => 'admin.gallery.index', 'active' => 'admin.gallery.*', 'perm' => 'gallery.view', 'icon' => $ic['article']],
         ]],
@@ -171,7 +177,9 @@
             ['label' => 'Project Config', 'route' => 'admin.project-config', 'active' => 'admin.project-config*', 'perm' => 'projects.settings', 'icon' => $ic['projects']],
             ['label' => 'HR Settings', 'route' => 'admin.attendance.settings', 'active' => ['admin.attendance.settings', 'admin.attendance.devices'], 'perm' => 'attendance.settings', 'icon' => $ic['hr']],
             ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
-            ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
+            ['label' => 'WhatsApp Manager', 'route' => 'admin.whatsapp-activity',
+             'active' => ['admin.whatsapp-activity*', 'admin.whatsapp-links*', 'admin.whatsapp-settings*'],
+             'perm' => ['whatsapp.activity', 'whatsapp.settings'], 'icon' => $ic['whatsapp']],
             ['label' => 'Razin AI', 'route' => 'admin.razin-ai', 'active' => 'admin.razin-ai*', 'perm' => 'razin_ai.view', 'icon' => $ic['ai'] ?? $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],

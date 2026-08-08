@@ -2,12 +2,7 @@
 @section('title', 'WhatsApp Button')
 
 @section('content')
-    <div class="mb-5">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Button</h1>
-        <p class="text-sm text-[var(--color-muted)]">
-            Build a link that opens a WhatsApp chat with a message already written, then see how often it was followed.
-        </p>
-    </div>
+    @include('admin.whatsapp._activity-tabs', ['active' => 'button'])
 
     {{-- Build a link --}}
     <div class="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">

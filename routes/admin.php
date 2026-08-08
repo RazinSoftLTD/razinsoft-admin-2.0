@@ -126,6 +126,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('whatsapp/chats/{chat}/avatar', [$wa, 'updateAvatar'])->whereNumber('chat')->name('whatsapp.avatar');
         });
         Route::middleware('permission:whatsapp.activity')->group(function () {
+            // WhatsApp button: build a chat link and see how often it was followed. A tab of
+            // WhatsApp Activity, so it is gated with it.
+            $wl = WhatsappLinkController::class;
+            Route::get('whatsapp-links', [$wl, 'index'])->name('whatsapp-links');
+            Route::post('whatsapp-links', [$wl, 'store'])->name('whatsapp-links.store');
+            Route::put('whatsapp-links/{whatsappLink}', [$wl, 'update'])->whereNumber('whatsappLink')->name('whatsapp-links.update');
+            Route::post('whatsapp-links/{whatsappLink}/toggle', [$wl, 'toggle'])->whereNumber('whatsappLink')->name('whatsapp-links.toggle');
+            Route::delete('whatsapp-links/{whatsappLink}', [$wl, 'destroy'])->whereNumber('whatsappLink')->name('whatsapp-links.destroy');
+
             $wact = WhatsappActivityController::class;
             Route::get('whatsapp-activity', [$wact, 'index'])->name('whatsapp-activity');
             Route::get('whatsapp-activity/{account}', [$wact, 'show'])->whereNumber('account')->name('whatsapp-activity.show');
@@ -436,13 +445,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:activity.client')->group(function () {
             Route::get('client-activity', [ClientActivityLogController::class, 'index'])->name('client-activity');
             Route::get('client-activity/details', [ClientActivityLogController::class, 'details'])->name('client-activity.details');
-            // WhatsApp button: build a chat link and see how often it was followed.
-            $wl = WhatsappLinkController::class;
-            Route::get('whatsapp-links', [$wl, 'index'])->name('whatsapp-links');
-            Route::post('whatsapp-links', [$wl, 'store'])->name('whatsapp-links.store');
-            Route::put('whatsapp-links/{whatsappLink}', [$wl, 'update'])->whereNumber('whatsappLink')->name('whatsapp-links.update');
-            Route::post('whatsapp-links/{whatsappLink}/toggle', [$wl, 'toggle'])->whereNumber('whatsappLink')->name('whatsapp-links.toggle');
-            Route::delete('whatsapp-links/{whatsappLink}', [$wl, 'destroy'])->whereNumber('whatsappLink')->name('whatsapp-links.destroy');
             Route::get('client-activity/errors', [ClientActivityLogController::class, 'errors'])->name('client-activity.errors');
             Route::get('client-activity/clients', [ClientActivityLogController::class, 'clients'])->name('client-activity.clients');
             // Super-admin-only; the controller enforces that (permission alone is not enough here).

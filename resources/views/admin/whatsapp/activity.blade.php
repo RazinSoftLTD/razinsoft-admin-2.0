@@ -7,20 +7,7 @@
         $tab = request('tab') === 'numbers' ? 'numbers' : 'report';
     @endphp
 
-    <div class="mb-4">
-        <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Activity</h1>
-        <p class="mt-1 text-sm text-[var(--color-muted)]">Oversight of every connected number — status and full conversation history (read-only).</p>
-    </div>
-
-    <div class="mb-6 flex gap-1 border-b border-gray-100">
-        @foreach (['report' => 'Conversation report', 'numbers' => 'Numbers'] as $key => $label)
-            <a href="{{ route('admin.whatsapp-activity', $key === 'numbers' ? ['tab' => 'numbers'] : array_filter(['period' => request('period'), 'from' => request('from'), 'to' => request('to')])) }}"
-               class="border-b-2 px-4 py-2.5 text-sm font-semibold transition {{ $tab === $key ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
-                {{ $label }}
-                @if ($key === 'numbers')<span class="ml-1 text-xs opacity-70">{{ $accounts->count() }}</span>@endif
-            </a>
-        @endforeach
-    </div>
+    @include('admin.whatsapp._activity-tabs', ['active' => $tab, 'tabCount' => $accounts->count()])
 
     @if ($tab === 'report')
 

@@ -1,5 +1,5 @@
 @extends('admin.layouts.app')
-@section('title', 'WhatsApp API')
+@section('title', 'WhatsApp Config')
 
 @section('content')
     @php
@@ -15,10 +15,11 @@
         $hasRight = $canLabels || $canQuick;
         $bothCols = $hasLeft && $hasRight;
     @endphp
+    @include('admin.whatsapp._activity-tabs', ['active' => 'config'])
+
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-            <h1 class="text-xl font-bold text-[var(--color-heading)]">WhatsApp Config</h1>
-            <p class="mt-1 text-sm text-[var(--color-muted)]">Each number picks its own connection method, so QR and Meta Cloud API numbers can run side by side. Set one up from the list below.</p>
+            <p class="text-sm text-[var(--color-muted)]">Each number picks its own connection method, so QR and Meta Cloud API numbers can run side by side. Set one up from the list below.</p>
         </div>
     </div>
 
