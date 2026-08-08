@@ -991,9 +991,9 @@
                 accountId: @js(($accounts->firstWhere('id', (int) request('account')) ?? $accounts->first())->id ?? null),
                 accountsList: @js($accounts->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'number' => $a->display_number, 'connected' => $a->isConnected(), 'cloud' => $a->isCloudApi(), 'unread' => $accountUnreads[$a->id] ?? 0])->values()),
                 currentAccount() { return this.accountsList.find(a => a.id === this.accountId) || {}; },
-                quickReplies: @js($quickReplies->map(fn ($q) => ['shortcut' => $q->shortcut, 'body' => $q->body, 'account_id' => $q->account_id])->values()),
+                quickReplies: @js($quickReplies->map(fn ($q) => ['shortcut' => $q->shortcut, 'body' => $q->body, 'account_ids' => $q->accounts->pluck('id')->values()])->values()),
                 // Quick replies are per-number — show only the selected number's own set.
-                visibleQuickReplies() { return this.quickReplies.filter(q => q.account_id === this.accountId); },
+                visibleQuickReplies() { return this.quickReplies.filter(q => (q.account_ids || []).includes(this.accountId)); },
                 // Type "/" in the composer → live quick-reply picker (filtered by the shortcut typed).
                 slashIndex: 0, slashOff: false,
                 slashMatches() {

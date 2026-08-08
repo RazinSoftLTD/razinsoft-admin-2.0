@@ -21,10 +21,10 @@
         ]))] : null,
         'numbers' => $mayActivity ? ['label' => 'Connected', 'url' => route('admin.whatsapp-activity', ['tab' => 'numbers']), 'badge' => $tabCount ?? \App\Models\WhatsappAccount::count()] : null,
         'button' => $mayActivity ? ['label' => 'Wp ShortLink', 'url' => route('admin.whatsapp-links')] : null,
-        'config' => $maySettings ? ['label' => 'Configuration', 'url' => route('admin.whatsapp-settings')] : null,
         // Labels and quick replies are the team's words, not the numbers' wiring.
         'labels' => ($u->hasPermission('whatsapp.labels') || $u->hasPermission('whatsapp.quick_replies'))
             ? ['label' => 'Labels & Replies', 'url' => route('admin.whatsapp-settings', ['section' => 'labels'])] : null,
+        'config' => $maySettings ? ['label' => 'Configuration', 'url' => route('admin.whatsapp-settings')] : null,
     ]);
 @endphp
 

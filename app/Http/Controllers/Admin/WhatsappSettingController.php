@@ -31,8 +31,9 @@ class WhatsappSettingController extends Controller
             'chatCounts' => WhatsappChat::selectRaw('account_id, count(*) chats')->groupBy('account_id')->pluck('chats', 'account_id'),
             'panelUsers' => User::assignable()->orderBy('name')->get(['id', 'name']),
             'labels' => WhatsappLabel::orderBy('position')->get(),
-            'quickReplies' => WhatsappQuickReply::with('account:id,name')->whereIn('account_id', $quickIds)
-                ->orderBy('account_id')->orderBy('shortcut')->get(),
+            'quickReplies' => WhatsappQuickReply::with('accounts:id,name,color')
+                ->whereHas('accounts', fn ($q) => $q->whereIn('whatsapp_accounts.id', $quickIds))
+                ->orderBy('shortcut')->orderBy('id')->get(),
             'webhookUrl' => url('/api/whatsapp/webhook'),
         ]);
     }
@@ -257,40 +258,76 @@ class WhatsappSettingController extends Controller
 
     // ---- quick replies ----
 
+    /** The numbers this user picked, kept to the ones they may actually manage. */
+    private function pickedQuickAccounts(Request $request, array $ids): array
+    {
+        $allowed = $this->quickAccounts($request->user())->pluck('id')->all();
+        $picked = array_values(array_intersect(array_map('intval', $ids), $allowed));
+
+        abort_if(empty($picked), 403, 'Choose at least one number you have access to.');
+
+        return $picked;
+    }
+
     public function quickStore(Request $request)
     {
         $data = $request->validate([
             'shortcut' => ['nullable', 'string', 'max:40'],
             'body' => ['required', 'string', 'max:2000'],
-            'account_id' => ['required', 'exists:whatsapp_accounts,id'],   // each quick reply belongs to one number
+            'account_ids' => ['required', 'array', 'min:1'],
+            'account_ids.*' => ['integer', 'exists:whatsapp_accounts,id'],
         ]);
-        // Can only add to a number this user has access to.
-        abort_unless(in_array((int) $data['account_id'], $this->quickAccounts($request->user())->pluck('id')->all(), true), 403);
-        WhatsappQuickReply::create($data);
+
+        $picked = $this->pickedQuickAccounts($request, $data['account_ids']);
+
+        $reply = WhatsappQuickReply::create([
+            'shortcut' => $data['shortcut'] ?? null,
+            'body' => $data['body'],
+            'account_id' => $picked[0],   // the first stays on the row, for anything still reading it
+        ]);
+        $reply->accounts()->sync($picked);
 
         return back()->with('status', 'Quick reply added.');
     }
 
     public function quickUpdate(Request $request, WhatsappQuickReply $quickReply)
     {
+        $this->authorizeQuickReply($request, $quickReply);
+
         $data = $request->validate([
             'shortcut' => ['nullable', 'string', 'max:40'],
             'body' => ['required', 'string', 'max:2000'],
-            'account_id' => ['required', 'exists:whatsapp_accounts,id'],
+            'account_ids' => ['required', 'array', 'min:1'],
+            'account_ids.*' => ['integer', 'exists:whatsapp_accounts,id'],
         ]);
-        // Both the reply's current number and the target number must be accessible.
-        $accessible = $this->quickAccounts($request->user())->pluck('id')->all();
-        abort_unless(in_array((int) $data['account_id'], $accessible, true) && in_array((int) $quickReply->account_id, $accessible, true), 403);
-        $quickReply->update($data);
+
+        $picked = $this->pickedQuickAccounts($request, $data['account_ids']);
+
+        $quickReply->update([
+            'shortcut' => $data['shortcut'] ?? null,
+            'body' => $data['body'],
+            'account_id' => $picked[0],
+        ]);
+        $quickReply->accounts()->sync($picked);
 
         return back()->with('status', 'Quick reply updated.');
     }
 
     public function quickDestroy(Request $request, WhatsappQuickReply $quickReply)
     {
-        abort_unless(in_array((int) $quickReply->account_id, $this->quickAccounts($request->user())->pluck('id')->all(), true), 403);
+        $this->authorizeQuickReply($request, $quickReply);
+        $quickReply->accounts()->detach();
         $quickReply->delete();
 
         return back()->with('status', 'Quick reply removed.');
+    }
+
+    /** A reply is yours to touch if it shows on any number you may manage. */
+    private function authorizeQuickReply(Request $request, WhatsappQuickReply $reply): void
+    {
+        $allowed = $this->quickAccounts($request->user())->pluck('id')->all();
+        $on = $reply->accounts()->pluck('whatsapp_accounts.id')->all() ?: [$reply->account_id];
+
+        abort_if(empty(array_intersect($on, $allowed)), 403);
     }
 }

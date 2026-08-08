@@ -360,7 +360,135 @@
 
         {{-- Labels + quick replies --}}
         @if ($hasRight && $section === 'labels')
-        <div class="grid items-start gap-6 {{ $canLabels && $canQuick ? 'lg:grid-cols-2' : 'max-w-xl' }}">
+        <div class="space-y-6">
+            @if ($canQuick)
+            {{-- Quick replies are written once and shown wherever they belong: the numbers are a
+                 choice on the reply, not a folder it lives in. --}}
+            <div class="rounded-xl border border-gray-100 bg-white shadow-sm"
+                 x-data="{ adding: {{ $errors->any() && old('body') ? 'true' : 'false' }} }">
+                <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+                    <div>
+                        <div class="flex items-baseline gap-2">
+                            <h2 class="text-sm font-bold text-[var(--color-heading)]">Quick Replies</h2>
+                            <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-gray-500">{{ $quickReplies->count() }}</span>
+                        </div>
+                        <p class="mt-0.5 text-xs text-[var(--color-muted)]">Type the shortcut in the inbox to drop the message in. Each one shows on the numbers you tick.</p>
+                    </div>
+                    @if ($canQuick && $quickAccounts->isNotEmpty())
+                        <button type="button" @click="adding = !adding"
+                                class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                            <span x-text="adding ? 'Close' : 'Add quick reply'"></span>
+                        </button>
+                    @endif
+                </div>
+
+                @if ($quickAccounts->isEmpty())
+                    <p class="px-5 py-8 text-center text-xs text-gray-400">You don't have access to any WhatsApp number yet.</p>
+                @else
+                    <div x-show="adding" x-cloak class="border-b border-gray-100 bg-gray-50/70 p-5">
+                        <form method="POST" action="{{ route('admin.whatsapp-settings.quick.store') }}" class="space-y-3">
+                            @csrf
+                            <div class="grid gap-3 sm:grid-cols-4">
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Shortcut</label>
+                                    <input type="text" name="shortcut" value="{{ old('shortcut') }}" placeholder="/hi" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                </div>
+                                <div class="sm:col-span-3">
+                                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Message <span class="text-red-500">*</span></label>
+                                    <textarea name="body" required rows="2" placeholder="Hello! Thanks for reaching out…" class="w-full rounded-lg border-gray-200 text-sm">{{ old('body') }}</textarea>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="mb-1.5 block text-xs font-semibold text-gray-500">Show it on</label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach ($quickAccounts as $acc)
+                                        <label class="cursor-pointer">
+                                            <input type="checkbox" name="account_ids[]" value="{{ $acc->id }}" @checked($loop->first) class="peer hidden">
+                                            <span class="inline-block rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-500 transition peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary-soft)] peer-checked:text-[var(--color-primary)]">{{ $acc->name }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Add quick reply</button>
+                                <button type="button" @click="adding = false" class="rounded-lg border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    @if (! $canQuick)
+                        <p class="m-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">You can view quick replies, but you don't have permission to change them.</p>
+                    @endif
+
+                    <ul class="divide-y divide-gray-50">
+                        @forelse ($quickReplies as $qr)
+                            <li x-data="{ edit: false }" class="px-5 py-3">
+                                <div x-show="!edit" class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            @if ($qr->shortcut)<span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-500">{{ $qr->shortcut }}</span>@endif
+                                            @foreach ($qr->accounts as $on)
+                                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" style="background: {{ $on->color }}1a; color: {{ $on->color }}">{{ $on->name }}</span>
+                                            @endforeach
+                                        </div>
+                                        <p class="mt-1 whitespace-pre-line text-xs text-[var(--color-muted)]">{{ \Illuminate\Support\Str::limit($qr->body, 160) }}</p>
+                                    </div>
+                                    @if ($canQuick)
+                                        <div class="flex shrink-0 items-center gap-1">
+                                            <button type="button" @click="edit = true" title="Edit" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                            </button>
+                                            <form method="POST" action="{{ route('admin.whatsapp-settings.quick.destroy', $qr) }}" onsubmit="return confirm('Delete this quick reply?')">
+                                                @csrf @method('DELETE')
+                                                <button title="Delete" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                @if ($canQuick)
+                                    <form x-show="edit" x-cloak method="POST" action="{{ route('admin.whatsapp-settings.quick.update', $qr) }}" class="space-y-3">
+                                        @csrf @method('PUT')
+                                        <div class="grid gap-3 sm:grid-cols-4">
+                                            <div>
+                                                <label class="mb-1.5 block text-xs font-semibold text-gray-500">Shortcut</label>
+                                                <input type="text" name="shortcut" value="{{ $qr->shortcut }}" placeholder="/hi" class="h-9 w-full rounded-lg border-gray-200 text-sm">
+                                            </div>
+                                            <div class="sm:col-span-3">
+                                                <label class="mb-1.5 block text-xs font-semibold text-gray-500">Message</label>
+                                                <textarea name="body" required rows="2" class="w-full rounded-lg border-gray-200 text-sm">{{ $qr->body }}</textarea>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-semibold text-gray-500">Show it on</label>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                @foreach ($quickAccounts as $acc)
+                                                    <label class="cursor-pointer">
+                                                        <input type="checkbox" name="account_ids[]" value="{{ $acc->id }}" @checked($qr->accounts->contains($acc->id)) class="peer hidden">
+                                                        <span class="inline-block rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-500 transition peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary-soft)] peer-checked:text-[var(--color-primary)]">{{ $acc->name }}</span>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-xs font-semibold text-white">Save</button>
+                                            <button type="button" @click="edit = false" class="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-500">Cancel</button>
+                                        </div>
+                                    </form>
+                                @endif
+                            </li>
+                        @empty
+                            <li class="px-5 py-8 text-center text-xs text-gray-400">No quick replies yet — add the first one above.</li>
+                        @endforelse
+                    </ul>
+                @endif
+            </div>
+            @endif
             @if ($canLabels)
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Labels</h2>
@@ -426,69 +554,6 @@
                         };
                     }
                 </script>
-            </div>
-            @endif
-
-            @if ($canQuick)
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm" x-data="{ acc: {{ $quickAccounts->first()->id ?? 'null' }}, ids: @js($quickReplies->pluck('account_id')) }">
-                <div class="flex items-center justify-between gap-2">
-                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Quick Replies</h2>
-                    @if ($quickAccounts->isNotEmpty())
-                        <select x-model.number="acc" class="h-8 rounded-lg border-gray-200 text-xs">
-                            @foreach ($quickAccounts as $acc)<option value="{{ $acc->id }}">{{ $acc->name }}{{ $acc->display_number ? ' · +'.$acc->display_number : '' }}</option>@endforeach
-                        </select>
-                    @endif
-                </div>
-                <p class="mb-4 mt-1 text-xs text-gray-400">Each number has its own quick replies — pick a number above to manage its set. You only see the numbers you have access to.</p>
-
-                @if ($quickAccounts->isEmpty())
-                    <p class="rounded-lg border border-dashed border-gray-100 px-3 py-4 text-center text-xs text-gray-400">You don't have access to any WhatsApp number yet.</p>
-                @else
-                    @if ($canQuick)
-                        <form method="POST" action="{{ route('admin.whatsapp-settings.quick.store') }}" class="mb-4 space-y-2">
-                            @csrf
-                            <input type="hidden" name="account_id" :value="acc">
-                            <input type="text" name="shortcut" placeholder="Shortcut (e.g. /hi)" class="h-9 w-full rounded-lg border-gray-200 text-sm">
-                            <textarea name="body" required rows="2" placeholder="Message…" class="w-full rounded-lg border-gray-200 text-sm"></textarea>
-                            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white">Add Quick Reply</button>
-                        </form>
-                    @else
-                        <p class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">You can view quick replies, but you don't have permission to add, edit or delete them.</p>
-                    @endif
-                    <ul class="space-y-2">
-                        @foreach ($quickReplies as $qr)
-                            <li x-show="acc === {{ $qr->account_id ?? 'null' }}" x-data="{ edit: false }" class="rounded-lg border border-gray-50 px-3 py-2">
-                                <div x-show="!edit" class="flex items-start justify-between gap-2">
-                                    <div class="min-w-0">
-                                        @if ($qr->shortcut)<span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">{{ $qr->shortcut }}</span>@endif
-                                        <p class="mt-0.5 text-xs text-[var(--color-muted)]">{{ \Illuminate\Support\Str::limit($qr->body, 80) }}</p>
-                                    </div>
-                                    @if ($canQuick)
-                                        <div class="flex shrink-0 items-center gap-1.5">
-                                            <button type="button" @click="edit = true" class="text-gray-300 hover:text-[var(--color-primary)]" title="Edit">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                            </button>
-                                            <form method="POST" action="{{ route('admin.whatsapp-settings.quick.destroy', $qr) }}" onsubmit="return confirm('Delete this quick reply?')">@csrf @method('DELETE')<button class="text-gray-300 hover:text-red-500" title="Delete">×</button></form>
-                                        </div>
-                                    @endif
-                                </div>
-                                @if ($canQuick)
-                                    <form x-show="edit" x-cloak method="POST" action="{{ route('admin.whatsapp-settings.quick.update', $qr) }}" class="space-y-2">
-                                        @csrf @method('PUT')
-                                        <input type="hidden" name="account_id" value="{{ $qr->account_id }}">
-                                        <input type="text" name="shortcut" value="{{ $qr->shortcut }}" placeholder="Shortcut (e.g. /hi)" class="h-8 w-full rounded-lg border-gray-200 text-xs">
-                                        <textarea name="body" required rows="2" class="w-full rounded-lg border-gray-200 text-xs">{{ $qr->body }}</textarea>
-                                        <div class="flex gap-2">
-                                            <button class="rounded-lg bg-[var(--color-primary)] px-3 py-1 text-xs font-semibold text-white">Save</button>
-                                            <button type="button" @click="edit = false" class="rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-500">Cancel</button>
-                                        </div>
-                                    </form>
-                                @endif
-                            </li>
-                        @endforeach
-                        <li x-show="ids.indexOf(acc) === -1" class="rounded-lg border border-dashed border-gray-100 px-3 py-4 text-center text-xs text-gray-400">No quick replies for this number yet.</li>
-                    </ul>
-                @endif
             </div>
             @endif
         </div>

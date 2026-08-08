@@ -43,7 +43,7 @@ class WhatsappController extends Controller
             'labels' => WhatsappLabel::orderBy('position')->get(),
             'labelCounts' => $this->labelCounts($request),
             'agents' => User::assignable()->orderBy('name')->get(['id', 'name']),
-            'quickReplies' => WhatsappQuickReply::orderBy('shortcut')->get(),
+            'quickReplies' => WhatsappQuickReply::with('accounts:id')->orderBy('shortcut')->get(),
             'settings' => WhatsappSetting::current(),
             'categoryTree' => ProductCategory::subMap(),
             'leadQualities' => WhatsappChat::LEAD_QUALITIES,
