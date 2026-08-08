@@ -16,12 +16,12 @@
 
     // A tab nobody may open should not be offered — the two halves are separately permitted.
     $tabs = array_filter([
-        'report' => $mayActivity ? ['label' => 'Conversation report', 'url' => route('admin.whatsapp-activity', array_filter([
+        'report' => $mayActivity ? ['label' => 'Conversation', 'url' => route('admin.whatsapp-activity', array_filter([
             'period' => request('period'), 'from' => request('from'), 'to' => request('to'),
         ]))] : null,
-        'numbers' => $mayActivity ? ['label' => 'Numbers', 'url' => route('admin.whatsapp-activity', ['tab' => 'numbers']), 'badge' => $tabCount ?? null] : null,
-        'button' => $mayActivity ? ['label' => 'WhatsApp Button', 'url' => route('admin.whatsapp-links')] : null,
-        'config' => $maySettings ? ['label' => 'Config', 'url' => route('admin.whatsapp-settings')] : null,
+        'numbers' => $mayActivity ? ['label' => 'Connected', 'url' => route('admin.whatsapp-activity', ['tab' => 'numbers']), 'badge' => $tabCount ?? null] : null,
+        'button' => $mayActivity ? ['label' => 'Wp ShortLink', 'url' => route('admin.whatsapp-links')] : null,
+        'config' => $maySettings ? ['label' => 'Configuration', 'url' => route('admin.whatsapp-settings')] : null,
     ]);
 @endphp
 
@@ -29,8 +29,7 @@
     @foreach ($tabs as $key => $tab)
         <a href="{{ $tab['url'] }}"
            class="border-b-2 px-4 py-2.5 text-sm font-semibold transition {{ $active === $key ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
-            {{ $tab['label'] }}
-            @isset($tab['badge'])<span class="ml-1 text-xs opacity-70">{{ $tab['badge'] }}</span>@endisset
+            {{ $tab['label'] }}@isset($tab['badge'])<span class="ml-1 opacity-70">({{ $tab['badge'] }})</span>@endisset
         </a>
     @endforeach
 </div>

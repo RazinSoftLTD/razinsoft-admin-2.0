@@ -129,7 +129,7 @@ class WhatsappActivityPeriodTest extends TestCase
         $this->actingAs($this->admin());
 
         $report = $this->get('/admin/whatsapp-activity')->assertOk();
-        $report->assertSee('Reportable Contact')->assertSee('Conversation report');
+        $report->assertSee('Reportable Contact')->assertSee('Conversation');
         $report->assertDontSee('Avg. response');
 
         $numbers = $this->get('/admin/whatsapp-activity?tab=numbers')->assertOk();
@@ -138,9 +138,9 @@ class WhatsappActivityPeriodTest extends TestCase
         // An unknown tab is the report, not a blank page.
         $this->get('/admin/whatsapp-activity?tab=nonsense')->assertOk()->assertSee('Reportable Contact');
 
-        // The WhatsApp Button page is the third tab, and every tab links to the others.
+        // The short-link page is the third tab, and every tab links to the others.
         $button = $this->get('/admin/whatsapp-links')->assertOk();
-        $button->assertSee('WhatsApp Button')->assertSee('Create a link');
+        $button->assertSee('Wp ShortLink')->assertSee('Create a link');
         $button->assertSee(route('admin.whatsapp-activity', []), false);
         $report->assertSee(route('admin.whatsapp-links'), false);
 
@@ -178,7 +178,7 @@ class WhatsappActivityPeriodTest extends TestCase
             'role' => 'staff', 'status' => 'active', 'permissions' => ['whatsapp.activity' => 'all'],
         ]);
         $this->actingAs($reader)->get('/admin/whatsapp-activity')->assertOk()
-            ->assertSee('Conversation report')->assertDontSee(route('admin.whatsapp-settings'), false);
+            ->assertSee('Conversation')->assertDontSee(route('admin.whatsapp-settings'), false);
 
         $configurer = User::create([
             'name' => 'Configurer', 'email' => 'wa-config@test.local', 'password' => bcrypt('secret123'),
