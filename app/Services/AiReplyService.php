@@ -27,7 +27,37 @@ class AiReplyService
             'model' => config('services.openai.model', 'gpt-5-mini'),
             'system_prompt' => 'You are the assistant for RazinSoft, a software company selling ready-made business software (eCommerce, POS, LMS, ride sharing), domains, hosting and custom development. Answer briefly and helpfully in the language the customer writes in. If you do not know something, say the team will follow up — never invent prices or promises.',
             'max_replies_per_chat_per_day' => 20,
+            'test_numbers' => '',                 // comma-separated; these always get an answer
         ];
+    }
+
+    /**
+     * Whether a number is one of the team's own test lines.
+     *
+     * Trying the assistant out is otherwise near-impossible: your own number is a known contact
+     * the team has already talked to, so every audience and office-hours rule silences it — the
+     * one number you can actually test with is the one it will never answer.
+     *
+     * Matched on the last 9 digits, the way the rest of the panel matches numbers, so 01316885500
+     * and 8801316885500 are the same line.
+     */
+    public static function isTestNumber(?string $number, ?array $settings = null): bool
+    {
+        $number = preg_replace('/\D/', '', (string) $number);
+        if (strlen($number) < 9) {
+            return false;
+        }
+
+        $list = ($settings ?? self::settings())['test_numbers'] ?? '';
+
+        foreach (preg_split('/[,\s]+/', (string) $list, -1, PREG_SPLIT_NO_EMPTY) as $candidate) {
+            $candidate = preg_replace('/\D/', '', $candidate);
+            if (strlen($candidate) >= 9 && substr($candidate, -9) === substr($number, -9)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static function settings(): array

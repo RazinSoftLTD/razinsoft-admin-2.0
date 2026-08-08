@@ -18,9 +18,8 @@
         </div>
     </div>
 
-    @if (session('status'))
-        <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('status') }}</div>
-    @endif
+    {{-- No "saved" banner here: the layout already shows session('status'), and two of them
+         stacked read as two different messages. --}}
     @if ($errors->any())
         <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <ul class="list-inside list-disc space-y-1">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
@@ -129,6 +128,17 @@
                         <input type="number" name="max_replies_per_chat_per_day" min="1" max="200" value="{{ $settings['max_replies_per_chat_per_day'] }}" class="h-10 w-full rounded-lg border-gray-200 text-sm">
                         <p class="mt-1 text-[11px] text-gray-400">Past this, the chat belongs to a person.</p>
                     </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Test numbers</label>
+                    <input type="text" name="test_numbers" value="{{ $settings['test_numbers'] ?? '' }}" placeholder="01316885500, 8801XXXXXXXXX"
+                           class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                    <p class="mt-1 text-[11px] text-gray-400">
+                        Your own lines, comma separated. Razin AI always answers these — even with the mode off, inside office hours,
+                        or after your team has replied — so you can try it whenever you like. Everything else (blocked contacts, groups,
+                        the daily cap) still applies.
+                    </p>
                 </div>
             </div>
 
@@ -267,21 +277,6 @@
                 @endif
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="mb-3 text-sm font-bold text-[var(--color-heading)]">How a message flows</h2>
-                <pre class="overflow-x-auto rounded-lg bg-gray-50 p-4 text-xs leading-relaxed text-gray-600">Customer message
-   │
-   ├─ blocked / group / agent already replied / handed over → stay silent
-   │
-   ├─ FAQ keyword match? ── yes → reply from the shelf (free, instant)
-   │
-   └─ no → OpenAI ({{ $settings['model'] }})
-              │
-              └─ "[HANDOVER]" → one polite note, then the team owns the chat</pre>
-                <p class="mt-3 text-xs text-[var(--color-muted)]">
-                    Every AI reply is marked <span class="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-600">AI</span> in the inbox — customers are never shown a machine pretending to be a person to your own team.
-                </p>
-            </div>
         </div>
     </div>
 @endsection

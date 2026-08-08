@@ -321,6 +321,46 @@ class WhatsappAutoReplyTest extends TestCase
         $this->assertSame('faq', $reply->ai_source);
     }
 
+    /**
+     * The team's own line answers whatever the policy says.
+     *
+     * Every rule that protects customers — office hours, new-customers-only, the human takeover —
+     * conspires to silence exactly the number the team would test with.
+     */
+    public function test_a_test_number_is_answered_through_every_policy_guard(): void
+    {
+        $this->fakeHappy();
+        $s = WhatsappSetting::current();
+        $s->ai_settings = [
+            'mode' => 'off',                                  // off for everyone else
+            'audience' => 'new_only',
+            'test_numbers' => '01316885500',                  // local form; the chat holds 8801…
+        ];
+        $s->save();
+
+        $chat = WhatsappChat::create([
+            'account_id' => $this->account->id, 'wa_id' => '8801316885500@s.whatsapp.net',
+            'phone' => '8801316885500', 'chat_type' => 'private', 'status' => 'open',
+        ]);
+        // A long-standing conversation the team has answered by hand — normally silenced twice over.
+        $chat->messages()->create(['direction' => 'out', 'type' => 'text', 'body' => 'Hi, Lisa here', 'sent_at' => now()->subMonth()]);
+        $incoming = $chat->messages()->create(['direction' => 'in', 'type' => 'text', 'body' => 'testing', 'sent_at' => now()]);
+
+        $this->assertNull($this->service()->maybeReply($chat, $incoming));
+        $this->assertSame('Hello! How can we help?', $chat->messages()->reorder()->where('ai_generated', true)->first()->body);
+    }
+
+    /** The bypass is for the listed number only — everyone else still obeys the mode. */
+    public function test_another_number_is_not_let_through_by_the_test_list(): void
+    {
+        $this->fakeHappy();
+        $s = WhatsappSetting::current();
+        $s->ai_settings = ['mode' => 'off', 'test_numbers' => '01316885500'];
+        $s->save();
+
+        $this->assertSame('mode off', $this->service()->maybeReply($this->chat, $this->inbound()));
+    }
+
     public function test_a_failed_draft_sends_nothing(): void
     {
         Http::fake([

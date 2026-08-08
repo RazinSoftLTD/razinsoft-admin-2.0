@@ -24,7 +24,11 @@ class WhatsappAutoReplyService
     {
         $settings = AiReplyService::settings();
 
-        if (($settings['mode'] ?? 'off') === 'off') {
+        // The team's own test line: it answers whatever the policy says, so the assistant can
+        // actually be tried out. Only the safety guards below still apply to it.
+        $isTest = AiReplyService::isTestNumber($chat->realNumber(), $settings);
+
+        if (! $isTest && ($settings['mode'] ?? 'off') === 'off') {
             return 'mode off';
         }
         if (! $chat->account?->ai_reply_enabled) {
@@ -36,13 +40,13 @@ class WhatsappAutoReplyService
         if ($incoming->direction !== 'in' || $incoming->deleted_at) {
             return 'not an inbound message';
         }
-        if (($settings['mode'] ?? '') === 'outside_hours' && $this->ai->insideOfficeHours($settings)) {
+        if (! $isTest && ($settings['mode'] ?? '') === 'outside_hours' && $this->ai->insideOfficeHours($settings)) {
             return 'inside office hours';
         }
 
         // New customers only: someone the team has never spoken to and who is not a known
         // client. An existing relationship belongs to the people who built it.
-        if (($settings['audience'] ?? 'new_only') === 'new_only') {
+        if (! $isTest && ($settings['audience'] ?? 'new_only') === 'new_only') {
             $known = $chat->client_id !== null
                 || $chat->messages()->reorder()
                     ->where('direction', 'out')
@@ -60,7 +64,7 @@ class WhatsappAutoReplyService
             ->where('ai_generated', false)
             ->where('id', '>', $incoming->id)
             ->exists();
-        if ($answered) {
+        if ($answered && ! $isTest) {
             return 'agent already replied';
         }
 
@@ -74,7 +78,7 @@ class WhatsappAutoReplyService
         }
 
         // A handed-over chat belongs to the team until they finish with it.
-        if ($chat->ai_handover_at && $chat->ai_handover_at->gt(now()->subDay())) {
+        if (! $isTest && $chat->ai_handover_at && $chat->ai_handover_at->gt(now()->subDay())) {
             return 'handed over to the team';
         }
 

@@ -48,6 +48,7 @@ class RazinAiController extends Controller
             'max_replies_per_chat_per_day' => ['required', 'integer', 'between:1,200'],
             'system_prompt' => ['required', 'string', 'max:4000'],
             'handover_message' => ['required', 'string', 'max:1000'],
+            'test_numbers' => ['nullable', 'string', 'max:255'],
             'account_ids' => ['array'],
             'account_ids.*' => ['integer'],
         ]);
@@ -64,6 +65,7 @@ class RazinAiController extends Controller
             'max_replies_per_chat_per_day' => (int) $data['max_replies_per_chat_per_day'],
             'system_prompt' => $data['system_prompt'],
             'handover_message' => $data['handover_message'],
+            'test_numbers' => trim((string) ($data['test_numbers'] ?? '')),
         ];
         $settings->save();
 
