@@ -302,58 +302,96 @@
             </div>
             @endif
 
-            {{-- Webhook --}}
-            @if ($canWebhook)
-            <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Webhook</h2>
-                <p class="mb-3 text-xs text-[var(--color-muted)]">
-                    In Meta &rsaquo; WhatsApp &rsaquo; Configuration, set this Callback URL and subscribe to the
-                    <strong>messages</strong> field. Every Cloud API number has its <em>own</em> verify token —
-                    find it on that number under WhatsApp Numbers &rsaquo; Edit. Several numbers can share this
-                    one URL; Meta names which number each event belongs to.
-                </p>
-                <div class="space-y-3">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-[var(--color-muted)]">Callback URL</label>
-                        <div class="flex items-center gap-2" x-data="{ c: false }">
-                            <input type="text" readonly value="{{ $webhookUrl }}" class="h-10 flex-1 rounded-lg border-gray-200 bg-gray-50 text-xs">
-                            <button type="button" @click="navigator.clipboard.writeText('{{ $webhookUrl }}'); c = true; setTimeout(() => c = false, 1500)" class="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200" x-text="c ? 'Copied' : 'Copy'"></button>
+            {{-- Connections: the two ways a number reaches this panel, side by side, because
+                 which one a number uses is the first thing you need to know here. Cloud API
+                 numbers call the webhook; QR numbers go through the gateway. --}}
+            @if ($canWebhook || $canConnection)
+            <style>
+                /* The seam between the two halves: a line under the first when they stack,
+                   and between them once they sit side by side. */
+                @media (min-width: 1024px) {
+                    .wa-connection-split > div:first-child { border-bottom: 0; border-right: 1px solid #f3f4f6; }
+                }
+            </style>
+            <div class="mt-6 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                <div class="border-b border-gray-100 px-5 py-4">
+                    <h2 class="text-sm font-bold text-[var(--color-heading)]">Connections</h2>
+                    <p class="mt-0.5 text-xs text-[var(--color-muted)]">How messages reach this panel. Each number uses one of these — set up whichever kinds you run.</p>
+                </div>
+
+                <div class="grid lg:grid-cols-2 wa-connection-split">
+                    @if ($canWebhook)
+                        <div class="border-b border-gray-100 p-5">
+                            <div class="flex items-center gap-2">
+                                <span class="grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-blue-600">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12a8 8 0 0 1 8-8m8 8a8 8 0 0 1-8 8m0-16v16"/><circle cx="12" cy="12" r="9"/></svg>
+                                </span>
+                                <h3 class="text-sm font-bold text-[var(--color-heading)]">Webhook</h3>
+                                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">Cloud API</span>
+                            </div>
+
+                            <p class="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
+                                In Meta &rsaquo; WhatsApp &rsaquo; Configuration, set this Callback URL and subscribe to the
+                                <strong>messages</strong> field. Every Cloud API number has its <em>own</em> verify token —
+                                find it on that number under <strong>WhatsApp Numbers &rsaquo; Edit</strong>. Several numbers
+                                can share this one URL; Meta names which number each event belongs to.
+                            </p>
+
+                            <label class="mb-1.5 mt-4 block text-xs font-semibold text-gray-500">Callback URL</label>
+                            <div class="flex items-center gap-2" x-data="{ c: false }">
+                                <input type="text" readonly value="{{ $webhookUrl }}" @focus="$event.target.select()"
+                                       class="h-10 min-w-0 flex-1 rounded-lg border-gray-200 bg-gray-50 font-mono text-xs">
+                                <button type="button" @click="navigator.clipboard.writeText('{{ $webhookUrl }}'); c = true; setTimeout(() => c = false, 1600)"
+                                        :class="c ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-[var(--color-heading)] hover:bg-gray-50'"
+                                        class="shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold transition" x-text="c ? 'Copied' : 'Copy'"></button>
+                            </div>
+                            <p class="mt-1.5 text-[11px] text-gray-400">Nothing to save here — the URL is fixed by this panel's address.</p>
                         </div>
-                    </div>
+                    @endif
+
+                    @if ($canConnection)
+                        <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="p-5">
+                            @csrf
+                            <div class="flex items-center gap-2">
+                                <span class="grid h-7 w-7 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg>
+                                </span>
+                                <h3 class="text-sm font-bold text-[var(--color-heading)]">QR Gateway</h3>
+                                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">QR numbers</span>
+                                @if ($settings->gateway_url)
+                                    <span class="ml-auto rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Configured</span>
+                                @else
+                                    <span class="ml-auto rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">Not set up</span>
+                                @endif
+                            </div>
+
+                            <p class="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
+                                Shared by every number connected by QR. Cloud API numbers do not use it — their
+                                credentials live on the number itself, so both kinds can run at once.
+                            </p>
+
+                            <label class="mb-1.5 mt-4 block text-xs font-semibold text-gray-500">Gateway URL</label>
+                            <input type="url" name="gateway_url" value="{{ old('gateway_url', $settings->gateway_url) }}" placeholder="https://wa-gateway.yourserver.com"
+                                   class="h-10 w-full rounded-lg border-gray-200 font-mono text-xs">
+                            <p class="mt-1 text-[11px] text-gray-400">Where the Node.js Baileys gateway is running.</p>
+
+                            <label class="mb-1.5 mt-3 block text-xs font-semibold text-gray-500">Gateway Secret</label>
+                            <input type="password" name="gateway_secret" value="" placeholder="{{ $settings->gateway_secret ? '•••••••• (saved)' : 'Shared secret between Laravel & gateway' }}"
+                                   class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                            <p class="mt-1 text-[11px] text-gray-400">Leave blank to keep the saved one.</p>
+
+                            <div class="mt-4 flex flex-wrap items-center gap-2">
+                                <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save gateway</button>
+                                <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
+                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
+                                    Test connection
+                                </button>
+                            </div>
+                        </form>
+                    @endif
                 </div>
             </div>
-            @endif
-
-            @if ($canConnection)
-            <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                @csrf
-                <h2 class="text-sm font-bold text-[var(--color-heading)]">QR Gateway</h2>
-                <p class="mb-5 mt-1 text-xs text-[var(--color-muted)]">
-                    Shared by every number connected by QR. Meta Cloud API numbers do not use it — their
-                    credentials live on the number itself, so both kinds can be connected at the same time.
-                </p>
-
-                <div class="mb-1 grid gap-5 sm:grid-cols-2">
-                    <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway URL</label>
-                        <input type="url" name="gateway_url" value="{{ old('gateway_url', $settings->gateway_url) }}" placeholder="https://wa-gateway.yourserver.com" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                        <p class="mt-1 text-xs text-gray-400">Where the Node.js Baileys gateway is running.</p>
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway Secret</label>
-                        <input type="password" name="gateway_secret" value="" placeholder="{{ $settings->gateway_secret ? '•••••••• (saved)' : 'Shared secret between Laravel & gateway' }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                        <p class="mt-1 text-xs text-gray-400">Leave blank to keep the saved one.</p>
-                    </div>
-                </div>
-
-                <div class="mt-6 flex items-center gap-2">
-                    <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Settings</button>
-                    <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
-                        Test gateway
-                    </button>
-                </div>
-            </form>
             @endif
         </div>
         @endif
