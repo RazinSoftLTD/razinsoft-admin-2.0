@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\WhatsappAccount;
 use App\Models\WhatsappChat;
 use App\Models\WhatsappMessage;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
  * Activity › WhatsApp — read-only oversight of every connected number (active/inactive) and its
@@ -14,7 +16,7 @@ use App\Models\WhatsappMessage;
  */
 class WhatsappActivityController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $accounts = WhatsappAccount::with('users:id,name')->orderBy('position')->orderBy('id')->get();
 
@@ -38,8 +40,60 @@ class WhatsappActivityController extends Controller
 
         return view('admin.whatsapp.activity', array_merge(
             compact('accounts', 'stats'),
-            $this->todayReport(),
+            $this->periodReport($request),
         ));
+    }
+
+    /**
+     * The window the report covers: today by default, or a named span, or two dates.
+     *
+     * Returns [from, to, key, label] — `to` is the end of its day, so "this month" includes
+     * everything that has happened today rather than stopping at midnight.
+     */
+    private function period(Request $request): array
+    {
+        $key = (string) $request->query('period', 'today');
+        $today = today();
+
+        [$from, $to, $label] = match ($key) {
+            'week' => [$today->copy()->startOfWeek(), $today->copy()->endOfWeek(), 'This week'],
+            'month' => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth(), 'This month'],
+            'year' => [$today->copy()->startOfYear(), $today->copy()->endOfYear(), 'This year'],
+            'custom' => (function () use ($request, $today) {
+                $from = $this->safeDate($request->query('from')) ?? $today->copy();
+                $to = $this->safeDate($request->query('to')) ?? $from->copy();
+                // Dates the wrong way round is a slip, not a request for nothing.
+                if ($to->lt($from)) {
+                    [$from, $to] = [$to, $from];
+                }
+
+                return [$from, $to, 'Custom'];
+            })(),
+            default => [$today->copy(), $today->copy(), 'Today'],
+        };
+
+        if (! in_array($key, ['today', 'week', 'month', 'year', 'custom'], true)) {
+            $key = 'today';
+        }
+
+        // Never look past today: a range running into the future reads as a dead stretch.
+        if ($to->gt($today)) {
+            $to = $today->copy();
+        }
+
+        return [$from->startOfDay(), $to->endOfDay(), $key, $label];
+    }
+
+    private function safeDate(?string $raw): ?Carbon
+    {
+        if (! $raw) {
+            return null;
+        }
+        try {
+            return Carbon::parse($raw);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
@@ -53,12 +107,12 @@ class WhatsappActivityController extends Controller
      * we met them — the definition of new that matters here, rather than a chat that merely spoke
      * again today.
      */
-    private function todayReport(): array
+    private function periodReport(Request $request): array
     {
-        $today = today();
+        [$from, $to, $periodKey, $periodLabel] = $this->period($request);
 
         $new = WhatsappChat::with('account:id,name,color')
-            ->whereDate('created_at', $today)
+            ->whereBetween('created_at', [$from, $to])
             ->whereNull('blocked_at')
             ->orderByDesc('created_at')->orderByDesc('id')
             ->get();
@@ -84,12 +138,16 @@ class WhatsappActivityController extends Controller
         return [
             'today' => [
                 'new_chats' => $new->count(),
-                'messages_in' => WhatsappMessage::whereDate('sent_at', $today)->where('direction', 'in')->count(),
-                'messages_out' => WhatsappMessage::whereDate('sent_at', $today)->where('direction', 'out')->count(),
-                'active_chats' => WhatsappMessage::whereDate('sent_at', $today)->distinct()->count('chat_id'),
+                'messages_in' => WhatsappMessage::whereBetween('sent_at', [$from, $to])->where('direction', 'in')->count(),
+                'messages_out' => WhatsappMessage::whereBetween('sent_at', [$from, $to])->where('direction', 'out')->count(),
+                'active_chats' => WhatsappMessage::whereBetween('sent_at', [$from, $to])->distinct()->count('chat_id'),
             ],
             'todayQuality' => $quality,
             'todayChats' => $new,
+            'periodKey' => $periodKey,
+            'periodLabel' => $periodLabel,
+            'periodFrom' => $from,
+            'periodTo' => $to,
         ];
     }
 

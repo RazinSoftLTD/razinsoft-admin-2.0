@@ -19,9 +19,39 @@
     @endphp
 
     <div class="mb-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 class="text-sm font-bold text-[var(--color-heading)]">Today</h2>
-            <span class="text-xs text-gray-400">{{ now()->format('l, d F Y') }}</span>
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">{{ $periodLabel }}</h2>
+                <p class="mt-0.5 text-xs text-gray-400">
+                    @if ($periodFrom->isSameDay($periodTo))
+                        {{ $periodFrom->format('l, d F Y') }}
+                    @else
+                        {{ $periodFrom->format('d M Y') }} – {{ $periodTo->format('d M Y') }}
+                        <span class="text-gray-300">·</span> {{ (int) floor($periodFrom->diffInDays($periodTo)) + 1 }} days
+                    @endif
+                </p>
+            </div>
+
+            {{-- The window this whole card covers. A plain GET, so a range can be bookmarked
+                 or sent to someone and it opens showing exactly the same figures. --}}
+            <div x-data="{ custom: @js($periodKey === 'custom') }" class="flex flex-wrap items-center justify-end gap-1.5">
+                @foreach (['today' => 'Today', 'week' => 'This week', 'month' => 'This month', 'year' => 'This year'] as $key => $label)
+                    <a href="{{ route('admin.whatsapp-activity', ['period' => $key]) }}"
+                       class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ $periodKey === $key ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50' }}">{{ $label }}</a>
+                @endforeach
+                <button type="button" @click="custom = !custom"
+                        class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ $periodKey === 'custom' ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' : 'border-gray-200 text-[var(--color-muted)] hover:bg-gray-50' }}">Custom</button>
+
+                <form x-show="custom" x-cloak method="GET" action="{{ route('admin.whatsapp-activity') }}" class="flex flex-wrap items-center gap-1.5">
+                    <input type="hidden" name="period" value="custom">
+                    <input type="date" name="from" value="{{ $periodFrom->format('Y-m-d') }}" max="{{ today()->format('Y-m-d') }}"
+                           class="h-8 rounded-lg border-gray-200 text-xs">
+                    <span class="text-xs text-gray-400">to</span>
+                    <input type="date" name="to" value="{{ $periodTo->format('Y-m-d') }}" max="{{ today()->format('Y-m-d') }}"
+                           class="h-8 rounded-lg border-gray-200 text-xs">
+                    <button class="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Show</button>
+                </form>
+            </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -33,7 +63,7 @@
             <div class="rounded-xl border border-gray-100 px-4 py-3">
                 <p class="text-2xl font-bold text-[var(--color-heading)]">{{ number_format($today['active_chats']) }}</p>
                 <p class="text-[11px] uppercase tracking-wide text-gray-400">Chats active</p>
-                <p class="mt-0.5 text-[11px] text-gray-400">said anything today</p>
+                <p class="mt-0.5 text-[11px] text-gray-400">said anything in this period</p>
             </div>
             <div class="rounded-xl border border-gray-100 px-4 py-3">
                 <p class="text-2xl font-bold text-[var(--color-heading)]">{{ number_format($today['messages_in']) }}</p>
@@ -54,7 +84,7 @@
                     <p class="flex items-baseline gap-1.5">
                         <span class="h-2 w-2 rounded-full {{ $dot }}"></span>
                         <span class="text-2xl font-bold {{ $fg }}">{{ number_format($todayQuality[$key]['today']) }}</span>
-                        <span class="text-[11px] {{ $fg }}">of today's</span>
+                        <span class="text-[11px] {{ $fg }}">of these</span>
                     </p>
                     <p class="mt-0.5 text-[11px] font-bold uppercase tracking-wide {{ $fg }}">{{ $label }}</p>
                     <p class="text-[11px] {{ $fg }}">{{ number_format($todayQuality[$key]['total']) }} in the whole inbox</p>
@@ -67,7 +97,7 @@
     <div class="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
          x-data="{ q: 'all' }">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
-            <h2 class="text-sm font-bold text-[var(--color-heading)]">Today's new conversations</h2>
+            <h2 class="text-sm font-bold text-[var(--color-heading)]">New conversations — {{ strtolower($periodLabel) }}</h2>
             <div class="flex flex-wrap items-center gap-1.5">
                 <button type="button" @click="q = 'all'" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
                         :class="q === 'all' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">All ({{ $todayChats->count() }})</button>
@@ -79,7 +109,7 @@
         </div>
 
         @if ($todayChats->isEmpty())
-            <p class="px-5 py-10 text-center text-sm text-gray-400">Nobody new has written today yet.</p>
+            <p class="px-5 py-10 text-center text-sm text-gray-400">Nobody new wrote in this period.</p>
         @else
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
