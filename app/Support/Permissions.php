@@ -36,7 +36,7 @@ class Permissions
         'owned' => 'Only records assigned to this person.',
         'added' => 'Only records this person created.',
         'both' => 'Records assigned to OR created by this person.',
-        'all' => "All records — from everyone.",
+        'all' => 'All records — from everyone.',
     ];
 
     /** The CRUD actions that support scoping (when the module has owner/creator columns). */
@@ -112,6 +112,9 @@ class Permissions
         // so support staff can look up "did that invoice go out?" without touching SMTP.
         'email' => ['label' => 'Email', 'group' => 'Support', 'actions' => ['view', 'configure', 'templates', 'queue', 'logs', 'analytics', 'rules', 'send']],
         'whatsapp' => ['label' => 'WhatsApp', 'group' => 'Support', 'actions' => ['view', 'reply', 'assign', 'activity', 'settings', 'connection', 'numbers', 'labels', 'webhook', 'quick_replies']],
+        // Razin AI — its own module, not a corner of WhatsApp Config: who may change what the
+        // assistant says to customers is a different question from who may edit a number.
+        'razin_ai' => ['label' => 'Razin AI', 'group' => 'Support', 'actions' => ['view', 'edit', 'faqs']],
         'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],
         // owner = 'id': the employee record IS the user, so "Owned" scope means their own (self) record.
         'employees' => ['label' => 'Employees', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'id'],
@@ -131,7 +134,7 @@ class Permissions
         'finance' => 'Payments', 'answer' => 'Answer', 'reply' => 'Reply', 'approve' => 'Approve',
         'create_group' => 'Create groups', 'assign' => 'Assign', 'settings' => 'Config page', 'publish' => 'Publish', 'quick_replies' => 'Quick Replies',
         'connection' => 'Connection Method', 'numbers' => 'WhatsApp Numbers', 'labels' => 'Labels', 'webhook' => 'Webhook',
-        'clients' => 'Client messages',
+        'clients' => 'Client messages', 'faqs' => 'FAQ shelf',
         // Invoice operations.
         'send' => 'Send', 'cancel' => 'Cancel', 'duplicate' => 'Duplicate', 'configure' => 'Configuration', 'bin' => 'Trash',
         'import_export' => 'Import / Export',

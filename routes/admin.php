@@ -135,13 +135,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:whatsapp.settings')->group(function () {
             $ws = WhatsappSettingController::class;
             Route::get('whatsapp-settings', [$ws, 'index'])->name('whatsapp-settings');   // open the Config page
+        });
+
+        // Razin AI has its own permissions — reading the assistant's settings, changing how it
+        // speaks, and editing the FAQ shelf are three different amounts of trust.
+        Route::group([], function () {
             $rai = RazinAiController::class;
-            Route::get('razin-ai', [$rai, 'index'])->name('razin-ai');
-            Route::post('razin-ai', [$rai, 'update'])->name('razin-ai.update');
-            Route::post('razin-ai/faqs', [$rai, 'storeFaq'])->name('razin-ai.faqs.store');
-            Route::put('razin-ai/faqs/{faq}', [$rai, 'updateFaq'])->whereNumber('faq')->name('razin-ai.faqs.update');
-            Route::patch('razin-ai/faqs/{faq}', [$rai, 'toggleFaq'])->whereNumber('faq')->name('razin-ai.faqs.toggle');
-            Route::delete('razin-ai/faqs/{faq}', [$rai, 'destroyFaq'])->whereNumber('faq')->name('razin-ai.faqs.destroy');
+            Route::middleware('permission:razin_ai.view')->get('razin-ai', [$rai, 'index'])->name('razin-ai');
+            Route::middleware('permission:razin_ai.edit')->post('razin-ai', [$rai, 'update'])->name('razin-ai.update');
+            Route::middleware('permission:razin_ai.faqs')->group(function () use ($rai) {
+                Route::post('razin-ai/faqs', [$rai, 'storeFaq'])->name('razin-ai.faqs.store');
+                Route::put('razin-ai/faqs/{faq}', [$rai, 'updateFaq'])->whereNumber('faq')->name('razin-ai.faqs.update');
+                Route::patch('razin-ai/faqs/{faq}', [$rai, 'toggleFaq'])->whereNumber('faq')->name('razin-ai.faqs.toggle');
+                Route::delete('razin-ai/faqs/{faq}', [$rai, 'destroyFaq'])->whereNumber('faq')->name('razin-ai.faqs.destroy');
+            });
         });
         // A stray GET to the numbers collection (typed URL / old bookmark) → the Config page, not a 405.
         Route::get('whatsapp-accounts', fn () => redirect()->route('admin.whatsapp-settings'))->name('whatsapp-accounts.index');

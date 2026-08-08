@@ -3,11 +3,24 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\Attendance;
+use App\Models\Currency;
 use App\Models\Department;
 use App\Models\Designation;
+use App\Models\EmployeeDocument;
+use App\Models\EmployeePayroll;
+use App\Models\EmployeeShift;
+use App\Models\Leave;
+use App\Models\Project;
+use App\Models\ProjectTask;
+use App\Models\ProjectTimeLog;
 use App\Models\Role;
+use App\Models\Ticket;
 use App\Models\User;
+use App\Support\Permissions;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -91,38 +104,38 @@ class StaffController extends Controller
     {
         return match ($tab) {
             'attendance' => [
-                'attendance' => \App\Models\Attendance::where('user_id', $staff->id)
+                'attendance' => Attendance::where('user_id', $staff->id)
                     ->orderByDesc('work_date')->paginate(20, ['*'], 'page')->withQueryString(),
                 'attendanceStats' => [
-                    'present' => \App\Models\Attendance::where('user_id', $staff->id)->whereIn('status', ['present', 'late'])->count(),
-                    'late' => \App\Models\Attendance::where('user_id', $staff->id)->where('status', 'late')->count(),
-                    'minutes' => (int) \App\Models\Attendance::where('user_id', $staff->id)->sum('worked_minutes'),
+                    'present' => Attendance::where('user_id', $staff->id)->whereIn('status', ['present', 'late'])->count(),
+                    'late' => Attendance::where('user_id', $staff->id)->where('status', 'late')->count(),
+                    'minutes' => (int) Attendance::where('user_id', $staff->id)->sum('worked_minutes'),
                 ],
             ],
-            'leaves' => ['leaves' => \App\Models\Leave::where('user_id', $staff->id)->latest('from_date')->paginate(20)->withQueryString()],
-            'tasks' => ['tasks' => \App\Models\ProjectTask::with('project:id,name')->where('assigned_to', $staff->id)
+            'leaves' => ['leaves' => Leave::where('user_id', $staff->id)->latest('from_date')->paginate(20)->withQueryString()],
+            'tasks' => ['tasks' => ProjectTask::with('project:id,name')->where('assigned_to', $staff->id)
                 ->orderByRaw('due_date is null')->orderBy('due_date')->paginate(20)->withQueryString()],
-            'projects' => ['projects' => \App\Models\Project::with('client:id,name')
+            'projects' => ['projects' => Project::with('client:id,name')
                 ->where(fn ($q) => $q->where('project_manager_id', $staff->id)
                     ->orWhereHas('members', fn ($m) => $m->where('user_id', $staff->id)))
                 ->withCount('allTasks')
                 ->orderByDesc('id')->paginate(20)->withQueryString()],
             'timesheet' => [
-                'timeLogs' => \App\Models\ProjectTimeLog::with('project:id,name', 'task:id,title')
+                'timeLogs' => ProjectTimeLog::with('project:id,name', 'task:id,title')
                     ->where('user_id', $staff->id)->orderByDesc('spent_on')->paginate(20)->withQueryString(),
-                'timeTotal' => (int) \App\Models\ProjectTimeLog::where('user_id', $staff->id)->sum('minutes'),
+                'timeTotal' => (int) ProjectTimeLog::where('user_id', $staff->id)->sum('minutes'),
             ],
-            'documents' => ['documents' => \App\Models\EmployeeDocument::with('uploader:id,name')
+            'documents' => ['documents' => EmployeeDocument::with('uploader:id,name')
                 ->where('user_id', $staff->id)->latest('id')->get()],
             'payroll' => [
-                'payrolls' => \App\Models\EmployeePayroll::where('user_id', $staff->id)->orderByDesc('period')->get(),
-                'currencies' => \App\Models\Currency::orderBy('code')->pluck('code')->all() ?: ['BDT', 'USD'],
+                'payrolls' => EmployeePayroll::where('user_id', $staff->id)->orderByDesc('period')->get(),
+                'currencies' => Currency::orderBy('code')->pluck('code')->all() ?: ['BDT', 'USD'],
             ],
-            'tickets' => ['tickets' => \App\Models\Ticket::with('client:id,name')
+            'tickets' => ['tickets' => Ticket::with('client:id,name')
                 ->where('assigned_to', $staff->id)->latest('id')->paginate(20)->withQueryString()],
-            'shifts' => ['shifts' => \App\Models\EmployeeShift::where('user_id', $staff->id)->orderByDesc('effective_from')->get()],
-            'permissions' => ['roles' => \App\Models\Role::orderBy('name')->get()],
-            'activity' => ['logs' => \App\Models\ActivityLog::where('user_id', $staff->id)->latest('id')->paginate(30)->withQueryString()],
+            'shifts' => ['shifts' => EmployeeShift::where('user_id', $staff->id)->orderByDesc('effective_from')->get()],
+            'permissions' => ['roles' => Role::orderBy('name')->get()],
+            'activity' => ['logs' => ActivityLog::where('user_id', $staff->id)->latest('id')->paginate(30)->withQueryString()],
             default => [],
         };
     }
@@ -134,7 +147,7 @@ class StaffController extends Controller
         abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
         $data = $request->validate([
             'title' => ['required', 'string', 'max:150'],
-            'category' => ['required', Rule::in(array_keys(\App\Models\EmployeeDocument::CATEGORIES))],
+            'category' => ['required', Rule::in(array_keys(EmployeeDocument::CATEGORIES))],
             'file' => ['required', 'file', 'max:10240'],
             'issued_on' => ['nullable', 'date'],
             'expires_on' => ['nullable', 'date'],
@@ -142,7 +155,7 @@ class StaffController extends Controller
         ]);
 
         $file = $request->file('file');
-        \App\Models\EmployeeDocument::create([
+        EmployeeDocument::create([
             'user_id' => $staff->id,
             'title' => $data['title'],
             'category' => $data['category'],
@@ -158,12 +171,12 @@ class StaffController extends Controller
         return back()->with('status', 'Document uploaded.');
     }
 
-    public function documentDestroy(Request $request, User $staff, \App\Models\EmployeeDocument $document)
+    public function documentDestroy(Request $request, User $staff, EmployeeDocument $document)
     {
         abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
         abort_if($document->user_id !== $staff->id, 404);
 
-        \Illuminate\Support\Facades\Storage::disk('public')->delete($document->path);
+        Storage::disk('public')->delete($document->path);
         $document->delete();
 
         return back()->with('status', 'Document removed.');
@@ -181,16 +194,16 @@ class StaffController extends Controller
             'bonus' => ['nullable', 'numeric', 'min:0'],
             'deduction' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'max:8'],
-            'status' => ['required', Rule::in(array_keys(\App\Models\EmployeePayroll::STATUSES))],
+            'status' => ['required', Rule::in(array_keys(EmployeePayroll::STATUSES))],
             'paid_on' => ['nullable', 'date'],
             'method' => ['nullable', 'string', 'max:60'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         // One payslip per month — re-submitting the same period updates it.
-        $period = \Illuminate\Support\Carbon::parse($data['period'])->startOfMonth();
-        $payroll = \App\Models\EmployeePayroll::where('user_id', $staff->id)->whereDate('period', $period)->first()
-            ?? new \App\Models\EmployeePayroll();
+        $period = Carbon::parse($data['period'])->startOfMonth();
+        $payroll = EmployeePayroll::where('user_id', $staff->id)->whereDate('period', $period)->first()
+            ?? new EmployeePayroll;
         $payroll->fill($data + ['allowance' => 0, 'bonus' => 0, 'deduction' => 0]);
         foreach (['allowance', 'bonus', 'deduction'] as $f) {
             $payroll->{$f} = $data[$f] ?? 0;
@@ -204,7 +217,7 @@ class StaffController extends Controller
         return back()->with('status', 'Payroll saved.');
     }
 
-    public function payrollDestroy(Request $request, User $staff, \App\Models\EmployeePayroll $payroll)
+    public function payrollDestroy(Request $request, User $staff, EmployeePayroll $payroll)
     {
         abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
         abort_if($payroll->user_id !== $staff->id, 404);
@@ -229,7 +242,7 @@ class StaffController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        \App\Models\EmployeeShift::create([
+        EmployeeShift::create([
             'user_id' => $staff->id,
             'name' => $data['name'],
             'starts_at' => $data['starts_at'],
@@ -244,7 +257,7 @@ class StaffController extends Controller
         return back()->with('status', 'Shift assigned.');
     }
 
-    public function shiftDestroy(Request $request, User $staff, \App\Models\EmployeeShift $shift)
+    public function shiftDestroy(Request $request, User $staff, EmployeeShift $shift)
     {
         abort_unless($request->user()->canAct('employees', 'edit', $staff), 403);
         abort_if($shift->user_id !== $staff->id, 404);
@@ -274,7 +287,7 @@ class StaffController extends Controller
         $data = $this->validated($request);
         $data['role'] = User::ROLE_STAFF;
         // Default new employees to the "Employee" role unless a role was explicitly chosen.
-        $data['role_id'] = $data['role_id'] ?: optional(\App\Models\Role::where('name', 'Employee')->first())->id;
+        $data['role_id'] = $data['role_id'] ?: optional(Role::where('name', 'Employee')->first())->id;
         $data['password'] = $request->input('password'); // hashed by cast
         if ($photo = $this->storePhoto($request)) {
             $data['photo'] = $photo;
@@ -454,13 +467,13 @@ class StaffController extends Controller
         // Store explicit per-user scope overrides. '' = inherit (skip). Others are scope keys.
         $override = [];
         foreach ((array) $request->input('override', []) as $key => $val) {
-            if ($val === '' || $val === null || ! in_array($key, \App\Support\Permissions::keys(), true)) {
+            if ($val === '' || $val === null || ! in_array($key, Permissions::keys(), true)) {
                 continue;
             }
             [$mod, $act] = explode('.', $key, 2);
-            $allowed = in_array($act, ['view', 'create', 'edit', 'delete'], true)
-                ? \App\Support\Permissions::scopesFor($mod, $act)
-                : ['none', 'all'];
+            // scopesFor() already knows which sections (a client's Projects, an invoice's Send…)
+            // take the owned/added ladder; hard-coding none/all here silently dropped those.
+            $allowed = Permissions::scopesFor($mod, $act);
             if (in_array($val, $allowed, true)) {
                 $override[$key] = $val;
             }

@@ -172,7 +172,7 @@
             ['label' => 'HR Settings', 'route' => 'admin.attendance.settings', 'active' => ['admin.attendance.settings', 'admin.attendance.devices'], 'perm' => 'attendance.settings', 'icon' => $ic['hr']],
             ['label' => 'Ticket Settings', 'route' => 'admin.tickets.settings', 'active' => 'admin.tickets.settings', 'perm' => 'tickets.settings', 'icon' => $ic['tickets']],
             ['label' => 'WhatsApp Config', 'route' => 'admin.whatsapp-settings', 'active' => 'admin.whatsapp-settings*', 'perm' => 'whatsapp.settings', 'icon' => $ic['whatsapp']],
-            ['label' => 'Razin AI', 'route' => 'admin.razin-ai', 'active' => 'admin.razin-ai*', 'perm' => 'whatsapp.settings', 'icon' => $ic['ai'] ?? $ic['whatsapp']],
+            ['label' => 'Razin AI', 'route' => 'admin.razin-ai', 'active' => 'admin.razin-ai*', 'perm' => 'razin_ai.view', 'icon' => $ic['ai'] ?? $ic['whatsapp']],
             ['label' => 'CodeCanyon Config', 'route' => 'admin.codecanyon-settings', 'active' => 'admin.codecanyon-settings*', 'perm' => 'codecanyon.settings', 'icon' => $ic['products']],
             ['label' => 'Booking Settings', 'route' => 'admin.meetings.settings', 'active' => 'admin.meetings.settings', 'perm' => 'meetings.settings', 'icon' => $ic['meeting']],
             ['label' => 'Currencies', 'route' => 'admin.currencies.index', 'active' => 'admin.currencies.*', 'perm' => 'invoices.view', 'icon' => $ic['currency']],
