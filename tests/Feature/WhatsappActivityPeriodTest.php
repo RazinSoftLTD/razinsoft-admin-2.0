@@ -195,10 +195,10 @@ class WhatsappActivityPeriodTest extends TestCase
 
         $config = $this->get('/admin/whatsapp-settings')->assertOk();
         $config->assertSee('WhatsApp Numbers')->assertSee('Webhook')->assertSee('QR Gateway');
-        $config->assertDontSee('Drag to reorder');            // the labels card is not here
+        $config->assertDontSee('Drag a row by its handle');   // the labels card is not here
 
         $labels = $this->get('/admin/whatsapp-settings?section=labels')->assertOk();
-        $labels->assertSee('Quick Replies')->assertSee('Drag to reorder');
+        $labels->assertSee('Quick Replies')->assertSee('Drag a row by its handle');
         $labels->assertDontSee('WhatsApp Numbers')->assertDontSee('QR Gateway');
 
         // An unknown section falls back to the configuration side.
