@@ -108,4 +108,22 @@ class WhatsappChatFlagsTest extends TestCase
 
         $this->assertSame([$this->older->id], collect($filtered)->pluck('id')->all());
     }
+
+    /** The inbox opens on one-to-one chats — the first paint already, not after a correction. */
+    public function test_the_inbox_opens_on_single_chats(): void
+    {
+        $group = WhatsappChat::create([
+            'account_id' => $this->account->id, 'wa_id' => '999@g.us',
+            'chat_type' => 'group', 'status' => 'open', 'name' => 'Team Group', 'last_message_at' => now(),
+        ]);
+        $lisa = $this->agent('single-default@example.com');
+
+        $page = $this->actingAs($lisa)->get(route('admin.whatsapp.index'))->assertOk();
+        $page->assertDontSee('Team Group');           // groups are not in the default view
+        $page->assertDontSee('>Blocked<', false);     // the Blocked chip is gone
+
+        // Asking for groups still works.
+        $groups = $this->getJson(route('admin.whatsapp.chats').'?type=group')->assertOk()->json('chats');
+        $this->assertSame([$group->id], collect($groups)->pluck('id')->all());
+    }
 }

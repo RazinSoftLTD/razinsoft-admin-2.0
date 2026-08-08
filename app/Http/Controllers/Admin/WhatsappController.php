@@ -28,6 +28,10 @@ class WhatsappController extends Controller
 {
     public function index(Request $request)
     {
+        // The inbox opens on one-to-one chats, so render that on the first paint too — otherwise
+        // the page shows every chat for a moment before the client narrows it.
+        $request->merge(['type' => $request->query('type', 'single')]);
+
         $accounts = WhatsappAccount::accessibleBy($request->user())->orderBy('position')->orderBy('id')->get();
         // Each employee can reorder the numbers themselves (drag & drop) — apply their saved order.
         if ($order = $request->user()->wa_number_order) {

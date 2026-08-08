@@ -952,7 +952,7 @@
                 // accepts an approved template and nothing else.
                 templateGate: false, templates: [], templateOpen: false, pickedTemplate: null, templateVars: [],
                 retryingId: null,
-                showInfo: false, search: '', filter: 'all',
+                showInfo: false, search: '', filter: 'single',
                 form: { name: '', phone: '', lead_quality: '', product_category: '', product_sub_category: '' }, savingDetails: false, uploadingAvatar: false, convertingLead: false, _chatReq: 0, nowTick: 0,
                 // What the form looked like when the chat was opened, so the Save button can appear
                 // only once something is genuinely different rather than sitting there always.
@@ -1008,11 +1008,10 @@
                 quickEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏'],
                 emojiList: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','💀','💩','👍','👎','👌','✌️','🤞','🤟','🤘','👈','👉','👆','👇','☝️','✋','🤚','🖐️','👋','🤙','💪','🙏','👏','🙌','👐','🤝','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💯','🔥','⭐','🎉','🎊','✅','❌','⚡','💡','📌','🚀'],
                 unreadCount: {{ $stats['unread'] }},
+                // Single first because it is what the inbox is mostly for; Unread carries its count.
                 filters: [
-                    { key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' },
                     { key: 'single', label: 'Single' }, { key: 'group', label: 'Group' },
-                    // The only way back to a blocked chat once it leaves the list.
-                    { key: 'blocked', label: 'Blocked' },
+                    { key: 'unread', label: 'Unread' }, { key: 'all', label: 'All' },
                 ],
                 chatMenu: { open: false, x: 0, y: 0, chat: null },
                 labelMenu: false, pickedLabels: [],
