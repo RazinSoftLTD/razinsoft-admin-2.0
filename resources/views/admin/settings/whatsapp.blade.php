@@ -365,7 +365,7 @@
             {{-- Quick replies are written once and shown wherever they belong: the numbers are a
                  choice on the reply, not a folder it lives in. --}}
             <div class="rounded-xl border border-gray-100 bg-white shadow-sm"
-                 x-data="{ adding: {{ $errors->any() && old('body') ? 'true' : 'false' }} }">
+                 x-data="{ adding: {{ $errors->any() && old('body') ? 'true' : 'false' }}, editing: null }">
                 <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
                     <div>
                         <div class="flex items-baseline gap-2">
@@ -389,15 +389,23 @@
                     <div x-show="adding" x-cloak class="border-b border-gray-100 bg-gray-50/70 p-5">
                         <form method="POST" action="{{ route('admin.whatsapp-settings.quick.store') }}" class="space-y-3">
                             @csrf
-                            <div class="grid gap-3 sm:grid-cols-4">
+                            <div class="flex flex-wrap items-end gap-3">
                                 <div>
                                     <label class="mb-1.5 block text-xs font-semibold text-gray-500">Shortcut</label>
-                                    <input type="text" name="shortcut" value="{{ old('shortcut') }}" placeholder="/hi" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                    <div class="flex h-10 items-center rounded-lg border border-gray-200 bg-white pl-2.5 focus-within:border-[var(--color-primary)]">
+                                        <span class="font-mono text-sm text-gray-400">/</span>
+                                        <input type="text" name="shortcut" value="{{ ltrim((string) old('shortcut'), '/') }}" placeholder="hi"
+                                               class="h-9 w-28 border-0 bg-transparent p-0 pl-0.5 font-mono text-sm focus:ring-0">
+                                    </div>
                                 </div>
-                                <div class="sm:col-span-3">
-                                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Message <span class="text-red-500">*</span></label>
-                                    <textarea name="body" required rows="2" placeholder="Hello! Thanks for reaching out…" class="w-full rounded-lg border-gray-200 text-sm">{{ old('body') }}</textarea>
-                                </div>
+                                <p class="pb-2.5 text-[11px] text-gray-400">Typed in the inbox to drop this message in.</p>
+                            </div>
+
+                            <div>
+                                <label class="mb-1.5 block text-xs font-semibold text-gray-500">Message <span class="text-red-500">*</span></label>
+                                <textarea name="body" required rows="4" placeholder="Hello! Thanks for reaching out to RazinSoft. How can we help you today?"
+                                          class="w-full rounded-xl border-gray-200 text-sm leading-relaxed focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                          style="resize:vertical">{{ old('body') }}</textarea>
                             </div>
 
                             <div>
@@ -425,25 +433,35 @@
 
                     <ul class="divide-y divide-gray-50">
                         @forelse ($quickReplies as $qr)
-                            <li x-data="{ edit: false }" class="px-5 py-3">
-                                <div x-show="!edit" class="flex items-start justify-between gap-3">
+                            <li class="px-5 py-4">
+                                {{-- Reading view: the message shown the way it will arrive, not squeezed
+                                     into a line of grey text. --}}
+                                <div x-show="editing !== {{ $qr->id }}" class="flex items-start gap-4">
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-1.5">
-                                            @if ($qr->shortcut)<span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-500">{{ $qr->shortcut }}</span>@endif
+                                            @if ($qr->shortcut)
+                                                <span class="rounded-md bg-[var(--color-primary-soft)] px-2 py-0.5 font-mono text-[11px] font-bold text-[var(--color-primary)]">{{ $qr->shortcut }}</span>
+                                            @else
+                                                <span class="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-400">no shortcut</span>
+                                            @endif
                                             @foreach ($qr->accounts as $on)
                                                 <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" style="background: {{ $on->color }}1a; color: {{ $on->color }}">{{ $on->name }}</span>
                                             @endforeach
                                         </div>
-                                        <p class="mt-1 whitespace-pre-line text-xs text-[var(--color-muted)]">{{ \Illuminate\Support\Str::limit($qr->body, 160) }}</p>
+
+                                        <div class="mt-2 max-w-2xl rounded-xl border border-gray-100 px-3.5 py-2.5" style="background:#e7ffdb;border-top-left-radius:.25rem">
+                                            <p class="whitespace-pre-line text-sm leading-relaxed text-[var(--color-heading)]">{{ $qr->body }}</p>
+                                        </div>
                                     </div>
+
                                     @if ($canQuick)
                                         <div class="flex shrink-0 items-center gap-1">
-                                            <button type="button" @click="edit = true" title="Edit" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                            <button type="button" @click="editing = {{ $qr->id }}" title="Edit" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
                                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                             </button>
-                                            <form method="POST" action="{{ route('admin.whatsapp-settings.quick.destroy', $qr) }}" onsubmit="return confirm('Delete this quick reply?')">
+                                            <form method="POST" action="{{ route('admin.whatsapp-settings.quick.destroy', $qr) }}" onsubmit="return confirm('Delete “{{ $qr->shortcut ?: 'this quick reply' }}”?')">
                                                 @csrf @method('DELETE')
-                                                <button title="Delete" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
+                                                <button title="Delete" class="grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
                                                 </button>
                                             </form>
@@ -452,18 +470,28 @@
                                 </div>
 
                                 @if ($canQuick)
-                                    <form x-show="edit" x-cloak method="POST" action="{{ route('admin.whatsapp-settings.quick.update', $qr) }}" class="space-y-3">
+                                    <form x-show="editing === {{ $qr->id }}" x-cloak method="POST" action="{{ route('admin.whatsapp-settings.quick.update', $qr) }}" class="space-y-3">
                                         @csrf @method('PUT')
-                                        <div class="grid gap-3 sm:grid-cols-4">
+
+                                        <div class="flex flex-wrap items-end gap-3">
                                             <div>
                                                 <label class="mb-1.5 block text-xs font-semibold text-gray-500">Shortcut</label>
-                                                <input type="text" name="shortcut" value="{{ $qr->shortcut }}" placeholder="/hi" class="h-9 w-full rounded-lg border-gray-200 text-sm">
+                                                <div class="flex h-10 items-center rounded-lg border border-gray-200 bg-white pl-2.5 focus-within:border-[var(--color-primary)]">
+                                                    <span class="font-mono text-sm text-gray-400">/</span>
+                                                    <input type="text" name="shortcut" value="{{ ltrim((string) $qr->shortcut, '/') }}" placeholder="hi"
+                                                           class="h-9 w-28 border-0 bg-transparent p-0 pl-0.5 font-mono text-sm focus:ring-0">
+                                                </div>
                                             </div>
-                                            <div class="sm:col-span-3">
-                                                <label class="mb-1.5 block text-xs font-semibold text-gray-500">Message</label>
-                                                <textarea name="body" required rows="2" class="w-full rounded-lg border-gray-200 text-sm">{{ $qr->body }}</textarea>
-                                            </div>
+                                            <p class="pb-2.5 text-[11px] text-gray-400">Typed in the inbox to drop this message in.</p>
                                         </div>
+
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-semibold text-gray-500">Message</label>
+                                            <textarea name="body" required rows="4"
+                                                      class="w-full rounded-xl border-gray-200 text-sm leading-relaxed focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                                      style="resize:vertical">{{ $qr->body }}</textarea>
+                                        </div>
+
                                         <div>
                                             <label class="mb-1.5 block text-xs font-semibold text-gray-500">Show it on</label>
                                             <div class="flex flex-wrap gap-1.5">
@@ -475,15 +503,16 @@
                                                 @endforeach
                                             </div>
                                         </div>
+
                                         <div class="flex gap-2">
-                                            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-xs font-semibold text-white">Save</button>
-                                            <button type="button" @click="edit = false" class="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-500">Cancel</button>
+                                            <button class="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save changes</button>
+                                            <button type="button" @click="editing = null" class="rounded-lg border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
                                         </div>
                                     </form>
                                 @endif
                             </li>
                         @empty
-                            <li class="px-5 py-8 text-center text-xs text-gray-400">No quick replies yet — add the first one above.</li>
+                            <li class="px-5 py-10 text-center text-xs text-gray-400">No quick replies yet — add the first one above.</li>
                         @endforelse
                     </ul>
                 @endif

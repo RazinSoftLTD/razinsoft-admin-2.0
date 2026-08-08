@@ -258,6 +258,14 @@ class WhatsappSettingController extends Controller
 
     // ---- quick replies ----
 
+    /** A shortcut is stored with its slash, however it was typed. */
+    private function normaliseShortcut(?string $raw): ?string
+    {
+        $raw = trim((string) $raw);
+
+        return $raw === '' ? null : '/'.ltrim($raw, '/');
+    }
+
     /** The numbers this user picked, kept to the ones they may actually manage. */
     private function pickedQuickAccounts(Request $request, array $ids): array
     {
@@ -281,7 +289,7 @@ class WhatsappSettingController extends Controller
         $picked = $this->pickedQuickAccounts($request, $data['account_ids']);
 
         $reply = WhatsappQuickReply::create([
-            'shortcut' => $data['shortcut'] ?? null,
+            'shortcut' => $this->normaliseShortcut($data['shortcut'] ?? null),
             'body' => $data['body'],
             'account_id' => $picked[0],   // the first stays on the row, for anything still reading it
         ]);
@@ -304,7 +312,7 @@ class WhatsappSettingController extends Controller
         $picked = $this->pickedQuickAccounts($request, $data['account_ids']);
 
         $quickReply->update([
-            'shortcut' => $data['shortcut'] ?? null,
+            'shortcut' => $this->normaliseShortcut($data['shortcut'] ?? null),
             'body' => $data['body'],
             'account_id' => $picked[0],
         ]);

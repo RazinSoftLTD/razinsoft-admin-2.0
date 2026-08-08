@@ -87,4 +87,21 @@ class WhatsappQuickReplyTest extends TestCase
 
         $this->assertDatabaseMissing('whatsapp_quick_replies', ['shortcut' => '/z']);
     }
+
+    /** The field shows the slash as a prefix, so it is added back on the way in. */
+    public function test_a_shortcut_is_stored_with_its_slash(): void
+    {
+        $this->actingAs($this->agent())->post(route('admin.whatsapp-settings.quick.store'), [
+            'shortcut' => 'ping', 'body' => 'Still here?', 'account_ids' => [$this->sales->id],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('whatsapp_quick_replies', ['shortcut' => '/ping']);
+
+        // Typing it with a slash is the same thing, not "//ping".
+        $this->actingAs($this->agent())->post(route('admin.whatsapp-settings.quick.store'), [
+            'shortcut' => '/pong', 'body' => 'Here', 'account_ids' => [$this->sales->id],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('whatsapp_quick_replies', ['shortcut' => '/pong']);
+    }
 }
