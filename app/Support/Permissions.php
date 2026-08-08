@@ -65,11 +65,11 @@ class Permissions
         // Follow-ups: view scope = owned (assigned sales exec) vs all (manager/admin). `complete`
         // covers Mark Done + Schedule Next; edit/delete apply to pending follow-ups only.
         'follow_ups' => ['label' => 'Follow-ups', 'group' => 'CRM', 'actions' => ['view', 'create', 'complete', 'edit', 'delete'], 'owner' => 'user_id', 'creator' => 'created_by'],
-        'deals' => ['label' => 'Deals', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'assigned_to'],
+        'deals' => ['label' => 'Deals', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],
         // clients: view/create/edit/delete are the base CRUD (scoped via account_manager_id
         // = owned / created_by = added). Profile rides on view; the other section actions each
         // gate the matching detail-page tab and are individually scopable (owned/added/all).
-        'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'import_export', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets', 'private'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
+        'clients' => ['label' => 'Clients', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete', 'import_export', 'projects', 'invoices', 'payments', 'documents', 'notes', 'tickets', 'private', 'settings'], 'owner' => 'account_manager_id', 'creator' => 'created_by'],
         'analytics' => ['label' => 'Analytics', 'group' => 'CRM', 'actions' => ['view']],
         // Activity logs — each page is its own toggle (Employee actions, Client visits, Blogs & Products reports).
         'activity' => ['label' => 'Activity Logs', 'group' => 'Activity', 'actions' => ['employee', 'client', 'blogs', 'products', 'cart']],
@@ -115,6 +115,9 @@ class Permissions
         // Razin AI — its own module, not a corner of WhatsApp Config: who may change what the
         // assistant says to customers is a different question from who may edit a number.
         'razin_ai' => ['label' => 'Razin AI', 'group' => 'Support', 'actions' => ['view', 'edit', 'faqs']],
+        // The shared product catalogue behind Leads, Deals and Clients. Its own module because
+        // renaming a category rewrites what every one of those records says it is about.
+        'product_categories' => ['label' => 'Product Categories', 'group' => 'CRM', 'actions' => ['view', 'create', 'edit', 'delete']],
         'meetings' => ['label' => 'Meetings', 'group' => 'Booking', 'actions' => ['view', 'assign', 'edit', 'delete', 'settings'], 'owner' => 'assigned_to'],
         // owner = 'id': the employee record IS the user, so "Owned" scope means their own (self) record.
         'employees' => ['label' => 'Employees', 'group' => 'HR', 'actions' => ['view', 'create', 'edit', 'delete'], 'owner' => 'id'],

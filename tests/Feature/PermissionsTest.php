@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ClientInvoice;
+use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -159,5 +160,36 @@ class PermissionsTest extends TestCase
         ]])->assertRedirect();
 
         $this->assertSame(['clients.projects' => 'owned', 'razin_ai.view' => 'all'], $staff->fresh()->permissions);
+    }
+
+    /** CRM settings is four sections in one page — each tab is now its own permission. */
+    public function test_crm_settings_tabs_are_separately_gated(): void
+    {
+        $staff = User::create(['name' => 'S', 'email' => 'crm1@test.local', 'password' => 'password', 'role' => 'staff',
+            'permissions' => ['product_categories.view' => 'all', 'product_categories.create' => 'all']]);
+        $this->actingAs($staff);
+
+        // The page opens on the strength of the one tab they hold…
+        $res = $this->get('/admin/crm-settings')->assertOk();
+        $res->assertSee('Product Categories');
+        $res->assertDontSee('Lead Sources');          // …and the Leads tab is not rendered at all.
+
+        // They may add a category, but not touch the lead option lists or client labels.
+        $this->post('/admin/crm-settings/product-categories', ['name' => 'Hardware'])->assertRedirect();
+        $this->assertDatabaseHas('product_categories', ['name' => 'Hardware']);
+        $this->post('/admin/crm-settings/options', ['type' => 'source', 'name' => 'Facebook'])->assertForbidden();
+        $this->post('/admin/crm-settings/client-labels', ['name' => 'Gold'])->assertForbidden();
+
+        // Renaming and removing are their own permissions again.
+        $cat = ProductCategory::where('name', 'Hardware')->first();
+        $this->patch("/admin/crm-settings/product-categories/{$cat->id}", ['name' => 'Devices'])->assertForbidden();
+        $this->delete("/admin/crm-settings/product-categories/{$cat->id}")->assertForbidden();
+    }
+
+    /** Nobody holding none of the four gets in at all. */
+    public function test_crm_settings_is_closed_without_any_of_its_permissions(): void
+    {
+        $staff = User::create(['name' => 'S', 'email' => 'crm2@test.local', 'password' => 'password', 'role' => 'staff', 'permissions' => ['leads.view' => 'all']]);
+        $this->actingAs($staff)->get('/admin/crm-settings')->assertForbidden();
     }
 }

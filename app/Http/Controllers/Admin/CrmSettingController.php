@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ClientLabel;
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Models\LeadOption;
+use App\Models\ProductCategory;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -22,11 +25,34 @@ class CrmSettingController extends Controller
             'stages' => LeadOption::ofType('deal_stage')->get(),
             'clientLabels' => ClientLabel::ordered(),
             'labelColors' => array_keys(ClientLabel::COLORS),
-            'productCategories' => \App\Models\ProductCategory::tree(),
+            'productCategories' => ProductCategory::tree(),
         ]);
     }
 
     // ===== Product categories / sub-categories (shared by Leads, Deals and Clients) =====
+
+    /**
+     * Answer the way the caller asked.
+     *
+     * The catalogue tab talks over fetch so adding ten sub-categories is ten keystrokes and no
+     * page reloads — a plain redirect there threw the whole page away, landing back on the first
+     * tab with the cursor gone. A normal form post still gets its redirect.
+     */
+    private function categoryReply(Request $request, ?string $error, string $ok)
+    {
+        if ($request->expectsJson()) {
+            return $error
+                ? response()->json(['message' => $error], 422)
+                : response()->json(['message' => $ok, 'categories' => ProductCategory::tree()
+                    ->map(fn ($c) => [
+                        'id' => $c->id,
+                        'name' => $c->name,
+                        'children' => $c->children->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values(),
+                    ])->values()]);
+        }
+
+        return $error ? back()->with('error', $error) : back()->with('status', $ok);
+    }
 
     public function storeProductCategory(Request $request)
     {
@@ -36,31 +62,31 @@ class CrmSettingController extends Controller
         ]);
 
         // A sub-category may only hang off a top-level category — no deeper nesting.
-        $parent = ! empty($data['parent_id']) ? \App\Models\ProductCategory::find($data['parent_id']) : null;
+        $parent = ! empty($data['parent_id']) ? ProductCategory::find($data['parent_id']) : null;
         if ($parent && $parent->parent_id) {
-            return back()->with('error', 'Sub-categories cannot be nested further.');
+            return $this->categoryReply($request, 'Sub-categories cannot be nested further.', '');
         }
 
         if ($this->duplicateCategory($data['name'], $parent?->id)) {
-            return back()->with('error', 'That name already exists here.');
+            return $this->categoryReply($request, 'That name already exists here.', '');
         }
 
-        \App\Models\ProductCategory::create([
+        ProductCategory::create([
             'parent_id' => $parent?->id,
             'name' => trim($data['name']),
-            'sort_order' => (int) \App\Models\ProductCategory::where('parent_id', $parent?->id)->max('sort_order') + 1,
+            'sort_order' => (int) ProductCategory::where('parent_id', $parent?->id)->max('sort_order') + 1,
         ]);
 
-        return back()->with('status', $parent ? 'Sub-category added.' : 'Product category added.');
+        return $this->categoryReply($request, null, $parent ? 'Sub-category added.' : 'Product category added.');
     }
 
-    public function updateProductCategory(Request $request, \App\Models\ProductCategory $productCategory)
+    public function updateProductCategory(Request $request, ProductCategory $productCategory)
     {
         $data = $request->validate(['name' => ['required', 'string', 'max:80']]);
         $name = trim($data['name']);
 
         if ($this->duplicateCategory($name, $productCategory->parent_id, $productCategory->id)) {
-            return back()->with('error', 'Another entry here already has that name.');
+            return $this->categoryReply($request, 'Another entry here already has that name.', '');
         }
 
         // Records store the name, so a rename has to follow through everywhere it is used.
@@ -71,26 +97,26 @@ class CrmSettingController extends Controller
 
         $productCategory->update(['name' => $name]);
 
-        return back()->with('status', 'Updated.');
+        return $this->categoryReply($request, null, 'Updated.');
     }
 
-    public function destroyProductCategory(\App\Models\ProductCategory $productCategory)
+    public function destroyProductCategory(Request $request, ProductCategory $productCategory)
     {
         if ($productCategory->children()->exists()) {
-            return back()->with('error', 'Remove its sub-categories first.');
+            return $this->categoryReply($request, 'Remove its sub-categories first.', '');
         }
 
         $productCategory->delete();
 
-        return back()->with('status', 'Removed. Records already using it keep the old value.');
+        return $this->categoryReply($request, null, 'Removed. Records already using it keep the old value.');
     }
 
     /** Keep leads / deals / clients pointing at a renamed category or sub-category. */
     private function renameEverywhere(string $old, string $new, string $which): void
     {
         $map = $which === 'cat'
-            ? [\App\Models\Lead::class => 'product_category', Deal::class => 'product_category', \App\Models\User::class => 'client_category']
-            : [\App\Models\Lead::class => 'product_sub_category', Deal::class => 'product_sub_category', \App\Models\User::class => 'client_sub_category'];
+            ? [Lead::class => 'product_category', Deal::class => 'product_category', User::class => 'client_category']
+            : [Lead::class => 'product_sub_category', Deal::class => 'product_sub_category', User::class => 'client_sub_category'];
 
         foreach ($map as $model => $column) {
             $model::where($column, $old)->update([$column => $new]);
@@ -99,7 +125,7 @@ class CrmSettingController extends Controller
 
     private function duplicateCategory(string $name, ?int $parentId, ?int $ignoreId = null): bool
     {
-        return \App\Models\ProductCategory::where('parent_id', $parentId)
+        return ProductCategory::where('parent_id', $parentId)
             ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])
             ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
             ->exists();
@@ -132,7 +158,7 @@ class CrmSettingController extends Controller
         ]);
         // Keep clients tagged with the old name in sync when it's renamed.
         if ($clientLabel->name !== $data['name']) {
-            \App\Models\User::where('client_label', $clientLabel->name)->update(['client_label' => $data['name']]);
+            User::where('client_label', $clientLabel->name)->update(['client_label' => $data['name']]);
         }
         $clientLabel->update(['name' => trim($data['name']), 'description' => $data['description'] ?? null, 'color' => $data['color'] ?? $clientLabel->color]);
 

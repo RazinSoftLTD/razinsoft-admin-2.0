@@ -505,19 +505,28 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::patch('tickets/{ticket}/status', [TicketController::class, 'updateStatus'])->whereNumber('ticket')->name('tickets.status');
             Route::patch('tickets/{ticket}/assign', [TicketController::class, 'assign'])->whereNumber('ticket')->name('tickets.assign');
         });
-        // CRM settings — configurable lead sources & departments.
+        // CRM settings — one page, four tabs, and each tab is its own permission: the lists
+        // behind Leads, behind the Deals pipeline, the client labels, and the shared product
+        // catalogue are different amounts of trust. The page itself opens for anyone holding
+        // at least one of them, and shows only the tabs they hold.
+        Route::middleware('permission_any:leads.settings,deals.settings,clients.settings,product_categories.view')
+            ->get('crm-settings', [CrmSettingController::class, 'index'])->name('crm-settings');
+
         Route::middleware('permission:leads.settings')->group(function () {
-            Route::get('crm-settings', [CrmSettingController::class, 'index'])->name('crm-settings');
             Route::post('crm-settings/options', [CrmSettingController::class, 'storeOption'])->name('crm-settings.options.store');
             Route::patch('crm-settings/options/{option}', [CrmSettingController::class, 'updateOption'])->whereNumber('option')->name('crm-settings.options.update');
             Route::delete('crm-settings/options/{option}', [CrmSettingController::class, 'destroyOption'])->whereNumber('option')->name('crm-settings.options.destroy');
+        });
+
+        Route::middleware('permission:clients.settings')->group(function () {
             Route::post('crm-settings/client-labels', [CrmSettingController::class, 'storeClientLabel'])->name('crm-settings.client-labels.store');
             Route::patch('crm-settings/client-labels/{clientLabel}', [CrmSettingController::class, 'updateClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.update');
             Route::delete('crm-settings/client-labels/{clientLabel}', [CrmSettingController::class, 'destroyClientLabel'])->whereNumber('clientLabel')->name('crm-settings.client-labels.destroy');
-            Route::post('crm-settings/product-categories', [CrmSettingController::class, 'storeProductCategory'])->name('crm-settings.product-categories.store');
-            Route::patch('crm-settings/product-categories/{productCategory}', [CrmSettingController::class, 'updateProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.update');
-            Route::delete('crm-settings/product-categories/{productCategory}', [CrmSettingController::class, 'destroyProductCategory'])->whereNumber('productCategory')->name('crm-settings.product-categories.destroy');
         });
+
+        Route::post('crm-settings/product-categories', [CrmSettingController::class, 'storeProductCategory'])->middleware('permission:product_categories.create')->name('crm-settings.product-categories.store');
+        Route::patch('crm-settings/product-categories/{productCategory}', [CrmSettingController::class, 'updateProductCategory'])->whereNumber('productCategory')->middleware('permission:product_categories.edit')->name('crm-settings.product-categories.update');
+        Route::delete('crm-settings/product-categories/{productCategory}', [CrmSettingController::class, 'destroyProductCategory'])->whereNumber('productCategory')->middleware('permission:product_categories.delete')->name('crm-settings.product-categories.destroy');
 
         // Ticket settings (agents, types, reply templates) — separate, admin/manager-level gate.
         Route::middleware('permission:tickets.settings')->group(function () {

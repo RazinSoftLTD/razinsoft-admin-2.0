@@ -1,9 +1,16 @@
 <?php
 
+use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureAnyPermission;
+use App\Http\Middleware\EnsureClientActive;
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsureStaff;
+use App\Http\Middleware\LogActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,7 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         then: function (): void {
-            Illuminate\Support\Facades\Route::middleware('web')->group(__DIR__.'/../routes/admin.php');
+            Route::middleware('web')->group(__DIR__.'/../routes/admin.php');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -26,11 +33,12 @@ return Application::configure(basePath: dirname(__DIR__))
             | Request::HEADER_X_FORWARDED_AWS_ELB);
 
         $middleware->alias([
-            'admin' => App\Http\Middleware\EnsureAdmin::class,
-            'staff' => App\Http\Middleware\EnsureStaff::class,
-            'permission' => App\Http\Middleware\EnsurePermission::class,
-            'client.active' => App\Http\Middleware\EnsureClientActive::class,
-            'log.activity' => App\Http\Middleware\LogActivity::class,
+            'admin' => EnsureAdmin::class,
+            'staff' => EnsureStaff::class,
+            'permission' => EnsurePermission::class,
+            'permission_any' => EnsureAnyPermission::class,
+            'client.active' => EnsureClientActive::class,
+            'log.activity' => LogActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
