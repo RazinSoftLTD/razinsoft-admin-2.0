@@ -140,7 +140,7 @@ class WhatsappActivityPeriodTest extends TestCase
 
         // The short-link page is the third tab, and every tab links to the others.
         $button = $this->get('/admin/whatsapp-links')->assertOk();
-        $button->assertSee('Wp ShortLink')->assertSee('Create a link');
+        $button->assertSee('Wp ShortLink')->assertSee('Generate Wp Link');
         $button->assertSee(route('admin.whatsapp-activity', []), false);
         $report->assertSee(route('admin.whatsapp-links'), false);
 
