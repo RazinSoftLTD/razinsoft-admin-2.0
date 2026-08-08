@@ -1,0 +1,167 @@
+<!-- LOCAL PREVIEW ONLY — the real widget is a Nuxt component (phase 2). This page exists so the
+     visitor's side can be tried against the local API before that is built. Not for production. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Website chat — local preview</title>
+<style>
+  :root { --brand:#1d4ed8; --brand-dark:#1e40af; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:#f5f6fb; min-height:100vh; }
+  .page { padding: 40px 24px; color:#475569; }
+  .page h1 { color:#0f172a; font-size: 20px; margin: 0 0 6px; }
+
+  .launcher { position: fixed; right: 24px; bottom: 24px; width: 60px; height: 60px; border-radius: 999px;
+    background: var(--brand); color:#fff; border:0; cursor:pointer; box-shadow: 0 10px 30px rgba(29,78,216,.35);
+    display:grid; place-items:center; font-size: 24px; }
+  .launcher::after { content:''; position:absolute; right:4px; bottom:4px; width:14px; height:14px; border-radius:999px; background:#22c55e; border:2px solid #fff; }
+
+  .panel { position: fixed; right: 24px; bottom: 96px; width: 380px; max-width: calc(100vw - 32px);
+    height: 560px; max-height: calc(100vh - 130px); background:#fff; border-radius: 18px; overflow:hidden;
+    box-shadow: 0 24px 60px rgba(15,23,42,.22); display:none; flex-direction:column; }
+  .panel.open { display:flex; }
+
+  .head { background: var(--brand); color:#fff; padding: 16px 18px; display:flex; align-items:center; gap:12px; }
+  .head .logo { width:40px; height:40px; border-radius:12px; background:#fff; color:var(--brand); display:grid; place-items:center; font-weight:800; }
+  .head h2 { margin:0; font-size:15px; font-weight:700; }
+  .head p { margin:2px 0 0; font-size:11px; opacity:.9; display:flex; align-items:center; gap:5px; }
+  .head p i { width:7px; height:7px; border-radius:999px; background:#4ade80; display:inline-block; }
+
+  .body { flex:1; overflow-y:auto; padding: 16px; background:#f8fafc; }
+  .msg { max-width: 82%; padding: 10px 13px; border-radius: 14px; font-size: 13.5px; line-height:1.5; white-space: pre-line; margin-bottom: 8px; }
+  .in { background:#eef2ff; color:#1e293b; margin-left:auto; border-bottom-right-radius:4px; }
+  .out { background:#fff; color:#0f172a; border:1px solid #e2e8f0; border-bottom-left-radius:4px; }
+  .meta { font-size:10px; color:#94a3b8; margin: -4px 0 10px; }
+  .meta.right { text-align:right; }
+
+  .opts { display:grid; gap:8px; margin-top: 6px; }
+  .opt { display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:#fff; border:1px solid #e2e8f0;
+    border-radius:12px; padding:11px 13px; font-size:13.5px; color:#1e293b; cursor:pointer; }
+  .opt:hover { border-color: var(--brand); color: var(--brand); }
+  .opt span.i { width:26px; height:26px; border-radius:8px; background:#eef2ff; display:grid; place-items:center; font-size:14px; }
+  .opt span.chev { margin-left:auto; color:#cbd5e1; }
+
+  .foot { border-top:1px solid #e2e8f0; padding: 10px 12px; background:#fff; }
+  .row { display:flex; align-items:center; gap:8px; border:1px solid #e2e8f0; border-radius:999px; padding: 6px 6px 6px 14px; }
+  .row input { flex:1; border:0; outline:0; font-size:13.5px; }
+  .row button { width:36px; height:36px; border-radius:999px; background:var(--brand); color:#fff; border:0; cursor:pointer; }
+  .note { text-align:center; font-size:10.5px; color:#94a3b8; margin: 8px 0 2px; }
+</style>
+
+<div class="page">
+  <h1>Website chat — local preview</h1>
+  <p>This stands in for the real widget while it is being built. It talks to the same API the panel reads.</p>
+  <p><strong>Try it:</strong> tap the blue button, pick a menu option or type something, then watch it arrive in
+     <em>Communication › Website Chat</em> — and reply from there to see it land back here.</p>
+</div>
+
+<button class="launcher" onclick="toggle()">💬</button>
+
+<div class="panel" id="panel">
+  <div class="head">
+    <div class="logo">R</div>
+    <div>
+      <h2 id="title">RazinSoft AI Support</h2>
+      <p><i></i> Online</p>
+    </div>
+  </div>
+
+  <div class="body" id="body"></div>
+
+  <div class="foot">
+    <form class="row" onsubmit="event.preventDefault(); send()">
+      <input id="input" placeholder="Type your message…" autocomplete="off">
+      <button type="submit">➤</button>
+    </form>
+    <p class="note" id="note">We typically reply in a few minutes 💙</p>
+  </div>
+</div>
+
+<script>
+const API = '/api/site-chat';
+let token = localStorage.getItem('site_chat_token');
+let lastId = 0;
+let options = [];
+
+const el = (id) => document.getElementById(id);
+const toggle = () => el('panel').classList.toggle('open');
+
+function bubble(m) {
+  const wrap = document.createElement('div');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (m.direction === 'in' ? 'in' : 'out');
+  div.textContent = m.body || '';
+  wrap.appendChild(div);
+  const meta = document.createElement('p');
+  meta.className = 'meta' + (m.direction === 'in' ? ' right' : '');
+  meta.textContent = [m.time, m.agent, m.ai ? 'AI' : null].filter(Boolean).join(' · ');
+  wrap.appendChild(meta);
+  el('body').appendChild(wrap);
+  if (m.id > lastId) lastId = m.id;
+  el('body').scrollTop = el('body').scrollHeight;
+}
+
+function drawOptions() {
+  if (!options.length) return;
+  const box = document.createElement('div');
+  box.className = 'opts';
+  options.forEach((o) => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = `<span class="i">${o.emoji || '💬'}</span><span>${o.label}</span><span class="chev">›</span>`;
+    b.onclick = () => pick(o.id, box);
+    box.appendChild(b);
+  });
+  el('body').appendChild(box);
+  el('body').scrollTop = el('body').scrollHeight;
+}
+
+async function start() {
+  const r = await fetch(API + '/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ token, page_url: location.href }),
+  });
+  const d = await r.json();
+  token = d.token;
+  localStorage.setItem('site_chat_token', token);
+  options = d.options || [];
+  el('title').textContent = d.settings.title;
+  el('note').textContent = d.settings.note;
+  el('input').placeholder = d.settings.placeholder;
+
+  bubble({ direction: 'out', body: d.settings.welcome, time: '' });
+  (d.messages || []).forEach(bubble);
+  if (!(d.messages || []).length) drawOptions();
+
+  setInterval(poll, 3000);
+}
+
+async function poll() {
+  const r = await fetch(`${API}/poll?token=${token}&since=${lastId}`, { headers: { 'Accept': 'application/json' } });
+  const d = await r.json();
+  (d.messages || []).forEach(bubble);
+}
+
+async function send() {
+  const body = el('input').value.trim();
+  if (!body) return;
+  el('input').value = '';
+  const r = await fetch(API + '/send', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ token, body }),
+  });
+  const d = await r.json();
+  bubble(d.message);
+}
+
+async function pick(id, box) {
+  box.remove();
+  const r = await fetch(API + '/option', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ token, option_id: id }),
+  });
+  const d = await r.json();
+  (d.messages || []).forEach(bubble);
+}
+
+start();
+</script>

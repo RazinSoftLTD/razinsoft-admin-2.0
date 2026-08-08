@@ -28,6 +28,7 @@ class AiReplyService
             'system_prompt' => 'You are the assistant for RazinSoft, a software company selling ready-made business software (eCommerce, POS, LMS, ride sharing), domains, hosting and custom development. Answer briefly and helpfully in the language the customer writes in. If you do not know something, say the team will follow up — never invent prices or promises.',
             'max_replies_per_chat_per_day' => 20,
             'test_numbers' => '',                 // comma-separated; these always get an answer
+            'site_chat' => true,                  // answer the website chat widget too
         ];
     }
 

@@ -9,6 +9,7 @@ use App\Models\SiteChatMessage;
 use App\Models\SiteChatOption;
 use App\Models\User;
 use App\Models\WhatsappSetting;
+use App\Services\SiteChatAutoReplyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -76,6 +77,7 @@ class SiteChatController extends Controller
         abort_unless($chat, 404);
 
         $message = $this->store($chat, 'in', $data['body']);
+        $this->letTheAssistantAnswer($chat, $message);
 
         return response()->json(['message' => $this->messagePayload($message)]);
     }
@@ -100,6 +102,10 @@ class SiteChatController extends Controller
         $answer = null;
         if (filled($option->reply)) {
             $answer = $this->store($chat, 'out', $option->reply, 'text', ['ai_generated' => true, 'ai_source' => 'option']);
+        } else {
+            // "Talk to a Support Agent" and friends: nothing canned to say, so either the
+            // assistant answers or the team picks it up.
+            $this->letTheAssistantAnswer($chat, $asked);
         }
 
         return response()->json([
@@ -136,6 +142,30 @@ class SiteChatController extends Controller
         $chat->save();
 
         return response()->json(['chat' => $this->chatPayload($chat->fresh())]);
+    }
+
+    /**
+     * Hand the message to Razin AI after the response is sent.
+     *
+     * The visitor's widget polls, so an answer a second later still feels immediate — and a slow
+     * or failing model must never hold up (or break) the message they just sent.
+     */
+    private function letTheAssistantAnswer(SiteChat $chat, SiteChatMessage $incoming): void
+    {
+        $chatId = $chat->id;
+        $messageId = $incoming->id;
+
+        app()->terminating(function () use ($chatId, $messageId) {
+            try {
+                $chat = SiteChat::find($chatId);
+                $message = SiteChatMessage::find($messageId);
+                if ($chat && $message) {
+                    app(SiteChatAutoReplyService::class)->maybeReply($chat, $message);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
     }
 
     // ---------------------------------------------------------------- internals
