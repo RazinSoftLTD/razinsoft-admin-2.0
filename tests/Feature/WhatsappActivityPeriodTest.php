@@ -105,4 +105,20 @@ class WhatsappActivityPeriodTest extends TestCase
         $this->actingAs($this->admin())->get('/admin/whatsapp-activity')->assertOk()
             ->assertSee("admin/whatsapp?account={$chat->account_id}&amp;chat={$chat->id}", false);
     }
+
+    /** Page size is the reader's choice, and a silly one falls back rather than breaking. */
+    public function test_the_page_size_can_be_changed(): void
+    {
+        foreach (range(1, 25) as $i) {
+            $this->chatMetOn(now()->toDateTimeString(), "Contact {$i}");
+        }
+        $this->actingAs($this->admin());
+
+        $rows = fn (string $qs) => substr_count($this->get('/admin/whatsapp-activity'.$qs)->assertOk()->getContent(), 'onclick="window.location=');
+
+        $this->assertSame(20, $rows(''));                  // default
+        $this->assertSame(10, $rows('?per_page=10'));
+        $this->assertSame(25, $rows('?per_page=100'));     // everything there is
+        $this->assertSame(20, $rows('?per_page=9999'));    // not on the menu → default
+    }
 }

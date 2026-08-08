@@ -16,6 +16,9 @@ use Illuminate\Support\Carbon;
  */
 class WhatsappActivityController extends Controller
 {
+    /** Page sizes offered for the new-conversation list. */
+    private const PER_PAGE = [10, 20, 100];
+
     public function index(Request $request)
     {
         $accounts = WhatsappAccount::with('users:id,name')->orderBy('position')->orderBy('id')->get();
@@ -150,7 +153,13 @@ class WhatsappActivityController extends Controller
             $wantedQuality = 'all';
         }
 
-        $new = $list->paginate(20)->withQueryString();
+        // Page size is the reader's call: a quick glance wants ten, an audit wants a hundred.
+        $perPage = (int) $request->query('per_page', 20);
+        if (! in_array($perPage, self::PER_PAGE, true)) {
+            $perPage = 20;
+        }
+
+        $new = $list->paginate($perPage)->withQueryString();
 
         return [
             'today' => [
@@ -167,6 +176,7 @@ class WhatsappActivityController extends Controller
             'periodTo' => $to,
             'qualityFilter' => $wantedQuality,
             'newTotal' => $newCount,
+            'perPage' => $perPage,
         ];
     }
 

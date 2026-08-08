@@ -159,13 +159,26 @@
                 </table>
             </div>
 
-            @if ($todayChats->hasPages())
-                <div class="border-t border-gray-100 px-5 py-3">
-                    {{ $todayChats->onEachSide(1)->links() }}
-                </div>
-            @else
-                <p class="border-t border-gray-100 px-5 py-2.5 text-[11px] text-gray-400">{{ $todayChats->count() }} shown</p>
-            @endif
+            {{-- Page size sits with the pager, and changing it starts again at page one:
+                 keeping the old page number would land you past the end of a longer page. --}}
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-5 py-3">
+                <label class="flex items-center gap-2 text-[11px] text-gray-400">
+                    Show
+                    <select onchange="window.location = this.value" class="h-8 rounded-lg border-gray-200 text-xs">
+                        @foreach ([10, 20, 100] as $size)
+                            <option value="{{ route('admin.whatsapp-activity', $periodQuery + array_filter(['quality' => $qualityFilter === 'all' ? null : $qualityFilter]) + ['per_page' => $size]) }}"
+                                @selected($perPage === $size)>{{ $size }}</option>
+                        @endforeach
+                    </select>
+                    per page
+                    <span class="text-gray-300">·</span>
+                    {{ number_format($todayChats->firstItem() ?? 0) }}–{{ number_format($todayChats->lastItem() ?? 0) }} of {{ number_format($todayChats->total()) }}
+                </label>
+
+                @if ($todayChats->hasPages())
+                    <div>{{ $todayChats->onEachSide(1)->links() }}</div>
+                @endif
+            </div>
         @endif
     </div>
 
