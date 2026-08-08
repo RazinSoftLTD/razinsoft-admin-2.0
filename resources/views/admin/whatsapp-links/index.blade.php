@@ -4,38 +4,51 @@
 @section('content')
     @include('admin.whatsapp._activity-tabs', ['active' => 'button'])
 
-    {{-- Build a link --}}
-    <div class="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h2 class="text-sm font-bold text-[var(--color-heading)]">Create a link</h2>
-        <p class="mt-1 text-xs text-[var(--color-muted)]">
-            The link points at this panel and forwards to WhatsApp — that hop is what makes the clicks countable.
-            A plain wa.me address goes straight to WhatsApp and tells us nothing.
-        </p>
+    {{-- Generating a link is an occasional act; the numbers are what you come here for.
+         The form lives behind a button, and opens by itself when a save bounced back with an
+         error so the message you typed is still in front of you. --}}
+    <div x-data="{ open: {{ $errors->any() || old('number') ? 'true' : 'false' }} }" class="mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-xs text-[var(--color-muted)]">
+                A link points at this panel and forwards to WhatsApp — that hop is what makes the clicks countable.
+                A plain wa.me address goes straight to WhatsApp and tells us nothing.
+            </p>
+            <button type="button" @click="open = !open"
+                    class="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                <span x-text="open ? 'Close' : 'Generate Wp Link'"></span>
+            </button>
+        </div>
 
-        <form method="POST" action="{{ route('admin.whatsapp-links.store') }}" class="mt-4 grid gap-3 sm:grid-cols-12">
-            @csrf
-            <div class="sm:col-span-4">
-                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">WhatsApp number <span class="text-red-500">*</span></label>
-                <input type="text" name="number" required value="{{ old('number') }}" placeholder="01711257498"
-                       class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-            </div>
-            <div class="sm:col-span-8">
-                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Label</label>
-                <input type="text" name="label" value="{{ old('label') }}" placeholder="Facebook ad — August"
-                       class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
-            </div>
+        <div x-show="open" x-cloak class="mt-3 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h2 class="text-sm font-bold text-[var(--color-heading)]">Generate Wp Link</h2>
 
-            <div class="sm:col-span-12">
-                <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">First message</label>
-                @include('admin.whatsapp-links._message-editor', ['value' => old('message')])
-            </div>
+            <form method="POST" action="{{ route('admin.whatsapp-links.store') }}" class="mt-4 grid gap-3 sm:grid-cols-12">
+                @csrf
+                <div class="sm:col-span-4">
+                    <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">WhatsApp number <span class="text-red-500">*</span></label>
+                    <input type="text" name="number" required value="{{ old('number') }}" placeholder="01711257498"
+                           class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                </div>
+                <div class="sm:col-span-8">
+                    <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Label</label>
+                    <input type="text" name="label" value="{{ old('label') }}" placeholder="Facebook ad — August"
+                           class="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none">
+                </div>
 
-            <div class="sm:col-span-12">
-                <button class="h-11 rounded-lg bg-[var(--color-primary)] px-6 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
-                    Create link
-                </button>
-            </div>
-        </form>
+                <div class="sm:col-span-12">
+                    <label class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">First message</label>
+                    @include('admin.whatsapp-links._message-editor', ['value' => old('message')])
+                </div>
+
+                <div class="sm:col-span-12 flex items-center gap-2">
+                    <button class="h-11 rounded-lg bg-[var(--color-primary)] px-6 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                        Generate Wp Link
+                    </button>
+                    <button type="button" @click="open = false" class="h-11 rounded-lg border border-gray-200 px-5 text-sm font-semibold text-[var(--color-muted)] hover:bg-gray-50">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     {{-- Window --}}

@@ -27,7 +27,10 @@
 
 <div class="mb-6 flex flex-wrap gap-1 border-b border-gray-100">
     @foreach ($tabs as $key => $tab)
-        <a href="{{ $tab['url'] }}"
+        {{-- data-turbo="false": these four are separate pages sharing one bar, and Turbo's
+             cached preview could show the tab you came from for a beat before the real one
+             landed — which read as the click going somewhere else entirely. --}}
+        <a href="{{ $tab['url'] }}" data-turbo="false"
            class="border-b-2 px-4 py-2.5 text-sm font-semibold transition {{ $active === $key ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-heading)]' }}">
             {{ $tab['label'] }}@isset($tab['badge'])<span class="ml-1 opacity-70">({{ $tab['badge'] }})</span>@endisset
         </a>
