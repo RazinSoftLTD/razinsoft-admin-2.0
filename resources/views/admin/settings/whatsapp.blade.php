@@ -14,53 +14,29 @@
         $hasLeft = $canConnection || $canNumbers || $canWebhook;
         $hasRight = $canLabels || $canQuick;
         $bothCols = $hasLeft && $hasRight;
+        // Two jobs, two tabs: wiring the numbers up, and the words the team reuses.
+        $section = request('section') === 'labels' && $hasRight ? 'labels' : 'config';
     @endphp
-    @include('admin.whatsapp._activity-tabs', ['active' => 'config'])
+    @include('admin.whatsapp._activity-tabs', ['active' => $section])
 
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-            <p class="text-sm text-[var(--color-muted)]">Each number picks its own connection method, so QR and Meta Cloud API numbers can run side by side. Set one up from the list below.</p>
+            <p class="text-sm text-[var(--color-muted)]">
+                @if ($section === 'labels')
+                    Labels sort the inbox and quick replies are the sentences your team sends most — both are used from the WhatsApp inbox.
+                @else
+                    Each number picks its own connection method, so QR and Meta Cloud API numbers can run side by side. Set one up from the list below.
+                @endif
+            </p>
         </div>
     </div>
 
     @if (session('error'))<div data-toast class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>@endif
 
-    <div class="grid gap-6 {{ $bothCols ? 'lg:grid-cols-3' : '' }}">
+    <div>
         {{-- Credentials --}}
-        @if ($hasLeft)
-        <div class="{{ $bothCols ? 'lg:col-span-2' : 'max-w-3xl' }}">
-            @if ($canConnection)
-            <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                @csrf
-                <h2 class="text-sm font-bold text-[var(--color-heading)]">QR Gateway</h2>
-                <p class="mb-5 mt-1 text-xs text-[var(--color-muted)]">
-                    Shared by every number connected by QR. Meta Cloud API numbers do not use it — their
-                    credentials live on the number itself, so both kinds can be connected at the same time.
-                </p>
-
-                <div class="mb-1 grid gap-5 sm:grid-cols-2">
-                    <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway URL</label>
-                        <input type="url" name="gateway_url" value="{{ old('gateway_url', $settings->gateway_url) }}" placeholder="https://wa-gateway.yourserver.com" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                        <p class="mt-1 text-xs text-gray-400">Where the Node.js Baileys gateway is running.</p>
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway Secret</label>
-                        <input type="password" name="gateway_secret" value="" placeholder="{{ $settings->gateway_secret ? '•••••••• (saved)' : 'Shared secret between Laravel & gateway' }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
-                        <p class="mt-1 text-xs text-gray-400">Leave blank to keep the saved one.</p>
-                    </div>
-                </div>
-
-                <div class="mt-6 flex items-center gap-2">
-                    <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Settings</button>
-                    <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
-                        Test gateway
-                    </button>
-                </div>
-            </form>
-            @endif
-
+        @if ($hasLeft && $section === 'config')
+        <div>
             {{-- WhatsApp numbers (accounts) --}}
             @if ($canNumbers)
             <div class="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -347,12 +323,44 @@
                 </div>
             </div>
             @endif
+
+            @if ($canConnection)
+            <form method="POST" action="{{ route('admin.whatsapp-settings.update') }}" class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                @csrf
+                <h2 class="text-sm font-bold text-[var(--color-heading)]">QR Gateway</h2>
+                <p class="mb-5 mt-1 text-xs text-[var(--color-muted)]">
+                    Shared by every number connected by QR. Meta Cloud API numbers do not use it — their
+                    credentials live on the number itself, so both kinds can be connected at the same time.
+                </p>
+
+                <div class="mb-1 grid gap-5 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway URL</label>
+                        <input type="url" name="gateway_url" value="{{ old('gateway_url', $settings->gateway_url) }}" placeholder="https://wa-gateway.yourserver.com" class="h-11 w-full rounded-lg border-gray-200 text-sm">
+                        <p class="mt-1 text-xs text-gray-400">Where the Node.js Baileys gateway is running.</p>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-sm font-medium text-[var(--color-heading)]">Gateway Secret</label>
+                        <input type="password" name="gateway_secret" value="" placeholder="{{ $settings->gateway_secret ? '•••••••• (saved)' : 'Shared secret between Laravel & gateway' }}" class="h-11 w-full rounded-lg border-gray-200 text-sm">
+                        <p class="mt-1 text-xs text-gray-400">Leave blank to keep the saved one.</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center gap-2">
+                    <button class="rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">Save Settings</button>
+                    <button type="submit" formaction="{{ route('admin.whatsapp-settings.test') }}" class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m5 13 4 4L19 7"/></svg>
+                        Test gateway
+                    </button>
+                </div>
+            </form>
+            @endif
         </div>
         @endif
 
         {{-- Labels + quick replies --}}
-        @if ($hasRight)
-        <div class="space-y-6 {{ $bothCols ? '' : 'max-w-xl' }}">
+        @if ($hasRight && $section === 'labels')
+        <div class="grid items-start gap-6 {{ $canLabels && $canQuick ? 'lg:grid-cols-2' : 'max-w-xl' }}">
             @if ($canLabels)
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                 <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Labels</h2>

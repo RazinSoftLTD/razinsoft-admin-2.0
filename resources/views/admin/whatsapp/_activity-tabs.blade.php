@@ -7,7 +7,7 @@
     one place. No page title above it: the top bar already names the page, and repeating it
     just pushed everything down.
 
-    Expects $active: 'report' | 'numbers' | 'button' | 'config'.
+    Expects $active: 'report' | 'numbers' | 'button' | 'config' | 'labels'.
 --}}
 @php
     $u = auth()->user();
@@ -22,6 +22,9 @@
         'numbers' => $mayActivity ? ['label' => 'Connected', 'url' => route('admin.whatsapp-activity', ['tab' => 'numbers']), 'badge' => $tabCount ?? \App\Models\WhatsappAccount::count()] : null,
         'button' => $mayActivity ? ['label' => 'Wp ShortLink', 'url' => route('admin.whatsapp-links')] : null,
         'config' => $maySettings ? ['label' => 'Configuration', 'url' => route('admin.whatsapp-settings')] : null,
+        // Labels and quick replies are the team's words, not the numbers' wiring.
+        'labels' => ($u->hasPermission('whatsapp.labels') || $u->hasPermission('whatsapp.quick_replies'))
+            ? ['label' => 'Labels & Replies', 'url' => route('admin.whatsapp-settings', ['section' => 'labels'])] : null,
     ]);
 @endphp
 

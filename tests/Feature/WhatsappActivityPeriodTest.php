@@ -187,4 +187,21 @@ class WhatsappActivityPeriodTest extends TestCase
         $this->actingAs($configurer)->get('/admin/whatsapp-settings')->assertOk()
             ->assertSee('Config')->assertDontSee(route('admin.whatsapp-links'), false);
     }
+
+    /** Configuration is the wiring; Labels & Replies is the team's words. */
+    public function test_configuration_and_labels_are_separate_tabs(): void
+    {
+        $this->actingAs($this->admin());
+
+        $config = $this->get('/admin/whatsapp-settings')->assertOk();
+        $config->assertSee('WhatsApp Numbers')->assertSee('Webhook')->assertSee('QR Gateway');
+        $config->assertDontSee('Drag to reorder');            // the labels card is not here
+
+        $labels = $this->get('/admin/whatsapp-settings?section=labels')->assertOk();
+        $labels->assertSee('Quick Replies')->assertSee('Drag to reorder');
+        $labels->assertDontSee('WhatsApp Numbers')->assertDontSee('QR Gateway');
+
+        // An unknown section falls back to the configuration side.
+        $this->get('/admin/whatsapp-settings?section=nonsense')->assertOk()->assertSee('QR Gateway');
+    }
 }
