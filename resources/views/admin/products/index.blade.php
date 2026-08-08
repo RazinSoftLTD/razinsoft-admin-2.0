@@ -36,6 +36,33 @@
     </div>
 
     <script>
+        // Copy a buyer-ready checkout link. Clipboard access is blocked outside https and in some
+        // in-app browsers, so fall back to a hidden field — the copy still happens.
+        (function () {
+            document.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-checkout-link]');
+                if (!btn) return;
+                const url = btn.dataset.checkoutLink;
+                try {
+                    await navigator.clipboard.writeText(url);
+                } catch {
+                    const box = document.createElement('textarea');
+                    box.value = url;
+                    box.style.position = 'fixed';
+                    box.style.opacity = '0';
+                    document.body.appendChild(box);
+                    box.select();
+                    document.execCommand('copy');
+                    box.remove();
+                }
+                const note = document.createElement('div');
+                note.setAttribute('data-toast', '');
+                note.className = 'mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700';
+                note.textContent = 'Checkout link copied — ' + url;
+                document.querySelector('main')?.prepend(note);
+            });
+        })();
+
         (function () {
             const csrf = document.querySelector('meta[name=csrf-token]').content;
             document.querySelectorAll('.product-tbody[data-reorder-url]').forEach(setup);

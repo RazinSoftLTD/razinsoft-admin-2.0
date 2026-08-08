@@ -50,6 +50,12 @@
                                     <a href="{{ route('admin.products.show', $p) }}" class="{{ $menuItem }} text-[var(--color-heading)]">
                                         <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7.5 10-7.5S22 12 22 12s-3.6 7.5-10 7.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>View &amp; manage
                                     </a>
+                                    {{-- A link to send a buyer: it opens the website cart with this
+                                         product already in it, one click from checkout. --}}
+                                    <button type="button" data-checkout-link="{{ rtrim(config('brand.website'), '/') }}/cart?add={{ $p->slug }}&license=regular"
+                                            @click="open = false" class="{{ $menuItem }} w-full text-left text-[var(--color-heading)]">
+                                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Copy checkout link
+                                    </button>
                                     @if (auth()->user()->allows('products', 'edit'))
                                         <a href="{{ route('admin.products.edit', $p) }}" class="{{ $menuItem }} text-[var(--color-heading)]">
                                             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit
