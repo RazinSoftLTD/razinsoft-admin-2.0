@@ -185,6 +185,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             $ws = WhatsappSettingController::class;
             Route::post('whatsapp-settings/labels', [$ws, 'labelStore'])->name('whatsapp-settings.labels.store');
             Route::post('whatsapp-settings/labels/order', [$ws, 'labelOrder'])->name('whatsapp-settings.labels.order');
+            Route::put('whatsapp-settings/labels/{label}', [$ws, 'labelUpdate'])->whereNumber('label')->name('whatsapp-settings.labels.update');
             Route::delete('whatsapp-settings/labels/{label}', [$ws, 'labelDestroy'])->whereNumber('label')->name('whatsapp-settings.labels.destroy');
         });
         // Quick replies — add/update/delete gated by their own role permission.

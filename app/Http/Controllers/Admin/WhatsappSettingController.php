@@ -248,6 +248,24 @@ class WhatsappSettingController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Rename or recolour a label.
+     *
+     * Chats point at the label by id, so both follow everywhere the label is already used —
+     * there was no way to fix a typo before without losing every chat tagged with it.
+     */
+    public function labelUpdate(Request $request, WhatsappLabel $label)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:40'],
+            'color' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $label->update(['name' => $data['name'], 'color' => $data['color'] ?: $label->color]);
+
+        return back()->with('status', 'Label updated.');
+    }
+
     public function labelDestroy(WhatsappLabel $label)
     {
         \DB::table('whatsapp_chat_label')->where('label_id', $label->id)->delete();

@@ -557,44 +557,95 @@
             </div>
             @endif
             @if ($canLabels)
-            <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="mb-4 text-sm font-bold text-[var(--color-heading)]">Labels</h2>
-                <form method="POST" action="{{ route('admin.whatsapp-settings.labels.store') }}" class="mb-4 flex items-center gap-2">
-                    @csrf
-                    <input type="text" name="name" required placeholder="Label name" class="h-9 flex-1 rounded-lg border-gray-200 text-sm">
-                    <input type="color" name="color" value="#6366f1" class="h-9 w-11 cursor-pointer rounded-lg border-gray-200 p-1">
-                    <button class="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white">Add</button>
-                </form>
-                {{-- One per row rather than wrapped chips: the order is the point now, and a
-                     wrapped row reads left-to-right then down, which is not an order anyone can
-                     follow while dragging. --}}
+            {{-- Same shape as Quick Replies: the list is what you came to see, adding is a button. --}}
+            <div class="rounded-xl border border-gray-100 bg-white shadow-sm"
+                 x-data="{ adding: false, editing: null }">
+                <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+                    <div>
+                        <div class="flex items-baseline gap-2">
+                            <h2 class="text-sm font-bold text-[var(--color-heading)]">Labels</h2>
+                            <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-gray-500">{{ $labels->count() }}</span>
+                        </div>
+                        <p class="mt-0.5 text-xs text-[var(--color-muted)]">Tag a chat in the inbox and filter by it later. Drag to set the order the filter shows them in.</p>
+                    </div>
+                    <button type="button" @click="adding = !adding"
+                            class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">
+                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                        <span x-text="adding ? 'Close' : 'Add label'"></span>
+                    </button>
+                </div>
+
+                <div x-show="adding" x-cloak class="border-b border-gray-100 bg-gray-50/70 p-5">
+                    <form method="POST" action="{{ route('admin.whatsapp-settings.labels.store') }}" class="flex flex-wrap items-end gap-3">
+                        @csrf
+                        <div class="min-w-[12rem] flex-1">
+                            <label class="mb-1.5 block text-xs font-semibold text-gray-500">Label name <span class="text-red-500">*</span></label>
+                            <input type="text" name="name" required maxlength="40" placeholder="VIP" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-xs font-semibold text-gray-500">Colour</label>
+                            <input type="color" name="color" value="#6366f1" class="h-10 w-14 cursor-pointer rounded-lg border-gray-200 p-1">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="h-10 rounded-lg bg-[var(--color-primary)] px-4 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">Add label</button>
+                            <button type="button" @click="adding = false" class="h-10 rounded-lg border border-gray-200 px-4 text-xs font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                {{-- One per row rather than wrapped chips: the order is the point, and a wrapped
+                     row reads left-to-right then down, which is not an order anyone can follow
+                     while dragging. --}}
                 <div x-data="labelOrder(@js($labels->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'color' => $l->color])->values()))"
-                     class="divide-y divide-gray-100 rounded-lg border border-gray-100">
+                     class="divide-y divide-gray-50">
                     <template x-for="(l, i) in items" :key="l.id">
-                        <div draggable="true"
-                             @dragstart="dragId = l.id" @dragend="dragId = null"
-                             @dragover.prevent @drop.prevent="dropOn(l.id)"
-                             class="flex items-center gap-2 px-3 py-2 transition"
-                             :class="dragId === l.id ? 'bg-gray-50 opacity-50' : 'hover:bg-gray-50'">
-                            <svg class="h-4 w-4 shrink-0 cursor-move text-gray-300" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" title="Drag to reorder"><path stroke-linecap="round" d="M8 7h.01M8 12h.01M8 17h.01M16 7h.01M16 12h.01M16 17h.01"/></svg>
-                            <span class="w-5 shrink-0 text-xs text-gray-300" x-text="i + 1"></span>
-                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
-                                  :style="`background:${l.color}1a;color:${l.color}`" x-text="l.name"></span>
-                            <span class="ml-auto shrink-0">
-                                <form method="POST" :action="@js(url('admin/whatsapp-settings/labels')) + '/' + l.id" onsubmit="return confirm('Remove label?')">
-                                    @csrf @method('DELETE')
-                                    <button class="grid h-6 w-6 place-items-center rounded text-gray-300 hover:bg-red-50 hover:text-red-600" title="Remove">
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+                        <div class="px-5 py-2.5">
+                            <div x-show="editing !== l.id" draggable="true"
+                                 @dragstart="dragId = l.id" @dragend="dragId = null"
+                                 @dragover.prevent @drop.prevent="dropOn(l.id)"
+                                 class="flex items-center gap-2.5 rounded-lg transition"
+                                 :class="dragId === l.id ? 'opacity-50' : ''">
+                                <svg class="h-4 w-4 shrink-0 cursor-move text-gray-300" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 7h.01M8 12h.01M8 17h.01M16 7h.01M16 12h.01M16 17h.01"/></svg>
+                                <span class="w-4 shrink-0 text-xs text-gray-300" x-text="i + 1"></span>
+                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                                      :style="`background:${l.color}1a;color:${l.color}`" x-text="l.name"></span>
+
+                                <span class="ml-auto flex shrink-0 items-center gap-1">
+                                    <button type="button" @click="editing = l.id" title="Rename" class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[var(--color-heading)]">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                     </button>
-                                </form>
-                            </span>
+                                    <form method="POST" :action="@js(url('admin/whatsapp-settings/labels')) + '/' + l.id" onsubmit="return confirm('Remove this label? Chats keep their messages; only the tag goes.')">
+                                        @csrf @method('DELETE')
+                                        <button class="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" title="Remove">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m1 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>
+                                        </button>
+                                    </form>
+                                </span>
+                            </div>
+
+                            <form x-show="editing === l.id" x-cloak method="POST" :action="@js(url('admin/whatsapp-settings/labels')) + '/' + l.id"
+                                  class="flex flex-wrap items-end gap-3">
+                                @csrf @method('PUT')
+                                <div class="min-w-[12rem] flex-1">
+                                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Label name</label>
+                                    <input type="text" name="name" :value="l.name" required maxlength="40" class="h-10 w-full rounded-lg border-gray-200 text-sm">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-semibold text-gray-500">Colour</label>
+                                    <input type="color" name="color" :value="l.color" class="h-10 w-14 cursor-pointer rounded-lg border-gray-200 p-1">
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button class="h-10 rounded-lg bg-[var(--color-primary)] px-4 text-xs font-semibold text-white">Save</button>
+                                    <button type="button" @click="editing = null" class="h-10 rounded-lg border border-gray-200 px-4 text-xs font-semibold text-gray-500">Cancel</button>
+                                </div>
+                            </form>
                         </div>
                     </template>
                     <template x-if="!items.length">
-                        <p class="px-3 py-4 text-center text-xs text-gray-300">No labels yet.</p>
+                        <p class="px-5 py-10 text-center text-xs text-gray-400">No labels yet — add the first one above.</p>
                     </template>
                 </div>
-                <p class="mt-2 text-[11px] text-gray-400">Drag to reorder — this is the order labels appear in the inbox filter.</p>
+                <p class="border-t border-gray-100 px-5 py-2.5 text-[11px] text-gray-400">Drag a row by its handle to reorder — that is the order the inbox filter shows them in.</p>
 
                 <script>
                     function labelOrder(initial) {

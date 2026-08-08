@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\WhatsappAccount;
+use App\Models\WhatsappChat;
+use App\Models\WhatsappLabel;
 use App\Models\WhatsappQuickReply;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -104,5 +106,29 @@ class WhatsappQuickReplyTest extends TestCase
         ])->assertRedirect();
 
         $this->assertDatabaseHas('whatsapp_quick_replies', ['shortcut' => '/pong']);
+    }
+
+    /** Labels behave like quick replies now: they can be renamed and recoloured in place. */
+    public function test_a_label_can_be_renamed_without_losing_its_chats(): void
+    {
+        $label = WhatsappLabel::create(['name' => 'Vip', 'color' => '#6366f1', 'position' => 1]);
+        $chat = WhatsappChat::create([
+            'account_id' => $this->sales->id, 'wa_id' => '8801711111111@s.whatsapp.net',
+            'chat_type' => 'private', 'status' => 'open',
+        ]);
+        $chat->labels()->attach($label->id);
+
+        $admin = User::create([
+            'name' => 'Boss', 'email' => 'label-admin@test.local', 'password' => bcrypt('secret123'),
+            'role' => 'admin', 'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)->put(route('admin.whatsapp-settings.labels.update', $label), [
+            'name' => 'VIP Client', 'color' => '#e11d48',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('whatsapp_labels', ['id' => $label->id, 'name' => 'VIP Client', 'color' => '#e11d48']);
+        // The chat keeps its tag — a rename is not a re-tagging.
+        $this->assertSame(['VIP Client'], $chat->fresh()->labels->pluck('name')->all());
     }
 }
